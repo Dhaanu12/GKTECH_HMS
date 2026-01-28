@@ -1,0 +1,1367 @@
+[
+  {
+    "id": 1560,
+    "name": "T3",
+    "category": "scan"
+  },
+  {
+    "id": 1561,
+    "name": "T4",
+    "category": "scan"
+  },
+  {
+    "id": 1562,
+    "name": "TSH",
+    "category": "scan"
+  },
+  {
+    "id": 1563,
+    "name": "LH",
+    "category": "scan"
+  },
+  {
+    "id": 1564,
+    "name": "FSH",
+    "category": "scan"
+  },
+  {
+    "id": 1565,
+    "name": "Prolactin",
+    "category": "scan"
+  },
+  {
+    "id": 1566,
+    "name": "Cortisol",
+    "category": "scan"
+  },
+  {
+    "id": 1567,
+    "name": "PTH(Paratharmone)",
+    "category": "scan"
+  },
+  {
+    "id": 1568,
+    "name": "C-Peptide.",
+    "category": "scan"
+  },
+  {
+    "id": 1569,
+    "name": "Insulin.",
+    "category": "scan"
+  },
+  {
+    "id": 1570,
+    "name": "Progesterone.",
+    "category": "scan"
+  },
+  {
+    "id": 1571,
+    "name": "17-DH Progesterone.",
+    "category": "scan"
+  },
+  {
+    "id": 1572,
+    "name": "DHEAS.",
+    "category": "scan"
+  },
+  {
+    "id": 1573,
+    "name": "Androstendione.",
+    "category": "scan"
+  },
+  {
+    "id": 1574,
+    "name": "Growth Hormone.",
+    "category": "scan"
+  },
+  {
+    "id": 1575,
+    "name": "TPO.",
+    "category": "scan"
+  },
+  {
+    "id": 1576,
+    "name": "Throglobulin.",
+    "category": "scan"
+  },
+  {
+    "id": 1577,
+    "name": "Hydatic Serology.",
+    "category": "scan"
+  },
+  {
+    "id": 1578,
+    "name": "Anti Sperm Antibodies.",
+    "category": "scan"
+  },
+  {
+    "id": 1579,
+    "name": "Qualitative.",
+    "category": "scan"
+  },
+  {
+    "id": 1580,
+    "name": "Quantitative.",
+    "category": "scan"
+  },
+  {
+    "id": 1581,
+    "name": "Qualitative.",
+    "category": "scan"
+  },
+  {
+    "id": 1582,
+    "name": "HPV serology",
+    "category": "scan"
+  },
+  {
+    "id": 1583,
+    "name": "Rota Virus serology",
+    "category": "scan"
+  },
+  {
+    "id": 1584,
+    "name": "PCR for TB",
+    "category": "scan"
+  },
+  {
+    "id": 1585,
+    "name": "PCR for HIV",
+    "category": "scan"
+  },
+  {
+    "id": 1586,
+    "name": "Chlamydae antigen",
+    "category": "scan"
+  },
+  {
+    "id": 1587,
+    "name": "chlamydae antibody",
+    "category": "scan"
+  },
+  {
+    "id": 1588,
+    "name": "Brucella serology",
+    "category": "scan"
+  },
+  {
+    "id": 1589,
+    "name": "Influenza A serology",
+    "category": "scan"
+  },
+  {
+    "id": 1590,
+    "name": "USG for Obstetrics - Anomalies scan",
+    "category": "scan"
+  },
+  {
+    "id": 1591,
+    "name": "Abdomen USG",
+    "category": "scan"
+  },
+  {
+    "id": 1592,
+    "name": "Pelvic USG ( prostate gynae infertility etc)",
+    "category": "scan"
+  },
+  {
+    "id": 1593,
+    "name": "Small parts USG ( scrotum thyroid parathyroid etc)",
+    "category": "scan"
+  },
+  {
+    "id": 1594,
+    "name": "Neonatal head (Tranfontanellar)",
+    "category": "scan"
+  },
+  {
+    "id": 1595,
+    "name": "Neonatal spine",
+    "category": "scan"
+  },
+  {
+    "id": 1596,
+    "name": "Contrast enhanced USG",
+    "category": "scan"
+  },
+  {
+    "id": 1597,
+    "name": "USG Breast",
+    "category": "scan"
+  },
+  {
+    "id": 1598,
+    "name": "USG Hystero-Salpaingography (HSG)",
+    "category": "scan"
+  },
+  {
+    "id": 1599,
+    "name": "Carotid Doppler",
+    "category": "scan"
+  },
+  {
+    "id": 1600,
+    "name": "Arterial Colour Doppler",
+    "category": "scan"
+  },
+  {
+    "id": 1601,
+    "name": "Venous Colour Doppler",
+    "category": "scan"
+  },
+  {
+    "id": 1602,
+    "name": "Colour Doppler renal arteries / any other organ",
+    "category": "scan"
+  },
+  {
+    "id": 1603,
+    "name": "USG guided intervention- FNAC",
+    "category": "scan"
+  },
+  {
+    "id": 1604,
+    "name": "USG guided intervention - biopsy",
+    "category": "scan"
+  },
+  {
+    "id": 1605,
+    "name": "USG guided intervention - nephrostomy",
+    "category": "scan"
+  },
+  {
+    "id": 1606,
+    "name": "Abdomen AP Supine or Erect (One film)",
+    "category": "scan"
+  },
+  {
+    "id": 1607,
+    "name": "Abdomen Lateral view (one film)",
+    "category": "scan"
+  },
+  {
+    "id": 1608,
+    "name": "Chest PA view (one film)",
+    "category": "scan"
+  },
+  {
+    "id": 1609,
+    "name": "Chest Lateral (one film)",
+    "category": "scan"
+  },
+  {
+    "id": 1610,
+    "name": "Mastoids: Towne view oblique views (3 films)",
+    "category": "scan"
+  },
+  {
+    "id": 1611,
+    "name": "Extremities bones & Joints AP & Lateral views (Two films)",
+    "category": "scan"
+  },
+  {
+    "id": 1612,
+    "name": "Pelvis A.P (one film)",
+    "category": "scan"
+  },
+  {
+    "id": 1613,
+    "name": "T. M. Joints (one film)",
+    "category": "scan"
+  },
+  {
+    "id": 1614,
+    "name": "Abdomen & Pelvis for K. U. B.",
+    "category": "scan"
+  },
+  {
+    "id": 1615,
+    "name": "Skull A. P. & Lateral (2 films)",
+    "category": "scan"
+  },
+  {
+    "id": 1616,
+    "name": "Spine A. P. & Lateral (2 films)",
+    "category": "scan"
+  },
+  {
+    "id": 1617,
+    "name": "PNS view (1 film)",
+    "category": "scan"
+  },
+  {
+    "id": 1618,
+    "name": "Barium Swallow",
+    "category": "scan"
+  },
+  {
+    "id": 1619,
+    "name": "Barium Upper GI study",
+    "category": "scan"
+  },
+  {
+    "id": 1620,
+    "name": "Barium Upper GI study (Double contrast)",
+    "category": "scan"
+  },
+  {
+    "id": 1621,
+    "name": "Barium Meal follow through",
+    "category": "scan"
+  },
+  {
+    "id": 1622,
+    "name": "Barium Enema (Single contrast/double contrast)",
+    "category": "scan"
+  },
+  {
+    "id": 1623,
+    "name": "Small bowel enteroclysis",
+    "category": "scan"
+  },
+  {
+    "id": 1624,
+    "name": "ERCP (Endoscopic Retrograde Cholangio – Pancreatography)",
+    "category": "scan"
+  },
+  {
+    "id": 1625,
+    "name": "General :Fistulography /Sinography/Sialography/Dacrocystography/ T-Tube\ncholangiogram/Nephrostogram",
+    "category": "scan"
+  },
+  {
+    "id": 1626,
+    "name": "Percutaneous transhepatic cholangiography (PTC)",
+    "category": "scan"
+  },
+  {
+    "id": 1627,
+    "name": "Intravenous Pyelography (IVP)",
+    "category": "scan"
+  },
+  {
+    "id": 1628,
+    "name": "Micturating Cystourethrography (MCU)",
+    "category": "scan"
+  },
+  {
+    "id": 1629,
+    "name": "Retrograde Urethrography (RGU)",
+    "category": "scan"
+  },
+  {
+    "id": 1630,
+    "name": "Contrast Hystero-Salpingography (HSG)",
+    "category": "scan"
+  },
+  {
+    "id": 1631,
+    "name": "X ray - Arthrography",
+    "category": "scan"
+  },
+  {
+    "id": 1632,
+    "name": "Cephalography",
+    "category": "scan"
+  },
+  {
+    "id": 1633,
+    "name": "Myelography",
+    "category": "scan"
+  },
+  {
+    "id": 1634,
+    "name": "Diagnostic Digital Subtraction Angiography (DSA)",
+    "category": "scan"
+  },
+  {
+    "id": 1635,
+    "name": "X-ray Mammography",
+    "category": "scan"
+  },
+  {
+    "id": 1636,
+    "name": "MRI Mammography",
+    "category": "scan"
+  },
+  {
+    "id": 1637,
+    "name": "CT Head-Without Contrast (NCCT Head)",
+    "category": "scan"
+  },
+  {
+    "id": 1638,
+    "name": "CT Head- with Contrast (+ CT angiography)",
+    "category": "scan"
+  },
+  {
+    "id": 1639,
+    "name": "C. T. Chest - without contrast (for lungs)",
+    "category": "scan"
+  },
+  {
+    "id": 1640,
+    "name": "C. T. Scan Lower Abdomen(incl. Pelvis) With Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1641,
+    "name": "C. T. Scan Lower Abdomen( Incl. Pelvis) Without Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1642,
+    "name": "C. T. Scan Whole Abdomen Without Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1643,
+    "name": "C. T. Scan Whole Abdomen With Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1644,
+    "name": "Triple Phase CT abdomen",
+    "category": "scan"
+  },
+  {
+    "id": 1645,
+    "name": "CT angiography abdomen/ Chest",
+    "category": "scan"
+  },
+  {
+    "id": 1646,
+    "name": "CT Enteroclysis",
+    "category": "scan"
+  },
+  {
+    "id": 1647,
+    "name": "C. T. Scan Neck – Without Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1648,
+    "name": "C. T. Scan Neck – With Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1649,
+    "name": "C. T. Scan Orbits - Without Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1650,
+    "name": "C. T. Scan Orbits - With Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1651,
+    "name": "C. T. Scan of Para Nasal Sinuses- Without Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1652,
+    "name": "C. T. Scan of Para Nasal Sinuses - With Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1653,
+    "name": "C. T. Spine (Cervical Dorsal Lumbar Sacral)–without contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1654,
+    "name": "CT Temporal bone – without contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1655,
+    "name": "CT - Dental",
+    "category": "scan"
+  },
+  {
+    "id": 1656,
+    "name": "C. T. Scan Limbs -Without Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1657,
+    "name": "C. T. Scan Limbs -With Contrast including CT angiography",
+    "category": "scan"
+  },
+  {
+    "id": 1658,
+    "name": "C.T. Guided intervention –FNAC",
+    "category": "scan"
+  },
+  {
+    "id": 1659,
+    "name": "C.T. Guided Trucut Biopsy",
+    "category": "scan"
+  },
+  {
+    "id": 1660,
+    "name": "C. T. Guided intervention -percutaneous catheter drainage / tube placement",
+    "category": "scan"
+  },
+  {
+    "id": 1661,
+    "name": "MRI Head – Without Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1662,
+    "name": "MRI Head – With Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1663,
+    "name": "MRI Orbits – Without Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1664,
+    "name": "MRI Orbits – With Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1665,
+    "name": "MRI Nasopharynx and PNS – Without Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1666,
+    "name": "MRI Nasopharynx and PNS – With Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1667,
+    "name": "MR for Salivary Glands with Sialography",
+    "category": "scan"
+  },
+  {
+    "id": 1668,
+    "name": "MRI Neck - Without Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1669,
+    "name": "MRI Neck- with contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1670,
+    "name": "MRI Shoulder – Without contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1671,
+    "name": "MRI Shoulder – With conntrast",
+    "category": "scan"
+  },
+  {
+    "id": 1672,
+    "name": "MRI shoulder both Joints - Without contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1673,
+    "name": "MRI Shoulder both joints – With contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1674,
+    "name": "MRI Wrist Single joint - Without contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1675,
+    "name": "MRI Wrist Single joint - With contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1676,
+    "name": "MRI Wrist both joints - Without contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1677,
+    "name": "MRI Wrist Both joints - With contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1678,
+    "name": "MRI knee Single joint - Without contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1679,
+    "name": "MRI knee Single joint - With contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1680,
+    "name": "MRI knee both joints - Without contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1681,
+    "name": "MRI knee both joints - With contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1682,
+    "name": "MRI Ankle Single joint - Without contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1683,
+    "name": "MRI Ankle single joint - With contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1684,
+    "name": "MRI Ankle both joints - With contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1685,
+    "name": "MRI Ankle both joints - Without contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1686,
+    "name": "MRI Hip - With contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1687,
+    "name": "MRI Hip – without contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1688,
+    "name": "MRI Pelvis – Without Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1689,
+    "name": "MRI Pelvis – with contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1690,
+    "name": "MRI Extremities - With contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1691,
+    "name": "MRI Extremities - Without contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1692,
+    "name": "MRI Temporomandibular – B/L - With contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1693,
+    "name": "MRI Temporomandibular – B/L - Without contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1694,
+    "name": "MR Temporal Bone/ Inner ear with contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1695,
+    "name": "MR Temporal Bone/ Inner ear without contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1696,
+    "name": "MRI Abdomen – Without Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1697,
+    "name": "MRI Abdomen – With Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1698,
+    "name": "MRI Breast - With Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1699,
+    "name": "MRI Breast - Without Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1700,
+    "name": "MRI Spine Screening - Without Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1701,
+    "name": "MRI Chest – Without Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1702,
+    "name": "MRI Chest – With Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1703,
+    "name": "MRI Cervical/Cervico Dorsal Spine – Without Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1704,
+    "name": "MRI Cervical/ Cervico Dorsal Spine – With Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1705,
+    "name": "MRI Dorsal/ Dorso Lumbar Spine - Without Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1706,
+    "name": "MRI Dorsal/ Dorso Lumbar Spine – With Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1707,
+    "name": "MRI Lumbar/ Lumbo-Sacral Spine – Without Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1708,
+    "name": "MRI Lumbar/ Lumbo-Sacral Spine – With Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1709,
+    "name": "Whole body MRI (For oncological workup)",
+    "category": "scan"
+  },
+  {
+    "id": 1710,
+    "name": "MR cholecysto-pancreatography.",
+    "category": "scan"
+  },
+  {
+    "id": 1711,
+    "name": "MRI Angiography - with contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1712,
+    "name": "MR Enteroclysis",
+    "category": "scan"
+  },
+  {
+    "id": 1713,
+    "name": "Dexa Scan Bone Densitometry - Two sites",
+    "category": "scan"
+  },
+  {
+    "id": 1714,
+    "name": "Dexa Scan Bone Densitometry - Three sites (Spine Hip & extremity)",
+    "category": "scan"
+  },
+  {
+    "id": 1715,
+    "name": "Dexa Scan Bone Densitometry Whole body",
+    "category": "scan"
+  },
+  {
+    "id": 1716,
+    "name": "EEG/Video EEG",
+    "category": "scan"
+  },
+  {
+    "id": 1717,
+    "name": "EMG (Electro myography)",
+    "category": "scan"
+  },
+  {
+    "id": 1718,
+    "name": "Nerve condition velocity (at least 2 limbs)",
+    "category": "scan"
+  },
+  {
+    "id": 1719,
+    "name": "Decremental response (before and after neo stigmine)",
+    "category": "scan"
+  },
+  {
+    "id": 1720,
+    "name": "Incremental response",
+    "category": "scan"
+  },
+  {
+    "id": 1721,
+    "name": "SSEP (Somato sensory evoked potentials)",
+    "category": "scan"
+  },
+  {
+    "id": 1722,
+    "name": "Poly somnography",
+    "category": "scan"
+  },
+  {
+    "id": 1723,
+    "name": "Brachial plexus study",
+    "category": "scan"
+  },
+  {
+    "id": 1724,
+    "name": "Muscle biopsy",
+    "category": "scan"
+  },
+  {
+    "id": 1725,
+    "name": "ACHR anti body titre",
+    "category": "scan"
+  },
+  {
+    "id": 1726,
+    "name": "Anti MUSK body titre",
+    "category": "scan"
+  },
+  {
+    "id": 1727,
+    "name": "Serum COPPER",
+    "category": "scan"
+  },
+  {
+    "id": 1728,
+    "name": "Serum ceruloplasmin",
+    "category": "scan"
+  },
+  {
+    "id": 1729,
+    "name": "Urinary copper",
+    "category": "scan"
+  },
+  {
+    "id": 1730,
+    "name": "Serum homocystine",
+    "category": "scan"
+  },
+  {
+    "id": 1731,
+    "name": "Serum valproate level",
+    "category": "scan"
+  },
+  {
+    "id": 1732,
+    "name": "Serum phenol barbitone level",
+    "category": "scan"
+  },
+  {
+    "id": 1733,
+    "name": "Coagulation profile",
+    "category": "scan"
+  },
+  {
+    "id": 1734,
+    "name": "Protein C S anti thrombine – III",
+    "category": "scan"
+  },
+  {
+    "id": 1735,
+    "name": "Serum lactate level",
+    "category": "scan"
+  },
+  {
+    "id": 1736,
+    "name": "Basic studies including cell count protein sugar gram stain\nIndia Ink preparation and smear for AFP",
+    "category": "scan"
+  },
+  {
+    "id": 1737,
+    "name": "Special studies",
+    "category": "scan"
+  },
+  {
+    "id": 1738,
+    "name": "PCR for tuberculosis/ Herpes simplex",
+    "category": "scan"
+  },
+  {
+    "id": 1739,
+    "name": "Bacterial culture and sensitivity",
+    "category": "scan"
+  },
+  {
+    "id": 1740,
+    "name": "Mycobacterial culture and sensitivity",
+    "category": "scan"
+  },
+  {
+    "id": 1741,
+    "name": "Fungal culture",
+    "category": "scan"
+  },
+  {
+    "id": 1742,
+    "name": "Malignant cells",
+    "category": "scan"
+  },
+  {
+    "id": 1743,
+    "name": "Anti measles antibody titre (with serum antibody titre)",
+    "category": "scan"
+  },
+  {
+    "id": 1744,
+    "name": "Viral culture",
+    "category": "scan"
+  },
+  {
+    "id": 1745,
+    "name": "Antibody titre (Herpes simplex cytomegalo virus flavivirus zoster varicella\nvirus)",
+    "category": "scan"
+  },
+  {
+    "id": 1746,
+    "name": "Oligoclonal band",
+    "category": "scan"
+  },
+  {
+    "id": 1747,
+    "name": "Myelin Basic protein",
+    "category": "scan"
+  },
+  {
+    "id": 1748,
+    "name": "Lactate",
+    "category": "scan"
+  },
+  {
+    "id": 1749,
+    "name": "Crypto coccal antigen",
+    "category": "scan"
+  },
+  {
+    "id": 1750,
+    "name": "D-xylase test",
+    "category": "scan"
+  },
+  {
+    "id": 1751,
+    "name": "Fecal fat test/ fecal chymotrypsin/ fecal elastase",
+    "category": "scan"
+  },
+  {
+    "id": 1752,
+    "name": "Breath tests",
+    "category": "scan"
+  },
+  {
+    "id": 1753,
+    "name": "H pylori serology for ciliac disease",
+    "category": "scan"
+  },
+  {
+    "id": 1754,
+    "name": "HBV genotyping",
+    "category": "scan"
+  },
+  {
+    "id": 1755,
+    "name": "HCV genotyping",
+    "category": "scan"
+  },
+  {
+    "id": 1756,
+    "name": "Urinary VMA",
+    "category": "scan"
+  },
+  {
+    "id": 1757,
+    "name": "Urinary metanephrine/Normetanephrine",
+    "category": "scan"
+  },
+  {
+    "id": 1758,
+    "name": "Urinary free catecholamine",
+    "category": "scan"
+  },
+  {
+    "id": 1759,
+    "name": "Serum catecholamine",
+    "category": "scan"
+  },
+  {
+    "id": 1760,
+    "name": "Serum aldosterone",
+    "category": "scan"
+  },
+  {
+    "id": 1761,
+    "name": "24 Hr urinary aldosterone",
+    "category": "scan"
+  },
+  {
+    "id": 1762,
+    "name": "Plasma renin activity",
+    "category": "scan"
+  },
+  {
+    "id": 1763,
+    "name": "Serum aldosterone/renin ratio",
+    "category": "scan"
+  },
+  {
+    "id": 1764,
+    "name": "Osmolality urine",
+    "category": "scan"
+  },
+  {
+    "id": 1765,
+    "name": "Osmolality serum",
+    "category": "scan"
+  },
+  {
+    "id": 1766,
+    "name": "Urinary sodium",
+    "category": "scan"
+  },
+  {
+    "id": 1767,
+    "name": "Urinary Chloride",
+    "category": "scan"
+  },
+  {
+    "id": 1768,
+    "name": "Urinary potassium",
+    "category": "scan"
+  },
+  {
+    "id": 1769,
+    "name": "Urinary calcium",
+    "category": "scan"
+  },
+  {
+    "id": 1770,
+    "name": "Thyroid binding globulin",
+    "category": "scan"
+  },
+  {
+    "id": 1771,
+    "name": "24 hr. urinary free cotisole",
+    "category": "scan"
+  },
+  {
+    "id": 1772,
+    "name": "Islet cell antebody",
+    "category": "scan"
+  },
+  {
+    "id": 1773,
+    "name": "GAD antibody",
+    "category": "scan"
+  },
+  {
+    "id": 1774,
+    "name": "Insulin associated antibody",
+    "category": "scan"
+  },
+  {
+    "id": 1775,
+    "name": "IGF-1",
+    "category": "scan"
+  },
+  {
+    "id": 1776,
+    "name": "IGF-BP3",
+    "category": "scan"
+  },
+  {
+    "id": 1777,
+    "name": "Sex hormone binding globulin",
+    "category": "scan"
+  },
+  {
+    "id": 1778,
+    "name": "USG guided FNAC thyroid gland",
+    "category": "scan"
+  },
+  {
+    "id": 1779,
+    "name": "E2",
+    "category": "scan"
+  },
+  {
+    "id": 1780,
+    "name": "Thyro globulin antibody",
+    "category": "scan"
+  },
+  {
+    "id": 1781,
+    "name": "Kappa Lambda Light Chains, Free, Serum/ Serum freelight chains (SFLC)",
+    "category": "scan"
+  },
+  {
+    "id": 1782,
+    "name": "Serum IGE Level",
+    "category": "scan"
+  },
+  {
+    "id": 1783,
+    "name": "NT-Pro BNP",
+    "category": "scan"
+  },
+  {
+    "id": 1784,
+    "name": "CECT Chest",
+    "category": "scan"
+  },
+  {
+    "id": 1785,
+    "name": "MRI-Prostate (Multi-parametric) ( Including CD)",
+    "category": "scan"
+  },
+  {
+    "id": 1786,
+    "name": "HCV RNA Quantitative",
+    "category": "scan"
+  },
+  {
+    "id": 1787,
+    "name": "Tarcolimus",
+    "category": "scan"
+  },
+  {
+    "id": 1788,
+    "name": "Protein Creatinine Ratio, Urine",
+    "category": "scan"
+  },
+  {
+    "id": 1789,
+    "name": "Fibroscan Liver",
+    "category": "scan"
+  },
+  {
+    "id": 1790,
+    "name": "HLA B27 (PCR)",
+    "category": "scan"
+  },
+  {
+    "id": 1791,
+    "name": "Mantoux Test",
+    "category": "scan"
+  },
+  {
+    "id": 1792,
+    "name": "Procalcitonin",
+    "category": "scan"
+  },
+  {
+    "id": 1793,
+    "name": "TORCH Test",
+    "category": "scan"
+  },
+  {
+    "id": 1794,
+    "name": "Intracoronary optical coherence tomography (OCT) / Intravascular optical\ncoherence tomography (IVOCT) /Intravascular Ventricular Assist System",
+    "category": "scan"
+  },
+  {
+    "id": 1795,
+    "name": "Fractional Flow Reserve (FFR) (inclusive of cost of\nwire)",
+    "category": "scan"
+  },
+  {
+    "id": 1796,
+    "name": "Anti -Smooth Muscle Antibody Test (ASMA)",
+    "category": "scan"
+  },
+  {
+    "id": 1797,
+    "name": "C ANCA-IFA",
+    "category": "scan"
+  },
+  {
+    "id": 1798,
+    "name": "P ANCA-IFA",
+    "category": "scan"
+  },
+  {
+    "id": 1799,
+    "name": "Angiotensin converting enzyme (ACE)",
+    "category": "scan"
+  },
+  {
+    "id": 1800,
+    "name": "Endo bronchial Ultrasound (EBUS) -Trans bronchial needle aspiration\n(TBNA) -Using New Needle",
+    "category": "scan"
+  },
+  {
+    "id": 1801,
+    "name": "Extractable Nuclear Antigens (ENA) - Quantitative",
+    "category": "scan"
+  },
+  {
+    "id": 1802,
+    "name": "Chromogranin A",
+    "category": "scan"
+  },
+  {
+    "id": 1803,
+    "name": "Faecal calprotectin (fecal calprotectin)",
+    "category": "scan"
+  },
+  {
+    "id": 1804,
+    "name": "C3-COMPLEMENT",
+    "category": "scan"
+  },
+  {
+    "id": 1805,
+    "name": "C4-COMPLEMENT",
+    "category": "scan"
+  },
+  {
+    "id": 1806,
+    "name": "Genexpert Test",
+    "category": "scan"
+  },
+  {
+    "id": 1807,
+    "name": "DJ stent removal",
+    "category": "scan"
+  },
+  {
+    "id": 1808,
+    "name": "Pulmonary Function Test (PFT) / (Spirometry with DLCO)",
+    "category": "scan"
+  },
+  {
+    "id": 1809,
+    "name": "EUS (Endoscopic Ultrasound) guided FNAC (Using with Needle)",
+    "category": "scan"
+  },
+  {
+    "id": 1810,
+    "name": "CT Urography",
+    "category": "scan"
+  },
+  {
+    "id": 1811,
+    "name": "Video Laryngoscopy",
+    "category": "scan"
+  },
+  {
+    "id": 1812,
+    "name": "CT Angio-Neck Vessels",
+    "category": "scan"
+  },
+  {
+    "id": 1813,
+    "name": "H1N1 (RT-PCR)",
+    "category": "scan"
+  },
+  {
+    "id": 1814,
+    "name": "Erythropoietin Level (Select CGHS rate code 1557 for approved rate)",
+    "category": "scan"
+  },
+  {
+    "id": 1815,
+    "name": "Anti HEV IgM",
+    "category": "scan"
+  },
+  {
+    "id": 1816,
+    "name": "Anti HAV IgM",
+    "category": "scan"
+  },
+  {
+    "id": 1817,
+    "name": "HBsAg Quantitative",
+    "category": "scan"
+  },
+  {
+    "id": 1818,
+    "name": "Typhidot IgM",
+    "category": "scan"
+  },
+  {
+    "id": 1819,
+    "name": "Hepatitis B Core Antibody (HBcAb) Level (Hepatitis B Core IgM Antibody)",
+    "category": "scan"
+  },
+  {
+    "id": 1820,
+    "name": "Anti HBs",
+    "category": "scan"
+  },
+  {
+    "id": 1821,
+    "name": "Free Triiodothyronine (FT3)",
+    "category": "scan"
+  },
+  {
+    "id": 1822,
+    "name": "Free Thyroxine (FT4)",
+    "category": "scan"
+  },
+  {
+    "id": 1823,
+    "name": "Widal Test",
+    "category": "scan"
+  },
+  {
+    "id": 1824,
+    "name": "Dengue Serology",
+    "category": "scan"
+  },
+  {
+    "id": 1825,
+    "name": "Blood component charges - Whole Blood per Unit",
+    "category": "scan"
+  },
+  {
+    "id": 1826,
+    "name": "Blood component charges - Packed Red Cell per Unit",
+    "category": "scan"
+  },
+  {
+    "id": 1827,
+    "name": "Blood component charges - Fresh Frozen Plasma",
+    "category": "scan"
+  },
+  {
+    "id": 1828,
+    "name": "Platelet Concentrate- Random Donor Platelet (RDP)",
+    "category": "scan"
+  },
+  {
+    "id": 1829,
+    "name": "Blood component charges - Cryoprecipitate",
+    "category": "scan"
+  },
+  {
+    "id": 1830,
+    "name": "Platelet Concentrate - Single Donor Platelet (SDP)-Apheresis per unit",
+    "category": "scan"
+  },
+  {
+    "id": 1831,
+    "name": "CCS Group A Officer of above 40 years of age -Male, Annual Health Check\nup",
+    "category": "scan"
+  },
+  {
+    "id": 1832,
+    "name": "CCS Group A Officer of above 40 years of age -female, Annual Health\nCheck up",
+    "category": "scan"
+  }
+]

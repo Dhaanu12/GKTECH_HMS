@@ -1,0 +1,1107 @@
+[
+  {
+    "id": 1339,
+    "name": "Dental IOPA X-ray",
+    "category": "lab_test"
+  },
+  {
+    "id": 1340,
+    "name": "Occlusal X-ray",
+    "category": "lab_test"
+  },
+  {
+    "id": 1341,
+    "name": "OPG X-ray",
+    "category": "lab_test"
+  },
+  {
+    "id": 1342,
+    "name": "Lung Ventilation & Perfusion Scan (V/Q Scan)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1343,
+    "name": "Lung Perfusion Scan",
+    "category": "lab_test"
+  },
+  {
+    "id": 1344,
+    "name": "Whole Body Bone Scan with SPECT.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1345,
+    "name": "Three phase whole body Bone Scan",
+    "category": "lab_test"
+  },
+  {
+    "id": 1346,
+    "name": "Brain Perfusion SPECT Scan with Technetium 99m radiopharmaceuticals.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1347,
+    "name": "Radionuclide Cisternography for CSF leak",
+    "category": "lab_test"
+  },
+  {
+    "id": 1348,
+    "name": "Gastro esophageal Reflux Study (G.E.R. Study)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1349,
+    "name": "Gastro intestinal Bleed (GloB.) Study with Technetium 99m\nlabeled RBCs.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1350,
+    "name": "Hepatobiliary Scintigraphy.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1351,
+    "name": "Meckel's Scan",
+    "category": "lab_test"
+  },
+  {
+    "id": 1352,
+    "name": "Hepatosplenic scintigraphy with Technetium-99m radiopharmaceuticals",
+    "category": "lab_test"
+  },
+  {
+    "id": 1353,
+    "name": "Gastric emptying",
+    "category": "lab_test"
+  },
+  {
+    "id": 1354,
+    "name": "Renal Cortical Scintigraphy with Technetium 99m D.M.S.A.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1355,
+    "name": "Dynamic Renography.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1356,
+    "name": "Dynamic Renography with Diuretic.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1357,
+    "name": "Dynamic Renography with Captopril",
+    "category": "lab_test"
+  },
+  {
+    "id": 1358,
+    "name": "Testicular Scan",
+    "category": "lab_test"
+  },
+  {
+    "id": 1359,
+    "name": "Thyroid Uptake measurements with 131-Iodine.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1360,
+    "name": "Thyroid Scan with Technetium 99m Pertechnetate.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1361,
+    "name": "Lodine-131 Whole Body Scan.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1362,
+    "name": "Whole Body Scan with M.I.B.G.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1363,
+    "name": "Parathyroid Scan",
+    "category": "lab_test"
+  },
+  {
+    "id": 1364,
+    "name": "131-lodine Therapy",
+    "category": "lab_test"
+  },
+  {
+    "id": 1365,
+    "name": "131-lodine Therapy <15mCi",
+    "category": "lab_test"
+  },
+  {
+    "id": 1366,
+    "name": "131-lodine Therapy 15-50mCi",
+    "category": "lab_test"
+  },
+  {
+    "id": 1367,
+    "name": "131-lodine Therapy 51-100mCi",
+    "category": "lab_test"
+  },
+  {
+    "id": 1368,
+    "name": "131-lodine Therapy >100mCi",
+    "category": "lab_test"
+  },
+  {
+    "id": 1369,
+    "name": "Phosphorus-32 therapy for metastatic bone pain palliation",
+    "category": "lab_test"
+  },
+  {
+    "id": 1370,
+    "name": "Samarium-153 therapy for metastatic bone pain palliation",
+    "category": "lab_test"
+  },
+  {
+    "id": 1371,
+    "name": "Radiosynovectomy with Yttrium",
+    "category": "lab_test"
+  },
+  {
+    "id": 1372,
+    "name": "Stress thallium / Myocardial Perfusion Scintigraphy",
+    "category": "lab_test"
+  },
+  {
+    "id": 1373,
+    "name": "Rest thallium / Myocardial Perfusion Scintigraphy",
+    "category": "lab_test"
+  },
+  {
+    "id": 1374,
+    "name": "Venography",
+    "category": "lab_test"
+  },
+  {
+    "id": 1375,
+    "name": "TMT",
+    "category": "lab_test"
+  },
+  {
+    "id": 1376,
+    "name": "TEE",
+    "category": "lab_test"
+  },
+  {
+    "id": 1377,
+    "name": "Lymph angiography",
+    "category": "lab_test"
+  },
+  {
+    "id": 1378,
+    "name": "Scintimammography.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1379,
+    "name": "Indium lableled octeriotide Scan.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1380,
+    "name": "FDG Whole body PET/CT Scan",
+    "category": "lab_test"
+  },
+  {
+    "id": 1381,
+    "name": "Brain/Heart FDG PET/CT Scan",
+    "category": "lab_test"
+  },
+  {
+    "id": 1382,
+    "name": "Gallium-68 Peptide PET/CT imaging for Neuroendocrine tumor",
+    "category": "lab_test"
+  },
+  {
+    "id": 1383,
+    "name": "Urine routine- pH Specific gravity sugar protein and microscopy",
+    "category": "lab_test"
+  },
+  {
+    "id": 1384,
+    "name": "Urine-Microalbumin",
+    "category": "lab_test"
+  },
+  {
+    "id": 1385,
+    "name": "Stool routine",
+    "category": "lab_test"
+  },
+  {
+    "id": 1386,
+    "name": "Stool occult blood",
+    "category": "lab_test"
+  },
+  {
+    "id": 1387,
+    "name": "Post coital smear examination",
+    "category": "lab_test"
+  },
+  {
+    "id": 1388,
+    "name": "Semen analysis",
+    "category": "lab_test"
+  },
+  {
+    "id": 1389,
+    "name": "Haemoglobin (Hb)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1390,
+    "name": "Total Leucocytic Count (TLC)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1391,
+    "name": "Differential Leucocytic Count (DLC)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1392,
+    "name": "E.S.R.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1393,
+    "name": "Total Red Cell count with MCVMCHMCHCDRW",
+    "category": "lab_test"
+  },
+  {
+    "id": 1394,
+    "name": "Complete Haemogram/CBC HbRBC count and indices\nTLC DLC Platelet ESR Peripheral smear examination",
+    "category": "lab_test"
+  },
+  {
+    "id": 1395,
+    "name": "Platelet count",
+    "category": "lab_test"
+  },
+  {
+    "id": 1396,
+    "name": "Reticulocyte count",
+    "category": "lab_test"
+  },
+  {
+    "id": 1397,
+    "name": "Absolute Eosinophil count",
+    "category": "lab_test"
+  },
+  {
+    "id": 1398,
+    "name": "Packed Cell Volume (PCV)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1399,
+    "name": "Peripheral Smear Examination",
+    "category": "lab_test"
+  },
+  {
+    "id": 1400,
+    "name": "Smear for Malaria parasite",
+    "category": "lab_test"
+  },
+  {
+    "id": 1401,
+    "name": "Bleeding Time",
+    "category": "lab_test"
+  },
+  {
+    "id": 1402,
+    "name": "Osmotic fragility Test",
+    "category": "lab_test"
+  },
+  {
+    "id": 1403,
+    "name": "Bone Marrow Smear Examination",
+    "category": "lab_test"
+  },
+  {
+    "id": 1404,
+    "name": "Bone Marrow Smear Examination with iron stain",
+    "category": "lab_test"
+  },
+  {
+    "id": 1405,
+    "name": "Bone Marrow Smear Examination and cytochemistry",
+    "category": "lab_test"
+  },
+  {
+    "id": 1406,
+    "name": "Activated partial ThromboplastinTime (APTT)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1407,
+    "name": "Rapid test for malaria(card test)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1408,
+    "name": "WBC cytochemistry for leukemia -Complete panel",
+    "category": "lab_test"
+  },
+  {
+    "id": 1409,
+    "name": "Bleeding Disorder panel- PT APTT Thrombin Time\nFibrinogen D-Dimer/ FDP",
+    "category": "lab_test"
+  },
+  {
+    "id": 1410,
+    "name": "Factor Assays-Factor VIII",
+    "category": "lab_test"
+  },
+  {
+    "id": 1411,
+    "name": "Factor Assays-Factor IX",
+    "category": "lab_test"
+  },
+  {
+    "id": 1412,
+    "name": "Platelet Function test",
+    "category": "lab_test"
+  },
+  {
+    "id": 1413,
+    "name": "Tests for hypercoagulable states- Protein C Protein S Antithrombin",
+    "category": "lab_test"
+  },
+  {
+    "id": 1414,
+    "name": "Tests for lupus anticoagulant",
+    "category": "lab_test"
+  },
+  {
+    "id": 1415,
+    "name": "Tests for Antiphospholipid antibody IgG IgM ( for cardiolipin and B2\nGlycoprotein 1)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1416,
+    "name": "Thalassemia studies (Red Cell indices and Hb HPLC)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1417,
+    "name": "Tests for Sickling / Hb HPLC)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1418,
+    "name": "Blood Group & RH Type",
+    "category": "lab_test"
+  },
+  {
+    "id": 1419,
+    "name": "Cross match",
+    "category": "lab_test"
+  },
+  {
+    "id": 1420,
+    "name": "Coomb’s Test Direct",
+    "category": "lab_test"
+  },
+  {
+    "id": 1421,
+    "name": "Coomb’s Test Indirect",
+    "category": "lab_test"
+  },
+  {
+    "id": 1422,
+    "name": "3 cell panel- antibody screening for pregnant female",
+    "category": "lab_test"
+  },
+  {
+    "id": 1423,
+    "name": "11 cells panel for antibody identification",
+    "category": "lab_test"
+  },
+  {
+    "id": 1424,
+    "name": "HBs Ag",
+    "category": "lab_test"
+  },
+  {
+    "id": 1425,
+    "name": "HCV",
+    "category": "lab_test"
+  },
+  {
+    "id": 1426,
+    "name": "HIV I and II",
+    "category": "lab_test"
+  },
+  {
+    "id": 1427,
+    "name": "VDRL",
+    "category": "lab_test"
+  },
+  {
+    "id": 1428,
+    "name": "RH Antibody titer",
+    "category": "lab_test"
+  },
+  {
+    "id": 1429,
+    "name": "Platelet Concentrate",
+    "category": "lab_test"
+  },
+  {
+    "id": 1430,
+    "name": "Random Donor Platelet(RDP)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1431,
+    "name": "Single Donor Platelet (SDP- Aphresis)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1432,
+    "name": "Routine-H & E",
+    "category": "lab_test"
+  },
+  {
+    "id": 1433,
+    "name": "special stain",
+    "category": "lab_test"
+  },
+  {
+    "id": 1434,
+    "name": "Immunohistochemistry(IHC)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1435,
+    "name": "Frozen section",
+    "category": "lab_test"
+  },
+  {
+    "id": 1436,
+    "name": "Paraffin section",
+    "category": "lab_test"
+  },
+  {
+    "id": 1437,
+    "name": "Pap Smear",
+    "category": "lab_test"
+  },
+  {
+    "id": 1438,
+    "name": "Body fluid for Malignant cells",
+    "category": "lab_test"
+  },
+  {
+    "id": 1439,
+    "name": "FNAC",
+    "category": "lab_test"
+  },
+  {
+    "id": 1440,
+    "name": "Leukemia panel /Lymphoma panel",
+    "category": "lab_test"
+  },
+  {
+    "id": 1441,
+    "name": "PNH Panel-CD55CD59",
+    "category": "lab_test"
+  },
+  {
+    "id": 1442,
+    "name": "Karyotyping",
+    "category": "lab_test"
+  },
+  {
+    "id": 1443,
+    "name": "FISH",
+    "category": "lab_test"
+  },
+  {
+    "id": 1444,
+    "name": "Blood Glucose Random",
+    "category": "lab_test"
+  },
+  {
+    "id": 1445,
+    "name": "24 hrs urine for ProteinsSodium creatinine",
+    "category": "lab_test"
+  },
+  {
+    "id": 1446,
+    "name": "Blood Urea Nitrogen",
+    "category": "lab_test"
+  },
+  {
+    "id": 1447,
+    "name": "Serum Creatinine",
+    "category": "lab_test"
+  },
+  {
+    "id": 1448,
+    "name": "Urine Bile Pigment and Salt",
+    "category": "lab_test"
+  },
+  {
+    "id": 1449,
+    "name": "Urine Urobilinogen",
+    "category": "lab_test"
+  },
+  {
+    "id": 1450,
+    "name": "Urine Ketones",
+    "category": "lab_test"
+  },
+  {
+    "id": 1451,
+    "name": "Urine Occult Blood",
+    "category": "lab_test"
+  },
+  {
+    "id": 1452,
+    "name": "Urine total proteins",
+    "category": "lab_test"
+  },
+  {
+    "id": 1453,
+    "name": "Rheumatoid Factor test",
+    "category": "lab_test"
+  },
+  {
+    "id": 1454,
+    "name": "Bence Jones protein",
+    "category": "lab_test"
+  },
+  {
+    "id": 1455,
+    "name": "Serum Uric Acid",
+    "category": "lab_test"
+  },
+  {
+    "id": 1456,
+    "name": "Serum Bilirubin total & direct",
+    "category": "lab_test"
+  },
+  {
+    "id": 1457,
+    "name": "Serum Iron",
+    "category": "lab_test"
+  },
+  {
+    "id": 1458,
+    "name": "C.R.P.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1459,
+    "name": "C.R.P Quantitative",
+    "category": "lab_test"
+  },
+  {
+    "id": 1460,
+    "name": "Body fluid (CSF/Ascitic Fluid etc.)Sugar Protein etc.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1461,
+    "name": "Albumin.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1462,
+    "name": "Creatinine clearance.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1463,
+    "name": "Serum Cholesterol",
+    "category": "lab_test"
+  },
+  {
+    "id": 1464,
+    "name": "Total Iron Binding Capacity",
+    "category": "lab_test"
+  },
+  {
+    "id": 1465,
+    "name": "Glucose (Fasting & PP)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1466,
+    "name": "Serum Calcium –Total",
+    "category": "lab_test"
+  },
+  {
+    "id": 1467,
+    "name": "Serum Calcium –Ionic",
+    "category": "lab_test"
+  },
+  {
+    "id": 1468,
+    "name": "Serum Phosphorus",
+    "category": "lab_test"
+  },
+  {
+    "id": 1469,
+    "name": "Total Protein Alb/Glo Ratio",
+    "category": "lab_test"
+  },
+  {
+    "id": 1470,
+    "name": "IgG.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1471,
+    "name": "IgM.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1472,
+    "name": "IgA.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1473,
+    "name": "ANA.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1474,
+    "name": "Ds DNA.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1475,
+    "name": "S.G.P.T.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1476,
+    "name": "S.G.O.T.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1477,
+    "name": "Serum amylase",
+    "category": "lab_test"
+  },
+  {
+    "id": 1478,
+    "name": "Serum Lipase",
+    "category": "lab_test"
+  },
+  {
+    "id": 1479,
+    "name": "Serum Lactate",
+    "category": "lab_test"
+  },
+  {
+    "id": 1480,
+    "name": "Serum Magnesium",
+    "category": "lab_test"
+  },
+  {
+    "id": 1481,
+    "name": "Serum Sodium",
+    "category": "lab_test"
+  },
+  {
+    "id": 1482,
+    "name": "Serum Potassium",
+    "category": "lab_test"
+  },
+  {
+    "id": 1483,
+    "name": "Serum Ammonia",
+    "category": "lab_test"
+  },
+  {
+    "id": 1484,
+    "name": "Anemia Profile",
+    "category": "lab_test"
+  },
+  {
+    "id": 1485,
+    "name": "Serum Testosterone",
+    "category": "lab_test"
+  },
+  {
+    "id": 1486,
+    "name": "Imprint Smear From Endoscopy",
+    "category": "lab_test"
+  },
+  {
+    "id": 1487,
+    "name": "Triglyceride",
+    "category": "lab_test"
+  },
+  {
+    "id": 1488,
+    "name": "Glucose Tolerance Test (GTT)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1489,
+    "name": "Triple Marker.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1490,
+    "name": "C.P.K.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1491,
+    "name": "Foetal Haemoglobin (HbF)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1492,
+    "name": "Prothrombin Time (P.T.)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1493,
+    "name": "L.D.H.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1494,
+    "name": "Alkaline Phosphatase",
+    "category": "lab_test"
+  },
+  {
+    "id": 1495,
+    "name": "Acid Phosphatase",
+    "category": "lab_test"
+  },
+  {
+    "id": 1496,
+    "name": "CK MB",
+    "category": "lab_test"
+  },
+  {
+    "id": 1497,
+    "name": "CK MB Mass",
+    "category": "lab_test"
+  },
+  {
+    "id": 1498,
+    "name": "Troponin I",
+    "category": "lab_test"
+  },
+  {
+    "id": 1499,
+    "name": "Troponin T",
+    "category": "lab_test"
+  },
+  {
+    "id": 1500,
+    "name": "Glucose Phosphate Dehydrogenase (G 6PD)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1501,
+    "name": "Lithium.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1502,
+    "name": "Dilantin (phenytoin).",
+    "category": "lab_test"
+  },
+  {
+    "id": 1503,
+    "name": "Carbamazepine.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1504,
+    "name": "Valproic acid.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1505,
+    "name": "Feritin.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1506,
+    "name": "Blood gas analysis",
+    "category": "lab_test"
+  },
+  {
+    "id": 1507,
+    "name": "Blood gas analysis with electrolytes",
+    "category": "lab_test"
+  },
+  {
+    "id": 1508,
+    "name": "Urine pregnancy test",
+    "category": "lab_test"
+  },
+  {
+    "id": 1509,
+    "name": "Tests for Antiphospholipid antibodies syndrome.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1510,
+    "name": "Hb A1 C",
+    "category": "lab_test"
+  },
+  {
+    "id": 1511,
+    "name": "Hb Electrophoresis/ Hb HPLC",
+    "category": "lab_test"
+  },
+  {
+    "id": 1512,
+    "name": "Kidney Function Test.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1513,
+    "name": "Liver Function Test.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1514,
+    "name": "Lipid Profile.( Total cholesterolLDLHDLtreigylcerides)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1515,
+    "name": "Serum Iron",
+    "category": "lab_test"
+  },
+  {
+    "id": 1516,
+    "name": "Total Iron Binding Capacity",
+    "category": "lab_test"
+  },
+  {
+    "id": 1517,
+    "name": "Serum Ferritin",
+    "category": "lab_test"
+  },
+  {
+    "id": 1518,
+    "name": "Vitamin B12 assay.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1519,
+    "name": "Folic Acid assay.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1520,
+    "name": "Extended Lipid Profile.( Total cholesterolLDLHDLtreigylceridesApo A1Apo\nBLp(a) )",
+    "category": "lab_test"
+  },
+  {
+    "id": 1521,
+    "name": "Apo A1.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1522,
+    "name": "Apo B.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1523,
+    "name": "Lp (a).",
+    "category": "lab_test"
+  },
+  {
+    "id": 1524,
+    "name": "CD 34 and 8 counts",
+    "category": "lab_test"
+  },
+  {
+    "id": 1525,
+    "name": "CD 34 and 8 percentage",
+    "category": "lab_test"
+  },
+  {
+    "id": 1526,
+    "name": "LDL.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1527,
+    "name": "Homocysteine.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1528,
+    "name": "HB Electrophoresis.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1529,
+    "name": "Serum Electrophoresis.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1530,
+    "name": "Fibrinogen.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1531,
+    "name": "Chloride.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1532,
+    "name": "Magnesium.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1533,
+    "name": "GGTP.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1534,
+    "name": "Lipase.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1535,
+    "name": "Fructosamine.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1536,
+    "name": "β2 microglobulin",
+    "category": "lab_test"
+  },
+  {
+    "id": 1537,
+    "name": "Catecholamines.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1538,
+    "name": "Creatinine clearance.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1539,
+    "name": "PSA- Total.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1540,
+    "name": "PSA- Free.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1541,
+    "name": "AFP.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1542,
+    "name": "HCG.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1543,
+    "name": "CA. 125.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1544,
+    "name": "CA 199.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1545,
+    "name": "CA 15.3.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1546,
+    "name": "Vinyl Mandelic Acid",
+    "category": "lab_test"
+  },
+  {
+    "id": 1547,
+    "name": "Calcitonin",
+    "category": "lab_test"
+  },
+  {
+    "id": 1548,
+    "name": "Carcioembryonic antigen(CEA)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1549,
+    "name": "Immunofluorescence",
+    "category": "lab_test"
+  },
+  {
+    "id": 1550,
+    "name": "Direct(Skin and kidney Disease)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1551,
+    "name": "Indirect (antids DNA Anti Smith ANCA)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1552,
+    "name": "VitD3 assay",
+    "category": "lab_test"
+  },
+  {
+    "id": 1553,
+    "name": "Serum Protein electrophoresis with immunofixationelectrophoresis (IFE)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1554,
+    "name": "BETA-2 Microglobulin assay",
+    "category": "lab_test"
+  },
+  {
+    "id": 1555,
+    "name": "Anti cycliocitrullinated peptide (Anti CCP)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1556,
+    "name": "Anti tissuetransglutaminase antibody",
+    "category": "lab_test"
+  },
+  {
+    "id": 1557,
+    "name": "Serum Erythropoetin",
+    "category": "lab_test"
+  },
+  {
+    "id": 1558,
+    "name": "ACTH",
+    "category": "lab_test"
+  },
+  {
+    "id": 1559,
+    "name": "T3 T4 TSH",
+    "category": "lab_test"
+  }
+]
