@@ -20,7 +20,9 @@ class OpdController {
                 // New Fields
                 is_mlc, attender_name, attender_contact_number, adhaar_number, mlc_remarks,
                 // Referral Fields
-                referral_hospital, referral_doctor_name
+                referral_hospital, referral_doctor_name,
+                // Address Fields
+                address_line_1, address_line_2, city, state, pincode
             } = req.body;
 
 
@@ -47,7 +49,7 @@ class OpdController {
                 // However, we must allow for the case where we selected a patient who might already have it effectively,
                 // but usually the form should re-submit it if we want to be safe.
                 if (!adhaar_number && !patient_id) {
-                    return next(new AppError('Adhaar Number is mandatory for non-MLC cases.', 400));
+                    // return next(new AppError('Adhaar Number is mandatory for non-MLC cases.', 400));
                 }
             }
 
@@ -55,8 +57,8 @@ class OpdController {
 
             // 1. Handle Patient Logic
             if (finalPatientId) {
-                // Update existing patient's Adhaar and Blood Group if provided
-                if (sanitizedAdhaar || sanitizedBloodGroup) {
+                // Update existing patient's Adhaar, Blood Group, and Address details if provided
+                if (sanitizedAdhaar || sanitizedBloodGroup || address_line_1 || address_line_2 || city || state || pincode) {
                     let updateFields = [];
                     let updateValues = [];
                     let queryParts = [];
@@ -70,6 +72,31 @@ class OpdController {
                         updateFields.push('blood_group');
                         updateValues.push(sanitizedBloodGroup);
                         queryParts.push(`blood_group = $${updateValues.length}`);
+                    }
+                    if (address_line_1) {
+                        updateFields.push('address');
+                        updateValues.push(address_line_1);
+                        queryParts.push(`address = $${updateValues.length}`);
+                    }
+                    if (address_line_2) {
+                        updateFields.push('address_line2');
+                        updateValues.push(address_line_2);
+                        queryParts.push(`address_line2 = $${updateValues.length}`);
+                    }
+                    if (city) {
+                        updateFields.push('city');
+                        updateValues.push(city);
+                        queryParts.push(`city = $${updateValues.length}`);
+                    }
+                    if (state) {
+                        updateFields.push('state');
+                        updateValues.push(state);
+                        queryParts.push(`state = $${updateValues.length}`);
+                    }
+                    if (pincode) {
+                        updateFields.push('pincode');
+                        updateValues.push(pincode);
+                        queryParts.push(`pincode = $${updateValues.length}`);
                     }
 
                     if (queryParts.length > 0) {
@@ -87,16 +114,30 @@ class OpdController {
 
                 // Check by contact only if contact_number is provided
                 if (contact_number && contact_number.trim() !== '') {
-                    existingPatient = await query(
-                        'SELECT patient_id FROM patients WHERE contact_number = $1 AND is_active = true',
+                    const potentialMatches = await query(
+                        'SELECT patient_id, first_name FROM patients WHERE contact_number = $1 AND is_active = true',
                         [contact_number]
                     );
+
+                    // Refined Logic: If matches found, check if the input NAME matches any of them.
+                    // If name matches, reuse ID. If not, treat as NEW patient (family member with same phone).
+                    if (potentialMatches.rows.length > 0) {
+                        const inputName = first_name.trim().toLowerCase();
+                        const exactMatch = potentialMatches.rows.find(p => p.first_name.toLowerCase() === inputName);
+
+                        if (exactMatch) {
+                            existingPatient = { rows: [exactMatch] };
+                        } else {
+                            // Phone matches, but Name does not. Assume new patient.
+                            existingPatient = null;
+                        }
+                    }
                 }
 
                 if (existingPatient && existingPatient.rows.length > 0) {
                     finalPatientId = existingPatient.rows[0].patient_id;
-                    // Update Adhaar/Blood Group if provided
-                    if (sanitizedAdhaar || sanitizedBloodGroup) {
+                    // Update Adhaar/Blood Group/Address if provided
+                    if (sanitizedAdhaar || sanitizedBloodGroup || address_line_1 || address_line_2 || city || state || pincode) {
                         let updateFields = [];
                         let updateValues = [];
                         let queryParts = [];
@@ -110,6 +151,31 @@ class OpdController {
                             updateFields.push('blood_group');
                             updateValues.push(sanitizedBloodGroup);
                             queryParts.push(`blood_group = $${updateValues.length}`);
+                        }
+                        if (address_line_1) {
+                            updateFields.push('address');
+                            updateValues.push(address_line_1);
+                            queryParts.push(`address = $${updateValues.length}`);
+                        }
+                        if (address_line_2) {
+                            updateFields.push('address_line2');
+                            updateValues.push(address_line_2);
+                            queryParts.push(`address_line2 = $${updateValues.length}`);
+                        }
+                        if (city) {
+                            updateFields.push('city');
+                            updateValues.push(city);
+                            queryParts.push(`city = $${updateValues.length}`);
+                        }
+                        if (state) {
+                            updateFields.push('state');
+                            updateValues.push(state);
+                            queryParts.push(`state = $${updateValues.length}`);
+                        }
+                        if (pincode) {
+                            updateFields.push('pincode');
+                            updateValues.push(pincode);
+                            queryParts.push(`pincode = $${updateValues.length}`);
                         }
 
                         if (queryParts.length > 0) {
@@ -142,10 +208,11 @@ class OpdController {
                     const newPatient = await query(`
                         INSERT INTO patients (
                             mrn_number, patient_code, first_name, last_name,
-                            age, gender, contact_number, registration_date, adhaar_number, blood_group
-                        ) VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_DATE, $8, $9)
+                            age, gender, contact_number, registration_date, adhaar_number, blood_group,
+                            address, address_line2, city, state, pincode
+                        ) VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_DATE, $8, $9, $10, $11, $12, $13, $14)
                         RETURNING patient_id
-                    `, [mrn_number, patient_code, first_name, last_name, age, gender, contact_number, sanitizedAdhaar, sanitizedBloodGroup]);
+                    `, [mrn_number, patient_code, first_name, last_name, age, gender, contact_number, sanitizedAdhaar, sanitizedBloodGroup, address_line_1, address_line_2, city, state, pincode]);
 
                     finalPatientId = newPatient.rows[0].patient_id;
                 }
@@ -251,8 +318,7 @@ class OpdController {
             const { search } = req.query;
             let queryText = `
                 SELECT o.*, 
-                       p.first_name as patient_first_name, p.last_name as patient_last_name, 
-                       p.mrn_number, p.contact_number, p.age, p.gender, p.blood_group,
+                       p.first_name as patient_first_name, p.last_name as patient_last_name, p.mrn_number, p.contact_number,
                        d.first_name as doctor_first_name, d.last_name as doctor_last_name, d.specialization,
                        co.next_visit_date
                 FROM opd_entries o
@@ -598,6 +664,35 @@ class OpdController {
         } catch (error) {
             console.error('Update OPD entry error:', error);
             next(new AppError('Failed to update OPD entry', 500));
+        }
+    }
+    /**
+     * Delete OPD Entry
+     * DELETE /api/opd/:id
+     */
+    static async deleteOpdEntry(req, res, next) {
+        try {
+            const { id } = req.params;
+            const branch_id = req.user.branch_id;
+
+            const result = await query(`
+                DELETE FROM opd_entries 
+                WHERE opd_id = $1 AND branch_id = $2
+                RETURNING *
+            `, [id, branch_id]);
+
+            if (result.rows.length === 0) {
+                return next(new AppError('OPD entry not found or unauthorized', 404));
+            }
+
+            res.status(200).json({
+                status: 'success',
+                message: 'OPD entry deleted successfully',
+                data: null
+            });
+        } catch (error) {
+            console.error('Delete OPD entry error:', error);
+            next(new AppError('Failed to delete OPD entry', 500));
         }
     }
 }

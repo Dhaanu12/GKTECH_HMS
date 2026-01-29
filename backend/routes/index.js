@@ -76,5 +76,9 @@ router.use('/referral-payment', require('./referralPayment/referralPaymentRoutes
 router.use('/lead-data', require('./leadDataRoutes'));
 router.use('/leads', leadRoutes);
 router.use('/follow-ups', require('./followUpRoutes'));
+router.use('/feedback', require('./feedbackRoutes'));
+// ... other routes
+router.use('/templates', require('./templateRoutes'));
+router.use('/doctor-schedules', require('./doctorScheduleRoutes')); // Added new route
 
 module.exports = router;

@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, FileText, User, Stethoscope, Activity, Plus, Trash2, Phone, MapPin, Calendar, Clock, Loader2, Mic, Sparkles, Play, Pause, Layout, History as HistoryIcon, FileBadge } from 'lucide-react';
+import { ArrowLeft, FileText, User, Stethoscope, Activity, Plus, Trash2, Phone, MapPin, Calendar, Clock, Loader2, Mic, Sparkles, Play, Pause, Layout, History as HistoryIcon, FileBadge, Wand2 } from 'lucide-react';
+import TemplateSelector from '../../../../components/doctor/TemplateSelector';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -81,6 +82,9 @@ export default function PatientDetails() {
     });
     const [isPatientDeceased, setIsPatientDeceased] = useState(false);
     const [isAiListening, setIsAiListening] = useState(false);
+
+    // Template Selector State
+    const [showTemplateSelector, setShowTemplateSelector] = useState(false);
 
     const handleToggleDeceased = (checked: boolean) => {
         setIsPatientDeceased(checked);
@@ -820,6 +824,14 @@ export default function PatientDetails() {
                 food_timing: 'After Food'
             });
         }
+    };
+
+    // Apply medications from a template
+    const handleApplyTemplate = (templateMedications: any[]) => {
+        setConsultationData({
+            ...consultationData,
+            medications: [...consultationData.medications, ...templateMedications]
+        });
     };
 
     const handleAddLab = () => {
@@ -1655,7 +1667,12 @@ export default function PatientDetails() {
                                         <h4 className="font-bold text-blue-800 flex items-center gap-2">
                                             <FileBadge className="w-5 h-5" /> Rx Prescription
                                         </h4>
-                                        <button className="text-xs text-blue-600 font-bold hover:underline">View Favorites</button>
+                                        <button
+                                            onClick={() => setShowTemplateSelector(true)}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-purple-500 to-indigo-500 text-white text-xs font-bold rounded-lg hover:shadow-lg hover:shadow-purple-500/30 transition hover:-translate-y-0.5"
+                                        >
+                                            <Wand2 className="w-3.5 h-3.5" /> Use Template
+                                        </button>
                                     </div>
 
                                     <div className="grid grid-cols-12 gap-3 mb-4 bg-white/60 p-3 rounded-xl border border-blue-100/50 shadow-sm">
@@ -2354,6 +2371,16 @@ export default function PatientDetails() {
                     </div>
                 )
             }
-        </div >
+
+            {/* Template Selector Modal */}
+            <TemplateSelector
+                isOpen={showTemplateSelector}
+                onClose={() => setShowTemplateSelector(false)}
+                onApplyTemplate={handleApplyTemplate}
+                diagnosis={consultationData.diagnosis}
+                patientId={patient?.patient_id || null}
+                opdId={opdHistory[0]?.opd_id || null}
+            />
+        </div>
     );
 }

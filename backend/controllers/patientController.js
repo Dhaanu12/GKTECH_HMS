@@ -133,7 +133,6 @@ class PatientController {
      * Search patients
      * GET /api/patients/search
      * Query params: q (search term), type (phone, mrn, code)
-     * Returns patient data with last visit info for smart suggestions
      */
     static async searchPatients(req, res, next) {
         try {

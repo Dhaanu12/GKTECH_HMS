@@ -20,15 +20,31 @@ class AppointmentController {
                 return next(new AppError('Branch not linked to your account', 403));
             }
 
+            // Validate required fields
+            if (!patient_name || patient_name.trim() === '') {
+                return next(new AppError('Patient name is required', 400));
+            }
+            if (!doctor_id) {
+                return next(new AppError('Please select a doctor', 400));
+            }
+            if (!appointment_date) {
+                return next(new AppError('Appointment date is required', 400));
+            }
+            if (!appointment_time || appointment_time.trim() === '') {
+                return next(new AppError('Please select an appointment time slot', 400));
+            }
+
             // Generate appointment number
             const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
             const randomSuffix = Math.floor(1000 + Math.random() * 9000);
             const appointment_number = `APT-${dateStr}-${randomSuffix}`;
 
-            // Sanitize inputs
-            const sanitizedAge = age === '' ? null : age;
-            const sanitizedGender = gender === '' ? null : gender;
+            // Sanitize inputs - PostgreSQL needs null, not empty strings for typed fields
+            const sanitizedAge = age === '' || age === undefined ? null : age;
+            const sanitizedGender = gender === '' || gender === undefined ? null : gender;
             const sanitizedPatientId = patient_id || null;
+            const sanitizedTime = appointment_time === '' || !appointment_time ? null : appointment_time;
+            const sanitizedEmail = email === '' || !email ? null : email;
 
             const result = await query(`
                 INSERT INTO appointments (
@@ -41,8 +57,8 @@ class AppointmentController {
                 ) RETURNING *
             `, [
                 appointment_number, sanitizedPatientId, patient_name, phone_number,
-                email, sanitizedAge, sanitizedGender, doctor_id, branch_id,
-                appointment_date, appointment_time, reason_for_visit, notes
+                sanitizedEmail, sanitizedAge, sanitizedGender, doctor_id, branch_id,
+                appointment_date, sanitizedTime, reason_for_visit, notes
             ]);
 
             res.status(201).json({
@@ -80,10 +96,12 @@ class AppointmentController {
                        p.last_name as patient_last_name,
                        p.mrn_number,
                        p.gender as patient_gender,
-                       p.age as patient_age
+                       p.age as patient_age,
+                       dept.department_name
                 FROM appointments a
                 JOIN doctors d ON a.doctor_id = d.doctor_id
                 LEFT JOIN patients p ON a.patient_id = p.patient_id
+                LEFT JOIN departments dept ON a.department_id = dept.department_id
                 WHERE 1=1
             `;
             const params = [];
@@ -234,6 +252,88 @@ class AppointmentController {
         } catch (error) {
             console.error('Update appointment status error:', error);
             next(new AppError('Failed to update appointment', 500));
+        }
+    }
+
+    /**
+     * Reschedule appointment (Update Date/Time)
+     * PATCH /api/appointments/:id/reschedule
+     */
+    static async rescheduleAppointment(req, res, next) {
+        try {
+            const { id } = req.params;
+            const { appointment_date, appointment_time, doctor_id, reason } = req.body;
+
+            // Optional: Check if slot is available (skipping complex check for now as per requirement speed)
+
+            let sql = `
+                UPDATE appointments 
+                SET appointment_date = $1, 
+                    appointment_time = $2,
+                    updated_at = CURRENT_TIMESTAMP
+            `;
+            const params = [appointment_date, appointment_time, id];
+            let paramIdx = 4;
+
+            if (doctor_id) {
+                sql += `, doctor_id = $${paramIdx - 1}`; // $3
+                params.splice(2, 0, doctor_id); // Insert doctor_id at index 2
+                params[3] = id; // Shift id to end
+                paramIdx++;
+            }
+
+            // Note: We might want to append reschedule reason to notes?
+            if (reason) {
+                sql += `, notes = COALESCE(notes, '') || E'\\nRescheduled: ' || $${paramIdx - 1}`;
+                params.splice(params.length - 1, 0, reason); // Insert reason before ID
+                // Careful with params index math here.
+                // Let's rewrite safely.
+            }
+
+            // Safely rewriting SQL construction
+            const updateFields = [];
+            const values = [];
+            let idx = 1;
+
+            updateFields.push(`appointment_date = $${idx++}`);
+            values.push(appointment_date);
+
+            updateFields.push(`appointment_time = $${idx++}`);
+            values.push(appointment_time);
+
+            if (doctor_id) {
+                updateFields.push(`doctor_id = $${idx++}`);
+                values.push(doctor_id);
+            }
+
+            // Always reset status to Scheduled if it was Cancelled? 
+            // Usually rescheduling implies it's active again.
+            updateFields.push(`appointment_status = 'Scheduled'`);
+
+            if (reason) {
+                updateFields.push(`notes = COALESCE(notes, '') || ' [Rescheduled: ' || $${idx++} || ']'`);
+                values.push(reason);
+            }
+
+            updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+
+            const queryText = `UPDATE appointments SET ${updateFields.join(', ')} WHERE appointment_id = $${idx} RETURNING *`;
+            values.push(id);
+
+            const result = await query(queryText, values);
+
+            if (result.rows.length === 0) {
+                return next(new AppError('Appointment not found', 404));
+            }
+
+            res.status(200).json({
+                status: 'success',
+                message: 'Appointment rescheduled successfully',
+                data: { appointment: result.rows[0] }
+            });
+        } catch (error) {
+            console.error('Reschedule appointment error:', error);
+            next(new AppError('Failed to reschedule appointment', 500));
         }
     }
 }

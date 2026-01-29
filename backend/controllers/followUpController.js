@@ -35,15 +35,27 @@ class FollowUpController {
 
             // Determine doctor filter and params
             let doctorFilter = '';
+            let branchFilter = '';
             let params = [];
+            let paramIndex = 1;
+
+            // Branch filter for receptionists (filter by their branch)
+            const branch_id = req.user.branch_id;
+            if (branch_id && userRole !== 'DOCTOR') {
+                branchFilter = `AND oe.branch_id = $${paramIndex}`;
+                params.push(branch_id);
+                paramIndex++;
+            }
 
             // Doctor only sees their own follow-ups
             if (userRole === 'DOCTOR' && userDoctorId) {
-                doctorFilter = 'AND co.doctor_id = $1';
-                params = [userDoctorId];
+                doctorFilter = `AND co.doctor_id = $${paramIndex}`;
+                params.push(userDoctorId);
+                paramIndex++;
             } else if (doctor_id) {
-                doctorFilter = 'AND co.doctor_id = $1';
-                params = [parseInt(doctor_id)];
+                doctorFilter = `AND co.doctor_id = $${paramIndex}`;
+                params.push(parseInt(doctor_id));
+                paramIndex++;
             }
 
             const result = await query(`
@@ -76,11 +88,13 @@ class FollowUpController {
                         ELSE 0
                     END as days_until_due
                 FROM consultation_outcomes co
+                JOIN opd_entries oe ON co.opd_id = oe.opd_id
                 JOIN patients p ON co.patient_id = p.patient_id
                 JOIN doctors d ON co.doctor_id = d.doctor_id
                 WHERE co.next_visit_date IS NOT NULL
                     AND co.consultation_status = 'Completed'
                     ${dateFilter}
+                    ${branchFilter}
                     ${doctorFilter}
                     AND NOT EXISTS (
                         SELECT 1 FROM opd_entries o 
@@ -211,24 +225,49 @@ class FollowUpController {
                 `;
                 params = [userDoctorId];
             } else {
-                // Other roles see all follow-ups
-                sql = `
-                    SELECT 
-                        COALESCE(SUM(CASE WHEN co.next_visit_date < CURRENT_DATE THEN 1 ELSE 0 END), 0) as overdue_count,
-                        COALESCE(SUM(CASE WHEN co.next_visit_date = CURRENT_DATE THEN 1 ELSE 0 END), 0) as due_today_count,
-                        COALESCE(SUM(CASE WHEN co.next_visit_date > CURRENT_DATE AND co.next_visit_date <= CURRENT_DATE + INTERVAL '7 days' THEN 1 ELSE 0 END), 0) as upcoming_week_count
-                    FROM consultation_outcomes co
-                    WHERE co.next_visit_date IS NOT NULL
-                        AND co.consultation_status = 'Completed'
-                        AND co.next_visit_date <= CURRENT_DATE + INTERVAL '7 days'
-                        AND NOT EXISTS (
-                            SELECT 1 FROM opd_entries o 
-                            WHERE o.patient_id = co.patient_id 
-                            AND o.doctor_id = co.doctor_id
-                            AND o.visit_date > co.created_at::date
-                            AND o.visit_status = 'Completed'
-                        )
-                `;
+                // Other roles see follow-ups filtered by their branch
+                const branch_id = req.user.branch_id;
+                if (branch_id) {
+                    sql = `
+                        SELECT 
+                            COALESCE(SUM(CASE WHEN co.next_visit_date < CURRENT_DATE THEN 1 ELSE 0 END), 0) as overdue_count,
+                            COALESCE(SUM(CASE WHEN co.next_visit_date = CURRENT_DATE THEN 1 ELSE 0 END), 0) as due_today_count,
+                            COALESCE(SUM(CASE WHEN co.next_visit_date > CURRENT_DATE AND co.next_visit_date <= CURRENT_DATE + INTERVAL '7 days' THEN 1 ELSE 0 END), 0) as upcoming_week_count
+                        FROM consultation_outcomes co
+                        JOIN opd_entries oe ON co.opd_id = oe.opd_id
+                        WHERE co.next_visit_date IS NOT NULL
+                            AND co.consultation_status = 'Completed'
+                            AND co.next_visit_date <= CURRENT_DATE + INTERVAL '7 days'
+                            AND oe.branch_id = $1
+                            AND NOT EXISTS (
+                                SELECT 1 FROM opd_entries o 
+                                WHERE o.patient_id = co.patient_id 
+                                AND o.doctor_id = co.doctor_id
+                                AND o.visit_date > co.created_at::date
+                                AND o.visit_status = 'Completed'
+                            )
+                    `;
+                    params = [branch_id];
+                } else {
+                    // Fallback if no branch (shouldn't happen for receptionists)
+                    sql = `
+                        SELECT 
+                            COALESCE(SUM(CASE WHEN co.next_visit_date < CURRENT_DATE THEN 1 ELSE 0 END), 0) as overdue_count,
+                            COALESCE(SUM(CASE WHEN co.next_visit_date = CURRENT_DATE THEN 1 ELSE 0 END), 0) as due_today_count,
+                            COALESCE(SUM(CASE WHEN co.next_visit_date > CURRENT_DATE AND co.next_visit_date <= CURRENT_DATE + INTERVAL '7 days' THEN 1 ELSE 0 END), 0) as upcoming_week_count
+                        FROM consultation_outcomes co
+                        WHERE co.next_visit_date IS NOT NULL
+                            AND co.consultation_status = 'Completed'
+                            AND co.next_visit_date <= CURRENT_DATE + INTERVAL '7 days'
+                            AND NOT EXISTS (
+                                SELECT 1 FROM opd_entries o 
+                                WHERE o.patient_id = co.patient_id 
+                                AND o.doctor_id = co.doctor_id
+                                AND o.visit_date > co.created_at::date
+                                AND o.visit_status = 'Completed'
+                            )
+                    `;
+                }
             }
 
             const result = await query(sql, params);

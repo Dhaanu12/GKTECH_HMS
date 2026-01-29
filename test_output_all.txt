@@ -1,0 +1,90 @@
+﻿--- Starting Family Member Flow Test ---
+Γ£à Connected to PostgreSQL database
+
+1. Creating Father Patient...
+node : Create OPD entry 
+error: error: insert or 
+update on table 
+"opd_entries" violates 
+foreign key constraint "opd_
+entries_checked_in_by_fkey"
+At line:1 char:1
++ node backend/scripts/test_
+family_flow_simulation.js 
+2>&1 | Out-File - ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~
+    + CategoryInfo          
+    : NotSpecified: (Creat  
+  e OPD entr...ked_in_by_   
+ fkey":String) [], Remot    
+eException
+    + FullyQualifiedErrorId 
+    : NativeCommandError
+ 
+    at C:\Users\Dhaanu\Downl
+oads\hms_integrated_v13\hms_
+integrated_13\backend\node_m
+odules\pg-pool\index.js:45:1
+1
+    at process.processTicksA
+ndRejections (node:internal/
+process/task_queues:103:5)
+    at async OpdController.c
+reateOpdEntry (C:\Users\Dhaa
+nu\Downloads\hms_integrated_
+v13\hms_integrated_13\backen
+d\controllers\opdController.
+js:246:28)
+    at async runTest (C:\Use
+rs\Dhaanu\Downloads\hms_inte
+grated_v13\hms_integrated_13
+\backend\scripts\test_family
+_flow_simulation.js:40:9) {
+  length: 286,
+  severity: 'ERROR',
+  code: '23503',
+  detail: 'Key 
+(checked_in_by)=(999) is 
+not present in table 
+"users".',
+  hint: undefined,
+  position: undefined,
+  internalPosition: 
+undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: 'public',
+  table: 'opd_entries',
+  column: undefined,
+  dataType: undefined,
+  constraint: 'opd_entries_c
+hecked_in_by_fkey',
+  file: 'ri_triggers.c',
+  line: '2783',
+  routine: 
+'ri_ReportViolation'
+}
+NEXT CALLED WITH ERROR: 
+AppError: Failed to create 
+OPD entry
+    at OpdController.createO
+pdEntry (C:\Users\Dhaanu\Dow
+nloads\hms_integrated_v13\hm
+s_integrated_13\backend\cont
+rollers\opdController.js:303
+:18)
+    at process.processTicksA
+ndRejections (node:internal/
+process/task_queues:103:5)
+    at async runTest (C:\Use
+rs\Dhaanu\Downloads\hms_inte
+grated_v13\hms_integrated_13
+\backend\scripts\test_family
+_flow_simulation.js:40:9) {
+  statusCode: 500,
+  status: 'error',
+  isOperational: true
+}
+Failed to create Father: No Data

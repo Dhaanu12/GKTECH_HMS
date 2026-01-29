@@ -9,6 +9,9 @@ router.get('/', authenticate, DepartmentController.getAllDepartments);
 // Get active departments only
 router.get('/active', authenticate, DepartmentController.getActiveDepartments);
 
+// Get departments for logged-in user's hospital
+router.get('/hospital', authenticate, authorize('SUPER_ADMIN', 'CLIENT_ADMIN', 'RECEPTIONIST', 'DOCTOR', 'NURSE', 'ACCOUNTANT'), DepartmentController.getHospitalDepartments);
+
 // Get department by ID
 router.get('/:id', authenticate, DepartmentController.getDepartmentById);
 

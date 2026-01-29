@@ -18,6 +18,34 @@ export default function OpdEntryPage() {
     const [doctors, setDoctors] = useState<any[]>([]);
     const [opdEntries, setOpdEntries] = useState([]);
     const [showModal, setShowModal] = useState(false);
+    const [phoneMatches, setPhoneMatches] = useState<any[]>([]);
+    const [showPhoneDropdown, setShowPhoneDropdown] = useState(false);
+
+    const checkPhoneMatches = async (phone: string) => {
+        if (phone.length === 10) {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await axios.get(`${API_URL}/patients/search`, {
+                    params: { q: phone },
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                const matches = response.data.data.patients || [];
+                // Filter matches that exactly start with or contain the phone number? 
+                // The search API might be fuzzy. Let's trust it returns relevant ones.
+                // We only show dropdown if matches exist.
+                setPhoneMatches(matches);
+                if (matches.length > 0) {
+                    setShowPhoneDropdown(true);
+                } else {
+                    setShowPhoneDropdown(false);
+                }
+            } catch (error) {
+                console.error("Error checking phone matches:", error);
+            }
+        } else {
+            setShowPhoneDropdown(false);
+        }
+    };
     const [hasAppointment, setHasAppointment] = useState(false);
     const [appointmentDoctorName, setAppointmentDoctorName] = useState('');
     const [editingOpdId, setEditingOpdId] = useState<number | null>(null);

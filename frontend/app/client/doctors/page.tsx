@@ -135,7 +135,7 @@ export default function DoctorsPage() {
             Object.keys(formData).forEach(key => {
                 const value = (formData as any)[key];
                 if (key === 'branch_ids') {
-                    value.forEach((id: number) => formDataToSend.append('branch_ids[]', id.toString()));
+                    value.forEach((id: number) => formDataToSend.append('branch_ids', id.toString()));
                 } else {
                     formDataToSend.append(key, value);
                 }

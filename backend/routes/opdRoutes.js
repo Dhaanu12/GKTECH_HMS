@@ -30,6 +30,9 @@ router.patch('/:id/payment', authorize('RECEPTIONIST'), opdController.updatePaym
 // PATCH /api/opd/:id - Update OPD entry (Receptionist only)
 router.patch('/:id', authorize('RECEPTIONIST'), opdController.updateOpdEntry);
 
+// DELETE /api/opd/:id - Delete OPD entry (Receptionist only)
+router.delete('/:id', authorize('RECEPTIONIST'), opdController.deleteOpdEntry);
+
 
 
 module.exports = router;

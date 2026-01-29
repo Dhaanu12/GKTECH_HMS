@@ -15,4 +15,7 @@ router.get('/:id', authenticate, authorize('RECEPTIONIST', 'DOCTOR', 'CLIENT_ADM
 // Update appointment status
 router.patch('/:id/status', authenticate, authorize('RECEPTIONIST', 'CLIENT_ADMIN'), AppointmentController.updateAppointmentStatus);
 
+// Reschedule appointment
+router.patch('/:id/reschedule', authenticate, authorize('RECEPTIONIST', 'CLIENT_ADMIN'), AppointmentController.rescheduleAppointment);
+
 module.exports = router;

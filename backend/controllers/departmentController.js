@@ -37,6 +37,45 @@ class DepartmentController {
     }
 
     /**
+     * Get Departments for Current Hospital
+     * Accessible by: Authenticated users with hospital_id
+     */
+    static async getHospitalDepartments(req, res, next) {
+        try {
+            const hospitalId = req.query.hospital_id || req.user.hospital_id;
+
+            if (!hospitalId) {
+                // If no hospital_id found (e.g. Super Admin without query param), maybe return all or active?
+                // Let's assume we want to return active departments as fallback or error?
+                // For now, let's return active departments if no hospital context, 
+                // but strictly speaking, the requirement is specific about hospital.
+                // Assuming CLIENT_ADMIN/RECEPTIONIST always has hospital_id.
+                // If SUPER_ADMIN, they should provide hospital_id in query if they want to filter, otherwise maybe all active.
+
+                if (req.userRole === 'SUPER_ADMIN') {
+                    const departments = await Department.findActive();
+                    return res.status(200).json({
+                        status: 'success',
+                        results: departments.length,
+                        data: { departments }
+                    });
+                } else {
+                    return next(new AppError('Hospital ID not found in user context', 400));
+                }
+            }
+
+            const departments = await Department.findByHospitalId(hospitalId);
+            res.status(200).json({
+                status: 'success',
+                results: departments.length,
+                data: { departments }
+            });
+        } catch (error) {
+            next(new AppError(error.message, 500));
+        }
+    }
+
+    /**
      * Get Department by ID
      * Accessible by: All authenticated users
      */

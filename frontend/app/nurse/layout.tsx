@@ -4,7 +4,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 import Link from 'next/link';
-import { LayoutDashboard, Users, LogOut, HeartPulse } from 'lucide-react';
+import { LayoutDashboard, Users, LogOut, HeartPulse, MessageSquare } from 'lucide-react';
 
 export default function NurseLayout({ children }: { children: React.ReactNode }) {
     const { isAuthenticated, loading, user, logout } = useAuth();
@@ -35,6 +35,7 @@ export default function NurseLayout({ children }: { children: React.ReactNode })
     const navItems = [
         { name: 'Dashboard', path: '/nurse/dashboard', icon: LayoutDashboard },
         { name: 'Patients', path: '/nurse/patients', icon: Users },
+        { name: 'Feedbacks', path: '/nurse/feedbacks', icon: MessageSquare },
     ];
 
     return (
@@ -92,21 +93,41 @@ export default function NurseLayout({ children }: { children: React.ReactNode })
             <div className="flex-1 flex flex-col h-screen overflow-hidden">
                 {/* Header */}
                 <header className="bg-white shadow-sm border-b border-gray-200 z-10">
-                    <div className="px-8 py-4 flex justify-between items-center">
-                        <h2 className="text-2xl font-bold text-slate-800">
+                    <div className="px-8 py-4 flex justify-between items-center relative">
+                        {/* Left: Page Title */}
+                        <h2 className="text-xl font-bold text-slate-800">
                             {navItems.find(item => item.path === pathname)?.name || 'Nurse Portal'}
                         </h2>
+
+                        {/* Center: Hospital Name */}
+                        <div className="absolute left-1/2 transform -translate-x-1/2 hidden md:block">
+                            <h1 className="text-2xl font-bold text-blue-900 font-heading">
+                                {user?.hospital_name ?
+                                    user.hospital_name.charAt(0).toUpperCase() + user.hospital_name.slice(1)
+                                    : 'CareNex AI'}
+                            </h1>
+                        </div>
+
+                        {/* Right: User Info & Logout */}
                         <div className="flex items-center gap-4">
-                            <div className="text-right mr-4">
-                                <p className="text-sm font-semibold text-gray-900">{user?.username || 'Nurse'}</p>
-                                <p className="text-xs text-gray-500">Nurse</p>
+                            <div className="flex items-center gap-3">
+                                <div className="text-right hidden sm:block">
+                                    <p className="text-sm font-bold text-slate-800 capitalize">
+                                        {user?.first_name ? `${user.first_name} ${user.last_name || ''}` : user?.username || 'Nurse'}
+                                    </p>
+                                    <p className="text-xs text-slate-500 font-medium capitalize">{user?.role || 'Nurse'}</p>
+                                </div>
+                                <div className="h-10 w-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold border border-indigo-100 shadow-sm">
+                                    {user?.first_name ? user.first_name[0].toUpperCase() : user?.username?.[0]?.toUpperCase() || 'N'}
+                                </div>
                             </div>
+                            <div className="h-8 w-px bg-gray-200 mx-1 hidden sm:block"></div>
                             <button
                                 onClick={logout}
                                 className="flex items-center gap-2 px-4 py-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors font-medium text-sm"
                             >
                                 <LogOut className="w-4 h-4" />
-                                <span>Logout</span>
+                                <span className="hidden sm:inline">Logout</span>
                             </button>
                         </div>
                     </div>
