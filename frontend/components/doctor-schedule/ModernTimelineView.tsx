@@ -10,15 +10,58 @@ interface ModernTimelineViewProps {
 }
 
 export default function ModernTimelineView({ doctors, date, onAddClick }: ModernTimelineViewProps) {
-    // Sort doctors by start time
-    const sortedDoctors = [...doctors].sort((a, b) => a.start_time.localeCompare(b.start_time));
+    // Group doctors and merge shifts
+    const processedDoctors = React.useMemo(() => {
+        const map = new Map<number, Doctor & { shifts: { start: string; end: string }[] }>();
+
+        doctors.forEach(doc => {
+            if (!map.has(doc.doctor_id)) {
+                map.set(doc.doctor_id, { ...doc, shifts: [] });
+            }
+            const entry = map.get(doc.doctor_id)!;
+
+            // Add shift if unique
+            if (!entry.shifts.some(s => s.start === doc.start_time && s.end === doc.end_time)) {
+                entry.shifts.push({ start: doc.start_time, end: doc.end_time });
+            }
+
+            // Ensure main record reflects earliest start time
+            if (doc.start_time < entry.start_time) {
+                entry.start_time = doc.start_time;
+                // Merge other props if needed, but usually doctor details are constant
+            }
+        });
+
+        return Array.from(map.values())
+            .map(doc => {
+                doc.shifts.sort((a, b) => a.start.localeCompare(b.start));
+                return doc;
+            })
+            .sort((a, b) => a.start_time.localeCompare(b.start_time));
+    }, [doctors]);
+
+    const formatTime = (time: string) => {
+        if (!time) return '';
+        const [h, m] = time.split(':');
+        const hour = parseInt(h);
+        const ampm = hour >= 12 ? 'PM' : 'AM';
+        const h12 = hour % 12 || 12;
+        return `${h12}:${m} ${ampm}`;
+    };
+
+    const getDuration = (start: string, end: string) => {
+        const s = new Date(`1970-01-01T${start}`);
+        const e = new Date(`1970-01-01T${end}`);
+        const diff = (e.getTime() - s.getTime()) / 60000; // minutes
+        return diff;
+    };
 
     return (
         <div className="space-y-6">
             <div className="flex flex-col space-y-2">
-                {sortedDoctors.map((doctor, index) => (
+                {processedDoctors.map((doctor, index) => (
                     <motion.div
-                        key={doctor.doctor_id}
+                        key={`timeline-${doctor.doctor_id}-${index}`}
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ duration: 0.3, delay: index * 0.1 }}
@@ -27,7 +70,10 @@ export default function ModernTimelineView({ doctors, date, onAddClick }: Modern
                         {/* Time Column */}
                         <div className="w-14 pt-6 text-right flex-shrink-0">
                             <span className="text-xs font-bold text-slate-400 font-mono">
-                                {doctor.start_time.substring(0, 5)}
+                                {formatTime(doctor.start_time).split(' ')[0]}
+                            </span>
+                            <span className="text-[10px] font-bold text-slate-300 font-mono block">
+                                {formatTime(doctor.start_time).split(' ')[1]}
                             </span>
                         </div>
 
@@ -88,9 +134,15 @@ export default function ModernTimelineView({ doctors, date, onAddClick }: Modern
                                             ? 'Confirmed'
                                             : doctor.attendance_status}
                                     </span>
-                                    <div className="text-right">
-                                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-0.5">Duration</span>
-                                        <span className="font-bold text-slate-700 text-lg">45m</span>
+                                    <div className="flex flex-col items-end mt-1">
+                                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1">Shifts</span>
+                                        {doctor.shifts.map((shift, idx) => (
+                                            <div key={idx} className="flex items-center gap-2 mb-1">
+                                                <span className="font-bold text-slate-700 text-sm">
+                                                    {formatTime(shift.start)} - {formatTime(shift.end)}
+                                                </span>
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
                             </div>

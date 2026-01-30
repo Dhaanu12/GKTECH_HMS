@@ -38,16 +38,11 @@ class OpdController {
                 return next(new AppError('Branch not linked to your account', 403));
             }
 
-            // MLC Validation
-            if (is_mlc) {
-                if (!attender_name) {
-                    return next(new AppError('Attender Name is mandatory for MLC cases.', 400));
-                }
-            } else {
-                // Non-MLC: Adhaar is mandatory if we are creating a new patient OR updating incomplete one.
-                // For simplicity, we enforce it. 
-                // However, we must allow for the case where we selected a patient who might already have it effectively,
-                // but usually the form should re-submit it if we want to be safe.
+            // MLC Validation - Attender details are optional for MLC
+            // For non-MLC cases, keep existing optional Adhaar logic
+            if (!is_mlc) {
+                // Non-MLC: Adhaar is optional but encouraged.
+                // No mandatory validation here now.
                 if (!adhaar_number && !patient_id) {
                     // return next(new AppError('Adhaar Number is mandatory for non-MLC cases.', 400));
                 }
@@ -241,6 +236,7 @@ class OpdController {
             const token_number = `T-${nextTokenInt}`;
 
             const finalConsultationFee = consultation_fee === '' || consultation_fee === null || consultation_fee === undefined ? null : consultation_fee;
+            const finalDoctorId = doctor_id === '' || doctor_id === null || doctor_id === undefined ? null : doctor_id;
 
             // 3. Create OPD Entry
             const result = await query(`
@@ -262,7 +258,7 @@ class OpdController {
                     $21, $22
                 ) RETURNING *
             `, [
-                opd_number, finalPatientId, branch_id, doctor_id,
+                opd_number, finalPatientId, branch_id, finalDoctorId,
                 visit_type, visit_date, visit_time, token_number,
                 reason_for_visit, symptoms, vital_signs, chief_complaint,
                 finalConsultationFee, payment_status,
@@ -315,10 +311,10 @@ class OpdController {
                 return next(new AppError('Branch not linked to your account', 403));
             }
 
-            const { search } = req.query;
+            const { search, startDate, endDate } = req.query;
             let queryText = `
                 SELECT o.*, 
-                       p.first_name as patient_first_name, p.last_name as patient_last_name, p.mrn_number, p.contact_number,
+                       p.first_name as patient_first_name, p.last_name as patient_last_name, p.mrn_number, p.contact_number, p.age, p.gender,
                        d.first_name as doctor_first_name, d.last_name as doctor_last_name, d.specialization,
                        co.next_visit_date
                 FROM opd_entries o
@@ -330,16 +326,27 @@ class OpdController {
 
             const queryParams = [branch_id];
 
+            if (startDate) {
+                queryParams.push(startDate);
+                queryText += ` AND o.visit_date >= $${queryParams.length}`;
+            }
+
+            if (endDate) {
+                queryParams.push(endDate);
+                queryText += ` AND o.visit_date <= $${queryParams.length}`;
+            }
+
             if (search) {
                 const searchLower = `%${search.toLowerCase()}%`;
+                const idx = queryParams.length + 1;
                 queryText += ` AND (
-                    LOWER(d.first_name) LIKE $2 OR 
-                    LOWER(d.last_name) LIKE $2 OR
-                    LOWER(o.token_number) LIKE $2 OR
-                    LOWER(p.mrn_number) LIKE $2 OR
-                    LOWER(o.opd_number) LIKE $2 OR
-                    LOWER(p.first_name) LIKE $2 OR
-                    LOWER(p.last_name) LIKE $2
+                    LOWER(d.first_name) LIKE $${idx} OR 
+                    LOWER(d.last_name) LIKE $${idx} OR
+                    LOWER(o.token_number) LIKE $${idx} OR
+                    LOWER(p.mrn_number) LIKE $${idx} OR
+                    LOWER(o.opd_number) LIKE $${idx} OR
+                    LOWER(p.first_name) LIKE $${idx} OR
+                    LOWER(p.last_name) LIKE $${idx}
                 )`;
                 queryParams.push(searchLower);
             }
@@ -426,12 +433,19 @@ class OpdController {
                 WHERE branch_id = $1 AND appointment_date = CURRENT_DATE
             `, [branch_id]);
 
-            // 4. Pending OPD (Registered but not Completed)
-            const pendingResult = await query(`
-                SELECT COUNT(*) as count 
+            // 5. Financial Stats (Today)
+            const financialResult = await query(`
+                SELECT 
+                    SUM(CASE WHEN payment_status = 'Paid' THEN CAST(consultation_fee AS DECIMAL) ELSE 0 END) as collected_amount,
+                    COUNT(CASE WHEN payment_status = 'Paid' THEN 1 END) as collected_count,
+                    SUM(CASE WHEN payment_status = 'Pending' THEN CAST(consultation_fee AS DECIMAL) ELSE 0 END) as pending_amount,
+                    COUNT(CASE WHEN payment_status = 'Pending' THEN 1 END) as pending_count,
+                    COUNT(CASE WHEN visit_status IN ('Registered', 'In-consultation') THEN 1 END) as queue_count
                 FROM opd_entries 
-                WHERE branch_id = $1 AND visit_date = CURRENT_DATE AND visit_status = 'Registered'
+                WHERE branch_id = $1 AND visit_date = CURRENT_DATE
             `, [branch_id]);
+
+            const finStats = financialResult.rows[0];
 
             res.status(200).json({
                 status: 'success',
@@ -440,7 +454,13 @@ class OpdController {
                         todayOpd: parseInt(opdResult.rows[0].count),
                         newPatients: parseInt(patientsResult.rows[0].count),
                         todayAppointments: parseInt(apptResult.rows[0].count),
-                        pendingOpd: parseInt(pendingResult.rows[0].count)
+                        pendingOpd: parseInt(finStats.queue_count || 0), // Queue (Registered + In-consultation)
+
+                        // Financials
+                        collectedAmount: parseFloat(finStats.collected_amount || 0),
+                        collectedCount: parseInt(finStats.collected_count || 0),
+                        pendingAmount: parseFloat(finStats.pending_amount || 0),
+                        pendingCount: parseInt(finStats.pending_count || 0)
                     }
                 }
             });

@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, FileText, User, Stethoscope, Activity, Plus, Trash2, Phone, MapPin, Calendar, Clock, Loader2, Mic, Sparkles, Play, Pause, Layout, History as HistoryIcon, FileBadge, Wand2 } from 'lucide-react';
-import TemplateSelector from '../../../../components/doctor/TemplateSelector';
+import { ArrowLeft, FileText, User, Stethoscope, Activity, Plus, Trash2, Phone, MapPin, Calendar, Clock, Loader2, Mic, Sparkles, Play, Pause, Layout, History as HistoryIcon, FileBadge } from 'lucide-react';
+
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -84,7 +84,12 @@ export default function PatientDetails() {
     const [isAiListening, setIsAiListening] = useState(false);
 
     // Template Selector State
-    const [showTemplateSelector, setShowTemplateSelector] = useState(false);
+
+    // Lab Search State
+    const [labSearchResults, setLabSearchResults] = useState<any[]>([]);
+    const [showLabDropdown, setShowLabDropdown] = useState(false);
+    const [isSearchingLabs, setIsSearchingLabs] = useState(false);
+
 
     const handleToggleDeceased = (checked: boolean) => {
         setIsPatientDeceased(checked);
@@ -826,16 +831,48 @@ export default function PatientDetails() {
         }
     };
 
-    // Apply medications from a template
-    const handleApplyTemplate = (templateMedications: any[]) => {
+
+
+
+    const handleLabSearch = async (query: string) => {
+        setNewLab({ ...newLab, test_name: query });
+        if (query.length < 2) {
+            setLabSearchResults([]);
+            setShowLabDropdown(false);
+            return;
+        }
+
+        setIsSearchingLabs(true);
+        setShowLabDropdown(true);
+
+        try {
+            const token = localStorage.getItem('token');
+            // Assuming current user's hospital context is handled by backend key or we might need to pass it? 
+            // The API we implemented can take hospital_id, but let's try just query first or look up hospital_id from opdHistory if available.
+            // But let's stick to simple query first.
+            const response = await axios.get(`${API_URL}/services/search?query=${query}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setLabSearchResults(response.data.data.services || []);
+        } catch (error) {
+            console.error("Error searching labs:", error);
+        } finally {
+            setIsSearchingLabs(false);
+        }
+    };
+
+    const selectLabService = (service: any) => {
         setConsultationData({
             ...consultationData,
-            medications: [...consultationData.medications, ...templateMedications]
+            labs: [...consultationData.labs, { test_name: service.service_name, lab_name: 'In-House' }] // Defaulting lab_name or maybe empty
         });
+        setNewLab({ test_name: '', lab_name: '' });
+        setShowLabDropdown(false);
+        setLabSearchResults([]);
     };
 
     const handleAddLab = () => {
-        if (newLab.test_name.trim() && newLab.lab_name.trim()) {
+        if (newLab.test_name.trim()) {
             setConsultationData({
                 ...consultationData,
                 labs: [...consultationData.labs, { ...newLab }]
@@ -843,6 +880,7 @@ export default function PatientDetails() {
             setNewLab({ test_name: '', lab_name: '' });
         }
     };
+
 
     const removeLab = (index: number) => {
         const newLabs = [...consultationData.labs];
@@ -1636,17 +1674,45 @@ export default function PatientDetails() {
                                     <div>
                                         <label className="block text-sm font-bold text-slate-700 mb-2">Lab Orders</label>
                                         <div className="bg-slate-50/50 rounded-xl border border-slate-200 p-3 h-32 flex flex-col">
-                                            <div className="flex gap-2 mb-2">
-                                                <input
-                                                    type="text"
-                                                    className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-sm"
-                                                    placeholder="Test Name"
-                                                    value={newLab.test_name}
-                                                    onChange={(e) => setNewLab({ ...newLab, test_name: e.target.value })}
-                                                />
-                                                <button onClick={handleAddLab} className="p-1.5 bg-slate-200 hover:bg-slate-300 rounded-lg text-slate-600 transition">
-                                                    <Plus className="w-4 h-4" />
-                                                </button>
+                                            <div className="relative">
+                                                <div className="flex gap-2 mb-2">
+                                                    <input
+                                                        type="text"
+                                                        className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-sm"
+                                                        placeholder="Search Test Name..."
+                                                        value={newLab.test_name}
+                                                        onChange={(e) => handleLabSearch(e.target.value)}
+                                                        onFocus={() => { if (newLab.test_name.length >= 2) setShowLabDropdown(true); }}
+                                                        onBlur={() => setTimeout(() => setShowLabDropdown(false), 200)} // Delay to allow click
+                                                    />
+                                                    <button onClick={handleAddLab} className="p-1.5 bg-slate-200 hover:bg-slate-300 rounded-lg text-slate-600 transition">
+                                                        <Plus className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+
+                                                {/* Search Dropdown */}
+                                                {showLabDropdown && (
+                                                    <div className="absolute top-10 left-0 right-0 bg-white border border-slate-200 rounded-lg shadow-xl z-50 max-h-48 overflow-y-auto">
+                                                        {isSearchingLabs ? (
+                                                            <div className="p-3 text-xs text-slate-500 text-center">Searching...</div>
+                                                        ) : labSearchResults.length > 0 ? (
+                                                            <ul>
+                                                                {labSearchResults.map((service) => (
+                                                                    <li
+                                                                        key={service.service_id}
+                                                                        className="px-3 py-2 hover:bg-slate-50 cursor-pointer text-sm border-b border-slate-50 last:border-none flex justify-between items-center"
+                                                                        onClick={() => selectLabService(service)}
+                                                                    >
+                                                                        <span className="font-medium text-slate-700">{service.service_name}</span>
+                                                                        {service.service_code && <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">{service.service_code}</span>}
+                                                                    </li>
+                                                                ))}
+                                                            </ul>
+                                                        ) : (
+                                                            <div className="p-3 text-xs text-slate-500 text-center">No results found</div>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                             <div className="flex-1 overflow-y-auto space-y-1 custom-scrollbar">
                                                 {consultationData.labs.map((lab, index) => (
@@ -1663,17 +1729,7 @@ export default function PatientDetails() {
 
                                 {/* 3. Prescription Pad */}
                                 <div className="bg-gradient-to-br from-blue-50/50 to-indigo-50/50 rounded-2xl border border-blue-100 p-5">
-                                    <div className="flex justify-between items-center mb-4">
-                                        <h4 className="font-bold text-blue-800 flex items-center gap-2">
-                                            <FileBadge className="w-5 h-5" /> Rx Prescription
-                                        </h4>
-                                        <button
-                                            onClick={() => setShowTemplateSelector(true)}
-                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-purple-500 to-indigo-500 text-white text-xs font-bold rounded-lg hover:shadow-lg hover:shadow-purple-500/30 transition hover:-translate-y-0.5"
-                                        >
-                                            <Wand2 className="w-3.5 h-3.5" /> Use Template
-                                        </button>
-                                    </div>
+
 
                                     <div className="grid grid-cols-12 gap-3 mb-4 bg-white/60 p-3 rounded-xl border border-blue-100/50 shadow-sm">
                                         <div className="col-span-4">
@@ -2373,14 +2429,7 @@ export default function PatientDetails() {
             }
 
             {/* Template Selector Modal */}
-            <TemplateSelector
-                isOpen={showTemplateSelector}
-                onClose={() => setShowTemplateSelector(false)}
-                onApplyTemplate={handleApplyTemplate}
-                diagnosis={consultationData.diagnosis}
-                patientId={patient?.patient_id || null}
-                opdId={opdHistory[0]?.opd_id || null}
-            />
+
         </div>
     );
 }

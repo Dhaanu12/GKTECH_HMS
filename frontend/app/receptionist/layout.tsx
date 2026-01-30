@@ -144,7 +144,7 @@ export default function ReceptionistLayout({ children }: { children: React.React
                                     <p className="text-sm font-bold text-slate-800 capitalize">
                                         {user?.first_name ? `${user.first_name} ${user.last_name || ''}` : user?.username}
                                     </p>
-                                    <p className="text-xs text-slate-500 font-medium capitalize">{user?.role || 'User'}</p>
+                                    <p className="text-xs text-slate-500 font-medium capitalize">Receptionist</p>
                                 </div>
                                 <div className="h-10 w-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold border border-blue-100 shadow-sm">
                                     {user?.first_name ? user.first_name[0].toUpperCase() : user?.username?.[0]?.toUpperCase()}

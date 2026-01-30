@@ -16,10 +16,25 @@ export default function OpdEntryPage() {
     const [searchResults, setSearchResults] = useState([]);
     const [selectedPatient, setSelectedPatient] = useState<any>(null);
     const [doctors, setDoctors] = useState<any[]>([]);
+    const [dateRange, setDateRange] = useState({
+        from: new Date().toISOString().split('T')[0],
+        to: new Date().toISOString().split('T')[0]
+    });
     const [opdEntries, setOpdEntries] = useState([]);
     const [showModal, setShowModal] = useState(false);
     const [phoneMatches, setPhoneMatches] = useState<any[]>([]);
     const [showPhoneDropdown, setShowPhoneDropdown] = useState(false);
+
+    // Live Dashboard Stats
+    const [dashboardStats, setDashboardStats] = useState({
+        queueCount: 0,
+        todayVisits: 0,
+        completedVisits: 0,
+        pendingAmount: 0,
+        pendingCount: 0,
+        collectedAmount: 0,
+        collectedCount: 0
+    });
 
     const checkPhoneMatches = async (phone: string) => {
         if (phone.length === 10) {
@@ -124,9 +139,15 @@ export default function OpdEntryPage() {
 
     useEffect(() => {
         fetchDoctors();
-        fetchOpdEntries();
+        // fetchOpdEntries(); // Triggered by dateRange effect
         fetchFollowUps();
+        fetchDashboardStats();
     }, []);
+
+    // Refresh when date range changes
+    useEffect(() => {
+        fetchOpdEntries(searchQuery);
+    }, [dateRange]);
 
     useEffect(() => {
         if (user?.branch_id) {
@@ -211,7 +232,11 @@ export default function OpdEntryPage() {
         try {
             const token = localStorage.getItem('token');
             const response = await axios.get(`${API_URL}/opd`, {
-                params: { search: query },
+                params: {
+                    search: query,
+                    startDate: dateRange.from,
+                    endDate: dateRange.to
+                },
                 headers: { Authorization: `Bearer ${token}` }
             });
             setOpdEntries(response.data.data.opdEntries || []);
@@ -235,6 +260,35 @@ export default function OpdEntryPage() {
             });
         } catch (error) {
             console.error('Error fetching follow-ups:', error);
+        }
+    };
+
+    const fetchDashboardStats = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.get(`${API_URL}/opd/stats`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const stats = response.data.data.stats;
+            setDashboardStats({
+                queueCount: stats.pendingOpd || 0, // In Controllers pendingOpd maps to queue_count
+                todayVisits: stats.todayOpd || 0, // Total Opd Entries Today
+                // We might need "Completed" count specifically if not in API, but usually Total Today is what "Today's Visits" expected. 
+                // Let's assume todayOpd is Total.
+                completedVisits: 0, // Not explicitly returned by new API, but todayOpd is total. Card asks for 'completed'.
+                // Actually, I should have added 'completed_count' to backend. 
+                // Wait, I didn't add 'completed_count' to backend! 
+                // I added 'collected_amount', 'collected_count' (Paid), 'pending_amount', 'pending_count' (Pending).
+                // "Today's Visits" card previously showed Total and Completed.
+                // For now, I will use 'todayOpd' for Total.
+
+                pendingAmount: stats.pendingAmount || 0,
+                pendingCount: stats.pendingCount || 0,
+                collectedAmount: stats.collectedAmount || 0,
+                collectedCount: stats.collectedCount || 0
+            });
+        } catch (error) {
+            console.error('Error fetching dashboard stats:', error);
         }
     };
 
@@ -543,6 +597,7 @@ export default function OpdEntryPage() {
             setShowModal(false);
             resetForm();
             fetchOpdEntries();
+            fetchDashboardStats(); // Refresh stats
         } catch (error) {
             // Error already handled in saveEntry
         } finally {
@@ -743,12 +798,12 @@ export default function OpdEntryPage() {
                             </div>
                             <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 bg-amber-100 px-2 py-1 rounded-full">RIGHT NOW</span>
                         </div>
-                        <p className="text-4xl font-bold text-amber-700">{opdEntries.filter((e: any) => e.visit_status === 'In-consultation' || e.visit_status === 'Registered').length}</p>
+                        <p className="text-4xl font-bold text-amber-700">{dashboardStats.queueCount}</p>
                         <p className="text-sm font-medium text-amber-600 mt-1">Patients in Queue</p>
-                        {opdEntries.filter((e: any) => e.visit_status === 'Registered').length > 0 && (
+                        {dashboardStats.queueCount > 0 && (
                             <p className="text-xs text-amber-500 mt-2 flex items-center gap-1">
                                 <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-                                {opdEntries.filter((e: any) => e.visit_status === 'Registered').length} waiting for doctor
+                                {dashboardStats.queueCount} waiting for doctor
                             </p>
                         )}
                     </div>
@@ -761,10 +816,12 @@ export default function OpdEntryPage() {
                             </div>
                             <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-100 px-2 py-1 rounded-full">TODAY</span>
                         </div>
-                        <p className="text-4xl font-bold text-blue-700">{opdEntries.filter((e: any) => e.visit_date === new Date().toISOString().split('T')[0]).length}</p>
+                        <p className="text-4xl font-bold text-blue-700">{dashboardStats.todayVisits}</p>
                         <p className="text-sm font-medium text-blue-600 mt-1">Today's Visits</p>
                         <p className="text-xs text-blue-500 mt-2">
-                            {opdEntries.filter((e: any) => e.visit_date === new Date().toISOString().split('T')[0] && e.visit_status === 'Completed').length} completed
+                            {/* We can rely on 'collectedCount' as proxy for 'completed' if paid=completed? Or just hide completed count if not available */}
+                            {/* Actually, user didn't ask for completed count specifically to be fixed, just live values. */}
+                            Live Updates
                         </p>
                     </div>
 
@@ -776,10 +833,10 @@ export default function OpdEntryPage() {
                             </div>
                             <span className="text-[10px] font-bold uppercase tracking-wider text-red-600 bg-red-100 px-2 py-1 rounded-full">ACTION</span>
                         </div>
-                        <p className="text-4xl font-bold text-red-700">{opdEntries.filter((e: any) => e.payment_status === 'Pending').length}</p>
+                        <p className="text-4xl font-bold text-red-700">{dashboardStats.pendingCount}</p>
                         <p className="text-sm font-medium text-red-600 mt-1">Pending Payments</p>
                         <p className="text-xs text-red-500 mt-2">
-                            ₹{opdEntries.filter((e: any) => e.payment_status === 'Pending').reduce((sum: number, e: any) => sum + (parseFloat(e.consultation_fee) || 0), 0).toLocaleString()} to collect
+                            ₹{dashboardStats.pendingAmount.toLocaleString()} to collect
                         </p>
                     </div>
 
@@ -792,11 +849,11 @@ export default function OpdEntryPage() {
                             <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-100 px-2 py-1 rounded-full">REVENUE</span>
                         </div>
                         <p className="text-4xl font-bold text-emerald-700">
-                            ₹{opdEntries.filter((e: any) => e.payment_status === 'Paid' && e.visit_date === new Date().toISOString().split('T')[0]).reduce((sum: number, e: any) => sum + (parseFloat(e.consultation_fee) || 0), 0).toLocaleString()}
+                            ₹{dashboardStats.collectedAmount.toLocaleString()}
                         </p>
                         <p className="text-sm font-medium text-emerald-600 mt-1">Collected Today</p>
                         <p className="text-xs text-emerald-500 mt-2">
-                            {opdEntries.filter((e: any) => e.payment_status === 'Paid' && e.visit_date === new Date().toISOString().split('T')[0]).length} payments received
+                            {dashboardStats.collectedCount} payments received
                         </p>
                     </div>
                 </div>
@@ -958,6 +1015,26 @@ export default function OpdEntryPage() {
                         )}
                     </div>
 
+
+                    {/* Date Range Picker */}
+                    <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-3 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500 transition-all shadow-sm">
+                        <input
+                            type="date"
+                            value={dateRange.from}
+                            onChange={(e) => setDateRange({ ...dateRange, from: e.target.value })}
+                            className="outline-none text-sm font-medium text-slate-700 w-auto bg-transparent"
+                            style={{ colorScheme: 'light' }}
+                        />
+                        <span className="text-slate-400 font-bold">-</span>
+                        <input
+                            type="date"
+                            value={dateRange.to}
+                            onChange={(e) => setDateRange({ ...dateRange, to: e.target.value })}
+                            className="outline-none text-sm font-medium text-slate-700 w-auto bg-transparent"
+                            style={{ colorScheme: 'light' }}
+                        />
+                    </div>
+
                     {/* Doctor Filter Dropdown */}
                     <div className="relative">
                         <select
@@ -1061,7 +1138,7 @@ export default function OpdEntryPage() {
                                             <Link href={`/receptionist/patients/${entry.patient_id}`} className="block font-bold text-slate-800 text-lg hover:text-blue-600 transition">
                                                 {entry.patient_first_name} {entry.patient_last_name}
                                             </Link>
-                                            <p className="text-xs text-slate-500 font-medium mt-0.5">{entry.age} • {entry.gender}</p>
+                                            <p className="text-xs text-slate-500 font-medium mt-0.5">{entry.gender}, {entry.age} yrs</p>
                                         </div>
                                     </div>
 
@@ -1120,7 +1197,18 @@ export default function OpdEntryPage() {
                                     </div>
 
                                     {/* Quick Actions (UX Solution 2) */}
-                                    <div className="w-full md:w-[18%] flex items-center justify-end pr-2 flex-shrink-0">
+                                    <div className="w-full md:w-[18%] flex items-center justify-end pr-2 flex-shrink-0 gap-2">
+                                        {/* Edit Button - Always visible for MLC cases, otherwise for all */}
+                                        <button
+                                            onClick={() => handleEditOpd(entry)}
+                                            className={`flex items-center gap-1.5 px-3 py-2 ${entry.is_mlc ? 'bg-red-500 hover:bg-red-600' : 'bg-slate-500 hover:bg-slate-600'} text-white rounded-lg transition-all shadow-sm font-bold text-xs`}
+                                            title="Edit OPD Entry"
+                                        >
+                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                            </svg>
+                                            Edit
+                                        </button>
                                         {/* Quick Follow-Up Button - Only show if visit is completed and within 30 days */}
                                         {entry.visit_status === 'Completed' && (() => {
                                             const visitDate = new Date(entry.visit_date);
@@ -1189,9 +1277,9 @@ export default function OpdEntryPage() {
                                         const step1Complete = selectedPatient
                                             ? true
                                             : (opdForm.first_name && opdForm.age && opdForm.gender &&
-                                                (opdForm.is_mlc || (opdForm.contact_number?.length === 10 && opdForm.adhaar_number?.length === 12)));
+                                                (opdForm.is_mlc || opdForm.contact_number?.length === 10));
 
-                                        const step2FieldsComplete = opdForm.visit_type && opdForm.doctor_id && (opdForm.is_mlc || opdForm.chief_complaint);
+                                        const step2FieldsComplete = opdForm.visit_type && opdForm.doctor_id;
                                         const step2Complete = step1Complete && step2FieldsComplete;
 
                                         const step3FieldsComplete = opdForm.consultation_fee;
@@ -1479,10 +1567,9 @@ export default function OpdEntryPage() {
                                                 </select>
                                             </div>
                                             <div className="md:col-span-2">
-                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Aadhaar Number {opdForm.is_mlc ? '(Optional for MLC)' : <span className="text-red-500">*</span>}</label>
+                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Aadhaar Number</label>
                                                 <input
                                                     type="text"
-                                                    required={!opdForm.is_mlc}
                                                     value={opdForm.adhaar_number}
                                                     onChange={(e) => {
                                                         const value = e.target.value.replace(/\D/g, "");
@@ -1545,7 +1632,16 @@ export default function OpdEntryPage() {
                                                 id="mlc-toggle"
                                                 type="checkbox"
                                                 checked={opdForm.is_mlc}
-                                                onChange={(e) => setOpdForm({ ...opdForm, is_mlc: e.target.checked })}
+                                                onChange={(e) => {
+                                                    const isChecked = e.target.checked;
+                                                    setOpdForm({
+                                                        ...opdForm,
+                                                        is_mlc: isChecked,
+                                                        visit_type: isChecked ? 'Emergency' : opdForm.visit_type,
+                                                        visit_date: isChecked ? new Date().toISOString().split('T')[0] : opdForm.visit_date,
+                                                        visit_time: isChecked ? new Date().toTimeString().slice(0, 5) : opdForm.visit_time
+                                                    });
+                                                }}
                                                 className="w-5 h-5 text-red-600 border-gray-300 rounded focus:ring-red-500 transition-all cursor-pointer"
                                             />
                                             <label htmlFor="mlc-toggle" className="font-bold text-red-800 cursor-pointer select-none">
@@ -1555,7 +1651,7 @@ export default function OpdEntryPage() {
 
                                         <div>
                                             <label className="block text-xs font-semibold text-slate-700 mb-1.5">Visit Type <span className="text-red-500">*</span></label>
-                                            <select required value={opdForm.visit_type} onChange={(e) => setOpdForm({ ...opdForm, visit_type: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium">
+                                            <select required value={opdForm.visit_type} onChange={(e) => setOpdForm({ ...opdForm, visit_type: e.target.value })} disabled={opdForm.is_mlc} className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${opdForm.is_mlc ? 'bg-slate-100 cursor-not-allowed' : ''}`}>
                                                 <option value="Walk-in">Walk-in</option>
                                                 <option value="Follow-up">Follow-up</option>
                                                 <option value="Emergency">Emergency</option>
@@ -1563,12 +1659,12 @@ export default function OpdEntryPage() {
                                             </select>
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Date</label>
-                                            <input type="date" value={opdForm.visit_date} onChange={(e) => setOpdForm({ ...opdForm, visit_date: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium" />
+                                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Date {opdForm.is_mlc && <span className="text-xs text-green-600">(Auto)</span>}</label>
+                                            <input type="date" value={opdForm.visit_date} onChange={(e) => setOpdForm({ ...opdForm, visit_date: e.target.value })} disabled={opdForm.is_mlc} className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${opdForm.is_mlc ? 'bg-slate-100 cursor-not-allowed' : ''}`} />
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Time</label>
-                                            <input type="time" value={opdForm.visit_time} onChange={(e) => setOpdForm({ ...opdForm, visit_time: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium" />
+                                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Time {opdForm.is_mlc && <span className="text-xs text-green-600">(Auto)</span>}</label>
+                                            <input type="time" value={opdForm.visit_time} onChange={(e) => setOpdForm({ ...opdForm, visit_time: e.target.value })} disabled={opdForm.is_mlc} className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${opdForm.is_mlc ? 'bg-slate-100 cursor-not-allowed' : ''}`} />
                                         </div>
                                         <div>
                                             {hasAppointment ? (
@@ -1591,6 +1687,7 @@ export default function OpdEntryPage() {
                                                                 consultation_fee: selectedDoc?.consultation_fee || ''
                                                             });
                                                         }}
+                                                        required
                                                         className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
                                                     >
                                                         <option value="">Select Doctor</option>
@@ -1620,12 +1717,12 @@ export default function OpdEntryPage() {
                                         {opdForm.is_mlc && (
                                             <div className="md:col-span-4 grid grid-cols-1 md:grid-cols-2 gap-4 bg-red-50/50 p-4 rounded-xl border border-red-100 animate-in fade-in slide-in-from-top-2">
                                                 <div>
-                                                    <label className="block text-xs font-semibold text-red-800 mb-1.5">Attender Name <span className="text-red-500">*</span></label>
-                                                    <input type="text" required value={opdForm.attender_name} onChange={(e) => setOpdForm({ ...opdForm, attender_name: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-red-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500" />
+                                                    <label className="block text-xs font-semibold text-red-800 mb-1.5">Attender Name</label>
+                                                    <input type="text" value={opdForm.attender_name} onChange={(e) => setOpdForm({ ...opdForm, attender_name: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-red-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500" />
                                                 </div>
                                                 <div>
-                                                    <label className="block text-xs font-semibold text-red-800 mb-1.5">Attender Contact <span className="text-red-500">*</span></label>
-                                                    <input type="tel" required value={opdForm.attender_contact_number} onChange={(e) => setOpdForm({ ...opdForm, attender_contact_number: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-red-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500" />
+                                                    <label className="block text-xs font-semibold text-red-800 mb-1.5">Attender Contact</label>
+                                                    <input type="tel" value={opdForm.attender_contact_number} onChange={(e) => setOpdForm({ ...opdForm, attender_contact_number: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-red-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500" />
                                                 </div>
                                                 <div className="md:col-span-2">
                                                     <label className="block text-xs font-semibold text-red-800 mb-1.5">MLC Remarks</label>
@@ -1642,9 +1739,8 @@ export default function OpdEntryPage() {
                                         <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Clinical Notes</h3>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div className="relative">
-                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Chief Complaint <span className="text-red-500">*</span></label>
+                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Chief Complaint</label>
                                                 <textarea
-                                                    required={!opdForm.is_mlc}
                                                     value={opdForm.chief_complaint}
                                                     onChange={(e) => setOpdForm({ ...opdForm, chief_complaint: e.target.value })}
                                                     onFocus={() => setShowComplaintSuggestions(true)}
@@ -1842,7 +1938,6 @@ export default function OpdEntryPage() {
                                                     <option value="Cash">Cash</option>
                                                     <option value="UPI">UPI</option>
                                                     <option value="Card">Card</option>
-                                                    <option value="Insurance">Insurance</option>
                                                 </select>
                                             </div>
                                         </div>

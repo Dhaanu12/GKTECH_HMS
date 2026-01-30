@@ -278,7 +278,7 @@ class DoctorController {
                 SELECT c.outcome_id, c.opd_id, c.patient_id, c.created_at,
                        p.first_name || ' ' || p.last_name as patient_name,
                        p.age, p.gender, p.mrn_number,
-                       o.visit_time, o.chief_complaint,
+                       o.visit_time, o.chief_complaint, o.consultation_fee,
                        c.diagnosis,
                        'Completed' as source
                 FROM consultation_outcomes c

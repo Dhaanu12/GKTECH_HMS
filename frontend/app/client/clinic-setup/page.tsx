@@ -42,6 +42,58 @@ export default function ClinicSetupPage() {
         }
     }, [user]);
 
+    // Normalize time format from "HH:MM AM/PM" or "HH:MM:SS" to "HH:MM" 24-hour format
+    const normalizeTime = (timeStr: string): string => {
+        if (!timeStr || timeStr === '') return '';
+
+        // Clean up the string
+        const cleaned = timeStr.trim();
+
+        // If already in HH:MM format (no AM/PM), just return first 5 chars
+        if (!cleaned.includes('AM') && !cleaned.includes('PM') && !cleaned.includes('am') && !cleaned.includes('pm')) {
+            const result = cleaned.slice(0, 5); // Remove seconds if present
+            return result;
+        }
+
+        // Handle malformed data like "01:00 05:00 PM" - extract the last time with AM/PM
+        const timeWithPeriodMatch = cleaned.match(/(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)$/i);
+        if (timeWithPeriodMatch) {
+            let hours = parseInt(timeWithPeriodMatch[1]);
+            const minutes = timeWithPeriodMatch[2];
+            const period = timeWithPeriodMatch[3].toUpperCase();
+
+            if (period === 'PM' && hours !== 12) hours += 12;
+            if (period === 'AM' && hours === 12) hours = 0;
+
+            const result = `${hours.toString().padStart(2, '0')}:${minutes}`;
+            return result;
+        }
+
+        // Fallback: try to extract any valid time pattern
+        const anyTimeMatch = cleaned.match(/(\d{1,2}):(\d{2})/);
+        if (anyTimeMatch) {
+            const result = `${anyTimeMatch[1].padStart(2, '0')}:${anyTimeMatch[2]}`;
+            return result;
+        }
+
+        console.warn('[normalizeTime] Could not normalize time:', timeStr);
+        return '';
+    };
+
+    // Format time for display (convert 24-hour to 12-hour with AM/PM)
+    const formatTimeForDisplay = (time24: string): string => {
+        if (!time24 || time24 === '') return '';
+
+        try {
+            const [hours, minutes] = time24.split(':').map(Number);
+            const period = hours >= 12 ? 'PM' : 'AM';
+            const hours12 = hours % 12 || 12;
+            return `${hours12.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${period}`;
+        } catch (e) {
+            return time24;
+        }
+    };
+
     const fetchClinicData = async () => {
         try {
             const res = await fetch(`http://localhost:5000/api/branches/${user?.branch_id}`, {
@@ -54,7 +106,19 @@ export default function ClinicSetupPage() {
                 setDaycareAvailable(b.daycare_available || false);
                 setDaycareBeds(b.daycare_beds || 0);
                 if (b.clinic_schedule) {
-                    setSchedule(b.clinic_schedule);
+                    // Normalize all time values
+                    const normalizedSchedule: ClinicSchedule = {};
+                    Object.keys(b.clinic_schedule).forEach(day => {
+                        const rawDay = b.clinic_schedule[day];
+                        normalizedSchedule[day] = {
+                            isOpen: rawDay.isOpen,
+                            start1: normalizeTime(rawDay.start1),
+                            end1: normalizeTime(rawDay.end1),
+                            start2: normalizeTime(rawDay.start2),
+                            end2: normalizeTime(rawDay.end2)
+                        };
+                    });
+                    setSchedule(normalizedSchedule);
                     setIsEditing(false);
                 }
             }
@@ -258,16 +322,6 @@ export default function ClinicSetupPage() {
                                 </div>
                                 Clinic Schedule
                             </h2>
-
-                            {isEditing && (
-                                <button
-                                    onClick={copyMondayToAll}
-                                    className="group flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-50 text-slate-600 font-bold text-xs hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                                >
-                                    <Copy className="w-3.5 h-3.5 transition-transform group-hover:scale-110" />
-                                    <span>Clone Monday</span>
-                                </button>
-                            )}
                         </div>
 
                         {/* Schedule Header Rows - Futuristic Grid */}
@@ -309,23 +363,31 @@ export default function ClinicSetupPage() {
                                             <div className="col-span-9 md:col-span-4 bg-slate-50/50 md:bg-transparent rounded-xl p-3 md:p-0">
                                                 <div className="flex items-center gap-2">
                                                     <span className="md:hidden text-xs font-bold text-orange-400 w-16">Morning</span>
-                                                    <div className={`flex-1 flex items-center gap-2 p-1 rounded-xl transition-all border border-transparent ${isEditing ? 'bg-slate-100/50 focus-within:bg-white focus-within:ring-2 focus-within:ring-orange-100 focus-within:border-orange-200' : 'bg-transparent'}`}>
-                                                        <input
-                                                            type="time"
-                                                            disabled={!isEditing}
-                                                            value={schedule[day].start1}
-                                                            onChange={(e) => setSchedule({ ...schedule, [day]: { ...schedule[day], start1: e.target.value } })}
-                                                            className={`w-full bg-transparent border-none text-xs font-bold focus:ring-0 text-center p-1.5 ${!isEditing ? 'text-slate-500' : 'text-slate-600'}`}
-                                                        />
-                                                        <span className="text-slate-300 font-light text-xs">-</span>
-                                                        <input
-                                                            type="time"
-                                                            disabled={!isEditing}
-                                                            value={schedule[day].end1}
-                                                            onChange={(e) => setSchedule({ ...schedule, [day]: { ...schedule[day], end1: e.target.value } })}
-                                                            className={`w-full bg-transparent border-none text-xs font-bold focus:ring-0 text-center p-1.5 ${!isEditing ? 'text-slate-500' : 'text-slate-600'}`}
-                                                        />
-                                                    </div>
+                                                    {isEditing ? (
+                                                        <div className="flex-1 grid grid-cols-[1fr_auto_1fr] gap-2 items-center">
+                                                            <input
+                                                                type="time"
+                                                                value={schedule[day].start1}
+                                                                onChange={(e) => setSchedule({ ...schedule, [day]: { ...schedule[day], start1: e.target.value } })}
+                                                                className="w-full px-3 py-2 rounded-lg bg-white border border-orange-200 text-xs font-bold focus:ring-2 focus:ring-orange-100 focus:border-orange-300 text-center text-slate-700"
+                                                                style={{ minWidth: '100px' }}
+                                                            />
+                                                            <span className="text-slate-400 font-light text-xs">-</span>
+                                                            <input
+                                                                type="time"
+                                                                value={schedule[day].end1}
+                                                                onChange={(e) => setSchedule({ ...schedule, [day]: { ...schedule[day], end1: e.target.value } })}
+                                                                className="w-full px-3 py-2 rounded-lg bg-white border border-orange-200 text-xs font-bold focus:ring-2 focus:ring-orange-100 focus:border-orange-300 text-center text-slate-700"
+                                                                style={{ minWidth: '100px' }}
+                                                            />
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex-1 flex items-center justify-center gap-2 text-sm font-bold text-slate-600">
+                                                            <span>{formatTimeForDisplay(schedule[day].start1)}</span>
+                                                            <span className="text-slate-300">-</span>
+                                                            <span>{formatTimeForDisplay(schedule[day].end1)}</span>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
 
@@ -333,23 +395,37 @@ export default function ClinicSetupPage() {
                                             <div className="col-span-9 md:col-span-4 bg-slate-50/50 md:bg-transparent rounded-xl p-3 md:p-0">
                                                 <div className="flex items-center gap-2">
                                                     <span className="md:hidden text-xs font-bold text-indigo-400 w-16">Evening</span>
-                                                    <div className={`flex-1 flex items-center gap-2 p-1 rounded-xl transition-all border border-transparent ${isEditing ? 'bg-slate-100/50 focus-within:bg-white focus-within:ring-2 focus-within:ring-indigo-100 focus-within:border-indigo-200' : 'bg-transparent'}`}>
-                                                        <input
-                                                            type="time"
-                                                            disabled={!isEditing}
-                                                            value={schedule[day].start2}
-                                                            onChange={(e) => setSchedule({ ...schedule, [day]: { ...schedule[day], start2: e.target.value } })}
-                                                            className={`w-full bg-transparent border-none text-xs font-bold focus:ring-0 text-center p-1.5 ${!isEditing ? 'text-slate-500' : 'text-slate-600'}`}
-                                                        />
-                                                        <span className="text-slate-300 font-light text-xs">-</span>
-                                                        <input
-                                                            type="time"
-                                                            disabled={!isEditing}
-                                                            value={schedule[day].end2}
-                                                            onChange={(e) => setSchedule({ ...schedule, [day]: { ...schedule[day], end2: e.target.value } })}
-                                                            className={`w-full bg-transparent border-none text-xs font-bold focus:ring-0 text-center p-1.5 ${!isEditing ? 'text-slate-500' : 'text-slate-600'}`}
-                                                        />
-                                                    </div>
+                                                    {isEditing ? (
+                                                        <div className="flex-1 grid grid-cols-[1fr_auto_1fr] gap-2 items-center">
+                                                            <input
+                                                                type="time"
+                                                                value={schedule[day].start2}
+                                                                onChange={(e) => setSchedule({ ...schedule, [day]: { ...schedule[day], start2: e.target.value } })}
+                                                                className="w-full px-3 py-2 rounded-lg bg-white border border-indigo-200 text-xs font-bold focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 text-center text-slate-700"
+                                                                style={{ minWidth: '100px' }}
+                                                            />
+                                                            <span className="text-slate-400 font-light text-xs">-</span>
+                                                            <input
+                                                                type="time"
+                                                                value={schedule[day].end2}
+                                                                onChange={(e) => setSchedule({ ...schedule, [day]: { ...schedule[day], end2: e.target.value } })}
+                                                                className="w-full px-3 py-2 rounded-lg bg-white border border-indigo-200 text-xs font-bold focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 text-center text-slate-700"
+                                                                style={{ minWidth: '100px' }}
+                                                            />
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex-1 flex items-center justify-center gap-2 text-sm font-bold text-slate-600">
+                                                            {schedule[day].start2 && schedule[day].end2 ? (
+                                                                <>
+                                                                    <span>{formatTimeForDisplay(schedule[day].start2)}</span>
+                                                                    <span className="text-slate-300">-</span>
+                                                                    <span>{formatTimeForDisplay(schedule[day].end2)}</span>
+                                                                </>
+                                                            ) : (
+                                                                <span className="text-xs text-slate-400">No evening shift</span>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         </>
