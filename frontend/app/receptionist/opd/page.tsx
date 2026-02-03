@@ -126,7 +126,12 @@ export default function OpdEntryPage() {
         attender_contact_number: '',
         adhaar_number: '',
         referral_hospital: '',
-        referral_doctor_name: ''
+        referral_doctor_name: '',
+        address_line1: '',
+        address_line2: '',
+        city: '',
+        state: '',
+        pincode: ''
     });
 
 
@@ -631,7 +636,12 @@ export default function OpdEntryPage() {
             attender_contact_number: '',
             adhaar_number: '',
             referral_hospital: '',
-            referral_doctor_name: ''
+            referral_doctor_name: '',
+            address_line1: '',
+            address_line2: '',
+            city: '',
+            state: '',
+            pincode: ''
         });
         setSelectedPatient(null);
         setSearchQuery('');
@@ -1406,6 +1416,69 @@ export default function OpdEntryPage() {
                                                     <option value="AB+">AB+</option>
                                                     <option value="AB-">AB-</option>
                                                 </select>
+                                            </div>
+
+                                            {/* Address Details Section */}
+                                            <div className="md:col-span-6 mt-4">
+                                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">ADDRESS DETAILS</h4>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    <div>
+                                                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">Address Line 1</label>
+                                                        <input
+                                                            type="text"
+                                                            value={opdForm.address_line1}
+                                                            onChange={(e) => setOpdForm({ ...opdForm, address_line1: e.target.value })}
+                                                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                                                            placeholder="House No, Street"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">Address Line 2</label>
+                                                        <input
+                                                            type="text"
+                                                            value={opdForm.address_line2}
+                                                            onChange={(e) => setOpdForm({ ...opdForm, address_line2: e.target.value })}
+                                                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                                                            placeholder="Area, Landmark"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
+                                                    <div>
+                                                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">City</label>
+                                                        <input
+                                                            type="text"
+                                                            value={opdForm.city}
+                                                            onChange={(e) => setOpdForm({ ...opdForm, city: e.target.value })}
+                                                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                                                            placeholder=""
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">State</label>
+                                                        <input
+                                                            type="text"
+                                                            value={opdForm.state}
+                                                            onChange={(e) => setOpdForm({ ...opdForm, state: e.target.value })}
+                                                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                                                            placeholder=""
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">Pincode</label>
+                                                        <input
+                                                            type="text"
+                                                            value={opdForm.pincode}
+                                                            onChange={(e) => {
+                                                                const value = e.target.value.replace(/\D/g, "");
+                                                                if (value.length <= 6) setOpdForm({ ...opdForm, pincode: value });
+                                                            }}
+                                                            maxLength={6}
+                                                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                                                            placeholder=""
+                                                        />
+                                                    </div>
+                                                </div>
                                             </div>
                                             <div className="md:col-span-2">
                                                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Aadhaar Number</label>
