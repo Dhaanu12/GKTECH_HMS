@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Plus, Building2, Search, Edit2, Loader2, Power, Upload } from 'lucide-react';
+import { Plus, Building2, Search, Edit2, Loader2, Power, Upload, Stethoscope } from 'lucide-react';
+import MedicalServicesSelector from '@/components/MedicalServicesSelector';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -51,6 +52,7 @@ export default function HospitalsPage() {
 
     const [searchTerm, setSearchTerm] = useState('');
     const [viewingHospital, setViewingHospital] = useState<any>(null);
+    const [managingServicesHospital, setManagingServicesHospital] = useState<any>(null);
 
     useEffect(() => {
         fetchHospitals();
@@ -64,7 +66,27 @@ export default function HospitalsPage() {
             const response = await axios.get(`${API_URL}/hospitals`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setHospitals(response.data.data.hospitals || []);
+            const hospitalsData = response.data.data.hospitals || [];
+
+            // Fetch medical services count for each hospital
+            const hospitalsWithCounts = await Promise.all(
+                hospitalsData.map(async (hospital: any) => {
+                    try {
+                        const servicesRes = await axios.get(
+                            `${API_URL}/medical-services/hospital/${hospital.hospital_id}`,
+                            { headers: { Authorization: `Bearer ${token}` } }
+                        );
+                        return {
+                            ...hospital,
+                            medical_services_count: servicesRes.data.services?.length || 0
+                        };
+                    } catch (err) {
+                        return { ...hospital, medical_services_count: 0 };
+                    }
+                })
+            );
+
+            setHospitals(hospitalsWithCounts);
         } catch (error) {
             console.error('Error fetching hospitals:', error);
         } finally {
@@ -326,6 +348,13 @@ export default function HospitalsPage() {
                                         title="View Details"
                                     >
                                         <Search className="w-5 h-5" />
+                                    </button>
+                                    <button
+                                        onClick={() => setManagingServicesHospital(hospital)}
+                                        className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition"
+                                        title="Manage Medical Services"
+                                    >
+                                        <Stethoscope className="w-5 h-5" />
                                     </button>
                                     <button
                                         onClick={() => handleEdit(hospital)}
@@ -811,6 +840,39 @@ export default function HospitalsPage() {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Medical Services Management Modal */}
+            {managingServicesHospital && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
+                        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-purple-100 flex justify-between items-center">
+                            <div>
+                                <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-purple-800 bg-clip-text text-transparent">
+                                    Manage Medical Services
+                                </h2>
+                                <p className="text-sm text-gray-600 mt-1">
+                                    {managingServicesHospital.hospital_name}
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setManagingServicesHospital(null)}
+                                className="text-gray-400 hover:text-gray-600 transition"
+                            >
+                                <span className="text-2xl">&times;</span>
+                            </button>
+                        </div>
+                        <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+                            <MedicalServicesSelector
+                                hospitalId={managingServicesHospital.hospital_id}
+                                onSave={() => {
+                                    setManagingServicesHospital(null);
+                                    fetchHospitals();
+                                }}
+                            />
+                        </div>
                     </div>
                 </div>
             )}
