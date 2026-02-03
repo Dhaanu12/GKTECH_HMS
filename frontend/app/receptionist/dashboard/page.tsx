@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/AuthContext';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import SearchableSelect from '../../../components/ui/SearchableSelect';
-import { Plus, Search, FileText, X, Save, User, Printer, Clock, AlertCircle, Calendar, Phone, ArrowRight, Bell, Sparkles, Activity, Users, ChevronLeft, Check } from 'lucide-react';
+import { Plus, Search, FileText, X, Save, User, Printer, Clock, AlertCircle, Calendar, Phone, ArrowRight, Bell, Sparkles, Activity, Users, ChevronLeft, Check, Sun, CloudSun, Moon } from 'lucide-react';
 
 export default function ReceptionistDashboard() {
     const { user } = useAuth();
@@ -453,6 +453,31 @@ export default function ReceptionistDashboard() {
         const period = hours >= 12 ? 'PM' : 'AM';
         const h = hours % 12 || 12;
         return `${h}:${minutes.toString().padStart(2, '0')} ${period}`;
+    };
+
+    const getDoctorAvailabilityCount = (doctorId: number, dateStr: string) => {
+        // Wrapper around generateTimeSlotsFromSchedule for dashboard
+        const slots = generateTimeSlotsFromSchedule(doctorId.toString(), dateStr);
+        return slots ? slots.length : 0;
+    };
+
+    const getNextAvailability = (doctorId: number, fromDateStr: string) => {
+        const start = new Date(fromDateStr);
+        // Check next 30 days
+        for (let i = 1; i <= 30; i++) {
+            const nextDate = new Date(start);
+            nextDate.setDate(start.getDate() + i);
+            const dayName = nextDate.toLocaleDateString('en-US', { weekday: 'long' });
+
+            const hasSchedule = doctorSchedules.some((s: any) =>
+                s.doctor_id === doctorId && s.day_of_week === dayName
+            );
+
+            if (hasSchedule) {
+                return nextDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+            }
+        }
+        return 'No upcoming availability';
     };
 
     const getDoctorShiftTimes = (doctorId: number, dateStr: string) => {
@@ -1267,210 +1292,270 @@ export default function ReceptionistDashboard() {
                                         </div>
                                     </div>
 
-                                    {/* Available Doctors List */}
-                                    <div>
-                                        <h3 className="text-sm font-bold text-slate-500 mb-3 uppercase tracking-wider">Available Doctors</h3>
-                                        <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                                    {/* Doctors List */}
+                                    <div className="space-y-3">
+                                        <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wide">Available Doctors</h4>
+                                        <div className="grid grid-cols-1 gap-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                                             {doctors
-                                                .filter((doc: any) =>
-                                                    (!bookingDepartment || doc.department_name === bookingDepartment || doc.specialization?.includes(bookingDepartment)) &&
-                                                    (!doctorSearchQuery ||
-                                                        doc.first_name.toLowerCase().includes(doctorSearchQuery.toLowerCase()) ||
-                                                        doc.last_name.toLowerCase().includes(doctorSearchQuery.toLowerCase()) ||
-                                                        doc.specialization.toLowerCase().includes(doctorSearchQuery.toLowerCase())
-                                                    )
-                                                )
+                                                .filter((doc: any) => {
+                                                    const matchesDept = !bookingDepartment || doc.specialization === bookingDepartment || doc.department_name === bookingDepartment;
+                                                    const matchesSearch = !doctorSearchQuery || `${doc.first_name} ${doc.last_name}`.toLowerCase().includes(doctorSearchQuery.toLowerCase());
+                                                    return matchesDept && matchesSearch;
+                                                })
+                                                .sort((a: any, b: any) => {
+                                                    // Sort by availability (more slots first)
+                                                    const slotsA = getDoctorAvailabilityCount(a.doctor_id, appointmentForm.appointment_date);
+                                                    const slotsB = getDoctorAvailabilityCount(b.doctor_id, appointmentForm.appointment_date);
+                                                    return slotsB - slotsA;
+                                                })
                                                 .map((doc: any) => {
-                                                    // Calculate slots availability
-                                                    const slots = generateTimeSlotsFromSchedule(doc.doctor_id.toString(), appointmentForm.appointment_date);
-                                                    const availableCount = slots ? slots.length : 0;
+                                                    const availableCount = getDoctorAvailabilityCount(doc.doctor_id, appointmentForm.appointment_date);
                                                     const isAvailable = availableCount > 0;
 
+                                                    // Logic to suggest this doctor if they have slots and are in same department
+                                                    const isSuggested = isAvailable && bookingDepartment && availableCount > 3;
+
                                                     return (
-                                                        <div key={doc.doctor_id} className={`p-4 rounded-xl border transition-all flex items-center justify-between group ${isAvailable
-                                                            ? 'bg-white border-slate-200 hover:border-purple-300 hover:shadow-md'
-                                                            : 'bg-slate-50 border-slate-100 opacity-60'
-                                                            }`}>
+                                                        <div
+                                                            key={doc.doctor_id}
+                                                            className={`flex items-center justify-between p-4 rounded-xl border transition-all ${isAvailable
+                                                                ? 'bg-white border-slate-200 hover:border-purple-300 hover:shadow-md'
+                                                                : 'bg-slate-50 border-slate-100 opacity-60'
+                                                                }`}
+                                                        >
                                                             <div className="flex items-center gap-4">
-                                                                <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold ${isAvailable ? 'bg-purple-100 text-purple-600' : 'bg-slate-200 text-slate-500'
+                                                                <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold border-2 ${isAvailable ? 'bg-purple-50 border-purple-100 text-purple-600' : 'bg-slate-100 border-slate-200 text-slate-400'
                                                                     }`}>
-                                                                    {doc.first_name[0]}
+                                                                    {doc.first_name.charAt(0)}
                                                                 </div>
                                                                 <div>
-                                                                    <h4 className="font-bold text-slate-800">Dr. {doc.first_name} {doc.last_name}</h4>
-                                                                    <p className="text-sm text-slate-500">{doc.specialization}</p>
-                                                                    <div className="flex items-center gap-2 mt-1">
-                                                                        <span className={`w-2 h-2 rounded-full ${isAvailable ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
-                                                                        <span className={`text-xs font-bold ${isAvailable ? 'text-emerald-600' : 'text-red-500'}`}>
-                                                                            {isAvailable
-                                                                                ? `Available: ${getDoctorShiftTimes?.(doc.doctor_id, appointmentForm.appointment_date) || 'Today'}` // Simplified check
-                                                                                : `Next Available: Checking...`
-                                                                            }
-                                                                        </span>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <h4 className={`font-bold ${isAvailable ? 'text-slate-800' : 'text-slate-500'}`}>
+                                                                            Dr. {doc.first_name} {doc.last_name}
+                                                                        </h4>
+                                                                        {isSuggested && (
+                                                                            <span className="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                                                                                <Sparkles className="w-3 h-3" /> Suggested
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                    <p className="text-xs text-slate-500 font-medium">{doc.specialization}</p>
+                                                                    <div className="mt-1 flex items-center gap-2">
+                                                                        {isAvailable ? (
+                                                                            <span className="text-xs font-bold text-emerald-600 flex items-center gap-1">
+                                                                                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                                                                                Available: {getDoctorShiftTimes(doc.doctor_id, appointmentForm.appointment_date)}
+                                                                            </span>
+                                                                        ) : (
+                                                                            <span className="text-xs font-bold text-red-500 flex items-center gap-1">
+                                                                                <AlertCircle className="w-3 h-3" />
+                                                                                Next Available: {getNextAvailability(doc.doctor_id, appointmentForm.appointment_date)}
+                                                                            </span>
+                                                                        )}
                                                                     </div>
                                                                 </div>
                                                             </div>
-                                                            {isAvailable ? (
-                                                                <button
-                                                                    onClick={() => {
+
+                                                            <button
+                                                                onClick={() => {
+                                                                    if (isAvailable) {
                                                                         setAppointmentForm({ ...appointmentForm, doctor_id: doc.doctor_id });
                                                                         setAppointmentStep(2);
-                                                                    }}
-                                                                    className="px-6 py-2 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 transition shadow-lg shadow-purple-600/20"
-                                                                >
-                                                                    Select
-                                                                </button>
-                                                            ) : (
-                                                                <button disabled className="px-6 py-2 bg-slate-200 text-slate-400 font-bold rounded-xl cursor-not-allowed">
-                                                                    Full
-                                                                </button>
-                                                            )}
+                                                                    }
+                                                                }}
+                                                                disabled={!isAvailable}
+                                                                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${isAvailable
+                                                                    ? 'bg-purple-600 text-white hover:bg-purple-700 shadow-lg shadow-purple-500/20'
+                                                                    : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                                                                    }`}
+                                                            >
+                                                                {isAvailable ? 'Select' : 'Full'}
+                                                            </button>
                                                         </div>
                                                     );
                                                 })}
+
+                                            {doctors.filter((doc: any) => !bookingDepartment || doc.specialization === bookingDepartment || doc.department_name === bookingDepartment).length === 0 && (
+                                                <div className="text-center py-10 text-slate-400">
+                                                    <p>No doctors found for this department.</p>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
                             ) : (
-                                <div className="space-y-6">
-                                    {/* Step 2: Patient & Time Details */}
-                                    <button
-                                        onClick={() => setAppointmentStep(1)}
-                                        className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-purple-600 transition mb-4"
-                                    >
-                                        <ChevronLeft className="w-4 h-4" /> Back to Availability
+                                <form onSubmit={handleCreateAppointment} className="space-y-6">
+                                    {/* Back Button */}
+                                    <button type="button" onClick={() => setAppointmentStep(1)} className="flex items-center gap-1 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors mb-2">
+                                        <ChevronLeft className="w-4 h-4" /> Change Doctor / Date
                                     </button>
 
-                                    <form onSubmit={handleCreateAppointment} className="space-y-6">
-                                        <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200">
-                                            <h3 className="flex items-center gap-2 text-sm font-bold text-slate-800 mb-4 uppercase tracking-wider">
-                                                <User className="w-4 h-4 text-purple-600" />
-                                                Patient Details
-                                            </h3>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                <div>
-                                                    <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">Full Name</label>
-                                                    <input
-                                                        type="text"
-                                                        required
-                                                        value={appointmentForm.patient_name}
-                                                        onChange={(e) => setAppointmentForm({ ...appointmentForm, patient_name: e.target.value })}
-                                                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500"
-                                                        placeholder="Patient Name"
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">Phone Number</label>
-                                                    <input
-                                                        type="tel"
-                                                        required
-                                                        value={appointmentForm.phone_number}
-                                                        onChange={(e) => setAppointmentForm({ ...appointmentForm, phone_number: e.target.value })}
-                                                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500"
-                                                        placeholder="10-digit mobile"
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">Age</label>
-                                                    <input
-                                                        type="number"
-                                                        required
-                                                        value={appointmentForm.age}
-                                                        onChange={(e) => setAppointmentForm({ ...appointmentForm, age: e.target.value })}
-                                                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500"
-                                                        placeholder="Years"
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">Gender</label>
-                                                    <select
-                                                        required
-                                                        value={appointmentForm.gender}
-                                                        onChange={(e) => setAppointmentForm({ ...appointmentForm, gender: e.target.value })}
-                                                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500"
-                                                    >
-                                                        <option value="">Select Gender</option>
-                                                        <option value="Male">Male</option>
-                                                        <option value="Female">Female</option>
-                                                        <option value="Other">Other</option>
-                                                    </select>
-                                                </div>
+                                    {/* Patient Info */}
+                                    <div className="bg-gradient-to-br from-gray-50 to-purple-50/30 rounded-2xl p-5 border border-purple-100">
+                                        <h3 className="text-sm font-black text-slate-800 mb-4 uppercase tracking-wider">Patient Information</h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="md:col-span-2">
+                                                <label className="block text-xs font-bold text-slate-500 mb-1 ml-1">Patient Name *</label>
+                                                <input type="text" required value={appointmentForm.patient_name} onChange={(e) => setAppointmentForm({ ...appointmentForm, patient_name: e.target.value })} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-slate-700" placeholder="Enter Full Name" />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-500 mb-1 ml-1">Phone Number *</label>
+                                                <input
+                                                    type="tel"
+                                                    required
+                                                    value={appointmentForm.phone_number}
+                                                    onChange={(e) => {
+                                                        const value = e.target.value.replace(/\D/g, "");
+                                                        if (value.length <= 10) {
+                                                            setAppointmentForm({ ...appointmentForm, phone_number: value });
+                                                        }
+                                                    }}
+                                                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-slate-700"
+                                                    placeholder="10-digit number"
+                                                    maxLength={10}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-500 mb-1 ml-1">Email</label>
+                                                <input type="email" value={appointmentForm.email} onChange={(e) => setAppointmentForm({ ...appointmentForm, email: e.target.value })} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-slate-700 font-mono text-sm" placeholder="email@example.com" />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-500 mb-1 ml-1">Age</label>
+                                                <input
+                                                    type="number"
+                                                    value={appointmentForm.age}
+                                                    onChange={(e) => {
+                                                        const value = e.target.value;
+                                                        if (value === '' || (parseInt(value) >= 0 && value.length <= 3)) {
+                                                            setAppointmentForm({ ...appointmentForm, age: value });
+                                                        }
+                                                    }}
+                                                    onInput={(e) => {
+                                                        const input = e.target as HTMLInputElement;
+                                                        if (input.value.length > 3) {
+                                                            input.value = input.value.slice(0, 3);
+                                                        }
+                                                    }}
+                                                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-slate-700"
+                                                    placeholder="Age"
+                                                    min="0"
+                                                    max="999"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-500 mb-1 ml-1">Gender</label>
+                                                <select value={appointmentForm.gender} onChange={(e) => setAppointmentForm({ ...appointmentForm, gender: e.target.value })} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-slate-700">
+                                                    <option value="">Select</option>
+                                                    <option value="Male">Male</option>
+                                                    <option value="Female">Female</option>
+                                                    <option value="Pediatric">Pediatric</option>
+                                                    <option value="Other">Other</option>
+                                                </select>
                                             </div>
                                         </div>
+                                    </div>
 
-                                        <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200">
-                                            <h3 className="flex items-center gap-2 text-sm font-bold text-slate-800 mb-4 uppercase tracking-wider">
-                                                <Clock className="w-4 h-4 text-purple-600" />
-                                                Select Time Slot
-                                            </h3>
-
-                                            {/* Time Slot Tabs */}
-                                            <div className="flex bg-slate-200 p-1 rounded-xl mb-4 w-fit">
-                                                {['Morning', 'Afternoon', 'Evening'].map((cat: any) => (
-                                                    <button
-                                                        key={cat}
-                                                        type="button"
-                                                        onClick={() => setTimeSlotCategory(cat)}
-                                                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${timeSlotCategory === cat
-                                                            ? 'bg-white text-purple-700 shadow-sm'
-                                                            : 'text-slate-500 hover:text-slate-700'
-                                                            }`}
-                                                    >
-                                                        {cat}
-                                                    </button>
-                                                ))}
+                                    {/* Appointment Details */}
+                                    <div className="bg-gradient-to-br from-gray-50 to-blue-50/30 rounded-2xl p-5 border border-blue-100">
+                                        <h3 className="text-sm font-black text-slate-800 mb-4 uppercase tracking-wider">Appointment Details</h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            {/* Doctor & Date Readonly Display */}
+                                            <div className="md:col-span-2 flex items-center gap-4 bg-white p-3 rounded-xl border border-slate-200 mb-2">
+                                                <div className="flex-1">
+                                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Doctor</span>
+                                                    <p className="font-bold text-slate-800">
+                                                        {doctors.find((d: any) => d.doctor_id == appointmentForm.doctor_id) ?
+                                                            `Dr. ${doctors.find((d: any) => d.doctor_id == appointmentForm.doctor_id).first_name} ${doctors.find((d: any) => d.doctor_id == appointmentForm.doctor_id).last_name}`
+                                                            : 'Selected Doctor'}
+                                                    </p>
+                                                </div>
+                                                <div className="h-8 w-px bg-slate-200" />
+                                                <div className="flex-1">
+                                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Date</span>
+                                                    <p className="font-bold text-slate-800">
+                                                        {new Date(appointmentForm.appointment_date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                                                    </p>
+                                                </div>
                                             </div>
 
-                                            <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-                                                {availableTimeSlots
-                                                    .filter((slot) => {
-                                                        const h = parseInt(slot.split(':')[0]);
-                                                        if (timeSlotCategory === 'Morning') return h < 12;
-                                                        if (timeSlotCategory === 'Afternoon') return h >= 12 && h < 17;
-                                                        return h >= 17;
-                                                    })
-                                                    .map((slot) => (
+                                            <div className="md:col-span-2">
+                                                <label className="block text-xs font-bold text-slate-500 mb-2 ml-1">Select Time Slot *</label>
+
+                                                {/* Category Tabs */}
+                                                <div className="flex gap-2 mb-3 bg-slate-100/50 p-1 rounded-xl">
+                                                    {[
+                                                        { id: 'Morning', icon: Sun, label: 'Morning' },
+                                                        { id: 'Afternoon', icon: CloudSun, label: 'Afternoon' },
+                                                        { id: 'Evening', icon: Moon, label: 'Evening' }
+                                                    ].map((cat) => (
                                                         <button
-                                                            key={slot}
+                                                            key={cat.id}
                                                             type="button"
-                                                            onClick={() => setAppointmentForm({ ...appointmentForm, appointment_time: slot })}
-                                                            className={`px-2 py-2 rounded-lg text-sm font-bold border transition-all ${appointmentForm.appointment_time === slot
-                                                                ? 'bg-purple-600 text-white border-purple-600 ring-2 ring-purple-200'
-                                                                : 'bg-white text-slate-600 border-slate-200 hover:border-purple-300 hover:bg-purple-50'
+                                                            onClick={() => setTimeSlotCategory(cat.id as any)}
+                                                            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all ${timeSlotCategory === cat.id
+                                                                ? 'bg-white text-purple-700 shadow-sm'
+                                                                : 'text-slate-400 hover:text-slate-600'
                                                                 }`}
                                                         >
-                                                            {slot}
+                                                            <cat.icon className="w-3.5 h-3.5" />
+                                                            {cat.label}
                                                         </button>
                                                     ))}
-                                            </div>
-                                            {availableTimeSlots.filter((slot) => {
-                                                const h = parseInt(slot.split(':')[0]);
-                                                if (timeSlotCategory === 'Morning') return h < 12;
-                                                if (timeSlotCategory === 'Afternoon') return h >= 12 && h < 17;
-                                                return h >= 17;
-                                            }).length === 0 && (
-                                                    <p className="text-sm text-slate-500 italic py-2">No slots available for this time.</p>
-                                                )}
-                                        </div>
+                                                </div>
 
-                                        <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                                            <button
-                                                type="button"
-                                                onClick={() => { setShowApptModal(false); resetAppointmentForm(); }}
-                                                className="px-6 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition"
-                                            >
-                                                Cancel
-                                            </button>
-                                            <button
-                                                type="submit"
-                                                disabled={loading || !appointmentForm.appointment_time}
-                                                className="px-8 py-2.5 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 transition shadow-lg shadow-purple-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
-                                            >
-                                                {loading ? 'Confirming...' : 'Confirm Appointment'}
-                                            </button>
+                                                {/* Time Grid - Dynamic based on doctor schedule */}
+                                                <div className="grid grid-cols-4 md:grid-cols-6 gap-2 mb-2">
+                                                    {availableTimeSlots.length > 0 ? (
+                                                        availableTimeSlots
+                                                            .filter((time) => {
+                                                                const hour = parseInt(time.split(':')[0]);
+                                                                if (timeSlotCategory === 'Morning') return hour >= 6 && hour < 12;
+                                                                if (timeSlotCategory === 'Afternoon') return hour >= 12 && hour < 17;
+                                                                if (timeSlotCategory === 'Evening') return hour >= 17 && hour < 22;
+                                                                return false;
+                                                            })
+                                                            .map((time) => (
+                                                                <button
+                                                                    key={time}
+                                                                    type="button"
+                                                                    onClick={() => setAppointmentForm({ ...appointmentForm, appointment_time: time })}
+                                                                    className={`py-2 px-1 text-xs font-bold rounded-lg border transition-all ${appointmentForm.appointment_time === time
+                                                                        ? 'bg-purple-600 border-purple-600 text-white ring-2 ring-purple-200'
+                                                                        : 'border-slate-200 text-slate-600 hover:border-purple-300 hover:bg-purple-50'
+                                                                        }`}
+                                                                >
+                                                                    {time}
+                                                                </button>
+                                                            ))
+                                                    ) : (
+                                                        <div className="col-span-full text-center py-4 text-xs font-bold text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                                                            No {timeSlotCategory.toLowerCase()} slots available.
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="md:col-span-2">
+                                                <label className="block text-xs font-bold text-slate-500 mb-1 ml-1">Reason for Visit</label>
+                                                <input type="text" value={appointmentForm.reason_for_visit} onChange={(e) => setAppointmentForm({ ...appointmentForm, reason_for_visit: e.target.value })} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 font-medium text-slate-700" placeholder="e.g., Routine checkup" />
+                                            </div>
+                                            <div className="md:col-span-2">
+                                                <label className="block text-xs font-bold text-slate-500 mb-1 ml-1">Notes</label>
+                                                <textarea rows={2} value={appointmentForm.notes} onChange={(e) => setAppointmentForm({ ...appointmentForm, notes: e.target.value })} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 font-medium text-slate-700" placeholder="Any additional notes..." />
+                                            </div>
                                         </div>
-                                    </form>
-                                </div>
+                                    </div>
+
+                                    {/* Submit */}
+                                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                                        <button type="button" onClick={() => { setShowApptModal(false); resetAppointmentForm(); }} className="px-6 py-2.5 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition font-bold text-sm">
+                                            Cancel
+                                        </button>
+                                        <button type="submit" disabled={loading} className="flex items-center gap-2 px-8 py-2.5 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-xl hover:from-purple-700 hover:to-purple-800 transition font-bold text-sm shadow-lg shadow-purple-500/30">
+                                            <Save className="w-4 h-4" />
+                                            {loading ? 'Creating...' : 'Create Appointment'}
+                                        </button>
+                                    </div>
+                                </form>
                             )}
                         </div>
                     </div>
