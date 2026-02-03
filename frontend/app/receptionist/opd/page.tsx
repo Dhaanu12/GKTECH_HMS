@@ -91,14 +91,7 @@ export default function OpdEntryPage() {
         'Blood Pressure Check', 'Diabetes Follow-up', 'General Checkup'
     ];
 
-    // Follow-up Queue state (Smart Follow-up Scheduling)
-    const [followUpData, setFollowUpData] = useState<any>({
-        overdue: [],
-        due_today: [],
-        upcoming: [],
-        summary: { overdue_count: 0, due_today_count: 0, upcoming_count: 0, total: 0 }
-    });
-    const [showFollowUpPanel, setShowFollowUpPanel] = useState(false);
+
 
 
     const [opdForm, setOpdForm] = useState({
@@ -140,7 +133,7 @@ export default function OpdEntryPage() {
     useEffect(() => {
         fetchDoctors();
         // fetchOpdEntries(); // Triggered by dateRange effect
-        fetchFollowUps();
+
         fetchDashboardStats();
     }, []);
 
@@ -245,23 +238,7 @@ export default function OpdEntryPage() {
         }
     };
 
-    // Fetch follow-up queue data (Smart Follow-up Scheduling)
-    const fetchFollowUps = async () => {
-        try {
-            const token = localStorage.getItem('token');
-            const response = await axios.get(`${API_URL}/follow-ups/due`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setFollowUpData(response.data.data || {
-                overdue: [],
-                due_today: [],
-                upcoming: [],
-                summary: { overdue_count: 0, due_today_count: 0, upcoming_count: 0, total: 0 }
-            });
-        } catch (error) {
-            console.error('Error fetching follow-ups:', error);
-        }
-    };
+
 
     const fetchDashboardStats = async () => {
         try {
@@ -292,30 +269,7 @@ export default function OpdEntryPage() {
         }
     };
 
-    // Handle booking a follow-up visit (pre-fill OPD form)
-    const handleBookFollowUp = (followUp: any) => {
-        // Pre-fill the form with patient data from the follow-up
-        setOpdForm(prev => ({
-            ...prev,
-            first_name: followUp.patient_first_name || '',
-            last_name: followUp.patient_last_name || '',
-            contact_number: followUp.phone || '',
-            doctor_id: followUp.doctor_id?.toString() || '',
-            visit_type: 'Follow-up',
-            chief_complaint: `Follow-up: ${followUp.diagnosis || 'Previous consultation'}`
-        }));
-        setSelectedPatient({
-            patient_id: followUp.patient_id,
-            first_name: followUp.patient_first_name,
-            last_name: followUp.patient_last_name,
-            phone: followUp.phone,
-            patient_code: followUp.patient_code
-        });
-        setCurrentStep('visitDetails');
-        setCompletedSteps(['search']);
-        setShowModal(true);
-        setShowFollowUpPanel(false);
-    };
+
 
     const handleSearch = async () => {
         if (!searchQuery) {
@@ -773,7 +727,7 @@ export default function OpdEntryPage() {
                     <span className="w-1.5 h-10 bg-blue-600 rounded-full"></span>
                     <div>
                         {/* <h1 className="text-2xl font-bold text-slate-800 tracking-tight leading-none">OPD Entry</h1> */}
-                        <p className="text-sm text-slate-500 font-medium mt-1">Welcome back, {user?.first_name || 'Reception'}! 👋</p>
+                        <p className="text-sm text-slate-500 font-medium mt-1">Welcome back, Geeta! 👋</p>
                     </div>
                 </div>
                 <button
@@ -860,120 +814,7 @@ export default function OpdEntryPage() {
             </div>
 
             {/* Follow-up Queue Widget (Smart Follow-up Scheduling) */}
-            {(followUpData.summary.overdue_count > 0 || followUpData.summary.due_today_count > 0) && (
-                <div className="px-6">
-                    <div className="bg-gradient-to-r from-purple-50 to-violet-50 rounded-3xl border border-purple-100 overflow-hidden shadow-sm">
-                        {/* Header - Always Visible */}
-                        <button
-                            onClick={() => setShowFollowUpPanel(!showFollowUpPanel)}
-                            className="w-full p-4 flex items-center justify-between hover:bg-purple-100/50 transition-colors"
-                        >
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-purple-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-purple-500/30">
-                                    <Bell className="w-5 h-5" />
-                                </div>
-                                <div className="text-left">
-                                    <h3 className="font-bold text-purple-800">Follow-ups Due</h3>
-                                    <p className="text-xs text-purple-600">
-                                        {followUpData.summary.overdue_count > 0 && (
-                                            <span className="text-red-600 font-semibold">{followUpData.summary.overdue_count} overdue</span>
-                                        )}
-                                        {followUpData.summary.overdue_count > 0 && followUpData.summary.due_today_count > 0 && ' • '}
-                                        {followUpData.summary.due_today_count > 0 && (
-                                            <span className="text-green-600 font-semibold">{followUpData.summary.due_today_count} due today</span>
-                                        )}
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                {followUpData.summary.overdue_count > 0 && (
-                                    <span className="px-2.5 py-1 bg-red-500 text-white text-xs font-bold rounded-full animate-pulse">
-                                        {followUpData.summary.overdue_count}
-                                    </span>
-                                )}
-                                <ArrowRight className={`w-5 h-5 text-purple-500 transition-transform ${showFollowUpPanel ? 'rotate-90' : ''}`} />
-                            </div>
-                        </button>
 
-                        {/* Expandable Panel */}
-                        {showFollowUpPanel && (
-                            <div className="border-t border-purple-100 bg-white/80 divide-y divide-purple-50 max-h-64 overflow-y-auto">
-                                {/* Overdue Section */}
-                                {followUpData.overdue.length > 0 && (
-                                    <div className="p-3">
-                                        <p className="text-xs font-bold text-red-600 uppercase tracking-wider mb-2 flex items-center gap-1">
-                                            <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-                                            Overdue ({followUpData.overdue.length})
-                                        </p>
-                                        <div className="space-y-2">
-                                            {followUpData.overdue.slice(0, 5).map((fu: any) => (
-                                                <div key={fu.outcome_id} className="flex items-center justify-between p-3 bg-red-50 rounded-xl hover:bg-red-100 transition-colors">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-9 h-9 rounded-full bg-red-200 text-red-700 flex items-center justify-center font-bold text-sm">
-                                                            {fu.patient_first_name?.[0]}{fu.patient_last_name?.[0]}
-                                                        </div>
-                                                        <div>
-                                                            <p className="font-semibold text-slate-800 text-sm">{fu.patient_first_name} {fu.patient_last_name}</p>
-                                                            <p className="text-xs text-red-600 font-medium">
-                                                                {fu.days_overdue} day{fu.days_overdue > 1 ? 's' : ''} overdue • Dr. {fu.doctor_first_name}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <a href={`tel:${fu.phone}`} className="p-2 bg-white rounded-lg hover:bg-slate-50 text-slate-600 transition-colors" title="Call patient">
-                                                            <Phone className="w-4 h-4" />
-                                                        </a>
-                                                        <button
-                                                            onClick={() => handleBookFollowUp(fu)}
-                                                            className="px-3 py-1.5 bg-red-500 text-white text-xs font-bold rounded-lg hover:bg-red-600 transition-colors"
-                                                        >
-                                                            Book Now
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Due Today Section */}
-                                {followUpData.due_today.length > 0 && (
-                                    <div className="p-3">
-                                        <p className="text-xs font-bold text-green-600 uppercase tracking-wider mb-2 flex items-center gap-1">
-                                            <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                                            Due Today ({followUpData.due_today.length})
-                                        </p>
-                                        <div className="space-y-2">
-                                            {followUpData.due_today.slice(0, 5).map((fu: any) => (
-                                                <div key={fu.outcome_id} className="flex items-center justify-between p-3 bg-green-50 rounded-xl hover:bg-green-100 transition-colors">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-9 h-9 rounded-full bg-green-200 text-green-700 flex items-center justify-center font-bold text-sm">
-                                                            {fu.patient_first_name?.[0]}{fu.patient_last_name?.[0]}
-                                                        </div>
-                                                        <div>
-                                                            <p className="font-semibold text-slate-800 text-sm">{fu.patient_first_name} {fu.patient_last_name}</p>
-                                                            <p className="text-xs text-green-600 font-medium">
-                                                                Follow-up today • Dr. {fu.doctor_first_name}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                    <button
-                                                        onClick={() => handleBookFollowUp(fu)}
-                                                        className="px-3 py-1.5 bg-green-500 text-white text-xs font-bold rounded-lg hover:bg-green-600 transition-colors flex items-center gap-1"
-                                                    >
-                                                        <Plus className="w-3 h-3" />
-                                                        Book
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
 
             {/* Main Content Area */}
             <div className="glass-panel rounded-3xl overflow-hidden p-1">
