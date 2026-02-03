@@ -1,0 +1,5 @@
+﻿--- Starting Family Member Flow Test ---
+Γ£à Connected to PostgreSQL database
+
+1. Creating Father Patient...
+Failed to create Father: No Data
