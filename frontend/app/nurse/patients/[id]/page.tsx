@@ -20,7 +20,9 @@ import {
     Wind,
     Droplets,
     Stethoscope,
-    History
+    History,
+    X,
+    Save
 } from 'lucide-react';
 
 const API_URL = 'http://localhost:5000/api';
@@ -31,12 +33,73 @@ export default function NursePatientDetails() {
     const [patient, setPatient] = useState<any>(null);
     const [opdHistory, setOpdHistory] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [showVitalsModal, setShowVitalsModal] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [vitalsForm, setVitalsForm] = useState({
+        bp_systolic: '',
+        bp_diastolic: '',
+        pulse: '',
+        temperature: '',
+        weight: '',
+        height: '',
+        spo2: '',
+        grbs: ''
+    });
 
     useEffect(() => {
         if (params.id) {
             fetchPatientDetails();
         }
     }, [params.id]);
+
+    // Handle opening vitals modal - populate with latest data
+    const handleOpenVitalsModal = () => {
+        if (opdHistory.length > 0) {
+            // Assume the first one is the latest or sort?
+            // Usually API returns sorted. Let's find the latest by date just in case or use the first one.
+            // Let's assume opdHistory is sorted DESC by visit_date/created_at
+            const latestOpd = opdHistory[0];
+
+            let currentVitals = { bp_systolic: '', bp_diastolic: '', pulse: '', temperature: '', weight: '', height: '', spo2: '', grbs: '' };
+
+            if (latestOpd.vital_signs) {
+                try {
+                    const parsed = typeof latestOpd.vital_signs === 'string' ? JSON.parse(latestOpd.vital_signs) : latestOpd.vital_signs;
+                    currentVitals = { ...currentVitals, ...parsed };
+                } catch (e) { console.error("Error parsing vitals", e); }
+            }
+            setVitalsForm(currentVitals);
+        }
+        setShowVitalsModal(true);
+    };
+
+    const handleSaveVitals = async () => {
+        if (!opdHistory.length) {
+            alert("No active OPD visit found to record vitals against.");
+            return;
+        }
+
+        const latestOpd = opdHistory[0]; // Updating the latest visit
+        setSaving(true);
+
+        try {
+            const token = localStorage.getItem('token');
+            await axios.patch(`${API_URL}/opd/${latestOpd.opd_id}`, {
+                vital_signs: JSON.stringify(vitalsForm)
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            // Refresh data
+            await fetchPatientDetails();
+            setShowVitalsModal(false);
+        } catch (error) {
+            console.error('Error saving vitals:', error);
+            alert('Failed to save vitals');
+        } finally {
+            setSaving(false);
+        }
+    };
 
     const fetchPatientDetails = async () => {
         try {
@@ -146,7 +209,7 @@ export default function NursePatientDetails() {
                         </div>
 
                         <div className="space-y-3">
-                            <button className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg shadow-blue-500/20 transition-all active:scale-95 flex items-center justify-center gap-2">
+                            <button onClick={handleOpenVitalsModal} className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg shadow-blue-500/20 transition-all active:scale-95 flex items-center justify-center gap-2">
                                 <Activity className="w-4 h-4" /> Record Vitals
                             </button>
                             <button className="w-full py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl font-bold transition-all flex items-center justify-center gap-2">
@@ -180,25 +243,37 @@ export default function NursePatientDetails() {
                     {/* Vitals HUD Grid (Mock Data) */}
                     <div>
                         <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
-                            <Activity className="w-4 h-4" /> Latest Vitals (Today, 10:00 AM)
+                            <Activity className="w-4 h-4" /> Latest Vitals ({opdHistory.length > 0 ? new Date(opdHistory[0].visit_date).toLocaleDateString() : 'No Data'})
                         </h3>
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                            {[
-                                { label: 'Heart Rate', value: '72', unit: 'bpm', icon: HeartPulse, color: 'text-rose-500', bg: 'bg-rose-50' },
-                                { label: 'Blood Pressure', value: '120/80', unit: 'mmHg', icon: Activity, color: 'text-blue-500', bg: 'bg-blue-50' },
-                                { label: 'Oxygen Sat.', value: '98', unit: '%', icon: Wind, color: 'text-cyan-500', bg: 'bg-cyan-50' },
-                                { label: 'Temperature', value: '36.6', unit: '°C', icon: Thermometer, color: 'text-amber-500', bg: 'bg-amber-50' },
-                            ].map((stat, i) => (
-                                <div key={i} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
-                                    <div>
-                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">{stat.label}</p>
-                                        <p className="text-2xl font-bold text-slate-800">{stat.value} <span className="text-xs text-slate-400 font-medium">{stat.unit}</span></p>
+                            {(() => {
+                                const latestOpd = opdHistory.length > 0 ? opdHistory[0] : null;
+                                let vitals: any = {};
+                                if (latestOpd?.vital_signs) {
+                                    try {
+                                        vitals = typeof latestOpd.vital_signs === 'string' ? JSON.parse(latestOpd.vital_signs) : latestOpd.vital_signs;
+                                    } catch (e) { }
+                                }
+
+                                const displayVitals = [
+                                    { label: 'Heart Rate', value: vitals.pulse || '--', unit: 'bpm', icon: HeartPulse, color: 'text-rose-500', bg: 'bg-rose-50' },
+                                    { label: 'Blood Pressure', value: `${vitals.bp_systolic || '--'}/${vitals.bp_diastolic || '--'}`, unit: 'mmHg', icon: Activity, color: 'text-blue-500', bg: 'bg-blue-50' },
+                                    { label: 'Oxygen Sat.', value: vitals.spo2 || '--', unit: '%', icon: Wind, color: 'text-cyan-500', bg: 'bg-cyan-50' },
+                                    { label: 'Temperature', value: vitals.temperature || '--', unit: '°F', icon: Thermometer, color: 'text-amber-500', bg: 'bg-amber-50' },
+                                ];
+
+                                return displayVitals.map((stat, i) => (
+                                    <div key={i} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+                                        <div>
+                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">{stat.label}</p>
+                                            <p className="text-2xl font-bold text-slate-800">{stat.value} <span className="text-xs text-slate-400 font-medium">{stat.unit}</span></p>
+                                        </div>
+                                        <div className={`p-2.5 rounded-xl ${stat.bg} ${stat.color}`}>
+                                            <stat.icon className="w-5 h-5" />
+                                        </div>
                                     </div>
-                                    <div className={`p-2.5 rounded-xl ${stat.bg} ${stat.color}`}>
-                                        <stat.icon className="w-5 h-5" />
-                                    </div>
-                                </div>
-                            ))}
+                                ));
+                            })()}
                         </div>
                     </div>
 
@@ -251,6 +326,136 @@ export default function NursePatientDetails() {
                     </div>
                 </div>
             </div>
+
+            {/* Vitals Modal */}
+            {
+                showVitalsModal && (
+                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+                        <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full p-0 overflow-hidden">
+                            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+                                <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                    <Activity className="w-5 h-5 text-blue-600" /> Record Vitals
+                                </h2>
+                                <button
+                                    onClick={() => setShowVitalsModal(false)}
+                                    className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-slate-500 hover:bg-slate-100 transition shadow-sm border border-slate-100"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            <div className="p-8">
+                                <div className="bg-purple-50/50 p-6 rounded-2xl border border-purple-100">
+                                    <h3 className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-4">Vital Signs</h3>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-6">
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 mb-1.5">BP Systolic</label>
+                                            <div className="relative">
+                                                <input
+                                                    type="text"
+                                                    value={vitalsForm.bp_systolic}
+                                                    onChange={(e) => setVitalsForm({ ...vitalsForm, bp_systolic: e.target.value })}
+                                                    className="w-full px-4 py-2.5 bg-white border border-purple-100 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                                                    placeholder="mmHg"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 mb-1.5">BP Diastolic</label>
+                                            <div className="relative">
+                                                <input
+                                                    type="text"
+                                                    value={vitalsForm.bp_diastolic}
+                                                    onChange={(e) => setVitalsForm({ ...vitalsForm, bp_diastolic: e.target.value })}
+                                                    className="w-full px-4 py-2.5 bg-white border border-purple-100 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                                                    placeholder="mmHg"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 mb-1.5">Pulse</label>
+                                            <input
+                                                type="text"
+                                                value={vitalsForm.pulse}
+                                                onChange={(e) => setVitalsForm({ ...vitalsForm, pulse: e.target.value })}
+                                                className="w-full px-4 py-2.5 bg-white border border-purple-100 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                                                placeholder="bpm"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 mb-1.5">Temperature</label>
+                                            <input
+                                                type="text"
+                                                value={vitalsForm.temperature}
+                                                onChange={(e) => setVitalsForm({ ...vitalsForm, temperature: e.target.value })}
+                                                className="w-full px-4 py-2.5 bg-white border border-purple-100 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                                                placeholder="°F"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 mb-1.5">Weight</label>
+                                            <input
+                                                type="text"
+                                                value={vitalsForm.weight}
+                                                onChange={(e) => setVitalsForm({ ...vitalsForm, weight: e.target.value })}
+                                                className="w-full px-4 py-2.5 bg-white border border-purple-100 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                                                placeholder="kg"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 mb-1.5">Height</label>
+                                            <input
+                                                type="text"
+                                                value={vitalsForm.height}
+                                                onChange={(e) => setVitalsForm({ ...vitalsForm, height: e.target.value })}
+                                                className="w-full px-4 py-2.5 bg-white border border-purple-100 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                                                placeholder="cm"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 mb-1.5">SpO2</label>
+                                            <input
+                                                type="text"
+                                                value={vitalsForm.spo2}
+                                                onChange={(e) => setVitalsForm({ ...vitalsForm, spo2: e.target.value })}
+                                                className="w-full px-4 py-2.5 bg-white border border-purple-100 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                                                placeholder="%"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 mb-1.5">GRBS</label>
+                                            <input
+                                                type="text"
+                                                value={vitalsForm.grbs}
+                                                onChange={(e) => setVitalsForm({ ...vitalsForm, grbs: e.target.value })}
+                                                className="w-full px-4 py-2.5 bg-white border border-purple-100 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                                                placeholder="mg/dL"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+                                <button
+                                    onClick={() => setShowVitalsModal(false)}
+                                    className="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleSaveVitals}
+                                    disabled={saving}
+                                    className="px-5 py-2.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-lg shadow-blue-600/20 flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                                >
+                                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                    Save Vitals
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
         </div>
     );
 }

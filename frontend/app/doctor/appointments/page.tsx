@@ -38,7 +38,14 @@ export default function DoctorAppointments() {
             const response = await axios.get(`${API_URL}/doctors/schedule?date=${filterDate}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setWaitingQueue(response.data.data.waitingQueue || []);
+            const queue = response.data.data.waitingQueue || [];
+            // Sort: MLC first, then by existing order (assuming token/time)
+            const sortedQueue = queue.sort((a: any, b: any) => {
+                if (a.is_mlc && !b.is_mlc) return -1;
+                if (!a.is_mlc && b.is_mlc) return 1;
+                return 0;
+            });
+            setWaitingQueue(sortedQueue);
             setAppointments(response.data.data.appointments || []);
             setCompletedConsultations(response.data.data.completedConsultations || []);
         } catch (error) {
@@ -120,69 +127,93 @@ export default function DoctorAppointments() {
                                 Live Patient Stream (OPD)
                             </h2>
                             <span className="px-3 py-1 bg-blue-100/50 text-blue-700 text-xs font-bold rounded-full border border-blue-200">
-                                {waitingQueue.length} Waiting
+                                {waitingQueue.length} {new Date(filterDate) < new Date(new Date().toISOString().split('T')[0]) ? 'Waited' : 'Waiting'}
                             </span>
                         </div>
 
                         {waitingQueue.length > 0 ? (
                             <div className="space-y-4">
-                                {waitingQueue.map((visit, index) => (
-                                    <motion.div
-                                        initial={{ opacity: 0, x: -20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ delay: index * 0.1 }}
-                                        key={`opd-${visit.opd_id}`}
-                                        className={`group relative glass-card p-0 rounded-2xl border border-white/60 shadow-sm hover:shadow-xl hover:shadow-blue-500/10 transition-all duration-300 overflow-hidden ${index === 0 ? 'ring-2 ring-blue-400 ring-offset-2 ring-offset-gray-50' : ''}`}
-                                    >
-                                        {/* Status Bar */}
-                                        <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-blue-500 to-indigo-600"></div>
+                                {waitingQueue.map((visit, index) => {
+                                    const isMlc = visit.is_mlc;
+                                    return (
+                                        <motion.div
+                                            initial={{ opacity: 0, x: -20 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            transition={{ delay: index * 0.1 }}
+                                            key={`opd-${visit.opd_id}`}
+                                            className={`group relative glass-card p-0 rounded-2xl transition-all duration-300 overflow-hidden 
+                                                ${isMlc
+                                                    ? 'border border-red-500/50 bg-red-50/10 shadow-lg shadow-red-500/10 hover:shadow-red-500/20'
+                                                    : 'border border-white/60 shadow-sm hover:shadow-xl hover:shadow-blue-500/10'
+                                                }
+                                                ${!isMlc && index === 0 ? 'ring-2 ring-blue-400 ring-offset-2 ring-offset-gray-50' : ''}
+                                                ${isMlc ? 'ring-2 ring-red-400 ring-offset-2 ring-offset-gray-50' : ''}
+                                            `}
+                                        >
+                                            {/* Status Bar */}
+                                            <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${isMlc ? 'bg-gradient-to-b from-red-500 to-orange-600 animate-pulse' : 'bg-gradient-to-b from-blue-500 to-indigo-600'}`}></div>
 
-                                        <div className="p-5 pl-7 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                                            <div className="flex items-center gap-5">
-                                                <div className="relative">
-                                                    <div className="w-14 h-14 bg-gradient-to-br from-slate-100 to-white rounded-2xl flex items-center justify-center text-slate-700 font-bold text-xl shadow-inner border border-slate-200/50">
-                                                        {visit.token_number}
-                                                    </div>
-                                                    {index === 0 && (
-                                                        <span className="absolute -top-2 -right-2 bg-green-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm animate-bounce">
-                                                            NEXT
-                                                        </span>
-                                                    )}
-                                                </div>
-
-                                                <div>
-                                                    <div className="flex items-center gap-2">
-                                                        <h3 className="font-bold text-slate-800 text-lg group-hover:text-blue-700 transition-colors">{visit.patient_name}</h3>
-                                                        {visit.is_mlc && (
-                                                            <span className="px-2 py-0.5 bg-red-100 text-red-600 text-[10px] font-bold rounded-full border border-red-200 uppercase tracking-wide">
-                                                                MLC
+                                            <div className="p-5 pl-7 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                                <div className="flex items-center gap-5">
+                                                    <div className="relative">
+                                                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-bold text-xl shadow-inner border 
+                                                            ${isMlc ? 'bg-red-100 text-red-700 border-red-200' : 'bg-gradient-to-br from-slate-100 to-white text-slate-700 border-slate-200/50'}`}>
+                                                            {visit.token_number}
+                                                        </div>
+                                                        {index === 0 && !isMlc && filterDate === new Date().toISOString().split('T')[0] && (
+                                                            <span className="absolute -top-2 -right-2 bg-green-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm animate-bounce">
+                                                                NEXT
+                                                            </span>
+                                                        )}
+                                                        {isMlc && (
+                                                            <span className="absolute -top-2 -right-4 bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-lg shadow-red-500/40 animate-pulse flex items-center gap-1">
+                                                                <AlertCircle className="w-3 h-3" /> PRIORITY
                                                             </span>
                                                         )}
                                                     </div>
-                                                    <div className="flex items-center gap-3 mt-1 text-sm text-slate-500 font-medium">
-                                                        <span className="flex items-center gap-1"><User className="w-3 h-3" /> {visit.age} / {visit.gender}</span>
-                                                        <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
-                                                        <span>{visit.visit_type}</span>
+
+                                                    <div>
+                                                        <div className="flex items-center gap-2">
+                                                            <h3 className="font-bold text-slate-800 text-lg group-hover:text-blue-700 transition-colors">{visit.patient_name}</h3>
+                                                            {isMlc && (
+                                                                <span className="px-2 py-0.5 bg-red-100/50 text-red-600 text-[10px] font-bold rounded-full border border-red-200 uppercase tracking-wide flex items-center gap-1">
+                                                                    MLC
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex items-center gap-3 mt-1 text-sm text-slate-500 font-medium">
+                                                            <span className="flex items-center gap-1"><User className="w-3 h-3" /> {visit.age} / {visit.gender}</span>
+                                                            <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                                                            <span className={isMlc ? 'text-red-600 font-bold' : ''}>{visit.visit_type}</span>
+                                                        </div>
+                                                        {visit.chief_complaint && (
+                                                            <p className={`text-sm mt-2 italic px-2 py-1 rounded-md border inline-block ${isMlc ? 'bg-red-50/50 text-red-800 border-red-100' : 'bg-slate-50/50 text-slate-600 border-slate-100'}`}>
+                                                                "{visit.chief_complaint}"
+                                                            </p>
+                                                        )}
                                                     </div>
-                                                    {visit.chief_complaint && (
-                                                        <p className="text-sm text-slate-600 mt-2 italic bg-slate-50/50 px-2 py-1 rounded-md border border-slate-100 inline-block">
-                                                            "{visit.chief_complaint}"
-                                                        </p>
-                                                    )}
+                                                </div>
+
+                                                <div className="flex items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
+                                                    <Link
+                                                        href={`/doctor/patients/${visit.patient_id}`}
+                                                        className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 text-white rounded-xl font-semibold shadow-lg transition-all text-sm hover:-translate-y-0.5
+                                                            ${isMlc
+                                                                ? 'bg-gradient-to-r from-red-600 to-orange-600 shadow-red-500/30 hover:shadow-red-500/40'
+                                                                : 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-blue-500/30 hover:shadow-blue-500/40'
+                                                            }`}
+                                                    >
+                                                        {new Date(filterDate) < new Date(new Date().toISOString().split('T')[0]) ? (
+                                                            <>View <ArrowRight className="w-4 h-4" /></>
+                                                        ) : (
+                                                            <>Start <ArrowRight className="w-4 h-4" /></>
+                                                        )}
+                                                    </Link>
                                                 </div>
                                             </div>
-
-                                            <div className="flex items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
-                                                <Link
-                                                    href={`/doctor/patients/${visit.patient_id}`}
-                                                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold shadow-lg shadow-blue-500/30 hover:shadow-blue-500/40 hover:-translate-y-0.5 transition-all text-sm"
-                                                >
-                                                    Start <ArrowRight className="w-4 h-4" />
-                                                </Link>
-                                            </div>
-                                        </div>
-                                    </motion.div>
-                                ))}
+                                        </motion.div>
+                                    );
+                                })}
                             </div>
                         ) : (
                             <div className="glass-panel p-12 text-center rounded-3xl border-dashed border-2 border-slate-200">
@@ -207,33 +238,91 @@ export default function DoctorAppointments() {
                             <div className="glass-panel p-2 rounded-2xl bg-white/40 max-h-[400px] overflow-y-auto custom-scrollbar">
                                 {appointments.length > 0 ? (
                                     <div className="space-y-2">
-                                        {appointments.map((apt) => (
-                                            <div key={`apt-${apt.appointment_id}`} className="bg-white/60 p-4 rounded-xl border border-white/50 hover:bg-white transition-colors flex items-center justify-between group">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="flex flex-col items-center justify-center w-12 h-12 bg-purple-50 text-purple-700 rounded-lg border border-purple-100">
-                                                        <span className="text-xs font-bold uppercase">{new Date('2000-01-01 ' + apt.appointment_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }).split(' ')[0]}</span>
-                                                        <span className="text-[10px] uppercase text-purple-400">{new Date('2000-01-01 ' + apt.appointment_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }).split(' ')[1]}</span>
-                                                    </div>
-                                                    <div>
-                                                        <p className="font-bold text-slate-800 text-sm">{apt.patient_name}</p>
-                                                        <p className="text-xs text-slate-500">{apt.reason_for_visit || 'General Visit'}</p>
-                                                    </div>
-                                                </div>
+                                        {appointments.map((apt) => {
+                                            // Precise Date & Time Handling from Database
+                                            const apptDateRaw = apt.appointment_date;
+                                            // The backend sends a UTC string or Date string. 
+                                            // We must respect the intent: "What date is stored in the DB?"
+                                            // If apptDateRaw is "2026-02-05T00:00:00.000Z", it means Midnight UTC.
+                                            // Converted to local time (IST), this is Feb 5 05:30. So the Local Date IS Feb 5.
 
-                                                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <button
-                                                        onClick={() => handleCancelAppointment(apt.appointment_id)}
-                                                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
-                                                        title="Cancel"
-                                                    >
-                                                        <XCircle className="w-4 h-4" />
-                                                    </button>
-                                                    <Link href={`/doctor/appointments/${apt.appointment_id}`} className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg transition">
-                                                        <ArrowRight className="w-4 h-4" />
-                                                    </Link>
+                                            // Determine the Local Date Object
+                                            let apptDateObj = new Date(filterDate);
+                                            if (apptDateRaw) {
+                                                apptDateObj = new Date(apptDateRaw);
+                                            }
+
+                                            // Construct the exact appointment datetime for comparison
+                                            const apptTimeStr = apt.appointment_time; // e.g., "14:30:00"
+                                            const [hours, minutes] = apptTimeStr.split(':');
+
+                                            const apptDateTime = new Date(apptDateObj);
+                                            apptDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+
+                                            const now = new Date();
+
+                                            // Check if it is strictly in the past
+                                            const isPast = apptDateTime < now;
+
+                                            // Check if it is TODAY (Locally)
+                                            const isToday = now.toDateString() === apptDateObj.toDateString();
+
+                                            // Missed Logic
+                                            let displayStatus = apt.reason_for_visit || 'General Visit';
+                                            let isMissed = false;
+
+                                            if (isToday && isPast && apt.status !== 'Completed' && apt.status !== 'Cancelled') {
+                                                displayStatus = 'Missed';
+                                                isMissed = true;
+                                            }
+
+                                            return (
+                                                <div key={`apt-${apt.appointment_id}`} className={`p-4 rounded-xl border transition-colors flex items-center justify-between group 
+                                                    ${isMissed ? 'bg-red-50 border-red-100' : 'bg-white/60 border-white/50 hover:bg-white'}`}>
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={`flex flex-col items-center justify-center w-14 h-14 rounded-lg border 
+                                                            ${isMissed ? 'bg-red-100 text-red-700 border-red-200' : 'bg-purple-50 text-purple-700 border-purple-100'}`}>
+                                                            <span className="text-xs font-bold uppercase">
+                                                                {new Date(`2000-01-01T${apt.appointment_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }).split(' ')[0]}
+                                                            </span>
+                                                            <span className={`text-[10px] uppercase ${isMissed ? 'text-red-500' : 'text-purple-400'}`}>
+                                                                {new Date(`2000-01-01T${apt.appointment_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }).split(' ')[1]}
+                                                            </span>
+                                                            <span className="text-[9px] font-medium text-slate-500 -mt-0.5 pt-0.5 border-t border-slate-200/50 w-full text-center">
+                                                                {apptDateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                                            </span>
+                                                        </div>
+                                                        <div>
+                                                            <p className={`font-bold text-sm ${isMissed ? 'text-red-800' : 'text-slate-800'}`}>{apt.patient_name}</p>
+                                                            <div className="flex items-center gap-2">
+                                                                <p className={`text-xs ${isMissed ? 'text-red-600 font-bold' : 'text-slate-500'}`}>
+                                                                    {displayStatus}
+                                                                </p>
+                                                                {isMissed && (
+                                                                    <span className="flex h-2 w-2 relative">
+                                                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <button
+                                                            onClick={() => handleCancelAppointment(apt.appointment_id)}
+                                                            className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
+                                                            title="Cancel"
+                                                        >
+                                                            <XCircle className="w-4 h-4" />
+                                                        </button>
+                                                        <Link href={`/doctor/appointments/${apt.appointment_id}`} className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg transition">
+                                                            <ArrowRight className="w-4 h-4" />
+                                                        </Link>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 ) : (
                                     <div className="p-8 text-center text-slate-400">

@@ -243,8 +243,9 @@ class DoctorController {
             }
             const doctor_id = doctorResult.rows[0].doctor_id;
 
-            // 1. Fetch Waiting Room (OPD Entries for today, not completed)
+            // 1. Fetch Waiting Room (OPD Entries for the SELECTED date)
             // Statuses: 'Registered', 'In-consultation'
+            // NOTE: Usually Waiting Queue is relevant for Today, but if viewing past/future, we strictly filter by date.
             const opdQuery = `
                 SELECT o.*, 
                        p.first_name || ' ' || p.last_name as patient_name, 
@@ -253,13 +254,14 @@ class DoctorController {
                 FROM opd_entries o
                 JOIN patients p ON o.patient_id = p.patient_id
                 WHERE o.doctor_id = $1 
-                AND o.visit_date = CURRENT_DATE 
+                AND o.visit_date = $2 
                 AND o.visit_status IN ('Registered', 'In-consultation')
                 ORDER BY o.visit_time ASC
             `;
-            const opdQueue = await pool.query(opdQuery, [doctor_id]);
+            const opdQueue = await pool.query(opdQuery, [doctor_id, filterDate]);
 
-            // 2. Fetch Upcoming Appointments (not completed)
+            // 2. Fetch Appointments for the SELECTED date
+            // This enables the "Schedule For" picker to show appointments for that specific day.
             const apptQuery = `
                 SELECT a.*, 
                        COALESCE(p.first_name || ' ' || p.last_name, a.patient_name) as patient_name,
@@ -268,10 +270,10 @@ class DoctorController {
                 LEFT JOIN patients p ON a.patient_id = p.patient_id
                 WHERE a.doctor_id = $1 
                 AND a.appointment_status NOT IN ('Completed', 'Cancelled')
-                AND a.appointment_date >= CURRENT_DATE
-                ORDER BY a.appointment_date ASC, a.appointment_time ASC
+                AND a.appointment_date = $2
+                ORDER BY a.appointment_time ASC
             `;
-            const appointments = await pool.query(apptQuery, [doctor_id]);
+            const appointments = await pool.query(apptQuery, [doctor_id, filterDate]);
 
             // 3. Fetch Completed Consultations for the specified date
             const completedQuery = `
