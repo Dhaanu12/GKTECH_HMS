@@ -33,7 +33,8 @@ export default function OpdEntryPage() {
         pendingAmount: 0,
         pendingCount: 0,
         collectedAmount: 0,
-        collectedCount: 0
+        collectedCount: 0,
+        newPatients: 0 // Added field
     });
 
     const checkPhoneMatches = async (phone: string) => {
@@ -72,6 +73,8 @@ export default function OpdEntryPage() {
     const [modalSearchQuery, setModalSearchQuery] = useState('');
     const [modalSearchResults, setModalSearchResults] = useState<any[]>([]);
     const [isSearching, setIsSearching] = useState(false);
+    const [isFromConvertToOPD, setIsFromConvertToOPD] = useState(false);
+    const [pendingPatientData, setPendingPatientData] = useState<any>(null);
 
     // Doctor Filter state
     const [selectedDoctorFilter, setSelectedDoctorFilter] = useState<string>('');
@@ -130,7 +133,8 @@ export default function OpdEntryPage() {
         address_line2: '',
         city: '',
         state: '',
-        pincode: ''
+        pincode: '',
+        appointment_id: ''
     });
 
 
@@ -264,7 +268,8 @@ export default function OpdEntryPage() {
                 pendingAmount: stats.pendingAmount || 0,
                 pendingCount: stats.pendingCount || 0,
                 collectedAmount: stats.collectedAmount || 0,
-                collectedCount: stats.collectedCount || 0
+                collectedCount: stats.collectedCount || 0,
+                newPatients: stats.newPatients || 0
             });
         } catch (error) {
             console.error('Error fetching dashboard stats:', error);
@@ -414,6 +419,66 @@ export default function OpdEntryPage() {
         setShowModal(true);
     };
 
+    // This function is called when user clicks "Select" on a patient in the dropdown
+    const handleDropdownSelect = async (patient: any) => {
+        setSelectedPatient(patient);
+
+        // Get doctor info from pending appointment data if from Convert to OPD
+        let doctorId = '';
+        let consultationFee = '';
+        let visitType = 'Walk-in'; // Default
+        let aptArgs: any = {}; // Object to hold appointment specific extra fields for opdForm
+
+        if (isFromConvertToOPD && pendingPatientData) {
+            // For Convert to OPD: Use doctor info from the ORIGINAL appointment (pendingPatientData)
+            if (pendingPatientData.doctor_id) {
+                doctorId = pendingPatientData.doctor_id.toString();
+                const doc = doctors.find((d: any) => d.doctor_id === parseInt(pendingPatientData.doctor_id));
+                if (doc) {
+                    consultationFee = doc.consultation_fee?.toString() || '';
+                }
+            }
+            visitType = 'Appointment';
+            setHasAppointment(true);
+            setAppointmentDoctorName(pendingPatientData.doctor_name || '');
+            aptArgs = { appointment_id: pendingPatientData.appointment_id || '' };
+        } else {
+            // For New OPD Entry: Keep defaults (Walk-in, no doctor)
+            setHasAppointment(false);
+            setAppointmentDoctorName('');
+        }
+
+        setPendingPatientData(null); // Clear pending data since user made a selection
+
+        // Fill ONLY profile info from selected patient
+        setOpdForm(prev => ({
+            ...prev,
+            first_name: patient.first_name,
+            last_name: patient.last_name,
+            age: patient.age?.toString() || '',
+            gender: patient.gender || '',
+            blood_group: patient.blood_group || '',
+            contact_number: patient.contact_number || '',
+            adhaar_number: patient.aadhar_number || patient.adhaar_number || '',
+            address_line1: patient.address || '',
+            address_line2: patient.address_line2 || '',
+            city: patient.city || '',
+            state: patient.state || '',
+            pincode: patient.pincode || '',
+            // Only set doctor fields if from Convert to OPD
+            ...(isFromConvertToOPD ? {
+                doctor_id: doctorId,
+                visit_type: visitType,
+                consultation_fee: consultationFee,
+                ...aptArgs // Add appointment_id if present
+            } : {})
+        }));
+
+        // Clear search results after selection
+        setModalSearchQuery('');
+        setModalSearchResults([]);
+    };
+
     // Quick Follow-Up handler for returning patients (UX Solution 1)
     const handleQuickFollowUp = async (patient: any) => {
         // Select patient first
@@ -513,9 +578,16 @@ export default function OpdEntryPage() {
 
             const payload = {
                 ...formData,
+                // Ensure last_name is never empty/null (DB constraint)
+                last_name: formData.last_name?.trim() || '.',
                 patient_id: selectedPatient?.patient_id,
                 vital_signs: JSON.stringify(formData.vital_signs),
-                consultation_fee: totalFee.toString() // Send Total Fee to backend
+                consultation_fee: totalFee.toString(), // Send Total Fee to backend
+                // Map frontend field names to backend expected names
+                address_line_1: formData.address_line1,
+                address_line_2: formData.address_line2,
+                // Ensure appointment_id is explicitly passed if present
+                appointment_id: formData.appointment_id
             };
 
             let response;
@@ -637,7 +709,8 @@ export default function OpdEntryPage() {
             address_line2: '',
             city: '',
             state: '',
-            pincode: ''
+            pincode: '',
+            appointment_id: ''
         });
         setSelectedPatient(null);
         setSearchQuery('');
@@ -650,6 +723,9 @@ export default function OpdEntryPage() {
         setCompletedSteps([]);
         setModalSearchQuery('');
         setModalSearchResults([]);
+        // Reset Convert to OPD state
+        setIsFromConvertToOPD(false);
+        setPendingPatientData(null);
     };
 
     const handleEditOpd = (entry: any) => {
@@ -690,14 +766,15 @@ export default function OpdEntryPage() {
             mlc_remarks: entry.mlc_remarks || '',
             attender_name: entry.attender_name || '',
             attender_contact_number: entry.attender_contact_number || '',
-            adhaar_number: '',
+            adhaar_number: entry.adhaar_number || '',
             referral_hospital: entry.referral_hospital || '',
             referral_doctor_name: entry.referral_doctor_name || '',
             address_line1: entry.address_line1 || '',
             address_line2: entry.address_line2 || '',
             city: entry.city || '',
             state: entry.state || '',
-            pincode: entry.pincode || ''
+            pincode: entry.pincode || '',
+            appointment_id: entry.appointment_id || ''
         });
 
         setSelectedPatient({
@@ -769,11 +846,11 @@ export default function OpdEntryPage() {
                         </div>
                         <div className="flex-1 flex flex-col justify-center">
                             <p className="text-3xl font-bold text-emerald-700">
-                                {opdEntries.filter((e: any) => e.visit_type === 'Walk-in').length}
+                                {dashboardStats.newPatients}
                             </p>
                             <p className="text-sm font-semibold text-emerald-600 mt-1">New Patients Today</p>
                         </div>
-                        <p className="text-xs text-emerald-500 mt-auto pt-2">Walk-in registrations</p>
+                        <p className="text-xs text-emerald-500 mt-auto pt-2">New registrations</p>
                     </div>
 
                     {/* Peak Hour Today - Busiest hour */}
@@ -1248,162 +1325,86 @@ export default function OpdEntryPage() {
                                         <User className="w-4 h-4" /> Patient Details
                                     </h3>
 
-                                    {/* Smart Patient Search - Only show if no patient selected (UX Solution 1) */}
-                                    {!selectedPatient && !editingOpdId && (
-                                        <div className="mb-6 relative">
-                                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                                                Search Existing Patient
-                                            </label>
-                                            <div className="relative">
-                                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                                    {/* Patient Form Fields - Phone-first workflow (synced from dashboard) */}
+                                    {!editingOpdId && (
+                                        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                                            {/* Row 1: Phone Number | Name */}
+                                            <div className="md:col-span-2 relative">
+                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Phone Number {opdForm.is_mlc ? '(Optional for MLC)' : <span className="text-red-500">*</span>}</label>
                                                 <input
-                                                    type="text"
-                                                    value={modalSearchQuery}
-                                                    onChange={(e) => setModalSearchQuery(e.target.value)}
-                                                    placeholder="Enter phone number or patient name..."
-                                                    className="w-full pl-10 pr-4 py-3 bg-white border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium text-lg"
+                                                    type="tel"
+                                                    required={!opdForm.is_mlc}
+                                                    value={opdForm.contact_number}
+                                                    onChange={(e) => {
+                                                        const value = e.target.value.replace(/\D/g, "");
+                                                        if (value.length <= 10) {
+                                                            setOpdForm({ ...opdForm, contact_number: value });
+                                                            // Trigger search when phone number is 8+ digits
+                                                            if (value.length >= 8) {
+                                                                setModalSearchQuery(value);
+                                                            } else {
+                                                                setModalSearchResults([]);
+                                                            }
+                                                        }
+                                                    }}
+                                                    maxLength={10}
+                                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                                                    placeholder="10-digit number"
                                                     autoFocus
                                                 />
-                                                {isSearching && (
-                                                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
+
+                                                {/* Existing Patients Dropdown */}
+                                                {modalSearchResults.length > 0 && opdForm.contact_number.length >= 8 && (
+                                                    <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-50">
+                                                        <div className="flex items-center justify-between px-4 py-2 bg-slate-50 border-b border-slate-100">
+                                                            <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Existing Patients Found</span>
+                                                        </div>
+                                                        <div className="max-h-48 overflow-y-auto">
+                                                            {modalSearchResults.map((patient: any) => (
+                                                                <div
+                                                                    key={patient.patient_id}
+                                                                    className="px-4 py-3 hover:bg-blue-50 border-b border-slate-100 last:border-0 flex items-center justify-between"
+                                                                >
+                                                                    <div>
+                                                                        <p className="font-bold text-slate-800">{patient.first_name} {patient.last_name}</p>
+                                                                        <p className="text-sm text-slate-500">
+                                                                            {patient.gender}, {patient.age} yrs • ID: {patient.mrn_number}
+                                                                        </p>
+                                                                    </div>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleDropdownSelect(patient)}
+                                                                        className="px-3 py-1.5 text-blue-600 border border-blue-200 rounded-lg text-xs font-bold hover:bg-blue-50 transition"
+                                                                    >
+                                                                        Select
+                                                                    </button>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                        {/* Only show Add New Patient if NOT from Convert to OPD */}
+                                                        {!isFromConvertToOPD && (
+                                                            <div
+                                                                className="px-4 py-3 bg-slate-50 border-t border-slate-100 flex items-center gap-2 cursor-pointer hover:bg-blue-50 transition"
+                                                                onClick={() => setModalSearchResults([])}
+                                                            >
+                                                                <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center">
+                                                                    <Plus className="w-4 h-4" />
+                                                                </div>
+                                                                <span className="font-semibold text-blue-600">Add New Patient</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+
+                                                {/* Loading indicator */}
+                                                {isSearching && opdForm.contact_number.length >= 8 && (
+                                                    <div className="absolute right-3 top-9">
                                                         <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
                                                     </div>
                                                 )}
                                             </div>
 
-                                            {/* Search Results Dropdown */}
-                                            {modalSearchResults.length > 0 && (
-                                                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden z-50 max-h-72 overflow-y-auto">
-                                                    {modalSearchResults.map((patient: any) => (
-                                                        <div
-                                                            key={patient.patient_id}
-                                                            className="p-4 hover:bg-blue-50 border-b border-slate-100 last:border-0"
-                                                        >
-                                                            <div className="flex items-start justify-between gap-4">
-                                                                <div className="flex items-center gap-3">
-                                                                    <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold">
-                                                                        {patient.first_name?.[0]}{patient.last_name?.[0] || ''}
-                                                                    </div>
-                                                                    <div>
-                                                                        <p className="font-bold text-slate-800">
-                                                                            {patient.first_name} {patient.last_name}
-                                                                        </p>
-                                                                        <p className="text-sm text-slate-500">
-                                                                            {patient.gender}, {patient.age} yrs • {patient.contact_number}
-                                                                        </p>
-                                                                        {patient.last_visit_date && (
-                                                                            <p className="text-xs text-slate-400 mt-1">
-                                                                                Last visit: {new Date(patient.last_visit_date).toLocaleDateString()}
-                                                                                {patient.last_doctor_first_name && (
-                                                                                    <> with Dr. {patient.last_doctor_first_name}</>
-                                                                                )}
-                                                                                {patient.is_follow_up_candidate && (
-                                                                                    <span className="ml-2 px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-bold">
-                                                                                        Follow-up eligible
-                                                                                    </span>
-                                                                                )}
-                                                                            </p>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-                                                                <div className="flex gap-2 flex-shrink-0">
-                                                                    {patient.is_follow_up_candidate && (
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => handleQuickFollowUp(patient)}
-                                                                            className="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-xs font-bold hover:bg-amber-600 transition"
-                                                                        >
-                                                                            Quick Follow-Up
-                                                                        </button>
-                                                                    )}
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => {
-                                                                            selectPatient(patient);
-                                                                            setModalSearchQuery('');
-                                                                            setModalSearchResults([]);
-                                                                        }}
-                                                                        className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition"
-                                                                    >
-                                                                        Select
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-
-                                            {/* No Results State */}
-                                            {modalSearchQuery.length >= 3 && !isSearching && modalSearchResults.length === 0 && (
-                                                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-lg border border-slate-200 p-4 z-50">
-                                                    <p className="text-slate-500 text-center mb-3">No patient found with "{modalSearchQuery}"</p>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            // Pre-fill phone if search was a phone number
-                                                            if (/^\d{10}$/.test(modalSearchQuery)) {
-                                                                setOpdForm(prev => ({ ...prev, contact_number: modalSearchQuery }));
-                                                            }
-                                                            setModalSearchQuery('');
-                                                            setModalSearchResults([]);
-                                                        }}
-                                                        className="w-full py-2 bg-blue-600 text-white rounded-lg font-bold text-sm hover:bg-blue-700 transition"
-                                                    >
-                                                        + Register as New Patient
-                                                    </button>
-                                                </div>
-                                            )}
-
-                                            <p className="text-xs text-slate-400 mt-2">
-                                                Type at least 3 characters to search. Leave empty to register new patient.
-                                            </p>
-                                        </div>
-                                    )}
-
-                                    {/* Selected Patient Display - Enhanced Card */}
-                                    {selectedPatient && !editingOpdId && (
-                                        <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl flex items-center justify-between">
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-lg shadow-lg">
-                                                    {selectedPatient.first_name?.[0]}
-                                                </div>
-                                                <div>
-                                                    <p className="font-bold text-slate-800 text-lg">
-                                                        {selectedPatient.first_name} {selectedPatient.last_name}
-                                                    </p>
-                                                    <div className="flex items-center gap-3 text-sm text-slate-500">
-                                                        <span>{selectedPatient.gender}, {selectedPatient.age} yrs</span>
-                                                        <span>•</span>
-                                                        <span>📱 {selectedPatient.contact_number}</span>
-                                                        {selectedPatient.blood_group && (
-                                                            <>
-                                                                <span>•</span>
-                                                                <span className="text-red-600 font-bold">{selectedPatient.blood_group}</span>
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                    <p className="text-xs text-blue-600 font-mono mt-1">MRN: {selectedPatient.mrn_number}</p>
-                                                </div>
-                                            </div>
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    setSelectedPatient(null);
-                                                    resetForm();
-                                                }}
-                                                className="px-4 py-2 text-sm text-slate-600 hover:text-red-600 hover:bg-white/50 font-medium rounded-lg flex items-center gap-1 transition"
-                                            >
-                                                <X className="w-4 h-4" />
-                                                Change
-                                            </button>
-                                        </div>
-                                    )}
-
-                                    {/* New Patient Form Fields - Only show when no patient is selected */}
-                                    {!selectedPatient && !editingOpdId && (
-                                        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                                            <div className="md:col-span-4">
+                                            <div className={`md:col-span-4 ${(opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient ? 'opacity-50 pointer-events-none' : ''}`}>
                                                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Name <span className="text-red-500">*</span></label>
                                                 <input
                                                     type="text"
@@ -1420,11 +1421,12 @@ export default function OpdEntryPage() {
                                                     placeholder="e.g. John Doe"
                                                 />
                                             </div>
-                                            <div>
+                                            {/* Row 2: Age | Gender | Blood Group */}
+                                            <div className={(opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient ? 'opacity-50 pointer-events-none' : ''}>
                                                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Age <span className="text-red-500">*</span></label>
                                                 <input type="number" required value={opdForm.age} onChange={(e) => setOpdForm({ ...opdForm, age: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium" />
                                             </div>
-                                            <div>
+                                            <div className={(opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient ? 'opacity-50 pointer-events-none' : ''}>
                                                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Gender <span className="text-red-500">*</span></label>
                                                 <select required value={opdForm.gender} onChange={(e) => setOpdForm({ ...opdForm, gender: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium">
                                                     <option value="">Select</option>
@@ -1434,22 +1436,7 @@ export default function OpdEntryPage() {
                                                     <option value="Other">Other</option>
                                                 </select>
                                             </div>
-                                            <div className="md:col-span-2">
-                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Phone Number {opdForm.is_mlc ? '(Optional for MLC)' : <span className="text-red-500">*</span>}</label>
-                                                <input
-                                                    type="tel"
-                                                    required={!opdForm.is_mlc}
-                                                    value={opdForm.contact_number}
-                                                    onChange={(e) => {
-                                                        const value = e.target.value.replace(/\D/g, "");
-                                                        if (value.length <= 10) setOpdForm({ ...opdForm, contact_number: value });
-                                                    }}
-                                                    maxLength={10}
-                                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
-                                                    placeholder="10-digit number"
-                                                />
-                                            </div>
-                                            <div className="md:col-span-2">
+                                            <div className={`md:col-span-2 ${(opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient ? 'opacity-50 pointer-events-none' : ''}`}>
                                                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Blood Group</label>
                                                 <select value={opdForm.blood_group} onChange={(e) => setOpdForm({ ...opdForm, blood_group: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium">
                                                     <option value="">Unknown</option>
@@ -1463,9 +1450,23 @@ export default function OpdEntryPage() {
                                                     <option value="AB-">AB-</option>
                                                 </select>
                                             </div>
+                                            <div className={`md:col-span-2 ${(opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient ? 'opacity-50 pointer-events-none' : ''}`}>
+                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Aadhaar Number</label>
+                                                <input
+                                                    type="text"
+                                                    value={opdForm.adhaar_number}
+                                                    onChange={(e) => {
+                                                        const value = e.target.value.replace(/\D/g, "");
+                                                        if (value.length <= 12) setOpdForm({ ...opdForm, adhaar_number: value });
+                                                    }}
+                                                    maxLength={12}
+                                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                                                    placeholder="12-digit Aadhaar"
+                                                />
+                                            </div>
 
                                             {/* Address Details Section */}
-                                            <div className="md:col-span-6 mt-4">
+                                            <div className={`md:col-span-6 mt-4 ${(opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient ? 'opacity-50 pointer-events-none' : ''}`}>
                                                 <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">ADDRESS DETAILS</h4>
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     <div>
@@ -1526,20 +1527,6 @@ export default function OpdEntryPage() {
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div className="md:col-span-2">
-                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Aadhaar Number</label>
-                                                <input
-                                                    type="text"
-                                                    value={opdForm.adhaar_number}
-                                                    onChange={(e) => {
-                                                        const value = e.target.value.replace(/\D/g, "");
-                                                        if (value.length <= 12) setOpdForm({ ...opdForm, adhaar_number: value });
-                                                    }}
-                                                    maxLength={12}
-                                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
-                                                    placeholder="12-digit Aadhaar"
-                                                />
-                                            </div>
                                         </div>
                                     )}
 
@@ -1553,24 +1540,18 @@ export default function OpdEntryPage() {
                                                         type="text"
                                                         required
                                                         value={opdForm.first_name + (opdForm.last_name ? ' ' + opdForm.last_name : '')}
-                                                        onChange={(e) => {
-                                                            const val = e.target.value;
-                                                            const parts = val.split(' ');
-                                                            const first = parts[0];
-                                                            const last = parts.slice(1).join(' ');
-                                                            setOpdForm({ ...opdForm, first_name: first, last_name: last });
-                                                        }}
-                                                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                                                        disabled
+                                                        className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl cursor-not-allowed font-medium text-slate-600"
                                                         placeholder="e.g. John Doe"
                                                     />
                                                 </div>
                                                 <div>
                                                     <label className="block text-xs font-semibold text-slate-700 mb-1.5">Age <span className="text-red-500">*</span></label>
-                                                    <input type="number" required value={opdForm.age} onChange={(e) => setOpdForm({ ...opdForm, age: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium" />
+                                                    <input type="number" required value={opdForm.age} disabled className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl cursor-not-allowed font-medium text-slate-600" />
                                                 </div>
                                                 <div>
                                                     <label className="block text-xs font-semibold text-slate-700 mb-1.5">Gender <span className="text-red-500">*</span></label>
-                                                    <select required value={opdForm.gender} onChange={(e) => setOpdForm({ ...opdForm, gender: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium">
+                                                    <select required value={opdForm.gender} disabled className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl cursor-not-allowed font-medium text-slate-600">
                                                         <option value="">Select</option>
                                                         <option value="Male">Male</option>
                                                         <option value="Female">Female</option>
@@ -1585,18 +1566,14 @@ export default function OpdEntryPage() {
                                                     <input
                                                         type="tel"
                                                         value={opdForm.contact_number}
-                                                        onChange={(e) => {
-                                                            const value = e.target.value.replace(/\D/g, "");
-                                                            if (value.length <= 10) setOpdForm({ ...opdForm, contact_number: value });
-                                                        }}
-                                                        maxLength={10}
-                                                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                                                        disabled
+                                                        className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl cursor-not-allowed font-medium text-slate-600"
                                                         placeholder="10-digit number"
                                                     />
                                                 </div>
                                                 <div className="md:col-span-2">
                                                     <label className="block text-xs font-semibold text-slate-700 mb-1.5">Blood Group</label>
-                                                    <select value={opdForm.blood_group} onChange={(e) => setOpdForm({ ...opdForm, blood_group: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium">
+                                                    <select value={opdForm.blood_group} disabled className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl cursor-not-allowed font-medium text-slate-600">
                                                         <option value="">Unknown</option>
                                                         <option value="A+">A+</option>
                                                         <option value="A-">A-</option>
@@ -1613,12 +1590,8 @@ export default function OpdEntryPage() {
                                                     <input
                                                         type="text"
                                                         value={opdForm.adhaar_number}
-                                                        onChange={(e) => {
-                                                            const value = e.target.value.replace(/\D/g, "");
-                                                            if (value.length <= 12) setOpdForm({ ...opdForm, adhaar_number: value });
-                                                        }}
-                                                        maxLength={12}
-                                                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                                                        disabled
+                                                        className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl cursor-not-allowed font-medium text-slate-600"
                                                         placeholder="12-digit Aadhaar"
                                                     />
                                                 </div>
@@ -1630,17 +1603,17 @@ export default function OpdEntryPage() {
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     <div>
                                                         <label className="block text-xs font-semibold text-slate-700 mb-1.5">Address Line 1</label>
-                                                        <input type="text" value={opdForm.address_line1} onChange={(e) => setOpdForm({ ...opdForm, address_line1: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium" placeholder="House No, Street" />
+                                                        <input type="text" value={opdForm.address_line1} disabled className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl cursor-not-allowed font-medium text-slate-600" placeholder="House No, Street" />
                                                     </div>
                                                     <div>
                                                         <label className="block text-xs font-semibold text-slate-700 mb-1.5">Address Line 2</label>
-                                                        <input type="text" value={opdForm.address_line2} onChange={(e) => setOpdForm({ ...opdForm, address_line2: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium" placeholder="Area, Landmark" />
+                                                        <input type="text" value={opdForm.address_line2} disabled className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl cursor-not-allowed font-medium text-slate-600" placeholder="Area, Landmark" />
                                                     </div>
                                                 </div>
                                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
-                                                    <div> <label className="block text-xs font-semibold text-slate-700 mb-1.5">City</label> <input type="text" value={opdForm.city} onChange={(e) => setOpdForm({ ...opdForm, city: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium" /> </div>
-                                                    <div> <label className="block text-xs font-semibold text-slate-700 mb-1.5">State</label> <input type="text" value={opdForm.state} onChange={(e) => setOpdForm({ ...opdForm, state: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium" /> </div>
-                                                    <div> <label className="block text-xs font-semibold text-slate-700 mb-1.5">Pincode</label> <input type="text" value={opdForm.pincode} onChange={(e) => { const value = e.target.value.replace(/\D/g, ""); if (value.length <= 6) setOpdForm({ ...opdForm, pincode: value }); }} maxLength={6} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium" /> </div>
+                                                    <div> <label className="block text-xs font-semibold text-slate-700 mb-1.5">City</label> <input type="text" value={opdForm.city} disabled className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl cursor-not-allowed font-medium text-slate-600" /> </div>
+                                                    <div> <label className="block text-xs font-semibold text-slate-700 mb-1.5">State</label> <input type="text" value={opdForm.state} disabled className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl cursor-not-allowed font-medium text-slate-600" /> </div>
+                                                    <div> <label className="block text-xs font-semibold text-slate-700 mb-1.5">Pincode</label> <input type="text" value={opdForm.pincode} disabled className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl cursor-not-allowed font-medium text-slate-600" /> </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -1662,7 +1635,7 @@ export default function OpdEntryPage() {
                                                     setOpdForm({
                                                         ...opdForm,
                                                         is_mlc: isChecked,
-                                                        visit_type: isChecked ? 'Emergency' : opdForm.visit_type,
+                                                        visit_type: isChecked ? 'Emergency' : 'Walk-in',
                                                         visit_date: isChecked ? new Date().toISOString().split('T')[0] : opdForm.visit_date,
                                                         visit_time: isChecked ? new Date().toTimeString().slice(0, 5) : opdForm.visit_time
                                                     });

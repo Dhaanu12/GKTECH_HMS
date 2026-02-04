@@ -314,7 +314,8 @@ class OpdController {
             const { search, startDate, endDate } = req.query;
             let queryText = `
                 SELECT o.*, 
-                       p.first_name as patient_first_name, p.last_name as patient_last_name, p.mrn_number, p.contact_number, p.age, p.gender,
+                       p.first_name as patient_first_name, p.last_name as patient_last_name, p.mrn_number, p.contact_number, p.age, p.gender, p.blood_group,
+                       p.address as address_line1, p.address_line2, p.city, p.state, p.pincode, p.adhaar_number,
                        d.first_name as doctor_first_name, d.last_name as doctor_last_name, d.specialization,
                        co.next_visit_date
                 FROM opd_entries o
