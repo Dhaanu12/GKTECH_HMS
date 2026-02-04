@@ -85,13 +85,13 @@ def categorize_data(rows):
         elif 1560 <= sr_no <= 1832:
             scans.append({'id': sr_no, 'name': name, 'category': 'scan'})
         elif 1833 <= sr_no <= 1853:
-            can_procedures.append({'id': sr_no, 'name': name, 'category': 'can_procedure'})
+            # Map "can_procedure" items to regular "procedure" as requested
+            procedures.append({'id': sr_no, 'name': name, 'category': 'procedure'})
     
     return {
         'procedures': procedures,
         'lab_tests': lab_tests,
-        'scans': scans,
-        'can_procedures': can_procedures
+        'scans': scans
     }
 
 def save_to_json(data, output_dir):

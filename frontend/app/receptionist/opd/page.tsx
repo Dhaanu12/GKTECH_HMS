@@ -91,14 +91,6 @@ export default function OpdEntryPage() {
         'Blood Pressure Check', 'Diabetes Follow-up', 'General Checkup'
     ];
 
-    // Follow-up Queue state (Smart Follow-up Scheduling)
-    const [followUpData, setFollowUpData] = useState<any>({
-        overdue: [],
-        due_today: [],
-        upcoming: [],
-        summary: { overdue_count: 0, due_today_count: 0, upcoming_count: 0, total: 0 }
-    });
-    const [showFollowUpPanel, setShowFollowUpPanel] = useState(false);
 
 
     const [opdForm, setOpdForm] = useState({
@@ -133,14 +125,18 @@ export default function OpdEntryPage() {
         attender_contact_number: '',
         adhaar_number: '',
         referral_hospital: '',
-        referral_doctor_name: ''
+        referral_doctor_name: '',
+        address_line1: '',
+        address_line2: '',
+        city: '',
+        state: '',
+        pincode: ''
     });
 
 
     useEffect(() => {
         fetchDoctors();
         // fetchOpdEntries(); // Triggered by dateRange effect
-        fetchFollowUps();
         fetchDashboardStats();
     }, []);
 
@@ -245,23 +241,6 @@ export default function OpdEntryPage() {
         }
     };
 
-    // Fetch follow-up queue data (Smart Follow-up Scheduling)
-    const fetchFollowUps = async () => {
-        try {
-            const token = localStorage.getItem('token');
-            const response = await axios.get(`${API_URL}/follow-ups/due`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setFollowUpData(response.data.data || {
-                overdue: [],
-                due_today: [],
-                upcoming: [],
-                summary: { overdue_count: 0, due_today_count: 0, upcoming_count: 0, total: 0 }
-            });
-        } catch (error) {
-            console.error('Error fetching follow-ups:', error);
-        }
-    };
 
     const fetchDashboardStats = async () => {
         try {
@@ -292,30 +271,6 @@ export default function OpdEntryPage() {
         }
     };
 
-    // Handle booking a follow-up visit (pre-fill OPD form)
-    const handleBookFollowUp = (followUp: any) => {
-        // Pre-fill the form with patient data from the follow-up
-        setOpdForm(prev => ({
-            ...prev,
-            first_name: followUp.patient_first_name || '',
-            last_name: followUp.patient_last_name || '',
-            contact_number: followUp.phone || '',
-            doctor_id: followUp.doctor_id?.toString() || '',
-            visit_type: 'Follow-up',
-            chief_complaint: `Follow-up: ${followUp.diagnosis || 'Previous consultation'}`
-        }));
-        setSelectedPatient({
-            patient_id: followUp.patient_id,
-            first_name: followUp.patient_first_name,
-            last_name: followUp.patient_last_name,
-            phone: followUp.phone,
-            patient_code: followUp.patient_code
-        });
-        setCurrentStep('visitDetails');
-        setCompletedSteps(['search']);
-        setShowModal(true);
-        setShowFollowUpPanel(false);
-    };
 
     const handleSearch = async () => {
         if (!searchQuery) {
@@ -677,7 +632,12 @@ export default function OpdEntryPage() {
             attender_contact_number: '',
             adhaar_number: '',
             referral_hospital: '',
-            referral_doctor_name: ''
+            referral_doctor_name: '',
+            address_line1: '',
+            address_line2: '',
+            city: '',
+            state: '',
+            pincode: ''
         });
         setSelectedPatient(null);
         setSearchQuery('');
@@ -773,7 +733,7 @@ export default function OpdEntryPage() {
                     <span className="w-1.5 h-10 bg-blue-600 rounded-full"></span>
                     <div>
                         {/* <h1 className="text-2xl font-bold text-slate-800 tracking-tight leading-none">OPD Entry</h1> */}
-                        <p className="text-sm text-slate-500 font-medium mt-1">Welcome back, {user?.first_name || 'Reception'}! 👋</p>
+                        <p className="text-sm text-slate-500 font-medium mt-1">Welcome back, Geeta! 👋</p>
                     </div>
                 </div>
                 <button
@@ -786,194 +746,120 @@ export default function OpdEntryPage() {
             </div>
 
             <div className="px-6 space-y-8">
-                {/* Actionable Day Metrics */}
+                {/* OPD-Specific Actionable Metrics */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                    {/* Today's Queue - Patients waiting right now */}
-                    <div className="bg-gradient-to-br from-amber-50 to-orange-50 p-6 rounded-3xl border border-amber-100 shadow-sm hover:shadow-md transition-shadow group cursor-pointer"
-                        onClick={() => setSearchQuery('')}
-                    >
-                        <div className="flex items-center justify-between mb-3">
-                            <div className="w-12 h-12 bg-amber-500 rounded-2xl flex items-center justify-center text-white group-hover:scale-110 transition-transform shadow-lg shadow-amber-500/30">
-                                <Clock className="w-6 h-6" />
+                    {/* New Patients Today - First-time visits */}
+                    <div className="bg-gradient-to-br from-emerald-50 to-teal-50 p-6 rounded-3xl border border-emerald-100 shadow-sm hover:shadow-md transition-shadow group min-h-[180px] flex flex-col">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-white group-hover:scale-110 transition-transform shadow-lg shadow-emerald-500/30">
+                                <User className="w-6 h-6" />
                             </div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 bg-amber-100 px-2 py-1 rounded-full">RIGHT NOW</span>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-100 px-2 py-1 rounded-full">NEW</span>
                         </div>
-                        <p className="text-4xl font-bold text-amber-700">{dashboardStats.queueCount}</p>
-                        <p className="text-sm font-medium text-amber-600 mt-1">Patients in Queue</p>
-                        {dashboardStats.queueCount > 0 && (
-                            <p className="text-xs text-amber-500 mt-2 flex items-center gap-1">
-                                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-                                {dashboardStats.queueCount} waiting for doctor
+                        <div className="flex-1 flex flex-col justify-center">
+                            <p className="text-3xl font-bold text-emerald-700">
+                                {opdEntries.filter((e: any) => e.visit_type === 'Walk-in').length}
                             </p>
-                        )}
+                            <p className="text-sm font-semibold text-emerald-600 mt-1">New Patients Today</p>
+                        </div>
+                        <p className="text-xs text-emerald-500 mt-auto pt-2">Walk-in registrations</p>
                     </div>
 
-                    {/* Today's Appointments - Scheduled for today */}
-                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-3xl border border-blue-100 shadow-sm hover:shadow-md transition-shadow group cursor-pointer">
-                        <div className="flex items-center justify-between mb-3">
+                    {/* Peak Hour Today - Busiest hour */}
+                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-3xl border border-blue-100 shadow-sm hover:shadow-md transition-shadow group min-h-[180px] flex flex-col">
+                        <div className="flex items-center justify-between mb-4">
                             <div className="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center text-white group-hover:scale-110 transition-transform shadow-lg shadow-blue-500/30">
-                                <Calendar className="w-6 h-6" />
+                                <Clock className="w-6 h-6" />
                             </div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-100 px-2 py-1 rounded-full">TODAY</span>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-100 px-2 py-1 rounded-full">INSIGHT</span>
                         </div>
-                        <p className="text-4xl font-bold text-blue-700">{dashboardStats.todayVisits}</p>
-                        <p className="text-sm font-medium text-blue-600 mt-1">Today's Visits</p>
-                        <p className="text-xs text-blue-500 mt-2">
-                            {/* We can rely on 'collectedCount' as proxy for 'completed' if paid=completed? Or just hide completed count if not available */}
-                            {/* Actually, user didn't ask for completed count specifically to be fixed, just live values. */}
-                            Live Updates
+                        <div className="flex-1 flex flex-col justify-center">
+                            <p className="text-3xl font-bold text-blue-700">
+                                {(() => {
+                                    if (opdEntries.length === 0) return '--';
+                                    const hourCounts: Record<number, number> = {};
+                                    opdEntries.forEach((e: any) => {
+                                        if (e.visit_time) {
+                                            const hour = parseInt(e.visit_time.split(':')[0]);
+                                            hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+                                        }
+                                    });
+                                    const peakHour = Object.entries(hourCounts).sort((a, b) => b[1] - a[1])[0];
+                                    if (!peakHour) return '--';
+                                    const h = parseInt(peakHour[0]);
+                                    const ampm = h >= 12 ? 'PM' : 'AM';
+                                    const displayHour = h % 12 || 12;
+                                    return `${displayHour} ${ampm}`;
+                                })()}
+                            </p>
+                            <p className="text-sm font-semibold text-blue-600 mt-1">Peak Hour Today</p>
+                        </div>
+                        <p className="text-xs text-blue-500 mt-auto pt-2">Busiest registration hour</p>
+                    </div>
+
+                    {/* Top Doctor - Workload leader */}
+                    <div className="bg-gradient-to-br from-violet-50 to-purple-50 p-6 rounded-3xl border border-violet-100 shadow-sm hover:shadow-md transition-shadow group min-h-[180px] flex flex-col">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="w-12 h-12 bg-violet-500 rounded-2xl flex items-center justify-center text-white group-hover:scale-110 transition-transform shadow-lg shadow-violet-500/30">
+                                <User className="w-6 h-6" />
+                            </div>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-violet-600 bg-violet-100 px-2 py-1 rounded-full">WORKLOAD</span>
+                        </div>
+                        <div className="flex-1 flex flex-col justify-center">
+                            <p className="text-lg font-bold text-violet-700 truncate leading-tight">
+                                {(() => {
+                                    if (opdEntries.length === 0) return '--';
+                                    const doctorCounts: Record<string, { count: number, name: string }> = {};
+                                    opdEntries.forEach((e: any) => {
+                                        if (e.doctor_id) {
+                                            const key = e.doctor_id.toString();
+                                            const name = `Dr. ${e.doctor_first_name || ''} ${e.doctor_last_name || ''}`.trim();
+                                            if (!doctorCounts[key]) doctorCounts[key] = { count: 0, name };
+                                            doctorCounts[key].count++;
+                                        }
+                                    });
+                                    const topDoc = Object.values(doctorCounts).sort((a, b) => b.count - a.count)[0];
+                                    return topDoc ? topDoc.name : '--';
+                                })()}
+                            </p>
+                            <p className="text-sm font-semibold text-violet-600 mt-1">Top Doctor</p>
+                        </div>
+                        <p className="text-xs text-violet-500 mt-auto pt-2">
+                            {(() => {
+                                if (opdEntries.length === 0) return 'No visits yet';
+                                const doctorCounts: Record<string, number> = {};
+                                opdEntries.forEach((e: any) => {
+                                    if (e.doctor_id) {
+                                        const key = e.doctor_id.toString();
+                                        doctorCounts[key] = (doctorCounts[key] || 0) + 1;
+                                    }
+                                });
+                                const topCount = Math.max(...Object.values(doctorCounts), 0);
+                                return `${topCount} patients seen`;
+                            })()}
                         </p>
                     </div>
 
-                    {/* Pending Payments - Action needed */}
-                    <div className="bg-gradient-to-br from-red-50 to-rose-50 p-6 rounded-3xl border border-red-100 shadow-sm hover:shadow-md transition-shadow group cursor-pointer">
-                        <div className="flex items-center justify-between mb-3">
+                    {/* MLC Cases - Legal compliance */}
+                    <div className="bg-gradient-to-br from-red-50 to-rose-50 p-6 rounded-3xl border border-red-100 shadow-sm hover:shadow-md transition-shadow group min-h-[180px] flex flex-col">
+                        <div className="flex items-center justify-between mb-4">
                             <div className="w-12 h-12 bg-red-500 rounded-2xl flex items-center justify-center text-white group-hover:scale-110 transition-transform shadow-lg shadow-red-500/30">
                                 <AlertCircle className="w-6 h-6" />
                             </div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-red-600 bg-red-100 px-2 py-1 rounded-full">ACTION</span>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-red-600 bg-red-100 px-2 py-1 rounded-full">LEGAL</span>
                         </div>
-                        <p className="text-4xl font-bold text-red-700">{dashboardStats.pendingCount}</p>
-                        <p className="text-sm font-medium text-red-600 mt-1">Pending Payments</p>
-                        <p className="text-xs text-red-500 mt-2">
-                            ₹{dashboardStats.pendingAmount.toLocaleString()} to collect
-                        </p>
-                    </div>
-
-                    {/* Today's Revenue - Collected today */}
-                    <div className="bg-gradient-to-br from-emerald-50 to-teal-50 p-6 rounded-3xl border border-emerald-100 shadow-sm hover:shadow-md transition-shadow group">
-                        <div className="flex items-center justify-between mb-3">
-                            <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-white group-hover:scale-110 transition-transform shadow-lg shadow-emerald-500/30">
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            </div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-100 px-2 py-1 rounded-full">REVENUE</span>
+                        <div className="flex-1 flex flex-col justify-center">
+                            <p className="text-3xl font-bold text-red-700">
+                                {opdEntries.filter((e: any) => e.is_mlc === true).length}
+                            </p>
+                            <p className="text-sm font-semibold text-red-600 mt-1">MLC Cases</p>
                         </div>
-                        <p className="text-4xl font-bold text-emerald-700">
-                            ₹{dashboardStats.collectedAmount.toLocaleString()}
-                        </p>
-                        <p className="text-sm font-medium text-emerald-600 mt-1">Collected Today</p>
-                        <p className="text-xs text-emerald-500 mt-2">
-                            {dashboardStats.collectedCount} payments received
-                        </p>
+                        <p className="text-xs text-red-500 mt-auto pt-2">Medical Legal Cases today</p>
                     </div>
                 </div>
             </div>
 
             {/* Follow-up Queue Widget (Smart Follow-up Scheduling) */}
-            {(followUpData.summary.overdue_count > 0 || followUpData.summary.due_today_count > 0) && (
-                <div className="px-6">
-                    <div className="bg-gradient-to-r from-purple-50 to-violet-50 rounded-3xl border border-purple-100 overflow-hidden shadow-sm">
-                        {/* Header - Always Visible */}
-                        <button
-                            onClick={() => setShowFollowUpPanel(!showFollowUpPanel)}
-                            className="w-full p-4 flex items-center justify-between hover:bg-purple-100/50 transition-colors"
-                        >
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-purple-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-purple-500/30">
-                                    <Bell className="w-5 h-5" />
-                                </div>
-                                <div className="text-left">
-                                    <h3 className="font-bold text-purple-800">Follow-ups Due</h3>
-                                    <p className="text-xs text-purple-600">
-                                        {followUpData.summary.overdue_count > 0 && (
-                                            <span className="text-red-600 font-semibold">{followUpData.summary.overdue_count} overdue</span>
-                                        )}
-                                        {followUpData.summary.overdue_count > 0 && followUpData.summary.due_today_count > 0 && ' • '}
-                                        {followUpData.summary.due_today_count > 0 && (
-                                            <span className="text-green-600 font-semibold">{followUpData.summary.due_today_count} due today</span>
-                                        )}
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                {followUpData.summary.overdue_count > 0 && (
-                                    <span className="px-2.5 py-1 bg-red-500 text-white text-xs font-bold rounded-full animate-pulse">
-                                        {followUpData.summary.overdue_count}
-                                    </span>
-                                )}
-                                <ArrowRight className={`w-5 h-5 text-purple-500 transition-transform ${showFollowUpPanel ? 'rotate-90' : ''}`} />
-                            </div>
-                        </button>
-
-                        {/* Expandable Panel */}
-                        {showFollowUpPanel && (
-                            <div className="border-t border-purple-100 bg-white/80 divide-y divide-purple-50 max-h-64 overflow-y-auto">
-                                {/* Overdue Section */}
-                                {followUpData.overdue.length > 0 && (
-                                    <div className="p-3">
-                                        <p className="text-xs font-bold text-red-600 uppercase tracking-wider mb-2 flex items-center gap-1">
-                                            <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-                                            Overdue ({followUpData.overdue.length})
-                                        </p>
-                                        <div className="space-y-2">
-                                            {followUpData.overdue.slice(0, 5).map((fu: any) => (
-                                                <div key={fu.outcome_id} className="flex items-center justify-between p-3 bg-red-50 rounded-xl hover:bg-red-100 transition-colors">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-9 h-9 rounded-full bg-red-200 text-red-700 flex items-center justify-center font-bold text-sm">
-                                                            {fu.patient_first_name?.[0]}{fu.patient_last_name?.[0]}
-                                                        </div>
-                                                        <div>
-                                                            <p className="font-semibold text-slate-800 text-sm">{fu.patient_first_name} {fu.patient_last_name}</p>
-                                                            <p className="text-xs text-red-600 font-medium">
-                                                                {fu.days_overdue} day{fu.days_overdue > 1 ? 's' : ''} overdue • Dr. {fu.doctor_first_name}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <a href={`tel:${fu.phone}`} className="p-2 bg-white rounded-lg hover:bg-slate-50 text-slate-600 transition-colors" title="Call patient">
-                                                            <Phone className="w-4 h-4" />
-                                                        </a>
-                                                        <button
-                                                            onClick={() => handleBookFollowUp(fu)}
-                                                            className="px-3 py-1.5 bg-red-500 text-white text-xs font-bold rounded-lg hover:bg-red-600 transition-colors"
-                                                        >
-                                                            Book Now
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Due Today Section */}
-                                {followUpData.due_today.length > 0 && (
-                                    <div className="p-3">
-                                        <p className="text-xs font-bold text-green-600 uppercase tracking-wider mb-2 flex items-center gap-1">
-                                            <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                                            Due Today ({followUpData.due_today.length})
-                                        </p>
-                                        <div className="space-y-2">
-                                            {followUpData.due_today.slice(0, 5).map((fu: any) => (
-                                                <div key={fu.outcome_id} className="flex items-center justify-between p-3 bg-green-50 rounded-xl hover:bg-green-100 transition-colors">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-9 h-9 rounded-full bg-green-200 text-green-700 flex items-center justify-center font-bold text-sm">
-                                                            {fu.patient_first_name?.[0]}{fu.patient_last_name?.[0]}
-                                                        </div>
-                                                        <div>
-                                                            <p className="font-semibold text-slate-800 text-sm">{fu.patient_first_name} {fu.patient_last_name}</p>
-                                                            <p className="text-xs text-green-600 font-medium">
-                                                                Follow-up today • Dr. {fu.doctor_first_name}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                    <button
-                                                        onClick={() => handleBookFollowUp(fu)}
-                                                        className="px-3 py-1.5 bg-green-500 text-white text-xs font-bold rounded-lg hover:bg-green-600 transition-colors flex items-center gap-1"
-                                                    >
-                                                        <Plus className="w-3 h-3" />
-                                                        Book
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
 
             {/* Main Content Area */}
             <div className="glass-panel rounded-3xl overflow-hidden p-1">
@@ -1565,6 +1451,69 @@ export default function OpdEntryPage() {
                                                     <option value="AB+">AB+</option>
                                                     <option value="AB-">AB-</option>
                                                 </select>
+                                            </div>
+
+                                            {/* Address Details Section */}
+                                            <div className="md:col-span-6 mt-4">
+                                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">ADDRESS DETAILS</h4>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    <div>
+                                                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">Address Line 1</label>
+                                                        <input
+                                                            type="text"
+                                                            value={opdForm.address_line1}
+                                                            onChange={(e) => setOpdForm({ ...opdForm, address_line1: e.target.value })}
+                                                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                                                            placeholder="House No, Street"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">Address Line 2</label>
+                                                        <input
+                                                            type="text"
+                                                            value={opdForm.address_line2}
+                                                            onChange={(e) => setOpdForm({ ...opdForm, address_line2: e.target.value })}
+                                                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                                                            placeholder="Area, Landmark"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
+                                                    <div>
+                                                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">City</label>
+                                                        <input
+                                                            type="text"
+                                                            value={opdForm.city}
+                                                            onChange={(e) => setOpdForm({ ...opdForm, city: e.target.value })}
+                                                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                                                            placeholder=""
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">State</label>
+                                                        <input
+                                                            type="text"
+                                                            value={opdForm.state}
+                                                            onChange={(e) => setOpdForm({ ...opdForm, state: e.target.value })}
+                                                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                                                            placeholder=""
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">Pincode</label>
+                                                        <input
+                                                            type="text"
+                                                            value={opdForm.pincode}
+                                                            onChange={(e) => {
+                                                                const value = e.target.value.replace(/\D/g, "");
+                                                                if (value.length <= 6) setOpdForm({ ...opdForm, pincode: value });
+                                                            }}
+                                                            maxLength={6}
+                                                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                                                            placeholder=""
+                                                        />
+                                                    </div>
+                                                </div>
                                             </div>
                                             <div className="md:col-span-2">
                                                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Aadhaar Number</label>

@@ -35,7 +35,7 @@ export default function ReceptionistLayout({ children }: { children: React.React
 
     const navItems = [
         { name: 'Dashboard', path: '/receptionist/dashboard', icon: LayoutDashboard },
-        { name: 'OPD Entry', path: '/receptionist/opd', icon: FileText },
+        { name: 'OPD', path: '/receptionist/opd', icon: FileText },
         { name: 'Patients', path: '/receptionist/patients', icon: Users },
         { name: 'Appointments', path: '/receptionist/appointments', icon: Calendar },
         { name: 'Reports', path: '/receptionist/reports', icon: FileText },

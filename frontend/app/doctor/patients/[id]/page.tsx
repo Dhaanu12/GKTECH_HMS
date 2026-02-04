@@ -5,7 +5,6 @@ import axios from 'axios';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, FileText, User, Stethoscope, Activity, Plus, Trash2, Phone, MapPin, Calendar, Clock, Loader2, Mic, Sparkles, Play, Pause, Layout, History as HistoryIcon, FileBadge, CheckCircle, XCircle, Info, X } from 'lucide-react';
 
-
 const API_URL = 'http://localhost:5000/api';
 
 export default function PatientDetails() {
@@ -901,7 +900,6 @@ export default function PatientDetails() {
         }
     };
 
-
     const removeLab = (index: number) => {
         const newLabs = [...consultationData.labs];
         newLabs.splice(index, 1);
@@ -1795,7 +1793,6 @@ export default function PatientDetails() {
 
                                 {/* 3. Prescription Pad */}
                                 <div className="bg-gradient-to-br from-blue-50/50 to-indigo-50/50 rounded-2xl border border-blue-100 p-5">
-
 
                                     <div className="grid grid-cols-12 gap-3 mb-4 bg-white/60 p-3 rounded-xl border border-blue-100/50 shadow-sm">
                                         <div className="col-span-4">

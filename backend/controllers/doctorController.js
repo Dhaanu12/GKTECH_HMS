@@ -40,9 +40,10 @@ class DoctorController {
 
             const doctorCode = 'DOC' + Date.now().toString().slice(-6);
 
-            // Convert empty strings to null for numeric fields
+            // Convert empty strings to null for numeric fields and dates
             const experienceYears = experience_years === '' ? null : experience_years;
             const consultationFee = consultation_fee === '' ? null : consultation_fee;
+            const dateOfBirth = date_of_birth === '' ? null : date_of_birth;
 
             const doctorQuery = `
           INSERT INTO doctors (
@@ -63,12 +64,20 @@ class DoctorController {
             const doctorResult = await client.query(doctorQuery, doctorValues);
             const newDoctor = doctorResult.rows[0];
 
-            if (branch_ids && branch_ids.length > 0) {
-                for (const branchId of branch_ids) {
-                    await client.query(
-                        'INSERT INTO doctor_branches (doctor_id, branch_id) VALUES ($1, $2)',
-                        [newDoctor.doctor_id, branchId]
-                    );
+            let branchesToAssign = branch_ids;
+            if (branchesToAssign && !Array.isArray(branchesToAssign)) {
+                branchesToAssign = [branchesToAssign];
+            }
+
+            if (branchesToAssign && branchesToAssign.length > 0) {
+                const uniqueBranches = [...new Set(branchesToAssign)];
+                for (const branchId of uniqueBranches) {
+                    if (branchId) {
+                        await client.query(
+                            'INSERT INTO doctor_branches (doctor_id, branch_id) VALUES ($1, $2)',
+                            [newDoctor.doctor_id, branchId]
+                        );
+                    }
                 }
             }
 
