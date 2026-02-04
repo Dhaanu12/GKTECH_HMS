@@ -75,7 +75,14 @@ export default function DoctorDashboard() {
                 const data = response.data.data;
 
                 // Waiting queue from API (already filtered for this doctor)
-                setWaitingPatients(data.waitingQueue || []);
+                const queue = data.waitingQueue || [];
+                // Sort: MLC first, then by token/time
+                const sortedQueue = queue.sort((a: any, b: any) => {
+                    if (a.is_mlc && !b.is_mlc) return -1;
+                    if (!a.is_mlc && b.is_mlc) return 1;
+                    return 0;
+                });
+                setWaitingPatients(sortedQueue);
 
                 // Completed today
                 setCompletedToday((data.completedConsultations || []).length);
@@ -259,49 +266,80 @@ export default function DoctorDashboard() {
 
                     {waitingPatients.length > 0 ? (
                         <div className="space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
-                            {waitingPatients.map((patient, index) => (
-                                <div
-                                    key={patient.opd_id}
-                                    onClick={() => router.push(`/doctor/patients/${patient.patient_id}`)}
-                                    className={`flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer hover:shadow-md ${index === 0
-                                        ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 shadow-sm'
-                                        : 'bg-white/60 border-slate-100 hover:bg-white'
-                                        }`}
-                                >
-                                    <div className="flex items-center gap-4">
-                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${index === 0
-                                            ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/30'
-                                            : 'bg-slate-100 text-slate-600'
-                                            }`}>
-                                            {index + 1}
-                                        </div>
-                                        <div>
-                                            <p className="font-bold text-slate-800">
-                                                {patient.patient_name}
-                                                {index === 0 && (
-                                                    <span className="ml-2 text-xs font-bold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
-                                                        NEXT
+                            {waitingPatients.map((patient, index) => {
+                                const isMlc = patient.is_mlc;
+                                return (
+                                    <div
+                                        key={patient.opd_id}
+                                        onClick={() => router.push(`/doctor/patients/${patient.patient_id}`)}
+                                        className={`flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer hover:shadow-md 
+                                            ${isMlc
+                                                ? 'bg-red-50/20 border-red-200 shadow-sm'
+                                                : index === 0
+                                                    ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 shadow-sm'
+                                                    : 'bg-white/60 border-slate-100 hover:bg-white'
+                                            }
+                                        `}
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm relative 
+                                                ${isMlc
+                                                    ? 'bg-red-100 text-red-600 border border-red-200 shadow-red-500/20 shadow-lg'
+                                                    : index === 0
+                                                        ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/30'
+                                                        : 'bg-slate-100 text-slate-600'
+                                                }`}>
+                                                {index + 1}
+                                                {isMlc && (
+                                                    <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75"></span>
+                                                        <span className="relative inline-flex rounded-full h-3 w-3 bg-red-600"></span>
                                                     </span>
                                                 )}
-                                            </p>
-                                            <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
-                                                <span>{patient.gender}, {patient.age} yrs</span>
-                                                <span>•</span>
-                                                <span className="text-amber-600 font-medium">{patient.chief_complaint?.slice(0, 30) || 'No complaint'}</span>
+                                            </div>
+                                            <div>
+                                                <p className="font-bold text-slate-800 flex items-center gap-2">
+                                                    {patient.patient_name}
+                                                    {index === 0 && !isMlc && (
+                                                        <span className="text-xs font-bold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
+                                                            NEXT
+                                                        </span>
+                                                    )}
+                                                    {isMlc && (
+                                                        <span className="text-[10px] font-extrabold text-white bg-red-600 px-2 py-0.5 rounded-full shadow-lg shadow-red-500/30 animate-pulse">
+                                                            PRIORITY
+                                                        </span>
+                                                    )}
+                                                </p>
+                                                <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
+                                                    <span>{patient.gender}, {patient.age} yrs</span>
+                                                    <span>•</span>
+                                                    <span className={isMlc ? 'text-red-600 font-bold' : 'text-amber-600 font-medium'}>
+                                                        {patient.chief_complaint?.slice(0, 30) || (isMlc ? 'Emergency' : 'No complaint')}
+                                                    </span>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <div className="text-right">
-                                            <p className="text-xs text-slate-400">Wait time</p>
-                                            <p className="text-sm font-bold text-slate-700">
-                                                {Math.floor((Date.now() - new Date(patient.created_at || patient.visit_date).getTime()) / 60000)} min
-                                            </p>
+                                        <div className="flex items-center gap-3">
+                                            <div className="text-right">
+                                                <p className="text-xs text-slate-400">Wait time</p>
+                                                <p className={`text-sm font-bold ${isMlc ? 'text-red-700' : 'text-slate-700'}`}>
+                                                    {(() => {
+                                                        const waitMinutes = Math.floor((Date.now() - new Date(patient.created_at || patient.visit_date).getTime()) / 60000);
+                                                        if (waitMinutes >= 60) {
+                                                            const hours = Math.floor(waitMinutes / 60);
+                                                            const mins = waitMinutes % 60;
+                                                            return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+                                                        }
+                                                        return `${waitMinutes} min`;
+                                                    })()}
+                                                </p>
+                                            </div>
+                                            <ChevronRight className={`w-5 h-5 ${isMlc ? 'text-red-300' : 'text-slate-300'}`} />
                                         </div>
-                                        <ChevronRight className="w-5 h-5 text-slate-300" />
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     ) : (
                         <div className="text-center py-12">
@@ -353,6 +391,8 @@ export default function DoctorDashboard() {
                                 <ChevronRight className="w-4 h-4 text-slate-400" />
                             </Link>
 
+
+                            {/* PRESCRIPTIONS - TEMPORARILY DISABLED 
                             <Link href="/doctor/prescriptions" className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition group">
                                 <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
                                     <FileText className="w-5 h-5" />
@@ -363,6 +403,7 @@ export default function DoctorDashboard() {
                                 </div>
                                 <ChevronRight className="w-4 h-4 text-slate-400" />
                             </Link>
+                            */}
 
                             <Link href="/doctor/appointments" className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition group">
                                 <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center text-purple-600 group-hover:scale-110 transition-transform">

@@ -15,6 +15,7 @@ export interface ReferralDoctor {
     status?: string;
     medical_council_membership_number?: string;
     clinic_name?: string;
+    hospital_name?: string;
     percentages: ServicePercentage[] | string;
 }
 

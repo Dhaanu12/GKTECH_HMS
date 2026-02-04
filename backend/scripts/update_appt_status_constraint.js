@@ -13,11 +13,11 @@ async function migrate() {
             DROP CONSTRAINT IF EXISTS appointments_appointment_status_check;
         `);
 
-        // 2. Add the updated check constraint including 'In OPD'
+        // 2. Add the updated check constraint including 'In OPD' and 'No-show'
         await client.query(`
             ALTER TABLE appointments 
             ADD CONSTRAINT appointments_appointment_status_check 
-            CHECK (appointment_status IN ('Scheduled', 'Confirmed', 'Cancelled', 'Completed', 'In OPD'));
+            CHECK (appointment_status IN ('Scheduled', 'Confirmed', 'Checked-in', 'In OPD', 'Completed', 'Cancelled', 'No-show'));
         `);
 
         await client.query('COMMIT');

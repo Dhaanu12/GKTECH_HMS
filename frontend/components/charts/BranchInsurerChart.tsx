@@ -127,15 +127,16 @@ export default function BranchInsurerChart() {
                     {data.insurers && data.insurers.length > 0 ? (
                         <div>
                             {chartType === 'pie' ? (
-                                <ResponsiveContainer width="100%" height={400}>
-                                    <PieChart>
+                                <ResponsiveContainer width="100%" height={250}>
+                                    <PieChart margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
                                         <Pie
                                             data={pieData}
                                             cx="50%"
-                                            cy="50%"
-                                            labelLine={true}
-                                            label={(entry) => `${entry.name}: ${entry.value}`}
-                                            outerRadius={120}
+                                            cy="45%"
+                                            labelLine={false}
+                                            label={false}
+                                            innerRadius={40}
+                                            outerRadius={80}
                                             fill="#8884d8"
                                             dataKey="value"
                                         >
@@ -143,8 +144,20 @@ export default function BranchInsurerChart() {
                                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                             ))}
                                         </Pie>
-                                        <Tooltip />
-                                        <Legend />
+                                        <Tooltip
+                                            contentStyle={{
+                                                borderRadius: '12px',
+                                                border: 'none',
+                                                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                                                fontSize: '12px'
+                                            }}
+                                        />
+                                        <Legend
+                                            verticalAlign="bottom"
+                                            height={60}
+                                            iconType="circle"
+                                            wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }}
+                                        />
                                     </PieChart>
                                 </ResponsiveContainer>
                             ) : (

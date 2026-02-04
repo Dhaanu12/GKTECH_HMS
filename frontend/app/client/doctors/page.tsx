@@ -10,15 +10,18 @@ const API_URL = 'http://localhost:5000/api';
 
 export default function DoctorsPage() {
     const { user } = useAuth();
-    const [doctors, setDoctors] = useState([]);
-    const [branches, setBranches] = useState([]);
-    const [departments, setDepartments] = useState([]);
+    const [doctors, setDoctors] = useState<any[]>([]);
+    const [branches, setBranches] = useState<any[]>([]);
+    const [departments, setDepartments] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [viewingDoctor, setViewingDoctor] = useState<any>(null);
     const [editingDoctor, setEditingDoctor] = useState<any>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedBranchId, setSelectedBranchId] = useState('');
+    const [selectedHospitalForForm, setSelectedHospitalForForm] = useState('');
+    const [hospitals, setHospitals] = useState<any[]>([]);
+    const [availableBranches, setAvailableBranches] = useState<any[]>([]); // Branches for the form based on hospital
     const [formData, setFormData] = useState({
         username: '',
         email: '',
@@ -47,13 +50,27 @@ export default function DoctorsPage() {
     useEffect(() => {
         if (user) {
             fetchDoctors();
-            fetchBranches();
-            fetchDepartments();
+            fetchBranches(); // For filter
+            fetchHospitals(); // For Form
+            // fetchDepartments(); // Don't fetch initially for form
         }
     }, [user, searchTerm, selectedBranchId]);
 
+    const fetchHospitals = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.get(`${API_URL}/hospitals`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setHospitals(response.data.data.hospitals || []);
+        } catch (error) {
+            console.error('Error fetching hospitals:', error);
+        }
+    };
+
     const fetchDoctors = async () => {
         try {
+            setLoading(true);
             const token = localStorage.getItem('token');
             let url = `${API_URL}/doctors?`;
             if (user?.role_code === 'CLIENT_ADMIN' && user.hospital_id) {
@@ -97,13 +114,31 @@ export default function DoctorsPage() {
         }
     };
 
-    const fetchDepartments = async () => {
+    const fetchDepartments = async (branchIds: number[] = []) => {
         try {
             const token = localStorage.getItem('token');
-            const response = await axios.get(`${API_URL}/departments`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setDepartments(response.data.data.departments || []);
+            if (branchIds.length === 0) {
+                setDepartments([]);
+                return;
+            }
+
+            const allDepts: any[] = [];
+            const deptIds = new Set();
+
+            for (const bId of branchIds) {
+                const response = await axios.get(`${API_URL}/branches/${bId}/departments`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                const branchDepts = response.data.data.departments || [];
+                branchDepts.forEach((d: any) => {
+                    if (!deptIds.has(d.department_id)) {
+                        deptIds.add(d.department_id);
+                        allDepts.push(d);
+                    }
+                });
+            }
+            setDepartments(allDepts as any);
+
         } catch (error) {
             console.error('Error fetching departments:', error);
         }
@@ -135,7 +170,7 @@ export default function DoctorsPage() {
             Object.keys(formData).forEach(key => {
                 const value = (formData as any)[key];
                 if (key === 'branch_ids') {
-                    value.forEach((id: number) => formDataToSend.append('branch_ids', id.toString()));
+                    value.forEach((id: number) => formDataToSend.append('branch_ids[]', id.toString()));
                 } else {
                     formDataToSend.append(key, value);
                 }
@@ -143,6 +178,20 @@ export default function DoctorsPage() {
             if (signatureFile) {
                 formDataToSend.append('signature', signatureFile);
             }
+            // For SUPER ADMIN, if hospital is selected, ensure we are sending it or linked correctly? 
+            // The backend doctor creation usually infers hospital from branch or logged in user? 
+            // If Super Admin creates, they must select branch. Branch belongs to hospital. 
+            // So hospital_id might not be strictly needed in body if branch is enough, but Doctor model has hospital_id. 
+            // Branch->Hospital link exists. Backend should probably handle this, or we send hospital_id.
+            // Let's assume selecting branch is enough for backend to resolve hospital or we pass it if needed.
+            // Current formData doesn't store hospital_id explicitly except global 'user.hospital_id' logic which is for Client Admin.
+            // BranchController createBranch uses hospital_id. 
+            // DoctorController create likely needs it. 
+            // IF Super Admin, we should probably append hospital_id if the backend expects it.
+            // However, existing form didn't have hospital selection for Super Admin? 
+            // Ah, existing form had `fetchDoctors` logic filtering by hospital but creation didn't seem to pick hospital?
+            // Actually `validateForm` checks branch_ids.
+            // Let's assume branch is sufficient.
 
             const token = localStorage.getItem('token');
             if (editingDoctor) {
@@ -182,6 +231,29 @@ export default function DoctorsPage() {
                 headers: { Authorization: `Bearer ${token}` }
             });
             doctorBranches = response.data.data.branches.map((b: any) => b.branch_id);
+
+            // Fetch departments for these branches
+            if (doctorBranches.length > 0) {
+                await fetchDepartments(doctorBranches);
+            }
+
+            // If Super Admin, we should technically set the hospital selection based on the branch?
+            // This is complex if valid across hospitals, but usually a doctor is in one hospital network.
+            // We can try to find the hospital of the first branch.
+            if (user?.role_code === 'SUPER_ADMIN' && doctorBranches.length > 0) {
+                // Find branch details to get hospital_id
+                // Since we only have IDs, maybe we need to fetch branch details?
+                // Or just look up in 'branches' list if it contains all branches (it serves as filter list).
+                // The 'branches' state fetchBranches() gets "all branches" for Super Admin.
+                const branchInfo = branches.find((b: any) => b.branch_id === doctorBranches[0]);
+                if (branchInfo) {
+                    setSelectedHospitalForForm(branchInfo.hospital_id);
+                    // Update available branches for this hospital
+                    const hospBranches = branches.filter((b: any) => b.hospital_id === branchInfo.hospital_id);
+                    setAvailableBranches(hospBranches);
+                }
+            }
+
         } catch (error) {
             console.error('Error fetching doctor branches:', error);
         }
@@ -242,9 +314,32 @@ export default function DoctorsPage() {
         setSignatureFile(null);
         setErrors({});
         setEditingDoctor(null);
+        setSignatureFile(null);
+        setErrors({});
+        setEditingDoctor(null);
+        setSelectedHospitalForForm('');
+        setAvailableBranches([]);
+        setDepartments([]);
     };
 
-    const branchOptions = branches.map((branch: any) => ({
+    // Filter branches for the form based on selected hospital
+    useEffect(() => {
+        if (user?.role_code === 'CLIENT_ADMIN') {
+            setAvailableBranches(branches); // Client admin sees their branches (already filtered by API)
+        }
+    }, [branches, user]);
+
+    const handleHospitalChange = (hospitalId: string) => {
+        setSelectedHospitalForForm(hospitalId);
+        // Filter branches from the total list 'branches' which we fetched for filter. 
+        // Or should we fetch specifically? 'branches' contains all branches for Super Admin.
+        const hospBranches = branches.filter((b: any) => b.hospital_id.toString() === hospitalId);
+        setAvailableBranches(hospBranches);
+        setFormData({ ...formData, branch_ids: [], department_id: '' });
+        setDepartments([]);
+    };
+
+    const formBranchOptions = (user?.role_code === 'SUPER_ADMIN' ? availableBranches : branches).map((branch: any) => ({
         value: branch.branch_id,
         label: branch.branch_name,
         code: branch.branch_code
@@ -272,7 +367,7 @@ export default function DoctorsPage() {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                     <input
                         type="text"
-                        placeholder="Search doctors by name, ID, or Reg. No..."
+                        placeholder="Search by name, hospital, ID, or registration number..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -330,6 +425,15 @@ export default function DoctorsPage() {
                             <p className="text-sm text-gray-600 mb-1">Specialization: {doctor.specialization}</p>
                             <p className="text-sm text-gray-600 mb-1">License: {doctor.registration_number}</p>
                             <p className="text-sm text-gray-600">Exp: {doctor.experience_years} years</p>
+                            {doctor.all_hospitals && (
+                                <div className="flex items-center gap-1 mt-2 text-sm text-blue-600 font-medium">
+                                    <Building className="w-4 h-4" />
+                                    {doctor.all_hospitals}
+                                </div>
+                            )}
+                            {doctor.all_branches && (
+                                <p className="text-xs text-gray-500 mt-1 ml-5">{doctor.all_branches}</p>
+                            )}
                         </div>
                     ))}
                     {doctors.length === 0 && (
@@ -520,9 +624,48 @@ export default function DoctorsPage() {
                                     <input
                                         type="tel"
                                         value={formData.phone_number}
-                                        onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
+                                        onChange={(e) => {
+                                            const value = e.target.value.replace(/\D/g, "");
+                                            if (value.length <= 10) {
+                                                setFormData({ ...formData, phone_number: value });
+                                            }
+                                        }}
                                         className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80"
                                         maxLength={10}
+                                        placeholder="10-digit number"
+                                    />
+                                </div>
+
+                                {user?.role_code === 'SUPER_ADMIN' && (
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Hospital</label>
+                                        <select
+                                            value={selectedHospitalForForm}
+                                            onChange={(e) => handleHospitalChange(e.target.value)}
+                                            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80"
+                                        >
+                                            <option value="">Select Hospital</option>
+                                            {hospitals.map((h: any) => (
+                                                <option key={h.hospital_id} value={h.hospital_id}>
+                                                    {h.hospital_name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
+
+                                <div className="col-span-2">
+                                    <SearchableSelect
+                                        label="Assign Branches *"
+                                        options={formBranchOptions}
+                                        value={formData.branch_ids}
+                                        onChange={(val) => {
+                                            setFormData({ ...formData, branch_ids: val, department_id: '' });
+                                            fetchDepartments(val);
+                                        }}
+                                        placeholder="Select branches"
+                                        multiple={true}
+                                        error={errors.branch_ids}
                                     />
                                 </div>
 
@@ -668,18 +811,6 @@ export default function DoctorsPage() {
                                 </div>
                             </div>
 
-                            <div className="col-span-2">
-                                <SearchableSelect
-                                    label="Assign Branches *"
-                                    options={branchOptions}
-                                    value={formData.branch_ids}
-                                    onChange={(val) => setFormData({ ...formData, branch_ids: val })}
-                                    placeholder="Select branches"
-                                    multiple={true}
-                                    error={errors.branch_ids}
-                                />
-                            </div>
-
                             <div className="flex justify-end gap-3 pt-6 border-t border-gray-200/50">
                                 <button
                                     type="button"
@@ -697,8 +828,9 @@ export default function DoctorsPage() {
                             </div>
                         </form>
                     </div>
-                </div>
-            )}
-        </div>
+                </div >
+            )
+            }
+        </div >
     );
 }

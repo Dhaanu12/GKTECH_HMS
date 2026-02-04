@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Users, FileText, Percent, Search, Save, X, Plus } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Users, FileText, Percent, Search, Save, X, Plus, ChevronUp, ChevronDown, ExternalLink } from 'lucide-react';
 import { getReferralDoctorsWithPercentages, getHospitalServices } from '@/lib/api/accounts';
 import { upsertServicePercentage } from '@/lib/api/accounts';
 import { ReferralDoctor, HospitalService } from '@/types/accounts';
 
 export default function AccountsDashboard() {
+    const router = useRouter();
     const [doctors, setDoctors] = useState<ReferralDoctor[]>([]);
     const [services, setServices] = useState<HospitalService[]>([]);
     const [loading, setLoading] = useState(true);
@@ -72,7 +74,16 @@ export default function AccountsDashboard() {
             });
 
             await Promise.all(savePromises);
-            await fetchData();
+
+            // Refresh data and update selectedDoctor with fresh data
+            const updatedDoctors = await getReferralDoctorsWithPercentages();
+            if (updatedDoctors.success) {
+                setDoctors(updatedDoctors.data);
+                // Update selectedDoctor with fresh data to show saved percentages immediately
+                const updatedDoctor = updatedDoctors.data.find((d: ReferralDoctor) => d.id === selectedDoctor.id);
+                if (updatedDoctor) setSelectedDoctor(updatedDoctor);
+            }
+
             setEditingServices({});
             alert('All changes saved successfully!');
         } catch (error: any) {
@@ -212,41 +223,43 @@ export default function AccountsDashboard() {
                             <tbody className="bg-white divide-y divide-gray-200">
                                 {filteredDoctors.length > 0 ? (
                                     filteredDoctors.map((doctor) => (
-                                        <tr
-                                            key={doctor.id}
-                                            onClick={() => setSelectedDoctor(doctor)}
-                                            className={`cursor-pointer transition-colors ${selectedDoctor?.id === doctor.id ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
-                                        >
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="text-sm font-medium text-gray-900">{doctor.doctor_name}</div>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="text-sm text-gray-500">{doctor.speciality_type}</div>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="text-sm text-gray-500">{doctor.mobile_number}</div>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${doctor.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                                                    }`}>
-                                                    {doctor.status}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                {Array.isArray(doctor.percentages) ? doctor.percentages.length : 0} services
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setSelectedDoctor(doctor);
-                                                    }}
-                                                    className="text-blue-600 hover:text-blue-900 font-medium"
-                                                >
-                                                    Manage
-                                                </button>
-                                            </td>
-                                        </tr>
+                                        <React.Fragment key={doctor.id}>
+                                            <tr
+                                                onClick={() => setSelectedDoctor(selectedDoctor?.id === doctor.id ? null : doctor)}
+                                                className={`cursor-pointer transition-colors ${selectedDoctor?.id === doctor.id ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                                            >
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <div className="text-sm font-medium text-gray-900">{doctor.doctor_name}</div>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <div className="text-sm text-gray-500">{doctor.speciality_type}</div>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <div className="text-sm text-gray-500">{doctor.mobile_number}</div>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${doctor.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                                                        }`}>
+                                                        {doctor.status}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    {Array.isArray(doctor.percentages) ? doctor.percentages.length : 0} services
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            router.push(`/accounts/referrals/${doctor.id}`);
+                                                        }}
+                                                        className="text-blue-600 hover:text-blue-900 font-medium inline-flex items-center gap-1"
+                                                    >
+                                                        Manage
+                                                        <ExternalLink className="w-4 h-4" />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        </React.Fragment>
                                     ))
                                 ) : (
                                     <tr>
@@ -259,209 +272,6 @@ export default function AccountsDashboard() {
                         </table>
                     </div>
                 </div>
-
-                {/* Selected Doctor Configuration Section */}
-                {selectedDoctor && (
-                    <div ref={(el) => { if (el && selectedDoctor) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}>
-                        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                            <div className="p-6 border-b border-gray-200 flex justify-between items-start bg-blue-50/30">
-                                <div>
-                                    <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                                        <Users className="w-5 h-5 text-blue-600" />
-                                        Configuration: {selectedDoctor.doctor_name}
-                                    </h2>
-                                    <p className="text-sm text-gray-600 mt-1">
-                                        Manage referral percentages and service settings for this doctor.
-                                    </p>
-                                </div>
-                                <button
-                                    onClick={() => setSelectedDoctor(null)}
-                                    className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 transition-colors"
-                                >
-                                    <X className="w-6 h-6" />
-                                </button>
-                            </div>
-
-                            <div className="p-6">
-                                <div className="flex items-center justify-between mb-6">
-                                    <h3 className="text-lg font-semibold text-gray-800">Service Percentages</h3>
-
-                                    {/* Add Service Button */}
-                                    {/* Add Service Button Section */}
-                                    <div className="relative">
-                                        {Array.isArray(selectedDoctor.percentages) && selectedDoctor.percentages.length > 0 && (
-                                            <button
-                                                onClick={() => setShowAddServiceDropdown(!showAddServiceDropdown)}
-                                                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors"
-                                            >
-                                                <Plus className="w-4 h-4" />
-                                                Add New Service
-                                            </button>
-                                        )}
-
-                                        {/* Dropdown */}
-                                        {showAddServiceDropdown && (
-                                            <>
-                                                <div
-                                                    className="fixed inset-0 z-10"
-                                                    onClick={() => setShowAddServiceDropdown(false)}
-                                                />
-                                                <div className="absolute right-0 mt-2 w-72 bg-white border border-gray-200 rounded-lg shadow-xl z-20 max-h-80 overflow-y-auto">
-                                                    {services
-                                                        .filter(service => Array.isArray(selectedDoctor.percentages) && !selectedDoctor.percentages.some(p => p.service_type === service.service_name))
-                                                        .map((service) => (
-                                                            <button
-                                                                key={service.service_name}
-                                                                onClick={() => handleAddService(service.service_name)}
-                                                                className="w-full text-left px-4 py-3 hover:bg-blue-50 transition text-sm border-b border-gray-100 last:border-b-0 flex justify-between items-center group"
-                                                            >
-                                                                <span className="font-medium text-gray-900 group-hover:text-blue-700">{service.service_name}</span>
-                                                                <Plus className="w-4 h-4 text-gray-400 group-hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                                            </button>
-                                                        ))
-                                                    }
-
-                                                    {services.filter(service => Array.isArray(selectedDoctor.percentages) && !selectedDoctor.percentages.some(p => p.service_type === service.service_name)).length === 0 && (
-                                                        <div className="px-4 py-3 text-sm text-gray-500 text-center">
-                                                            All available services are already configured
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {Array.isArray(selectedDoctor.percentages) && selectedDoctor.percentages.length > 0 ? (
-                                    <>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                                            {selectedDoctor.percentages.map((percentage, idx) => {
-                                                const editedData = editingServices[percentage.service_type] || {};
-                                                const isReferralPay = editedData.referral_pay !== undefined
-                                                    ? editedData.referral_pay === 'Y'
-                                                    : percentage.referral_pay === 'Y';
-
-                                                return (
-                                                    <div key={idx} className="bg-white p-5 border border-gray-200 rounded-xl hover:border-blue-400 hover:shadow-md transition-all duration-200">
-                                                        <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
-                                                            <h4 className="font-bold text-gray-800">{percentage.service_type}</h4>
-                                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isReferralPay ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
-                                                                <Percent className="w-4 h-4" />
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Referral Pay Toggle */}
-                                                        <div className="mb-4">
-                                                            <label className="flex items-center justify-between cursor-pointer group">
-                                                                <span className="text-sm font-medium text-gray-600 group-hover:text-gray-900">Referral Payout</span>
-                                                                <div className="relative inline-flex items-center cursor-pointer">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={isReferralPay}
-                                                                        onChange={(e) => handleServiceChange(percentage.service_type, 'referral_pay', e.target.checked ? 'Y' : 'N')}
-                                                                        className="sr-only peer"
-                                                                    />
-                                                                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                                                                </div>
-                                                            </label>
-                                                        </div>
-
-                                                        {/* Percentage Inputs */}
-                                                        <div className={`space-y-4 transition-opacity duration-200 ${isReferralPay ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
-                                                            <div>
-                                                                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                                                                    Cash Percentage
-                                                                </label>
-                                                                <div className="relative">
-                                                                    <input
-                                                                        type="number"
-                                                                        value={editedData.cash_percentage !== undefined ? editedData.cash_percentage : percentage.cash_percentage}
-                                                                        onChange={(e) => handleServiceChange(percentage.service_type, 'cash_percentage', e.target.value)}
-                                                                        min="0"
-                                                                        max="100"
-                                                                        step="0.01"
-                                                                        className="w-full pl-3 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"
-                                                                    />
-                                                                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                                                                        <span className="text-gray-500 sm:text-sm">%</span>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                            <div>
-                                                                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                                                                    Insurance Percentage
-                                                                </label>
-                                                                <div className="relative">
-                                                                    <input
-                                                                        type="number"
-                                                                        value={editedData.inpatient_percentage !== undefined ? editedData.inpatient_percentage : percentage.inpatient_percentage}
-                                                                        onChange={(e) => handleServiceChange(percentage.service_type, 'inpatient_percentage', e.target.value)}
-                                                                        min="0"
-                                                                        max="100"
-                                                                        step="0.01"
-                                                                        className="w-full pl-3 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"
-                                                                    />
-                                                                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                                                                        <span className="text-gray-500 sm:text-sm">%</span>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-
-                                        {/* Action Bar */}
-                                        <div className="sticky bottom-4 z-10 flex justify-end">
-                                            <div className="bg-white p-2 rounded-xl shadow-lg border border-gray-200 inline-flex gap-3">
-                                                <button
-                                                    onClick={() => {
-                                                        setSelectedDoctor(null);
-                                                        setEditingServices({});
-                                                    }}
-                                                    className="px-6 py-2.5 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition-colors"
-                                                >
-                                                    Cancel
-                                                </button>
-                                                <button
-                                                    onClick={handleSaveAllServices}
-                                                    disabled={!hasChanges || saving}
-                                                    className="inline-flex items-center justify-center gap-2 px-8 py-2.5 bg-gradient-to-r from-blue-600 to-blue-500 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg disabled:shadow-none"
-                                                >
-                                                    {saving ? (
-                                                        <>
-                                                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                                                            Saving...
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <Save className="w-4 h-4" />
-                                                            Save Changes
-                                                        </>
-                                                    )}
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </>
-                                ) : (
-                                    <div className="text-center py-16 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
-                                        <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                                        <h3 className="text-lg font-medium text-gray-900">No Services Configured</h3>
-                                        <p className="text-gray-500 mb-6">Start by adding a service for this doctor.</p>
-                                        <button
-                                            onClick={() => setShowAddServiceDropdown(true)}
-                                            className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition"
-                                        >
-                                            <Plus className="w-5 h-5" />
-                                            Configure First Service
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                )}
             </div>
         </div>
     );

@@ -12,11 +12,16 @@ class BranchService extends BaseModel {
      */
     async findByBranch(branchId) {
         const query = `
-      SELECT bs.*, s.service_name, s.service_code, s.description
+      SELECT bs.branch_id, bs.service_id, bs.is_active, s.service_name, s.service_code, s.description
       FROM branch_services bs
-      LEFT JOIN services s ON bs.service_id = s.service_id
+      JOIN services s ON bs.service_id = s.service_id
       WHERE bs.branch_id = $1 AND bs.is_active = true
-      ORDER BY s.service_name ASC
+      UNION ALL
+      SELECT bms.branch_id, bms.service_id, bms.is_active, ms.service_name, ms.service_code, ms.category as description
+      FROM branch_medical_services bms
+      JOIN medical_services ms ON bms.service_id = ms.service_id
+      WHERE bms.branch_id = $1 AND bms.is_active = true
+      ORDER BY service_name ASC
     `;
         const result = await this.executeQuery(query, [branchId]);
         return result.rows;

@@ -3,8 +3,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, FileText, User, Stethoscope, Activity, Plus, Trash2, Phone, MapPin, Calendar, Clock, Loader2, Mic, Sparkles, Play, Pause, Layout, History as HistoryIcon, FileBadge } from 'lucide-react';
-
+import { ArrowLeft, FileText, User, Stethoscope, Activity, Plus, Trash2, Phone, MapPin, Calendar, Clock, Loader2, Mic, Sparkles, Play, Pause, Layout, History as HistoryIcon, FileBadge, CheckCircle, XCircle, Info, X } from 'lucide-react';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -81,6 +80,7 @@ export default function PatientDetails() {
         relatives_notified_at: ''
     });
     const [isPatientDeceased, setIsPatientDeceased] = useState(false);
+    const [isReferralExpanded, setIsReferralExpanded] = useState(false);
     const [isAiListening, setIsAiListening] = useState(false);
 
     // Template Selector State
@@ -90,6 +90,24 @@ export default function PatientDetails() {
     const [showLabDropdown, setShowLabDropdown] = useState(false);
     const [isSearchingLabs, setIsSearchingLabs] = useState(false);
 
+    // Custom Alert Modal State
+    const [showAlert, setShowAlert] = useState(false);
+    const [alertConfig, setAlertConfig] = useState<{
+        type: 'success' | 'error' | 'info';
+        title: string;
+        message: string;
+    }>({
+        type: 'success',
+        title: '',
+        message: ''
+    });
+
+    // Custom Alert Function
+    const showCustomAlert = (type: 'success' | 'error' | 'info', title: string, message: string) => {
+        setAlertConfig({ type, title, message });
+        setShowAlert(true);
+    };
+
 
     const handleToggleDeceased = (checked: boolean) => {
         setIsPatientDeceased(checked);
@@ -97,7 +115,12 @@ export default function PatientDetails() {
             setDeathCertData({
                 date_of_death: patient.date_of_death ? new Date(patient.date_of_death).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
                 time_of_death: patient.time_of_death || new Date().toTimeString().slice(0, 5),
-                declared_dead_by: patient.declared_dead_by || `Dr. ${JSON.parse(localStorage.getItem('user') || '{}').first_name || ''} ${JSON.parse(localStorage.getItem('user') || '{}').last_name || ''}`,
+                declared_dead_by: patient.declared_dead_by || (() => {
+                    const user = JSON.parse(localStorage.getItem('user') || '{}');
+                    const name = user.username ? `Dr. ${user.username}` : 'Dr.';
+                    const regNo = user.registration_number ? ` (Reg. No: ${user.registration_number})` : '';
+                    return `${name}${regNo}`;
+                })(),
                 cause_of_death: patient.cause_of_death || '',
                 death_circumstances: patient.death_circumstances || '',
                 is_death_mlc: patient.is_death_mlc || false,
@@ -252,10 +275,10 @@ export default function PatientDetails() {
             });
 
             setExistingMlc(response.data.data.mlc);
-            alert('MLC Certificate saved successfully!');
+            showCustomAlert('success', 'Success!', 'MLC Certificate saved successfully!');
         } catch (error) {
             console.error('Error saving MLC:', error);
-            alert('Failed to save MLC details.');
+            showCustomAlert('error', 'Error', 'Failed to save MLC details. Please try again.');
         }
     };
 
@@ -361,7 +384,7 @@ export default function PatientDetails() {
                         <div><strong>Dr. ${existingMlc.doctor_first_name} ${existingMlc.doctor_last_name}</strong></div>
                         <div>${existingMlc.qualification || 'MBBS'}</div>
                         <div>Reg. No: ${existingMlc.registration_number || ''}</div>
-                        <div>Phone: ${JSON.parse(localStorage.getItem('user') || '{}').contact_number || 'N/A'}</div>
+                        <div>Phone: ${existingMlc.doctor_phone || JSON.parse(localStorage.getItem('user') || '{}').contact_number || 'N/A'}</div>
                         <div style="margin-top: 5px;">Signature: ____________________</div>
                         <div>${new Date().toLocaleDateString()}</div>
                     </div>
@@ -862,11 +885,7 @@ export default function PatientDetails() {
     };
 
     const selectLabService = (service: any) => {
-        setConsultationData({
-            ...consultationData,
-            labs: [...consultationData.labs, { test_name: service.service_name, lab_name: 'In-House' }] // Defaulting lab_name or maybe empty
-        });
-        setNewLab({ test_name: '', lab_name: '' });
+        setNewLab({ ...newLab, test_name: service.service_name });
         setShowLabDropdown(false);
         setLabSearchResults([]);
     };
@@ -880,7 +899,6 @@ export default function PatientDetails() {
             setNewLab({ test_name: '', lab_name: '' });
         }
     };
-
 
     const removeLab = (index: number) => {
         const newLabs = [...consultationData.labs];
@@ -1327,10 +1345,10 @@ export default function PatientDetails() {
                 });
             }
 
-            alert('Draft saved successfully! You can continue editing later.');
+            showCustomAlert('success', 'Draft Saved!', 'You can continue editing later.');
         } catch (error) {
             console.error('Error saving draft:', error);
-            alert('Failed to save draft.');
+            showCustomAlert('error', 'Error', 'Failed to save draft. Please try again.');
         }
     };
 
@@ -1357,21 +1375,39 @@ export default function PatientDetails() {
             });
 
             if (isPatientDeceased) {
-                const deathPayload = {
-                    ...deathCertData,
+                // Only send non-empty death-related fields
+                const deathPayload: any = {
                     is_deceased: true
                 };
+
+                // Add fields only if they have values
+                if (deathCertData.date_of_death) deathPayload.date_of_death = deathCertData.date_of_death;
+                if (deathCertData.time_of_death) deathPayload.time_of_death = deathCertData.time_of_death;
+                if (deathCertData.declared_dead_by) deathPayload.declared_dead_by = deathCertData.declared_dead_by;
+                if (deathCertData.cause_of_death) deathPayload.cause_of_death = deathCertData.cause_of_death;
+                if (deathCertData.death_circumstances) deathPayload.death_circumstances = deathCertData.death_circumstances;
+                if (deathCertData.is_death_mlc !== undefined) deathPayload.is_death_mlc = deathCertData.is_death_mlc;
+                if (deathCertData.death_police_station) deathPayload.death_police_station = deathCertData.death_police_station;
+                if (deathCertData.death_police_district) deathPayload.death_police_district = deathCertData.death_police_district;
+                if (deathCertData.post_mortem_required !== undefined) deathPayload.post_mortem_required = deathCertData.post_mortem_required;
+                if (deathCertData.relatives_name) deathPayload.relatives_name = deathCertData.relatives_name;
+                if (deathCertData.relatives_number) deathPayload.relatives_number = deathCertData.relatives_number;
+                if (deathCertData.relatives_notified_at) {
+                    // Convert datetime-local format to proper timestamp
+                    deathPayload.relatives_notified_at = new Date(deathCertData.relatives_notified_at).toISOString();
+                }
+
                 await axios.patch(`${API_URL}/patients/${patient.patient_id}`, deathPayload, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
             }
 
-            alert('Consultation completed successfully!');
+            showCustomAlert('success', 'Success!', 'Consultation completed successfully!');
             setShowConsultationForm(false);
             fetchPatientDetails(); // Refresh data
         } catch (error) {
             console.error('Error completing consultation:', error);
-            alert('Failed to complete consultation.');
+            showCustomAlert('error', 'Error', 'Failed to complete consultation. Please try again.');
         }
     };
 
@@ -1470,7 +1506,7 @@ export default function PatientDetails() {
             {/* Patient Context Card - Quick Clinical Summary */}
             <div className="glass-panel p-4 rounded-2xl border border-slate-200/50 bg-gradient-to-r from-amber-50/30 via-white to-rose-50/30">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    {/* Allergies */}
+                    {/* ALLERGIES CARD - COMMENTED OUT 2026-02-04
                     <div className="flex items-start gap-3 p-3 bg-white/60 rounded-xl border border-rose-100">
                         <div className="w-10 h-10 rounded-lg bg-rose-100 flex items-center justify-center flex-shrink-0">
                             <Activity className="w-5 h-5 text-rose-600" />
@@ -1482,6 +1518,44 @@ export default function PatientDetails() {
                             </p>
                         </div>
                     </div>
+                    */}
+
+                    {/* Record Vitals - NEW */}
+                    {(() => {
+                        const activeVisit = opdHistory.find(opd => ['Registered', 'In-consultation'].includes(opd.visit_status));
+                        const hasVitals = activeVisit && (
+                            activeVisit.grbs || activeVisit.spo2 || activeVisit.pulse ||
+                            activeVisit.height || activeVisit.weight || activeVisit.bp_systolic ||
+                            activeVisit.bp_diastolic || activeVisit.temperature
+                        );
+
+                        return (
+                            <button
+                                onClick={() => {
+                                    if (activeVisit) {
+                                        // Navigate to vitals page for editing or adding
+                                        router.push(`/doctor/patients/${params.id}/vitals?opd_id=${activeVisit.opd_id}`);
+                                    } else {
+                                        showCustomAlert('info', 'No Active Visit', 'Please start a consultation first to record vitals.');
+                                    }
+                                }}
+                                className="flex items-start gap-3 p-3 bg-white/60 hover:bg-emerald-50/60 rounded-xl border border-emerald-100 hover:border-emerald-300 transition-all group cursor-pointer w-full text-left"
+                            >
+                                <div className="w-10 h-10 rounded-lg bg-emerald-100 group-hover:bg-emerald-200 flex items-center justify-center flex-shrink-0 transition-colors">
+                                    <Activity className="w-5 h-5 text-emerald-600" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">
+                                        {hasVitals ? 'Vital Signs' : 'Record Vitals'}
+                                    </p>
+                                    <p className="text-sm font-semibold text-slate-700 group-hover:text-emerald-700 transition-colors">
+                                        {hasVitals ? 'Edit Vitals' : 'Add Vitals'}
+                                    </p>
+                                </div>
+                                <Plus className="w-4 h-4 text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </button>
+                        );
+                    })()}
 
                     {/* Blood Group */}
                     <div className="flex items-start gap-3 p-3 bg-white/60 rounded-xl border border-red-100">
@@ -1536,8 +1610,17 @@ export default function PatientDetails() {
                         <div className="min-w-0">
                             <p className="text-[10px] font-bold text-purple-500 uppercase tracking-wider">Last Visit</p>
                             {(() => {
-                                const pastVisits = opdHistory.filter(opd => opd.visit_status === 'Completed');
+                                console.log('DEBUG: Full OpdHistory:', opdHistory);
+                                // Find active visit (currently being attended)
+                                const activeVisit = opdHistory.find(opd => ['Registered', 'In-consultation'].includes(opd.visit_status));
+                                console.log('DEBUG: Active Visit:', activeVisit);
+
+                                // Filter out the active visit to find true historical visits
+                                const pastVisits = opdHistory.filter(opd => opd.opd_id !== activeVisit?.opd_id);
+                                console.log('DEBUG: Past Visits (History):', pastVisits);
+
                                 if (pastVisits.length > 0) {
+                                    // Since opdHistory is sorted DESC, the first one remaining is the last visit
                                     const lastVisit = pastVisits[0];
                                     return (
                                         <>
@@ -1550,7 +1633,7 @@ export default function PatientDetails() {
                                         </>
                                     );
                                 }
-                                return <p className="text-sm text-slate-500">First Visit</p>;
+                                return <p className="text-sm text-slate-500 italic">No Past Visits</p>;
                             })()}
                         </div>
                     </div>
@@ -1624,29 +1707,20 @@ export default function PatientDetails() {
                             <div className="p-4 bg-gradient-to-r from-slate-900 to-slate-800 rounded-t-3xl text-white flex justify-between items-center shadow-lg relative overflow-hidden">
                                 <div className="absolute inset-0 bg-blue-500/10 animate-pulse"></div>
                                 <div className="relative z-10 flex items-center gap-3">
-                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${isAiListening ? 'bg-red-500 animate-pulse shadow-red-500/50' : 'bg-slate-700'}`}>
-                                        <Mic className="w-5 h-5 text-white" />
-                                    </div>
                                     <div>
-                                        <h3 className="font-bold leading-tight">AI Clinical Scribe</h3>
-                                        <p className="text-xs text-slate-400">{isAiListening ? 'Listening & Transcribing...' : 'Ready to listen'}</p>
+                                        <h3 className="font-bold leading-tight">Clinical Scribe</h3>
+                                        <p className="text-xs text-slate-400">Ready to listen</p>
                                     </div>
                                 </div>
-                                <button
-                                    onClick={() => setIsAiListening(!isAiListening)}
-                                    className={`relative z-10 px-4 py-2 rounded-lg font-bold text-xs transition flex items-center gap-2 ${isAiListening ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-white text-slate-900 hover:bg-slate-100'}`}
-                                >
-                                    {isAiListening ? <><Pause className="w-3 h-3" /> Pause</> : <><Play className="w-3 h-3" /> Start</>}
-                                </button>
                             </div>
 
                             <div className="p-6 space-y-8 min-h-[500px]">
                                 {/* 1. Clinical Notes (Paper-on-Glass) */}
                                 <div className="relative group">
                                     <div className="absolute -left-3 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-400 to-purple-400 rounded-full opacity-50 group-hover:opacity-100 transition"></div>
-                                    <label className="block text-sm font-bold text-slate-700 mb-2 pl-2">Clinical Notes & Observations</label>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2 pl-2">Clinical Notes & Observations</label>
                                     <textarea
-                                        className="w-full bg-white/50 border border-slate-200 rounded-xl p-4 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all text-slate-700 font-medium leading-relaxed resize-none shadow-inner"
+                                        className="w-full bg-white/50 border border-slate-200 rounded-xl p-4 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all text-slate-700 text-sm font-medium leading-relaxed resize-none shadow-inner"
                                         rows={4}
                                         value={consultationData.notes}
                                         onChange={(e) => setConsultationData({ ...consultationData, notes: e.target.value })}
@@ -1657,10 +1731,10 @@ export default function PatientDetails() {
                                 {/* 2. Diagnosis & Labs Grid */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
-                                        <label className="block text-sm font-bold text-slate-700 mb-2">Diagnosis</label>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2 ml-1">Diagnosis</label>
                                         <div className="relative">
                                             <textarea
-                                                className="w-full bg-white/50 border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400 transition-all text-slate-700 font-medium h-32 resize-none shadow-inner"
+                                                className="w-full bg-white/50 border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400 transition-all text-slate-700 text-sm font-medium h-32 resize-none shadow-inner"
                                                 value={consultationData.diagnosis}
                                                 onChange={(e) => setConsultationData({ ...consultationData, diagnosis: e.target.value })}
                                                 placeholder="Enter Diagnosis..."
@@ -1672,27 +1746,27 @@ export default function PatientDetails() {
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-bold text-slate-700 mb-2">Lab Orders</label>
-                                        <div className="bg-slate-50/50 rounded-xl border border-slate-200 p-3 h-32 flex flex-col">
-                                            <div className="relative">
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2 ml-1">Lab Orders</label>
+                                        <div className="bg-slate-50/50 rounded-xl border border-slate-200 p-3 min-h-[128px] flex flex-col">
+                                            <div className="relative z-10">
                                                 <div className="flex gap-2 mb-2">
                                                     <input
                                                         type="text"
-                                                        className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-sm"
+                                                        className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500/10 focus:border-blue-300 transition-all outline-none"
                                                         placeholder="Search Test Name..."
                                                         value={newLab.test_name}
                                                         onChange={(e) => handleLabSearch(e.target.value)}
                                                         onFocus={() => { if (newLab.test_name.length >= 2) setShowLabDropdown(true); }}
                                                         onBlur={() => setTimeout(() => setShowLabDropdown(false), 200)} // Delay to allow click
                                                     />
-                                                    <button onClick={handleAddLab} className="p-1.5 bg-slate-200 hover:bg-slate-300 rounded-lg text-slate-600 transition">
+                                                    <button onClick={handleAddLab} className="p-2 bg-slate-200 hover:bg-slate-300 rounded-lg text-slate-600 transition">
                                                         <Plus className="w-4 h-4" />
                                                     </button>
                                                 </div>
 
                                                 {/* Search Dropdown */}
                                                 {showLabDropdown && (
-                                                    <div className="absolute top-10 left-0 right-0 bg-white border border-slate-200 rounded-lg shadow-xl z-50 max-h-48 overflow-y-auto">
+                                                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl z-[100] max-h-48 overflow-y-auto">
                                                         {isSearchingLabs ? (
                                                             <div className="p-3 text-xs text-slate-500 text-center">Searching...</div>
                                                         ) : labSearchResults.length > 0 ? (
@@ -1701,10 +1775,9 @@ export default function PatientDetails() {
                                                                     <li
                                                                         key={service.service_id}
                                                                         className="px-3 py-2 hover:bg-slate-50 cursor-pointer text-sm border-b border-slate-50 last:border-none flex justify-between items-center"
-                                                                        onClick={() => selectLabService(service)}
+                                                                        onMouseDown={() => selectLabService(service)}
                                                                     >
                                                                         <span className="font-medium text-slate-700">{service.service_name}</span>
-                                                                        {service.service_code && <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">{service.service_code}</span>}
                                                                     </li>
                                                                 ))}
                                                             </ul>
@@ -1730,7 +1803,6 @@ export default function PatientDetails() {
                                 {/* 3. Prescription Pad */}
                                 <div className="bg-gradient-to-br from-blue-50/50 to-indigo-50/50 rounded-2xl border border-blue-100 p-5">
 
-
                                     <div className="grid grid-cols-12 gap-3 mb-4 bg-white/60 p-3 rounded-xl border border-blue-100/50 shadow-sm">
                                         <div className="col-span-4">
                                             <input
@@ -1753,12 +1825,22 @@ export default function PatientDetails() {
                                                 <label key={time} className="cursor-pointer flex items-center gap-1 hover:bg-blue-50 px-1 py-0.5 rounded transition">
                                                     <input
                                                         type="checkbox"
-                                                        checked={(newMedication as any)[time.toLowerCase()]}
+                                                        checked={!!(newMedication as any)[time.toLowerCase()]}
                                                         onChange={(e) => setNewMedication({ ...newMedication, [time.toLowerCase()]: e.target.checked })}
                                                         className="rounded text-blue-600 w-3 h-3"
                                                     /> {time}
                                                 </label>
                                             ))}
+                                            <div className="ml-2 flex bg-slate-100 rounded p-0.5">
+                                                <button
+                                                    className={`px-1.5 py-0.5 text-[10px] rounded ${newMedication.food_timing === 'After Food' ? 'bg-white shadow text-blue-600 font-bold' : 'text-slate-400 hover:text-slate-600'}`}
+                                                    onClick={() => setNewMedication({ ...newMedication, food_timing: 'After Food' })}
+                                                >A/F</button>
+                                                <button
+                                                    className={`px-1.5 py-0.5 text-[10px] rounded ${newMedication.food_timing === 'Before Food' ? 'bg-white shadow text-blue-600 font-bold' : 'text-slate-400 hover:text-slate-600'}`}
+                                                    onClick={() => setNewMedication({ ...newMedication, food_timing: 'Before Food' })}
+                                                >B/F</button>
+                                            </div>
                                         </div>
                                         <div className="col-span-1 flex justify-end">
                                             <button onClick={handleAddMedication} className="w-8 h-8 flex items-center justify-center bg-blue-600 text-white rounded-full hover:bg-blue-700 shadow-md transition hover:scale-110">
@@ -1791,36 +1873,353 @@ export default function PatientDetails() {
                                 <div className="flex flex-col md:flex-row gap-4 items-end pt-4 border-t border-slate-100">
                                     <div className="flex-1 w-full">
                                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Next Visit</label>
-                                        <div className="flex gap-2">
+                                        <div className="flex flex-col sm:flex-row gap-4 mt-2">
                                             <input
                                                 type="date"
-                                                className="bg-white border border-slate-200 rounded-lg p-2 text-sm"
+                                                min={new Date(new Date().setDate(new Date().getDate() + 1)).toISOString().split('T')[0]}
+                                                className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all hover:bg-white flex-1 sm:flex-none sm:w-48 cursor-pointer"
                                                 value={consultationData.next_visit_date}
                                                 onChange={(e) => setConsultationData({ ...consultationData, next_visit_date: e.target.value })}
                                             />
-                                            <select
-                                                className="bg-white border border-slate-200 rounded-lg p-2 text-sm flex-1"
-                                                value={consultationData.next_visit_status}
-                                                onChange={(e) => setConsultationData({ ...consultationData, next_visit_status: e.target.value })}
-                                            >
-                                                <option value="Follow-up Required">Follow-up Required</option>
-                                                <option value="Not Necessary">Not Necessary</option>
-                                            </select>
+                                            <div className="relative flex-1">
+                                                <select
+                                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm flex-1 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all hover:bg-white appearance-none cursor-pointer"
+                                                    value={consultationData.next_visit_status}
+                                                    onChange={(e) => setConsultationData({ ...consultationData, next_visit_status: e.target.value })}
+                                                >
+                                                    <option value="Follow-up Required">Follow-up Required</option>
+                                                    <option value="Not Necessary">Not Necessary</option>
+                                                </select>
+                                                <div className="absolute right-4 top-3.5 pointer-events-none text-slate-400">
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div className="flex gap-3">
-                                        <button
-                                            onClick={handleSaveDraft}
-                                            className="px-4 py-2 bg-slate-100 text-slate-600 rounded-lg font-bold text-sm hover:bg-slate-200 transition"
-                                        >
-                                            Save Draft
-                                        </button>
-                                        <button
-                                            onClick={handleCompleteConsultation}
-                                            className="px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg font-bold text-sm hover:shadow-lg hover:shadow-blue-500/30 transition hover:-translate-y-0.5"
-                                        >
-                                            Complete Consultation
-                                        </button>
+                                </div>
+                            </div>
+
+                            {/* Referral Section */}
+                            <div className="mt-8 border-t border-slate-200 pt-6">
+                                <div className="flex items-center gap-2 mb-4">
+                                    <input
+                                        type="checkbox"
+                                        id="isReferralExpanded"
+                                        checked={isReferralExpanded}
+                                        onChange={(e) => setIsReferralExpanded(e.target.checked)}
+                                        className="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
+                                    />
+                                    <label htmlFor="isReferralExpanded" className="text-sm font-bold text-slate-700 uppercase cursor-pointer flex items-center gap-2">
+                                        <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                        </svg>
+                                        Patient Referral (Optional)
+                                    </label>
+                                </div>
+
+                                {isReferralExpanded && (
+                                    <div className="relative group">
+                                        <div className="absolute -inset-0.5 bg-slate-200 rounded-2xl opacity-40 blur transition duration-500"></div>
+                                        <div className="relative bg-white rounded-2xl p-6 border border-slate-100 shadow-xl">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                <div className="space-y-2">
+                                                    <label className="text-xs font-bold text-slate-500 uppercase ml-1">Referral Hospital</label>
+                                                    <div className="relative group/input">
+                                                        <select
+                                                            value={selectedReferralHospital}
+                                                            onChange={(e) => {
+                                                                setSelectedReferralHospital(e.target.value);
+                                                                setConsultationData({ ...consultationData, referral_doctor_id: '' });
+                                                            }}
+                                                            className="w-full bg-slate-50/50 border border-slate-200 text-slate-700 text-sm rounded-xl px-4 py-3 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all appearance-none cursor-pointer hover:bg-white"
+                                                        >
+                                                            <option value="">Select Target Hospital...</option>
+                                                            {referralHospitals.map((hospital: any) => (
+                                                                <option key={hospital.referral_hospital_id} value={hospital.referral_hospital_id}>
+                                                                    {hospital.hospital_name}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                        <div className="absolute right-4 top-3.5 pointer-events-none text-slate-400 group-hover/input:text-purple-500 transition-colors">
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <label className="text-xs font-bold text-slate-500 uppercase ml-1">Referral Doctor</label>
+                                                    <div className="relative group/input">
+                                                        <select
+                                                            value={consultationData.referral_doctor_id}
+                                                            onChange={(e) => setConsultationData({ ...consultationData, referral_doctor_id: e.target.value })}
+                                                            className="w-full bg-slate-50/50 border border-slate-200 text-slate-700 text-sm rounded-xl px-4 py-3 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all appearance-none cursor-pointer hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                                                            disabled={!selectedReferralHospital}
+                                                        >
+                                                            <option value="">Select Specialist...</option>
+                                                            {referralDoctors
+                                                                .filter((doc: any) => !selectedReferralHospital || doc.referral_hospital_id.toString() === selectedReferralHospital)
+                                                                .map((doc: any) => (
+                                                                    <option key={doc.referral_doctor_id} value={doc.referral_doctor_id}>
+                                                                        {doc.doctor_name} - {doc.specialization}
+                                                                    </option>
+                                                                ))}
+                                                        </select>
+                                                        <div className="absolute right-4 top-3.5 pointer-events-none text-slate-400 group-hover/input:text-purple-500 transition-colors">
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="md:col-span-2 space-y-2">
+                                                    <label className="text-xs font-bold text-slate-500 uppercase ml-1">Referral Notes / Reason</label>
+                                                    <textarea
+                                                        rows={2}
+                                                        value={consultationData.referral_notes}
+                                                        onChange={(e) => setConsultationData({ ...consultationData, referral_notes: e.target.value })}
+                                                        className="w-full bg-slate-50/50 border border-slate-200 text-slate-700 text-sm rounded-xl px-4 py-3 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all placeholder:text-slate-400 resize-none hover:bg-white"
+                                                        placeholder="Describe the reason for referral and clinical context..."
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            {/* Death Intimation Section */}
+                            <div className="mt-6 border-t border-gray-200 pt-6">
+                                <div className="flex items-center gap-2 mb-4">
+                                    <input
+                                        type="checkbox"
+                                        id="isPatientDeceased"
+                                        checked={isPatientDeceased}
+                                        onChange={(e) => handleToggleDeceased(e.target.checked)}
+                                        className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+                                    />
+                                    <label htmlFor="isPatientDeceased" className="text-sm font-bold text-slate-700 uppercase cursor-pointer">
+                                        Patient Deceased?
+                                    </label>
+                                </div>
+
+                                {isPatientDeceased && (
+                                    <div className="bg-red-50 border border-red-100 rounded-lg p-5">
+                                        <h4 className="font-bold text-blue-800 mb-4 flex items-center gap-2">
+                                            <Activity size={18} /> Death Details
+                                        </h4>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">Date of Death</label>
+                                                <input
+                                                    type="date"
+                                                    className="w-full border border-gray-300 rounded-lg p-2"
+                                                    value={deathCertData.date_of_death}
+                                                    onChange={(e) => setDeathCertData({ ...deathCertData, date_of_death: e.target.value })}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">Time of Death</label>
+                                                <input
+                                                    type="time"
+                                                    className="w-full border border-gray-300 rounded-lg p-2"
+                                                    value={deathCertData.time_of_death}
+                                                    onChange={(e) => setDeathCertData({ ...deathCertData, time_of_death: e.target.value })}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="mb-4">
+                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Cause of Death</label>
+                                            <textarea
+                                                className="w-full bg-white border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-red-500/20 focus:border-red-400 transition-all text-sm h-20 resize-none"
+                                                value={deathCertData.cause_of_death}
+                                                onChange={(e) => setDeathCertData({ ...deathCertData, cause_of_death: e.target.value })}
+                                                placeholder="Immediate cause, antecedent cause, etc."
+                                            />
+                                        </div>
+                                        <div className="mb-4">
+                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">History / Circumstances of Death</label>
+                                            <textarea
+                                                className="w-full bg-white border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-red-500/20 focus:border-red-400 transition-all text-sm h-20 resize-none"
+                                                value={deathCertData.death_circumstances}
+                                                onChange={(e) => setDeathCertData({ ...deathCertData, death_circumstances: e.target.value })}
+                                                placeholder="As alleged by relatives..."
+                                            />
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="checkbox"
+                                                    id="is_death_mlc_inline"
+                                                    checked={deathCertData.is_death_mlc}
+                                                    onChange={(e) => setDeathCertData({ ...deathCertData, is_death_mlc: e.target.checked })}
+                                                    className="w-4 h-4 text-red-600 rounded"
+                                                />
+                                                <label htmlFor="is_death_mlc_inline" className="font-medium text-gray-700">Is MLC Case?</label>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="checkbox"
+                                                    id="post_mortem_inline"
+                                                    checked={deathCertData.post_mortem_required}
+                                                    onChange={(e) => setDeathCertData({ ...deathCertData, post_mortem_required: e.target.checked })}
+                                                    className="w-4 h-4 text-red-600 rounded"
+                                                />
+                                                <label htmlFor="post_mortem_inline" className="font-medium text-gray-700">Post-mortem Required?</label>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">Declared Dead By</label>
+                                                <input
+                                                    type="text"
+                                                    className="w-full border border-gray-300 rounded-lg p-2 text-sm"
+                                                    value={deathCertData.declared_dead_by}
+                                                    onChange={(e) => setDeathCertData({ ...deathCertData, declared_dead_by: e.target.value })}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">Police Station</label>
+                                                <input
+                                                    type="text"
+                                                    className="w-full border border-gray-300 rounded-lg p-2 text-sm"
+                                                    value={deathCertData.death_police_station}
+                                                    onChange={(e) => setDeathCertData({ ...deathCertData, death_police_station: e.target.value })}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">District</label>
+                                                <input
+                                                    type="text"
+                                                    className="w-full border border-gray-300 rounded-lg p-2 text-sm"
+                                                    value={deathCertData.death_police_district}
+                                                    onChange={(e) => setDeathCertData({ ...deathCertData, death_police_district: e.target.value })}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="border-t pt-4 mt-4">
+                                            <h3 className="font-medium mb-2">Relatives Informed</h3>
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-1">Name & Relationship</label>
+                                                    <input
+                                                        type="text"
+                                                        className="w-full border rounded-lg px-3 py-2"
+                                                        value={deathCertData.relatives_name}
+                                                        onChange={(e) => setDeathCertData({ ...deathCertData, relatives_name: e.target.value })}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    {/* <label className="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
+                                                <input
+                                                    type="text"
+                                                    className="w-full border rounded-lg px-3 py-2"
+                                                    value={deathCertData.relatives_number}
+                                                    onChange={(e) => setDeathCertData({ ...deathCertData, relatives_number: e.target.value })}
+                                                /> */}
+                                                    {/* <div> */}
+                                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                        Contact Number
+                                                    </label>
+
+                                                    <input
+                                                        type="text"
+                                                        className="w-full border rounded-lg px-3 py-2"
+                                                        value={deathCertData.relatives_number}
+                                                        onChange={(e) => {
+                                                            const value = e.target.value.replace(/\D/g, ""); // allow digits only
+                                                            setDeathCertData({ ...deathCertData, relatives_number: value });
+                                                        }}
+                                                        maxLength={10}
+                                                        placeholder="Enter 10 digit number"
+                                                    />
+                                                    {/* </div> */}
+
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-1">Date & Time Notified</label>
+                                                    <input
+                                                        type="datetime-local"
+                                                        className="w-full border rounded-lg px-3 py-2"
+                                                        value={deathCertData.relatives_notified_at}
+                                                        onChange={(e) => setDeathCertData({ ...deathCertData, relatives_notified_at: e.target.value })}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="mt-4 flex justify-end">
+                                            <button
+                                                onClick={handlePrintDeathCert}
+                                                className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-black font-medium text-sm flex items-center gap-2"
+                                                type="button"
+                                            >
+                                                <FileText size={14} /> Print Death Intimation
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="mt-6 flex justify-end gap-3">
+                                <button
+                                    onClick={() => setShowConsultationForm(false)}
+                                    className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handlePrintDraft}
+                                    className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium flex items-center gap-2"
+                                >
+                                    <FileText className="w-4 h-4" />
+                                    Print Draft
+                                </button>
+                                <button
+                                    onClick={handleSaveDraft}
+                                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center gap-2"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                                    </svg>
+                                    Save Draft
+                                </button>
+                                <button
+                                    onClick={handleCompleteConsultation}
+                                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center gap-2"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    Complete Consultation
+                                </button>
+                            </div>
+
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-10 pt-8 border-t border-slate-100 bg-slate-50/50 rounded-b-3xl -mx-6 -mb-6 px-8 pb-8">
+                                <div className="flex items-start gap-4">
+                                    <div className="p-2 bg-white rounded-lg shadow-sm border border-slate-100">
+                                        <Phone className="w-5 h-5 text-slate-400" />
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-0.5">Contact</p>
+                                        <p className="text-slate-800 font-bold text-sm">{patient?.contact_number}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-start gap-4">
+                                    <div className="p-2 bg-white rounded-lg shadow-sm border border-slate-100">
+                                        <MapPin className="w-5 h-5 text-slate-400" />
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-0.5">Address</p>
+                                        <p className="text-slate-800 font-bold text-sm truncate max-w-[200px]" title={`${patient?.city}, ${patient?.state}`}>
+                                            {patient?.city}, {patient?.state}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-start gap-4">
+                                    <div className="p-2 bg-white rounded-lg shadow-sm border border-slate-100">
+                                        <Activity className="w-5 h-5 text-slate-400" />
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-0.5">Blood Group</p>
+                                        <p className="text-slate-800 font-bold text-sm">{patient?.blood_group || 'N/A'}</p>
                                     </div>
                                 </div>
                             </div>
@@ -1883,15 +2282,48 @@ export default function PatientDetails() {
                                         </div>
                                     )}
 
-                                    {visit.vital_signs && (
+
+                                    {/* Vitals Display */}
+                                    {(visit.grbs || visit.spo2 || visit.pulse || visit.height || visit.weight || visit.bp_systolic || visit.bp_diastolic || visit.temperature) && (
                                         <div className="flex flex-wrap gap-2 mb-3">
-                                            {Object.entries(visit.vital_signs).map(([k, v]) => (
-                                                <span key={k} className="px-2 py-1 bg-white border border-slate-100 rounded text-[10px] font-medium text-slate-500">
-                                                    {k}: <span className="text-slate-900">{String(v)}</span>
+                                            {visit.grbs && (
+                                                <span className="px-2 py-1 bg-white border border-slate-100 rounded text-[10px] font-medium text-slate-500">
+                                                    GRBS: <span className="text-slate-900">{visit.grbs} mg/dL</span>
                                                 </span>
-                                            ))}
+                                            )}
+                                            {visit.spo2 && (
+                                                <span className="px-2 py-1 bg-white border border-slate-100 rounded text-[10px] font-medium text-slate-500">
+                                                    SpO2: <span className="text-slate-900">{visit.spo2}%</span>
+                                                </span>
+                                            )}
+                                            {visit.pulse && (
+                                                <span className="px-2 py-1 bg-white border border-slate-100 rounded text-[10px] font-medium text-slate-500">
+                                                    Pulse: <span className="text-slate-900">{visit.pulse} bpm</span>
+                                                </span>
+                                            )}
+                                            {(visit.bp_systolic || visit.bp_diastolic) && (
+                                                <span className="px-2 py-1 bg-white border border-slate-100 rounded text-[10px] font-medium text-slate-500">
+                                                    BP: <span className="text-slate-900">{visit.bp_systolic || '--'}/{visit.bp_diastolic || '--'} mmHg</span>
+                                                </span>
+                                            )}
+                                            {visit.temperature && (
+                                                <span className="px-2 py-1 bg-white border border-slate-100 rounded text-[10px] font-medium text-slate-500">
+                                                    Temp: <span className="text-slate-900">{visit.temperature}°F</span>
+                                                </span>
+                                            )}
+                                            {visit.height && (
+                                                <span className="px-2 py-1 bg-white border border-slate-100 rounded text-[10px] font-medium text-slate-500">
+                                                    Height: <span className="text-slate-900">{visit.height} cm</span>
+                                                </span>
+                                            )}
+                                            {visit.weight && (
+                                                <span className="px-2 py-1 bg-white border border-slate-100 rounded text-[10px] font-medium text-slate-500">
+                                                    Weight: <span className="text-slate-900">{visit.weight} kg</span>
+                                                </span>
+                                            )}
                                         </div>
                                     )}
+
 
                                     <div className="flex items-center gap-2 pt-3 border-t border-slate-100/50">
                                         <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-[10px] text-white font-bold">
@@ -2037,7 +2469,7 @@ export default function PatientDetails() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">History (Alleged by patient/attendant) *</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">History (Alleged by patient/attendant)</label>
                                     <textarea
                                         className="w-full border border-gray-300 rounded-lg p-2"
                                         rows={3}
@@ -2428,8 +2860,64 @@ export default function PatientDetails() {
                 )
             }
 
+
             {/* Template Selector Modal */}
 
-        </div>
+            {/* Custom Alert Modal */}
+            {showAlert && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 animate-fadeIn">
+                    {/* Backdrop */}
+                    <div
+                        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                        onClick={() => setShowAlert(false)}
+                    ></div>
+
+                    {/* Modal */}
+                    <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-slideUp">
+                        {/* Colored Header Bar */}
+                        <div className={`h-2 ${alertConfig.type === 'success' ? 'bg-gradient-to-r from-green-400 to-emerald-500' :
+                            alertConfig.type === 'error' ? 'bg-gradient-to-r from-red-400 to-rose-500' :
+                                'bg-gradient-to-r from-blue-400 to-indigo-500'
+                            }`}></div>
+
+                        <div className="p-6">
+                            {/* Icon */}
+                            <div className="flex items-center justify-center mb-4">
+                                <div className={`w-16 h-16 rounded-full flex items-center justify-center ${alertConfig.type === 'success' ? 'bg-green-100' :
+                                    alertConfig.type === 'error' ? 'bg-red-100' :
+                                        'bg-blue-100'
+                                    }`}>
+                                    {alertConfig.type === 'success' && <CheckCircle className="w-8 h-8 text-green-600" />}
+                                    {alertConfig.type === 'error' && <XCircle className="w-8 h-8 text-red-600" />}
+                                    {alertConfig.type === 'info' && <Info className="w-8 h-8 text-blue-600" />}
+                                </div>
+                            </div>
+
+                            {/* Title */}
+                            <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
+                                {alertConfig.title}
+                            </h3>
+
+                            {/* Message */}
+                            <p className="text-gray-600 text-center mb-6">
+                                {alertConfig.message}
+                            </p>
+
+                            {/* OK Button */}
+                            <button
+                                onClick={() => setShowAlert(false)}
+                                className={`w-full py-3 px-4 rounded-xl font-semibold text-white transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] ${alertConfig.type === 'success' ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-lg shadow-green-500/30' :
+                                    alertConfig.type === 'error' ? 'bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 shadow-lg shadow-red-500/30' :
+                                        'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-lg shadow-blue-500/30'
+                                    }`}
+                            >
+                                OK
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+        </div >
     );
 }

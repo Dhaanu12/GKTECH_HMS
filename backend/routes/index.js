@@ -17,6 +17,7 @@ const opdRoutes = require('./opdRoutes');
 const serviceRoutes = require('./serviceRoutes');
 const referralRoutes = require('./referralRoutes');
 const leadRoutes = require('./leadRoutes');
+const medicalServicesRoutes = require('./medicalServicesRoutes');
 router.get('/health', (req, res) => {
     res.status(200).json({
         status: 'success',
@@ -79,6 +80,9 @@ router.use('/users', require('./userRoutes'));
 router.use('/referral-payment', require('./referralPayment/referralPaymentRoutes'));
 router.use('/lead-data', require('./leadDataRoutes'));
 router.use('/leads', leadRoutes);
+router.use('/feedback', require('./feedbackRoutes'));
+router.use('/billing-setup', require('./billingSetupRoutes'));
+router.use('/medical-services', medicalServicesRoutes);
 router.use('/follow-ups', require('./followUpRoutes'));
 router.use('/feedback', require('./feedbackRoutes'));
 // ... other routes

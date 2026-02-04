@@ -31,7 +31,7 @@ router.patch('/:id/payment', authorize('RECEPTIONIST'), opdController.updatePaym
 router.patch('/:id/vitals', authorize('NURSE', 'DOCTOR', 'RECEPTIONIST', 'CLIENT_ADMIN'), opdController.updateVitals);
 
 // PATCH /api/opd/:id - Update OPD entry (Receptionist only)
-router.patch('/:id', authorize('RECEPTIONIST'), opdController.updateOpdEntry);
+router.patch('/:id', authorize('RECEPTIONIST', 'NURSE'), opdController.updateOpdEntry);
 
 // DELETE /api/opd/:id - Delete OPD entry (Receptionist only)
 router.delete('/:id', authorize('RECEPTIONIST'), opdController.deleteOpdEntry);

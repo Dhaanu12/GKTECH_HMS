@@ -12,7 +12,8 @@ import {
     Activity,
     Phone,
     Calendar,
-    HeartPulse
+    HeartPulse,
+    Edit
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -177,7 +178,7 @@ export default function NursePatients() {
 
                                             {/* Action Arrow */}
                                             <div className="h-10 w-10 rounded-full bg-slate-50 group-hover:bg-indigo-600 flex items-center justify-center transition-colors shadow-sm group-hover:shadow-lg group-hover:shadow-indigo-500/30">
-                                                <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-white transition-colors" />
+                                                <Edit className="w-4 h-4 text-slate-400 group-hover:text-white transition-colors" />
                                             </div>
                                         </div>
                                     </div>

@@ -1217,7 +1217,12 @@ exports.getDashboardStats = async (req, res, next) => {
                         total_insurers: 0,
                         total_claims: 0,
                         total_pending_amount: 0,
-                        hospital_name: ''
+                        total_bill_amount: 0,
+                        hospital_name: '',
+                        referral_doctors: 0,
+                        referral_payouts: 0,
+                        top_insurers: [],
+                        recent_referral_payouts: []
                     }
                 });
             }
@@ -1240,17 +1245,88 @@ exports.getDashboardStats = async (req, res, next) => {
             `;
             const insurerRes = await client.query(insurerQuery, [hospitalIds]);
 
-            // 3. Claims Stats (Total count, Pending Amount)
+            // 3. Claims Stats (Total count, Pending Amount, Bill Amount)
             const claimsQuery = `
                 SELECT 
                     COUNT(*) as total_count,
-                    COALESCE(SUM(pending_amount), 0) as total_pending
+                    COALESCE(SUM(pending_amount), 0) as total_pending,
+                    COALESCE(SUM(bill_amount), 0) as total_bill
                 FROM insurance_claims
                 WHERE hospital_id = ANY($1)
             `;
             const claimsRes = await client.query(claimsQuery, [hospitalIds]);
 
-            // Get Hospital Name (assuming single hospital context mostly)
+            // 4. Top 5 Insurance Companies with pending amounts
+            const topInsurersQuery = `
+                SELECT 
+                    insurance_name,
+                    COUNT(*) as claim_count,
+                    COALESCE(SUM(pending_amount), 0) as pending_amount,
+                    COALESCE(SUM(bill_amount), 0) as bill_amount
+                FROM insurance_claims
+                WHERE hospital_id = ANY($1) 
+                  AND insurance_name IS NOT NULL 
+                  AND insurance_name != ''
+                GROUP BY insurance_name
+                ORDER BY pending_amount DESC
+                LIMIT 5
+            `;
+            const topInsurersRes = await client.query(topInsurersQuery, [hospitalIds]);
+
+            // 5. Referral Doctor Count
+            let referralDoctorCount = 0;
+            let referralPayoutTotal = 0;
+            let recentReferralPayouts = [];
+
+            try {
+                // Get all relevant hospital IDs (from assigned branches + user's primary hospital)
+                const allHospitalIds = [...new Set([...hospitalIds, req.user.hospital_id].filter(id => id != null))];
+
+                const referralDoctorQuery = `
+                    SELECT COUNT(*) as count 
+                    FROM referral_doctor_module 
+                    WHERE tenant_id = ANY($1)
+                `;
+                const referralDoctorRes = await client.query(referralDoctorQuery, [allHospitalIds]);
+                referralDoctorCount = parseInt(referralDoctorRes.rows[0]?.count || 0);
+
+                // 6. Referral Payouts (current month for these hospitals)
+                const referralPayoutQuery = `
+                    SELECT COALESCE(SUM(rd.referral_amount), 0) as total_payout
+                    FROM referral_data rd
+                    JOIN referral_header rh ON rd.header_id = rh.header_id
+                    JOIN referral_doctor_module rdm ON rd.referral_doctor_id = rdm.id
+                    WHERE DATE_TRUNC('month', rh.upload_date) = DATE_TRUNC('month', CURRENT_DATE)
+                      AND rdm.tenant_id = ANY($1)
+                `;
+                const referralPayoutRes = await client.query(referralPayoutQuery, [allHospitalIds]);
+                referralPayoutTotal = parseFloat(referralPayoutRes.rows[0]?.total_payout || 0);
+
+                // 7. Recent Referral Payouts (last 30 days)
+                const recentPayoutsQuery = `
+                    SELECT 
+                        rdm.doctor_name,
+                        COALESCE(SUM(rd.referral_amount), 0) as total_amount
+                    FROM referral_data rd
+                    JOIN referral_header rh ON rd.header_id = rh.header_id
+                    JOIN referral_doctor_module rdm ON rd.referral_doctor_id = rdm.id
+                    WHERE rh.upload_date >= CURRENT_DATE - INTERVAL '30 days'
+                      AND rdm.tenant_id = ANY($1)
+                    GROUP BY rdm.doctor_name
+                    ORDER BY total_amount DESC
+                    LIMIT 5
+                `;
+                const recentPayoutsRes = await client.query(recentPayoutsQuery, [allHospitalIds]);
+                recentReferralPayouts = recentPayoutsRes.rows.map(row => ({
+                    doctor_name: row.doctor_name,
+                    amount: parseFloat(row.total_amount)
+                }));
+            } catch (err) {
+                // Referral tables might not exist, continue with defaults
+                console.log('Referral tables not found, using defaults');
+            }
+
+            // Get Hospital Name
             const hospitalNameQuery = `SELECT hospital_name FROM hospitals WHERE hospital_id = $1`;
             const hospitalNameRes = await client.query(hospitalNameQuery, [hospitalIds[0]]);
 
@@ -1261,7 +1337,17 @@ exports.getDashboardStats = async (req, res, next) => {
                     total_insurers: parseInt(insurerRes.rows[0].count),
                     total_claims: parseInt(claimsRes.rows[0].total_count),
                     total_pending_amount: parseFloat(claimsRes.rows[0].total_pending),
-                    hospital_name: hospitalNameRes.rows[0]?.hospital_name || 'Hospital'
+                    total_bill_amount: parseFloat(claimsRes.rows[0].total_bill),
+                    hospital_name: hospitalNameRes.rows[0]?.hospital_name || 'Hospital',
+                    referral_doctors: referralDoctorCount,
+                    referral_payouts: referralPayoutTotal,
+                    top_insurers: topInsurersRes.rows.map(row => ({
+                        name: row.insurance_name,
+                        claims: parseInt(row.claim_count),
+                        pending: parseFloat(row.pending_amount),
+                        bill: parseFloat(row.bill_amount)
+                    })),
+                    recent_referral_payouts: recentReferralPayouts
                 }
             });
 

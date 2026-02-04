@@ -151,6 +151,7 @@ exports.getAllReferralDoctorsWithPercentages = async (req, res) => {
                 rd.pan_upload_path,
                 rd.status,
                 rd.referral_pay,
+                h.hospital_name,
                 COALESCE(
                     json_agg(
                         json_build_object(
@@ -166,8 +167,9 @@ exports.getAllReferralDoctorsWithPercentages = async (req, res) => {
                 ) as percentages
             FROM referral_doctor_module rd
             LEFT JOIN referral_doctor_service_percentage_module rdsp ON rd.id = rdsp.referral_doctor_id
+            LEFT JOIN hospitals h ON rd.tenant_id = h.hospital_id
             WHERE rd.tenant_id = $1
-            GROUP BY rd.id, rd.doctor_name, rd.mobile_number, rd.speciality_type, rd.clinic_name, rd.medical_council_membership_number, rd.pan_card_number, rd.pan_upload_path, rd.status, rd.referral_pay
+            GROUP BY rd.id, rd.doctor_name, rd.mobile_number, rd.speciality_type, rd.clinic_name, rd.medical_council_membership_number, rd.pan_card_number, rd.pan_upload_path, rd.status, rd.referral_pay, h.hospital_name
             ORDER BY rd.doctor_name
         `;
 
@@ -191,7 +193,12 @@ exports.getHospitalServices = async (req, res) => {
              FROM services s
              JOIN branch_services bs ON s.service_id = bs.service_id
              WHERE bs.branch_id = $1 AND bs.is_active = true
-             ORDER BY s.service_name`,
+             UNION ALL
+             SELECT ms.service_id, ms.service_code, ms.service_name, ms.category as service_description, 18 as gst_rate, bms.is_active
+             FROM medical_services ms
+             JOIN branch_medical_services bms ON ms.service_id = bms.service_id
+             WHERE bms.branch_id = $1 AND bms.is_active = true
+             ORDER BY service_name`,
             [branchId]
         );
         res.status(200).json({ success: true, data: result.rows });

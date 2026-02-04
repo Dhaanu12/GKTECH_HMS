@@ -1,4 +1,6 @@
 const PatientVitals = require('../models/PatientVitals');
+const OpdEntry = require('../models/OpdEntry');
+const { query } = require('../config/db');
 const { AppError } = require('../middleware/errorHandler');
 
 /**
@@ -34,17 +36,44 @@ class VitalsController {
             }
 
             // Check if at least one vital is provided
-            const hasVitals = blood_pressure_systolic || blood_pressure_diastolic || 
-                              pulse_rate || temperature || spo2 || respiratory_rate ||
-                              weight || height || blood_glucose || pain_level !== undefined;
+            const hasVitals = blood_pressure_systolic || blood_pressure_diastolic ||
+                pulse_rate || temperature || spo2 || respiratory_rate ||
+                weight || height || blood_glucose || pain_level !== undefined;
 
             if (!hasVitals) {
                 return next(new AppError('At least one vital sign is required', 400));
             }
 
-            const branch_id = req.user.branch_id;
+            console.log('User object:', req.user);
+            console.log('User ID:', req.userId);
+            console.log('Branch ID from user:', req.user?.branch_id);
+
+            let branch_id = req.user?.branch_id;
+
+            // Fallback: Try to get branch_id from OPD record if missing
+            if (!branch_id && opd_id) {
+                try {
+                    console.log('User has no branch_id, attempting to fetch from OPD record:', opd_id);
+                    const opdEntry = await OpdEntry.findById(opd_id);
+                    if (opdEntry && opdEntry.branch_id) {
+                        branch_id = opdEntry.branch_id;
+                        console.log('Retrieved branch_id from OPD record:', branch_id);
+                    } else {
+                        console.log('OPD record found but no branch_id:', opdEntry);
+                    }
+                } catch (err) {
+                    console.error('Error fetching OPD entry for branch fallback:', err);
+                }
+            }
+
             if (!branch_id) {
-                return next(new AppError('Branch not found for user', 400));
+                console.error('Branch ID not found. User object:', JSON.stringify(req.user, null, 2));
+                // Return detailed error to frontend for debugging
+                return res.status(400).json({
+                    status: 'error',
+                    message: 'Branch not found for user. Please contact administrator.',
+                    debug: { userId: req.user?.user_id, opdId: opd_id }
+                });
             }
 
             const vitalsData = {
@@ -65,7 +94,38 @@ class VitalsController {
                 recorded_by: req.userId
             };
 
+            console.log('Vitals data to save:', vitalsData);
+
             const vitals = await PatientVitals.recordVitals(vitalsData);
+
+            console.log('Vitals saved successfully:', vitals);
+
+            // Sync with opd_entries table for backward compatibility and to ensure GET /api/opd/:id returns latest data
+            if (opd_id) {
+                try {
+                    const legacyVitals = {
+                        grbs: blood_glucose,
+                        spo2,
+                        pulse: pulse_rate,
+                        temperature,
+                        bp_systolic: blood_pressure_systolic,
+                        bp_diastolic: blood_pressure_diastolic,
+                        height,
+                        weight,
+                        respiratory_rate,
+                        pain_level,
+                        notes
+                    };
+
+                    await query('UPDATE opd_entries SET vital_signs = $1 WHERE opd_id = $2', [
+                        JSON.stringify(legacyVitals),
+                        opd_id
+                    ]);
+                    console.log('Synced vitals to opd_entries table for OPD ID:', opd_id);
+                } catch (syncError) {
+                    console.error('Error syncing to opd_entries (non-fatal):', syncError);
+                }
+            }
 
             res.status(201).json({
                 status: 'success',
@@ -74,7 +134,14 @@ class VitalsController {
             });
         } catch (error) {
             console.error('Record vitals error:', error);
-            next(new AppError(error.message, 500));
+            console.error('Error stack:', error.stack);
+            // Return explicit JSON error for debugging
+            res.status(500).json({
+                status: 'error',
+                message: error.message,
+                stack: error.stack,
+                details: 'Error saving vitals record'
+            });
         }
     }
 
@@ -143,7 +210,7 @@ class VitalsController {
             const { days } = req.query;
 
             const stats = await PatientVitals.getVitalsStats(
-                patientId, 
+                patientId,
                 days ? parseInt(days) : 30
             );
 

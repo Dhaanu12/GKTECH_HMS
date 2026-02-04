@@ -5,17 +5,11 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
     LayoutDashboard,
-    Upload,
     LogOut,
     Menu,
     X,
     FileText,
-    BarChart3,
-    FileBarChart,
-    CreditCard,
     Users,
-    ChevronDown,
-    ChevronRight,
     IndianRupee
 } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
@@ -26,7 +20,6 @@ export default function AccountantLayout({
     children: React.ReactNode;
 }) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [expandedMenu, setExpandedMenu] = useState<string | null>('Referral Payments'); // Auto-expand for visibility
     const pathname = usePathname();
     const router = useRouter();
     const { user, logout, loading } = useAuth();
@@ -47,34 +40,17 @@ export default function AccountantLayout({
 
     if (!user) return null;
 
+    // Consolidated Navigation - simplified for better UX
     const navigation = [
         { name: 'Dashboard', href: '/accountant/dashboard', icon: LayoutDashboard },
-        { name: 'Analytics', href: '/accountant/insurance-claims', icon: FileBarChart },
-        { name: 'Reports', href: '/accountant/reports', icon: BarChart3 },
-        { name: 'Update Payment', href: '/accountant/update-payment', icon: CreditCard },
-        { name: 'File Upload', href: '/accountant/upload', icon: Upload },
-        {
-            name: 'Referral Payments',
-            icon: IndianRupee,
-            children: [
-                { name: 'Bill Data Upload', href: '/accountant/referral-payment/upload' },
-                { name: 'Payment Reports', href: '/accountant/referral-payment/reports' }
-            ]
-        },
-        { name: 'Referral Management', href: '/accounts/dashboard', icon: Users },
+        { name: 'Claims', href: '/accountant/insurance-claims', icon: FileText },
+        { name: 'Referral Config', href: '/accounts/referrals', icon: Users },
+        { name: 'Referral Payments', href: '/accounts/payments', icon: IndianRupee },
     ];
 
     const handleLogout = () => {
         logout();
         router.push('/login');
-    };
-
-    const toggleMenu = (name: string) => {
-        if (expandedMenu === name) {
-            setExpandedMenu(null);
-        } else {
-            setExpandedMenu(name);
-        }
     };
 
     return (
@@ -115,69 +91,19 @@ export default function AccountantLayout({
                     {/* Navigation */}
                     <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
                         {navigation.map((item) => {
-                            // @ts-ignore
-                            const hasChildren = item.children && item.children.length > 0;
-                            const isActive = pathname === item.href;
-                            const isExpanded = expandedMenu === item.name;
-
-                            if (hasChildren) {
-                                return (
-                                    <div key={item.name} className="space-y-1">
-                                        <button
-                                            onClick={() => toggleMenu(item.name)}
-                                            className={`
-                                                w-full flex items-center justify-between px-4 py-3 rounded-lg transition-all duration-200
-                                                ${isActive || isExpanded
-                                                    ? 'bg-slate-800 text-white'
-                                                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                                                }
-                                            `}
-                                        >
-                                            <div className="flex items-center space-x-3">
-                                                <item.icon className="w-5 h-5 text-slate-400" />
-                                                <span className="font-medium">{item.name}</span>
-                                            </div>
-                                            {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                                        </button>
-
-                                        {isExpanded && (
-                                            <div className="pl-11 space-y-1 transition-all duration-200 ease-in-out">
-                                                {/* @ts-ignore */}
-                                                {item.children.map((child: any) => {
-                                                    const isChildActive = pathname === child.href;
-                                                    return (
-                                                        <Link
-                                                            key={child.name}
-                                                            href={child.href}
-                                                            className={`
-                                                                block px-4 py-2 rounded-md text-sm font-medium transition-colors
-                                                                ${isChildActive
-                                                                    ? 'bg-blue-600 text-white shadow-md'
-                                                                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
-                                                                }
-                                                            `}
-                                                        >
-                                                            {child.name}
-                                                        </Link>
-                                                    );
-                                                })}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            }
+                            const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
 
                             return (
                                 <Link
                                     key={item.name}
-                                    href={item.href || '#'}
+                                    href={item.href}
                                     className={`
-                    flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200
-                    ${isActive
+                                        flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200
+                                        ${isActive
                                             ? 'bg-blue-900 text-white shadow-lg shadow-blue-900/20'
                                             : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                                         }
-                  `}
+                                    `}
                                 >
                                     <item.icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-white'}`} />
                                     <span className="font-medium">{item.name}</span>

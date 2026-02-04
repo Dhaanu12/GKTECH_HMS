@@ -300,8 +300,9 @@ class PatientController {
             const { search } = req.query;
 
             let sql = `
-                SELECT DISTINCT p.*, 
-                       MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit
+                SELECT p.*, 
+                       MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit,
+                       BOOL_OR(o.is_mlc) as is_mlc
                 FROM patients p
                 LEFT JOIN appointments a ON p.patient_id = a.patient_id
                 LEFT JOIN opd_entries o ON p.patient_id = o.patient_id

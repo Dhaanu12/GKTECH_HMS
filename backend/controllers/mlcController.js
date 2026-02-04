@@ -8,7 +8,7 @@ class MlcController {
             const result = await pool.query(`
                 SELECT m.*, 
                        p.first_name, p.last_name, p.age, p.gender, p.address, p.city,
-                       d.first_name as doctor_first_name, d.last_name as doctor_last_name, d.qualification, d.registration_number,
+                       d.first_name as doctor_first_name, d.last_name as doctor_last_name, d.qualification, d.registration_number, d.contact_number as doctor_phone,
                        b.branch_name, b.address_line1 as branch_address, b.city as branch_city
                 FROM mlc_entries m
                 JOIN patients p ON m.patient_id = p.patient_id
@@ -146,7 +146,7 @@ class MlcController {
             const finalQuery = `
                 SELECT m.*, 
                        p.first_name, p.last_name, p.age, p.gender, p.address, p.city,
-                       d.first_name as doctor_first_name, d.last_name as doctor_last_name, d.qualification, d.registration_number,
+                       d.first_name as doctor_first_name, d.last_name as doctor_last_name, d.qualification, d.registration_number, d.contact_number as doctor_phone,
                        b.branch_name, b.address_line1 as branch_address, b.city as branch_city
                 FROM mlc_entries m
                 JOIN patients p ON m.patient_id = p.patient_id

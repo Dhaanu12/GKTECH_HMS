@@ -5,19 +5,12 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
     LayoutDashboard,
-    Upload,
     LogOut,
     Menu,
     X,
     FileText,
-    BarChart3,
-    FileBarChart,
-    CreditCard,
     Users,
-    Percent,
-    IndianRupee,
-    ChevronDown,
-    ChevronRight
+    IndianRupee
 } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 
@@ -47,34 +40,13 @@ export default function AccountsLayout({
 
     if (!user) return null;
 
-    const [expandedMenu, setExpandedMenu] = useState<string | null>('Referral Payments'); // Auto-expand for visibility
-
-    // Unified Navigation matching AccountantLayout + Extra Accounts links
+    // Consolidated Navigation - simplified for better UX
     const navigation = [
         { name: 'Dashboard', href: '/accountant/dashboard', icon: LayoutDashboard },
-        { name: 'Analytics', href: '/accountant/insurance-claims', icon: FileBarChart },
-        { name: 'Reports', href: '/accountant/reports', icon: BarChart3 },
-        { name: 'Update Payment', href: '/accountant/update-payment', icon: CreditCard },
-        { name: 'File Upload', href: '/accountant/upload', icon: Upload },
-        {
-            name: 'Referral Payments',
-            icon: IndianRupee,
-            children: [
-                { name: 'Bill Data Upload', href: '/accountant/referral-payment/upload' },
-                { name: 'Payment Reports', href: '/accountant/referral-payment/reports' }
-            ]
-        },
-        { name: 'Referral Management', href: '/accounts/dashboard', icon: Users },
-        { name: 'Bulk Service Config', href: '/accounts/bulk-setup', icon: Percent },
+        { name: 'Claims', href: '/accountant/insurance-claims', icon: FileText },
+        { name: 'Referral Config', href: '/accounts/referrals', icon: Users },
+        { name: 'Referral Payments', href: '/accounts/payments', icon: IndianRupee },
     ];
-
-    const toggleMenu = (name: string) => {
-        if (expandedMenu === name) {
-            setExpandedMenu(null);
-        } else {
-            setExpandedMenu(name);
-        }
-    };
 
     const handleLogout = () => {
         logout();
@@ -119,67 +91,19 @@ export default function AccountsLayout({
                     {/* Navigation */}
                     <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
                         {navigation.map((item) => {
-                            const isActive = pathname === item.href || (item.children && item.children.some(child => pathname === child.href));
-
-                            if (item.children) {
-                                return (
-                                    <div key={item.name} className="space-y-1">
-                                        <button
-                                            onClick={() => toggleMenu(item.name)}
-                                            className={`
-                                                w-full flex items-center justify-between px-4 py-3 rounded-lg transition-all duration-200
-                                                ${isActive ? 'bg-blue-800/50 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}
-                                            `}
-                                        >
-                                            <div className="flex items-center space-x-3">
-                                                <item.icon className={`w-5 h-5 ${isActive ? 'text-blue-400' : 'text-slate-400'}`} />
-                                                <span className="font-medium">{item.name}</span>
-                                            </div>
-                                            {expandedMenu === item.name ? (
-                                                <ChevronDown className="w-4 h-4 text-slate-400" />
-                                            ) : (
-                                                <ChevronRight className="w-4 h-4 text-slate-400" />
-                                            )}
-                                        </button>
-
-                                        {expandedMenu === item.name && (
-                                            <div className="pl-4 space-y-1 bg-slate-900/50 rounded-lg py-2 mt-1 mx-2 border border-slate-700/30">
-                                                {item.children.map((child) => {
-                                                    const isChildActive = pathname === child.href;
-                                                    return (
-                                                        <Link
-                                                            key={child.name}
-                                                            href={child.href}
-                                                            className={`
-                                                                flex items-center space-x-3 px-4 py-2 rounded-md text-sm transition-all duration-200 ml-2
-                                                                ${isChildActive
-                                                                    ? 'bg-blue-600 text-white shadow-md'
-                                                                    : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
-                                                                }
-                                                            `}
-                                                        >
-                                                            <div className={`w-1.5 h-1.5 rounded-full ${isChildActive ? 'bg-white' : 'bg-slate-500'}`}></div>
-                                                            <span className="font-medium">{child.name}</span>
-                                                        </Link>
-                                                    );
-                                                })}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            }
+                            const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
 
                             return (
                                 <Link
                                     key={item.name}
                                     href={item.href}
                                     className={`
-                    flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200
-                    ${isActive
+                                        flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200
+                                        ${isActive
                                             ? 'bg-blue-900 text-white shadow-lg shadow-blue-900/20'
                                             : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                                         }
-                  `}
+                                    `}
                                 >
                                     <item.icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-white'}`} />
                                     <span className="font-medium">{item.name}</span>

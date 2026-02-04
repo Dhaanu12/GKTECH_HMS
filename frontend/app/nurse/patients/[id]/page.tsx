@@ -43,7 +43,8 @@ import {
     Pill,
     AlertCircle,
     ChevronRight,
-    Filter
+    Filter,
+    Save
 } from 'lucide-react';
 
 const API_URL = 'http://localhost:5000/api';
@@ -78,6 +79,18 @@ export default function NursePatientDetails() {
     const [vitalsHistory, setVitalsHistory] = useState<any[]>([]);
     const [clinicalNotes, setClinicalNotes] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [showVitalsModal, setShowVitalsModal] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [vitalsForm, setVitalsForm] = useState({
+        bp_systolic: '',
+        bp_diastolic: '',
+        pulse: '',
+        temperature: '',
+        weight: '',
+        height: '',
+        spo2: '',
+        grbs: ''
+    });
 
     // UI state
     const [activeTab, setActiveTab] = useState<'overview' | 'vitals' | 'notes' | 'labs' | 'documents'>('overview');
@@ -89,7 +102,6 @@ export default function NursePatientDetails() {
     const [viewingLabOrder, setViewingLabOrder] = useState<any>(null);
     const [labOrderDocs, setLabOrderDocs] = useState<any[]>([]);
     const [loadingLabDocs, setLoadingLabDocs] = useState(false);
-    const [showVitalsModal, setShowVitalsModal] = useState(false);
     const [showNotesModal, setShowNotesModal] = useState(false);
 
     // Notes filter
@@ -226,6 +238,60 @@ export default function NursePatientDetails() {
         }
     };
 
+    // Vitals handler
+    const handleSaveVitals = async () => {
+        if (!latestOpdId) {
+            alert('No active OPD visit found to record vitals against.');
+            return;
+        }
+
+        setSaving(true);
+        try {
+            const token = localStorage.getItem('token');
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+            // Prepare vitals data
+            const vitalsData = {
+                patient_id: params.id,
+                opd_id: latestOpdId,
+                blood_pressure_systolic: vitalsForm.bp_systolic || null,
+                blood_pressure_diastolic: vitalsForm.bp_diastolic || null,
+                pulse_rate: vitalsForm.pulse || null,
+                temperature: vitalsForm.temperature || null,
+                weight: vitalsForm.weight || null,
+                height: vitalsForm.height || null,
+                spo2: vitalsForm.spo2 || null,
+                respiratory_rate: null,
+                recorded_by: user.user_id
+            };
+
+            await axios.post(`${API_URL}/vitals`, vitalsData, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            // Refresh data
+            await fetchPatientDetails();
+            setShowVitalsModal(false);
+
+            // Reset form
+            setVitalsForm({
+                bp_systolic: '',
+                bp_diastolic: '',
+                pulse: '',
+                temperature: '',
+                weight: '',
+                height: '',
+                spo2: '',
+                grbs: ''
+            });
+        } catch (error) {
+            console.error('Error saving vitals:', error);
+            alert('Failed to save vitals. Please try again.');
+        } finally {
+            setSaving(false);
+        }
+    };
+
     // Calculate vitals trends
     const getVitalsTrend = (current: number, previous: number | undefined) => {
         if (!previous) return null;
@@ -356,10 +422,10 @@ export default function NursePatientDetails() {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div >
 
                 {/* Quick Stats */}
-                <div className="grid grid-cols-2 md:grid-cols-5 divide-x divide-y md:divide-y-0 divide-slate-100">
+                < div className="grid grid-cols-2 md:grid-cols-5 divide-x divide-y md:divide-y-0 divide-slate-100" >
                     <div className="p-4 text-center">
                         <p className="text-2xl font-bold text-slate-800">{opdHistory.length}</p>
                         <p className="text-xs text-slate-500 font-medium">Visits</p>
@@ -380,87 +446,89 @@ export default function NursePatientDetails() {
                         <p className="text-2xl font-bold text-slate-800">{documents.length}</p>
                         <p className="text-xs text-slate-500 font-medium">Documents</p>
                     </div>
-                </div>
-            </div>
+                </div >
+            </div >
 
             {/* Latest Vitals Summary */}
-            {latestVitals && (
-                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                            <HeartPulse className="w-5 h-5 text-red-500" />
-                            Latest Vitals
-                        </h3>
-                        <span className="text-sm text-slate-500">
-                            {new Date(latestVitals.recorded_at).toLocaleDateString('en-US', {
-                                month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'
-                            })}
-                        </span>
+            {
+                latestVitals && (
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                <HeartPulse className="w-5 h-5 text-red-500" />
+                                Latest Vitals
+                            </h3>
+                            <span className="text-sm text-slate-500">
+                                {new Date(latestVitals.recorded_at).toLocaleDateString('en-US', {
+                                    month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                                })}
+                            </span>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                            {latestVitals.blood_pressure_systolic && (
+                                <VitalCard
+                                    label="Blood Pressure"
+                                    value={`${latestVitals.blood_pressure_systolic}/${latestVitals.blood_pressure_diastolic}`}
+                                    unit="mmHg"
+                                    trend={getVitalsTrend(latestVitals.blood_pressure_systolic, previousVitals?.blood_pressure_systolic)}
+                                    icon={<Activity className="w-5 h-5" />}
+                                    color="blue"
+                                />
+                            )}
+                            {latestVitals.pulse_rate && (
+                                <VitalCard
+                                    label="Pulse Rate"
+                                    value={latestVitals.pulse_rate}
+                                    unit="bpm"
+                                    trend={getVitalsTrend(latestVitals.pulse_rate, previousVitals?.pulse_rate)}
+                                    icon={<HeartPulse className="w-5 h-5" />}
+                                    color="red"
+                                />
+                            )}
+                            {latestVitals.temperature && (
+                                <VitalCard
+                                    label="Temperature"
+                                    value={latestVitals.temperature}
+                                    unit="°F"
+                                    trend={getVitalsTrend(latestVitals.temperature, previousVitals?.temperature)}
+                                    icon={<Thermometer className="w-5 h-5" />}
+                                    color="amber"
+                                />
+                            )}
+                            {latestVitals.spo2 && (
+                                <VitalCard
+                                    label="SpO2"
+                                    value={latestVitals.spo2}
+                                    unit="%"
+                                    trend={getVitalsTrend(latestVitals.spo2, previousVitals?.spo2)}
+                                    icon={<Droplets className="w-5 h-5" />}
+                                    color="cyan"
+                                />
+                            )}
+                            {latestVitals.respiratory_rate && (
+                                <VitalCard
+                                    label="Resp. Rate"
+                                    value={latestVitals.respiratory_rate}
+                                    unit="/min"
+                                    trend={getVitalsTrend(latestVitals.respiratory_rate, previousVitals?.respiratory_rate)}
+                                    icon={<Wind className="w-5 h-5" />}
+                                    color="teal"
+                                />
+                            )}
+                            {latestVitals.weight && (
+                                <VitalCard
+                                    label="Weight"
+                                    value={latestVitals.weight}
+                                    unit="kg"
+                                    trend={getVitalsTrend(latestVitals.weight, previousVitals?.weight)}
+                                    icon={<User className="w-5 h-5" />}
+                                    color="violet"
+                                />
+                            )}
+                        </div>
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                        {latestVitals.blood_pressure_systolic && (
-                            <VitalCard
-                                label="Blood Pressure"
-                                value={`${latestVitals.blood_pressure_systolic}/${latestVitals.blood_pressure_diastolic}`}
-                                unit="mmHg"
-                                trend={getVitalsTrend(latestVitals.blood_pressure_systolic, previousVitals?.blood_pressure_systolic)}
-                                icon={<Activity className="w-5 h-5" />}
-                                color="blue"
-                            />
-                        )}
-                        {latestVitals.pulse_rate && (
-                            <VitalCard
-                                label="Pulse Rate"
-                                value={latestVitals.pulse_rate}
-                                unit="bpm"
-                                trend={getVitalsTrend(latestVitals.pulse_rate, previousVitals?.pulse_rate)}
-                                icon={<HeartPulse className="w-5 h-5" />}
-                                color="red"
-                            />
-                        )}
-                        {latestVitals.temperature && (
-                            <VitalCard
-                                label="Temperature"
-                                value={latestVitals.temperature}
-                                unit="°F"
-                                trend={getVitalsTrend(latestVitals.temperature, previousVitals?.temperature)}
-                                icon={<Thermometer className="w-5 h-5" />}
-                                color="amber"
-                            />
-                        )}
-                        {latestVitals.spo2 && (
-                            <VitalCard
-                                label="SpO2"
-                                value={latestVitals.spo2}
-                                unit="%"
-                                trend={getVitalsTrend(latestVitals.spo2, previousVitals?.spo2)}
-                                icon={<Droplets className="w-5 h-5" />}
-                                color="cyan"
-                            />
-                        )}
-                        {latestVitals.respiratory_rate && (
-                            <VitalCard
-                                label="Resp. Rate"
-                                value={latestVitals.respiratory_rate}
-                                unit="/min"
-                                trend={getVitalsTrend(latestVitals.respiratory_rate, previousVitals?.respiratory_rate)}
-                                icon={<Wind className="w-5 h-5" />}
-                                color="teal"
-                            />
-                        )}
-                        {latestVitals.weight && (
-                            <VitalCard
-                                label="Weight"
-                                value={latestVitals.weight}
-                                unit="kg"
-                                trend={getVitalsTrend(latestVitals.weight, previousVitals?.weight)}
-                                icon={<User className="w-5 h-5" />}
-                                color="violet"
-                            />
-                        )}
-                    </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Tabs */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -476,8 +544,8 @@ export default function NursePatientDetails() {
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id as any)}
                             className={`flex items-center gap-2 px-6 py-4 text-sm font-bold transition-all whitespace-nowrap ${activeTab === tab.id
-                                    ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50'
-                                    : 'text-slate-500 hover:bg-slate-50'
+                                ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50'
+                                : 'text-slate-500 hover:bg-slate-50'
                                 }`}
                         >
                             <tab.icon className="w-4 h-4" />
@@ -722,8 +790,8 @@ export default function NursePatientDetails() {
                                                     <div className="flex items-center gap-2 mb-1">
                                                         <span className="font-bold text-slate-800">{order.test_name}</span>
                                                         <span className={`px-2 py-0.5 rounded text-xs font-bold ${order.status === 'Completed' ? 'bg-emerald-100 text-emerald-700' :
-                                                                order.status === 'In-Progress' ? 'bg-amber-100 text-amber-700' :
-                                                                    'bg-blue-100 text-blue-700'
+                                                            order.status === 'In-Progress' ? 'bg-amber-100 text-amber-700' :
+                                                                'bg-blue-100 text-blue-700'
                                                             }`}>
                                                             {order.status}
                                                         </span>
@@ -820,98 +888,106 @@ export default function NursePatientDetails() {
                         </div>
                     )}
                 </div>
-            </div>
+            </div >
 
             {/* Record Vitals Modal */}
-            {showVitalsModal && patient && (
-                <RecordVitalsModal
-                    patientId={patient.patient_id}
-                    opdId={latestOpdId}
-                    patientName={`${patient?.first_name} ${patient?.last_name}`}
-                    onClose={() => setShowVitalsModal(false)}
-                    onSuccess={() => {
-                        setShowVitalsModal(false);
-                        fetchPatientDetails();
-                    }}
-                />
-            )}
+            {
+                showVitalsModal && patient && (
+                    <RecordVitalsModal
+                        patientId={patient.patient_id}
+                        opdId={latestOpdId}
+                        patientName={`${patient?.first_name} ${patient?.last_name}`}
+                        onClose={() => setShowVitalsModal(false)}
+                        onSuccess={() => {
+                            setShowVitalsModal(false);
+                            fetchPatientDetails();
+                        }}
+                    />
+                )
+            }
 
             {/* Add Clinical Note Modal */}
-            {showNotesModal && patient && (
-                <AddNoteModal
-                    patientId={patient.patient_id}
-                    opdId={latestOpdId}
-                    patientName={`${patient?.first_name} ${patient?.last_name}`}
-                    onClose={() => setShowNotesModal(false)}
-                    onSuccess={() => {
-                        setShowNotesModal(false);
-                        fetchPatientDetails();
-                    }}
-                />
-            )}
+            {
+                showNotesModal && patient && (
+                    <AddNoteModal
+                        patientId={patient.patient_id}
+                        opdId={latestOpdId}
+                        patientName={`${patient?.first_name} ${patient?.last_name}`}
+                        onClose={() => setShowNotesModal(false)}
+                        onSuccess={() => {
+                            setShowNotesModal(false);
+                            fetchPatientDetails();
+                        }}
+                    />
+                )
+            }
 
             {/* Upload Document Modal */}
-            {showUploadModal && (
-                <DocumentUploadModal
-                    onClose={() => setShowUploadModal(false)}
-                    onUpload={handleUploadDocument}
-                    uploading={uploadingDoc}
-                />
-            )}
+            {
+                showUploadModal && (
+                    <DocumentUploadModal
+                        onClose={() => setShowUploadModal(false)}
+                        onUpload={handleUploadDocument}
+                        uploading={uploadingDoc}
+                    />
+                )
+            }
 
             {/* View Lab Results Modal */}
-            {viewingLabOrder && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-                        <div className="p-6 border-b border-slate-100">
-                            <div className="flex items-start justify-between">
-                                <div>
-                                    <h2 className="text-xl font-bold text-slate-800">Lab Results</h2>
-                                    <p className="text-sm text-slate-500 mt-1">
-                                        {viewingLabOrder.test_name} • {viewingLabOrder.order_number}
-                                    </p>
+            {
+                viewingLabOrder && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+                            <div className="p-6 border-b border-slate-100">
+                                <div className="flex items-start justify-between">
+                                    <div>
+                                        <h2 className="text-xl font-bold text-slate-800">Lab Results</h2>
+                                        <p className="text-sm text-slate-500 mt-1">
+                                            {viewingLabOrder.test_name} • {viewingLabOrder.order_number}
+                                        </p>
+                                    </div>
+                                    <button onClick={() => setViewingLabOrder(null)} className="p-2 hover:bg-slate-100 rounded-lg">
+                                        <X className="w-5 h-5 text-slate-500" />
+                                    </button>
                                 </div>
-                                <button onClick={() => setViewingLabOrder(null)} className="p-2 hover:bg-slate-100 rounded-lg">
-                                    <X className="w-5 h-5 text-slate-500" />
-                                </button>
+                            </div>
+                            <div className="p-6 overflow-y-auto flex-1">
+                                {loadingLabDocs ? (
+                                    <div className="flex justify-center py-8">
+                                        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+                                    </div>
+                                ) : labOrderDocs.length > 0 ? (
+                                    <div className="space-y-3">
+                                        {labOrderDocs.map(doc => (
+                                            <div key={doc.document_id} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+                                                <div className="flex items-center gap-3">
+                                                    <File className="w-8 h-8 text-blue-500" />
+                                                    <div>
+                                                        <p className="font-medium text-slate-800">{doc.file_name}</p>
+                                                        <p className="text-xs text-slate-500">{doc.description}</p>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={() => handleDownload(doc.document_id, doc.file_name)}
+                                                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+                                                >
+                                                    <Download className="w-4 h-4" />
+                                                    Download
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-8 text-slate-500">
+                                        No result documents uploaded yet
+                                    </div>
+                                )}
                             </div>
                         </div>
-                        <div className="p-6 overflow-y-auto flex-1">
-                            {loadingLabDocs ? (
-                                <div className="flex justify-center py-8">
-                                    <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-                                </div>
-                            ) : labOrderDocs.length > 0 ? (
-                                <div className="space-y-3">
-                                    {labOrderDocs.map(doc => (
-                                        <div key={doc.document_id} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
-                                            <div className="flex items-center gap-3">
-                                                <File className="w-8 h-8 text-blue-500" />
-                                                <div>
-                                                    <p className="font-medium text-slate-800">{doc.file_name}</p>
-                                                    <p className="text-xs text-slate-500">{doc.description}</p>
-                                                </div>
-                                            </div>
-                                            <button
-                                                onClick={() => handleDownload(doc.document_id, doc.file_name)}
-                                                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
-                                            >
-                                                <Download className="w-4 h-4" />
-                                                Download
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="text-center py-8 text-slate-500">
-                                    No result documents uploaded yet
-                                </div>
-                            )}
-                        </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 }
 
@@ -941,8 +1017,8 @@ function VitalCard({ label, value, unit, trend, icon, color }: {
                 </div>
                 {trend && (
                     <span className={`${trend === 'up' ? 'text-red-500' :
-                            trend === 'down' ? 'text-green-500' :
-                                'text-slate-400'
+                        trend === 'down' ? 'text-green-500' :
+                            'text-slate-400'
                         }`}>
                         {trend === 'up' ? <TrendingUp className="w-4 h-4" /> :
                             trend === 'down' ? <TrendingDown className="w-4 h-4" /> :
@@ -1008,8 +1084,8 @@ function NoteCard({ note, compact = false, onTogglePin, onDelete }: {
                             <button
                                 onClick={() => onTogglePin(note.note_id)}
                                 className={`p-2 rounded-lg transition-colors ${note.is_pinned
-                                        ? 'text-amber-500 hover:bg-amber-50'
-                                        : 'text-slate-400 hover:bg-slate-100'
+                                    ? 'text-amber-500 hover:bg-amber-50'
+                                    : 'text-slate-400 hover:bg-slate-100'
                                     }`}
                                 title={note.is_pinned ? 'Unpin' : 'Pin'}
                             >
@@ -1467,6 +1543,136 @@ function DocumentUploadModal({
                     </button>
                 </div>
             </div>
+
+            {/* Vitals Modal */}
+            {
+                showVitalsModal && (
+                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+                        <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full p-0 overflow-hidden">
+                            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+                                <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                    <Activity className="w-5 h-5 text-blue-600" /> Record Vitals
+                                </h2>
+                                <button
+                                    onClick={() => setShowVitalsModal(false)}
+                                    className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-slate-500 hover:bg-slate-100 transition shadow-sm border border-slate-100"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            <div className="p-8">
+                                <div className="bg-purple-50/50 p-6 rounded-2xl border border-purple-100">
+                                    <h3 className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-4">Vital Signs</h3>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-6">
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 mb-1.5">BP Systolic</label>
+                                            <div className="relative">
+                                                <input
+                                                    type="text"
+                                                    value={vitalsForm.bp_systolic}
+                                                    onChange={(e) => setVitalsForm({ ...vitalsForm, bp_systolic: e.target.value })}
+                                                    className="w-full px-4 py-2.5 bg-white border border-purple-100 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                                                    placeholder="mmHg"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 mb-1.5">BP Diastolic</label>
+                                            <div className="relative">
+                                                <input
+                                                    type="text"
+                                                    value={vitalsForm.bp_diastolic}
+                                                    onChange={(e) => setVitalsForm({ ...vitalsForm, bp_diastolic: e.target.value })}
+                                                    className="w-full px-4 py-2.5 bg-white border border-purple-100 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                                                    placeholder="mmHg"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 mb-1.5">Pulse</label>
+                                            <input
+                                                type="text"
+                                                value={vitalsForm.pulse}
+                                                onChange={(e) => setVitalsForm({ ...vitalsForm, pulse: e.target.value })}
+                                                className="w-full px-4 py-2.5 bg-white border border-purple-100 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                                                placeholder="bpm"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 mb-1.5">Temperature</label>
+                                            <input
+                                                type="text"
+                                                value={vitalsForm.temperature}
+                                                onChange={(e) => setVitalsForm({ ...vitalsForm, temperature: e.target.value })}
+                                                className="w-full px-4 py-2.5 bg-white border border-purple-100 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                                                placeholder="°F"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 mb-1.5">Weight</label>
+                                            <input
+                                                type="text"
+                                                value={vitalsForm.weight}
+                                                onChange={(e) => setVitalsForm({ ...vitalsForm, weight: e.target.value })}
+                                                className="w-full px-4 py-2.5 bg-white border border-purple-100 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                                                placeholder="kg"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 mb-1.5">Height</label>
+                                            <input
+                                                type="text"
+                                                value={vitalsForm.height}
+                                                onChange={(e) => setVitalsForm({ ...vitalsForm, height: e.target.value })}
+                                                className="w-full px-4 py-2.5 bg-white border border-purple-100 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                                                placeholder="cm"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 mb-1.5">SpO2</label>
+                                            <input
+                                                type="text"
+                                                value={vitalsForm.spo2}
+                                                onChange={(e) => setVitalsForm({ ...vitalsForm, spo2: e.target.value })}
+                                                className="w-full px-4 py-2.5 bg-white border border-purple-100 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                                                placeholder="%"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 mb-1.5">GRBS</label>
+                                            <input
+                                                type="text"
+                                                value={vitalsForm.grbs}
+                                                onChange={(e) => setVitalsForm({ ...vitalsForm, grbs: e.target.value })}
+                                                className="w-full px-4 py-2.5 bg-white border border-purple-100 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                                                placeholder="mg/dL"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+                                <button
+                                    onClick={() => setShowVitalsModal(false)}
+                                    className="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleSaveVitals}
+                                    disabled={saving}
+                                    className="px-5 py-2.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-lg shadow-blue-600/20 flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                                >
+                                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                    Save Vitals
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
         </div>
     );
 }
