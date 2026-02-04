@@ -43,7 +43,8 @@ import {
     Pill,
     AlertCircle,
     ChevronRight,
-    Filter
+    Filter,
+    Save
 } from 'lucide-react';
 
 const API_URL = 'http://localhost:5000/api';
@@ -101,7 +102,6 @@ export default function NursePatientDetails() {
     const [viewingLabOrder, setViewingLabOrder] = useState<any>(null);
     const [labOrderDocs, setLabOrderDocs] = useState<any[]>([]);
     const [loadingLabDocs, setLoadingLabDocs] = useState(false);
-    const [showVitalsModal, setShowVitalsModal] = useState(false);
     const [showNotesModal, setShowNotesModal] = useState(false);
 
     // Notes filter
@@ -235,6 +235,60 @@ export default function NursePatientDetails() {
             fetchPatientDetails();
         } catch (error) {
             console.error('Error deleting note:', error);
+        }
+    };
+
+    // Vitals handler
+    const handleSaveVitals = async () => {
+        if (!latestOpdId) {
+            alert('No active OPD visit found to record vitals against.');
+            return;
+        }
+
+        setSaving(true);
+        try {
+            const token = localStorage.getItem('token');
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+            // Prepare vitals data
+            const vitalsData = {
+                patient_id: params.id,
+                opd_id: latestOpdId,
+                blood_pressure_systolic: vitalsForm.bp_systolic || null,
+                blood_pressure_diastolic: vitalsForm.bp_diastolic || null,
+                pulse_rate: vitalsForm.pulse || null,
+                temperature: vitalsForm.temperature || null,
+                weight: vitalsForm.weight || null,
+                height: vitalsForm.height || null,
+                spo2: vitalsForm.spo2 || null,
+                respiratory_rate: null,
+                recorded_by: user.user_id
+            };
+
+            await axios.post(`${API_URL}/vitals`, vitalsData, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            // Refresh data
+            await fetchPatientDetails();
+            setShowVitalsModal(false);
+
+            // Reset form
+            setVitalsForm({
+                bp_systolic: '',
+                bp_diastolic: '',
+                pulse: '',
+                temperature: '',
+                weight: '',
+                height: '',
+                spo2: '',
+                grbs: ''
+            });
+        } catch (error) {
+            console.error('Error saving vitals:', error);
+            alert('Failed to save vitals. Please try again.');
+        } finally {
+            setSaving(false);
         }
     };
 

@@ -1610,8 +1610,17 @@ export default function PatientDetails() {
                         <div className="min-w-0">
                             <p className="text-[10px] font-bold text-purple-500 uppercase tracking-wider">Last Visit</p>
                             {(() => {
-                                const pastVisits = opdHistory.filter(opd => opd.visit_status === 'Completed');
+                                console.log('DEBUG: Full OpdHistory:', opdHistory);
+                                // Find active visit (currently being attended)
+                                const activeVisit = opdHistory.find(opd => ['Registered', 'In-consultation'].includes(opd.visit_status));
+                                console.log('DEBUG: Active Visit:', activeVisit);
+
+                                // Filter out the active visit to find true historical visits
+                                const pastVisits = opdHistory.filter(opd => opd.opd_id !== activeVisit?.opd_id);
+                                console.log('DEBUG: Past Visits (History):', pastVisits);
+
                                 if (pastVisits.length > 0) {
+                                    // Since opdHistory is sorted DESC, the first one remaining is the last visit
                                     const lastVisit = pastVisits[0];
                                     return (
                                         <>
@@ -1624,7 +1633,7 @@ export default function PatientDetails() {
                                         </>
                                     );
                                 }
-                                return <p className="text-sm text-slate-500">First Visit</p>;
+                                return <p className="text-sm text-slate-500 italic">No Past Visits</p>;
                             })()}
                         </div>
                     </div>
