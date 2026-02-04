@@ -17,6 +17,7 @@ const opdRoutes = require('./opdRoutes');
 const serviceRoutes = require('./serviceRoutes');
 const referralRoutes = require('./referralRoutes');
 const leadRoutes = require('./leadRoutes');
+const medicalServicesRoutes = require('./medicalServicesRoutes');
 router.get('/health', (req, res) => {
     res.status(200).json({
         status: 'success',
@@ -45,6 +46,10 @@ router.get('/', (req, res) => {
             appointments: '/api/appointments',
             opd: '/api/opd',
             shifts: '/api/shifts',
+            labOrders: '/api/lab-orders',
+            patientDocuments: '/api/patient-documents',
+            vitals: '/api/vitals',
+            clinicalNotes: '/api/clinical-notes',
         },
     });
 });
@@ -76,5 +81,17 @@ router.use('/referral-payment', require('./referralPayment/referralPaymentRoutes
 router.use('/lead-data', require('./leadDataRoutes'));
 router.use('/leads', leadRoutes);
 router.use('/feedback', require('./feedbackRoutes'));
+router.use('/billing-setup', require('./billingSetupRoutes'));
+router.use('/medical-services', medicalServicesRoutes);
+router.use('/follow-ups', require('./followUpRoutes'));
+router.use('/feedback', require('./feedbackRoutes'));
+// ... other routes
+router.use('/templates', require('./templateRoutes'));
+router.use('/doctor-schedules', require('./doctorScheduleRoutes')); // Added new route
+router.use('/feedback', require('./feedbackRoutes'));
+router.use('/lab-orders', require('./labOrderRoutes'));
+router.use('/patient-documents', require('./patientDocumentRoutes'));
+router.use('/vitals', require('./vitalsRoutes'));
+router.use('/clinical-notes', require('./clinicalNotesRoutes'));
 
 module.exports = router;

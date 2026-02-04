@@ -196,6 +196,7 @@ class AuthController {
                 role: userWithRole.role_code, // Add role code
                 branch_id: userWithRole.branch_id, // Add branch_id for branch-specific operations
                 doctor_id: userWithRole.doctor_id, // Add doctor_id for doctor-specific operations
+                nurse_id: userWithRole.nurse_id, // Add nurse_id for nurse-specific operations
                 hospital_id: userWithRole.hospital_id, // Add hospital_id
                 hospital_logo: userWithRole.hospital_logo // Add hospital_logo
             };

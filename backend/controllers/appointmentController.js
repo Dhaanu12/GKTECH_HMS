@@ -20,15 +20,31 @@ class AppointmentController {
                 return next(new AppError('Branch not linked to your account', 403));
             }
 
+            // Validate required fields
+            if (!patient_name || patient_name.trim() === '') {
+                return next(new AppError('Patient name is required', 400));
+            }
+            if (!doctor_id) {
+                return next(new AppError('Please select a doctor', 400));
+            }
+            if (!appointment_date) {
+                return next(new AppError('Appointment date is required', 400));
+            }
+            if (!appointment_time || appointment_time.trim() === '') {
+                return next(new AppError('Please select an appointment time slot', 400));
+            }
+
             // Generate appointment number
             const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
             const randomSuffix = Math.floor(1000 + Math.random() * 9000);
             const appointment_number = `APT-${dateStr}-${randomSuffix}`;
 
-            // Sanitize inputs
-            const sanitizedAge = age === '' ? null : age;
-            const sanitizedGender = gender === '' ? null : gender;
+            // Sanitize inputs - PostgreSQL needs null, not empty strings for typed fields
+            const sanitizedAge = age === '' || age === undefined ? null : age;
+            const sanitizedGender = gender === '' || gender === undefined ? null : gender;
             const sanitizedPatientId = patient_id || null;
+            const sanitizedTime = appointment_time === '' || !appointment_time ? null : appointment_time;
+            const sanitizedEmail = email === '' || !email ? null : email;
 
             const result = await query(`
                 INSERT INTO appointments (
@@ -41,8 +57,8 @@ class AppointmentController {
                 ) RETURNING *
             `, [
                 appointment_number, sanitizedPatientId, patient_name, phone_number,
-                email, sanitizedAge, sanitizedGender, doctor_id, branch_id,
-                appointment_date, appointment_time, reason_for_visit, notes
+                sanitizedEmail, sanitizedAge, sanitizedGender, doctor_id, branch_id,
+                appointment_date, sanitizedTime, reason_for_visit, notes
             ]);
 
             res.status(201).json({

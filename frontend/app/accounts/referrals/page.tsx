@@ -484,7 +484,7 @@ function DoctorInlineConfig({ doctor, allServices, onSave }: { doctor: ReferralD
             {/* Services Table */}
             <div className="border border-gray-200 rounded-lg overflow-hidden mb-4 max-h-[400px] overflow-y-auto">
                 <table className="w-full text-left">
-                    <thead className="sticky top-0 bg-gray-50 border-b border-gray-200">
+                    <thead className="sticky top-0 bg-gray-50 border-b border-gray-200 z-10">
                         <tr>
                             <th className="px-4 py-3 w-10">
                                 <input

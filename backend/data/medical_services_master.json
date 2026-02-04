@@ -1,0 +1,9287 @@
+[
+  {
+    "id": 1,
+    "name": "Consultation OPD",
+    "category": "procedure"
+  },
+  {
+    "id": 2,
+    "name": "Consultation- for Inpatients",
+    "category": "procedure"
+  },
+  {
+    "id": 3,
+    "name": "Dressings of wounds",
+    "category": "procedure"
+  },
+  {
+    "id": 4,
+    "name": "Suturing of wounds with local anesthesia",
+    "category": "procedure"
+  },
+  {
+    "id": 5,
+    "name": "Aspiration Plural Effusion - Diagnostic",
+    "category": "procedure"
+  },
+  {
+    "id": 6,
+    "name": "Aspiration Plural Effusion - Therapeutic",
+    "category": "procedure"
+  },
+  {
+    "id": 7,
+    "name": "Abdominal / Peritoneal Aspiration - Diagnostic / Ascitic tapping /\nparacentesis - Diagnostic",
+    "category": "procedure"
+  },
+  {
+    "id": 8,
+    "name": "Abdominal / Peritoneal Aspiration - Therapeutic/ Ascitic tapping /\nparacentesis- Therapeutic",
+    "category": "procedure"
+  },
+  {
+    "id": 9,
+    "name": "Pericardial Aspiration",
+    "category": "procedure"
+  },
+  {
+    "id": 10,
+    "name": "Joints Aspiration",
+    "category": "procedure"
+  },
+  {
+    "id": 11,
+    "name": "Biopsy Skin",
+    "category": "procedure"
+  },
+  {
+    "id": 12,
+    "name": "Removal of Stitches /Sutures (7- 12 sutures)",
+    "category": "procedure"
+  },
+  {
+    "id": 13,
+    "name": "Venesection",
+    "category": "procedure"
+  },
+  {
+    "id": 14,
+    "name": "Phimosis correction / Paraphimosis reduction / Circumcision Under LA",
+    "category": "procedure"
+  },
+  {
+    "id": 15,
+    "name": "Sternal puncture",
+    "category": "procedure"
+  },
+  {
+    "id": 16,
+    "name": "Injection /Sclerotherapy / Banding of Haemorrhoids",
+    "category": "procedure"
+  },
+  {
+    "id": 17,
+    "name": "Injection for Varicose Veins",
+    "category": "procedure"
+  },
+  {
+    "id": 18,
+    "name": "Urinary bladder Catheterisation",
+    "category": "procedure"
+  },
+  {
+    "id": 19,
+    "name": "Dilatation of Urethral stricture",
+    "category": "procedure"
+  },
+  {
+    "id": 20,
+    "name": "Incision & Drainage under local Anaesthesia (Large)",
+    "category": "procedure"
+  },
+  {
+    "id": 21,
+    "name": "Intercostal Drainage",
+    "category": "procedure"
+  },
+  {
+    "id": 22,
+    "name": "Peritoneal Dialysis",
+    "category": "procedure"
+  },
+  {
+    "id": 23,
+    "name": "Excision of Moles",
+    "category": "procedure"
+  },
+  {
+    "id": 24,
+    "name": "Excision of Warts",
+    "category": "procedure"
+  },
+  {
+    "id": 25,
+    "name": "Excision of Molluscum contagiosum",
+    "category": "procedure"
+  },
+  {
+    "id": 26,
+    "name": "Excision of Veneral Warts",
+    "category": "procedure"
+  },
+  {
+    "id": 27,
+    "name": "Excision of Corns",
+    "category": "procedure"
+  },
+  {
+    "id": 28,
+    "name": "I/D Injection Keloid",
+    "category": "procedure"
+  },
+  {
+    "id": 29,
+    "name": "Chemical Cautery (s)",
+    "category": "procedure"
+  },
+  {
+    "id": 30,
+    "name": "Subconjunctival/subtenon’s injections in one eyes",
+    "category": "procedure"
+  },
+  {
+    "id": 31,
+    "name": "Subconjunctival/subtenon’s injections in both eyes",
+    "category": "procedure"
+  },
+  {
+    "id": 32,
+    "name": "Pterygium Surgery",
+    "category": "procedure"
+  },
+  {
+    "id": 33,
+    "name": "Conjunctival Peritomy",
+    "category": "procedure"
+  },
+  {
+    "id": 34,
+    "name": "Conjunctival wound repair or exploration following blunt trauma",
+    "category": "procedure"
+  },
+  {
+    "id": 35,
+    "name": "Removal of corneal foreign body",
+    "category": "procedure"
+  },
+  {
+    "id": 36,
+    "name": "Cauterization of ulcer/subconjunctival injection in one eye",
+    "category": "procedure"
+  },
+  {
+    "id": 37,
+    "name": "Cauterization of ulcer/subconjunctival injection in both eyes",
+    "category": "procedure"
+  },
+  {
+    "id": 38,
+    "name": "Corneal grafting—Penetrating keratoplasty",
+    "category": "procedure"
+  },
+  {
+    "id": 39,
+    "name": "Corneal grafting—Lamellar keratoplasty",
+    "category": "procedure"
+  },
+  {
+    "id": 40,
+    "name": "Cyanoacrylate /fibrin glue application for corneal perforation",
+    "category": "procedure"
+  },
+  {
+    "id": 41,
+    "name": "Bandage contact lenses for corneal perforation",
+    "category": "procedure"
+  },
+  {
+    "id": 42,
+    "name": "Scleral grafting or conjunctival flap for corneal perforation",
+    "category": "procedure"
+  },
+  {
+    "id": 43,
+    "name": "Keratoconus correction with therapeutic contact lenses",
+    "category": "procedure"
+  },
+  {
+    "id": 44,
+    "name": "UV radiation for cross-linking for keratoconus",
+    "category": "procedure"
+  },
+  {
+    "id": 45,
+    "name": "EDTA for band shaped keratopathy",
+    "category": "procedure"
+  },
+  {
+    "id": 46,
+    "name": "Arcuate keratotomy for astigmatism",
+    "category": "procedure"
+  },
+  {
+    "id": 47,
+    "name": "Re-suturing (Primary suturing) of corneal wound",
+    "category": "procedure"
+  },
+  {
+    "id": 48,
+    "name": "Penetrating keratoplasty ---- with glaucoma surgery",
+    "category": "procedure"
+  },
+  {
+    "id": 49,
+    "name": "Penetrating keratoplasty --- with vitrectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 50,
+    "name": "Penetrating keratoplasty ---- with IOL implantation",
+    "category": "procedure"
+  },
+  {
+    "id": 51,
+    "name": "DALK- Deep anterior lamellar keratoplasty",
+    "category": "procedure"
+  },
+  {
+    "id": 52,
+    "name": "Keratoprosthesis stage I and II",
+    "category": "procedure"
+  },
+  {
+    "id": 53,
+    "name": "DSAEK- Descemet’s stripping automated endothelial keratoplasty",
+    "category": "procedure"
+  },
+  {
+    "id": 54,
+    "name": "ALTK- Automated lamellar therapeutic keratoplasty",
+    "category": "procedure"
+  },
+  {
+    "id": 55,
+    "name": "Probing and Syringing of lacrimal sac- in one eye",
+    "category": "procedure"
+  },
+  {
+    "id": 56,
+    "name": "Probing and Syringing of lacrimal sac- in both eye",
+    "category": "procedure"
+  },
+  {
+    "id": 57,
+    "name": "Dacryocystorhinostomy—Plain",
+    "category": "procedure"
+  },
+  {
+    "id": 58,
+    "name": "Dacryocystorhinostomy—Plain with intubation and/or with\nlacrimal implants",
+    "category": "procedure"
+  },
+  {
+    "id": 59,
+    "name": "Dacryocystorhinostomy—conjunctival with implant",
+    "category": "procedure"
+  },
+  {
+    "id": 60,
+    "name": "Caliculoplasty",
+    "category": "procedure"
+  },
+  {
+    "id": 61,
+    "name": "Dacryocystectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 62,
+    "name": "Punctal plugs for dry eyes",
+    "category": "procedure"
+  },
+  {
+    "id": 63,
+    "name": "Refraction",
+    "category": "procedure"
+  },
+  {
+    "id": 64,
+    "name": "Indirect Ophthalmoscopy",
+    "category": "procedure"
+  },
+  {
+    "id": 65,
+    "name": "Orthoptic check-up- with synoptophore",
+    "category": "procedure"
+  },
+  {
+    "id": 66,
+    "name": "Lees’ charting or Hess’ charting",
+    "category": "procedure"
+  },
+  {
+    "id": 67,
+    "name": "Orthoptic exercises",
+    "category": "procedure"
+  },
+  {
+    "id": 68,
+    "name": "Pleoptic exercises",
+    "category": "procedure"
+  },
+  {
+    "id": 69,
+    "name": "Perimetry/field test—Goldman",
+    "category": "procedure"
+  },
+  {
+    "id": 70,
+    "name": "Perimetry/field test— automated",
+    "category": "procedure"
+  },
+  {
+    "id": 71,
+    "name": "Fluorescein angiography for fundus or iris",
+    "category": "procedure"
+  },
+  {
+    "id": 72,
+    "name": "Ultrasound A- Scan",
+    "category": "procedure"
+  },
+  {
+    "id": 73,
+    "name": "Ultrasound B- Scan",
+    "category": "procedure"
+  },
+  {
+    "id": 74,
+    "name": "Fundus Photo Test",
+    "category": "procedure"
+  },
+  {
+    "id": 75,
+    "name": "Indocyanin green angiography",
+    "category": "procedure"
+  },
+  {
+    "id": 76,
+    "name": "Corneal endothelial cell count with specular microscopy",
+    "category": "procedure"
+  },
+  {
+    "id": 77,
+    "name": "Corneal topography",
+    "category": "procedure"
+  },
+  {
+    "id": 78,
+    "name": "Corneal pachymetry",
+    "category": "procedure"
+  },
+  {
+    "id": 79,
+    "name": "Auto-refraction",
+    "category": "procedure"
+  },
+  {
+    "id": 80,
+    "name": "Macular function tests",
+    "category": "procedure"
+  },
+  {
+    "id": 81,
+    "name": "Potential acuity metry",
+    "category": "procedure"
+  },
+  {
+    "id": 82,
+    "name": "Laser interferometry",
+    "category": "procedure"
+  },
+  {
+    "id": 83,
+    "name": "OCT-Optical coherence tomography",
+    "category": "procedure"
+  },
+  {
+    "id": 84,
+    "name": "HRT- Heidelberg’s retinal tomogram",
+    "category": "procedure"
+  },
+  {
+    "id": 85,
+    "name": "GDX--- Nerve fibre layer analyzer",
+    "category": "procedure"
+  },
+  {
+    "id": 86,
+    "name": "UBM- Ultrasound bio microscopy",
+    "category": "procedure"
+  },
+  {
+    "id": 87,
+    "name": "Non Contact tonometry",
+    "category": "procedure"
+  },
+  {
+    "id": 88,
+    "name": "IOP measurement with schiotz",
+    "category": "procedure"
+  },
+  {
+    "id": 89,
+    "name": "IOP measurement with applation tonometry",
+    "category": "procedure"
+  },
+  {
+    "id": 90,
+    "name": "Three mirror examination for reti",
+    "category": "procedure"
+  },
+  {
+    "id": 91,
+    "name": "90 D lens examination",
+    "category": "procedure"
+  },
+  {
+    "id": 92,
+    "name": "Gonioscopy",
+    "category": "procedure"
+  },
+  {
+    "id": 93,
+    "name": "Chalazion incision and curettage in one eye",
+    "category": "procedure"
+  },
+  {
+    "id": 94,
+    "name": "Chalazion incision and curettage in both eyes",
+    "category": "procedure"
+  },
+  {
+    "id": 95,
+    "name": "Ptosis surgery with fasanella servat procedure",
+    "category": "procedure"
+  },
+  {
+    "id": 96,
+    "name": "Ptosis surgery with LPS resection one lid",
+    "category": "procedure"
+  },
+  {
+    "id": 97,
+    "name": "Ptosis surgery with Sling surgery one lid",
+    "category": "procedure"
+  },
+  {
+    "id": 98,
+    "name": "Ectropion surgery- one lid",
+    "category": "procedure"
+  },
+  {
+    "id": 99,
+    "name": "Ectropion surgery- both lids",
+    "category": "procedure"
+  },
+  {
+    "id": 100,
+    "name": "Epicanthus correction",
+    "category": "procedure"
+  },
+  {
+    "id": 101,
+    "name": "Cantholysis and canthotomy",
+    "category": "procedure"
+  },
+  {
+    "id": 102,
+    "name": "Entropion surgery- one lid",
+    "category": "procedure"
+  },
+  {
+    "id": 103,
+    "name": "Entropion surgery- both lids",
+    "category": "procedure"
+  },
+  {
+    "id": 104,
+    "name": "Tarsorraphy",
+    "category": "procedure"
+  },
+  {
+    "id": 105,
+    "name": "Suturing of lid lacerations",
+    "category": "procedure"
+  },
+  {
+    "id": 106,
+    "name": "Lid retraction repair",
+    "category": "procedure"
+  },
+  {
+    "id": 107,
+    "name": "Concretions removal",
+    "category": "procedure"
+  },
+  {
+    "id": 108,
+    "name": "Bucket handle procedure for lid tumors",
+    "category": "procedure"
+  },
+  {
+    "id": 109,
+    "name": "Cheek rotation flap for lid tumors",
+    "category": "procedure"
+  },
+  {
+    "id": 110,
+    "name": "Orbitotomy",
+    "category": "procedure"
+  },
+  {
+    "id": 111,
+    "name": "Enucleation",
+    "category": "procedure"
+  },
+  {
+    "id": 112,
+    "name": "Enucleation with orbital implants and artificial prosthesis",
+    "category": "procedure"
+  },
+  {
+    "id": 113,
+    "name": "Evisceration",
+    "category": "procedure"
+  },
+  {
+    "id": 114,
+    "name": "Evisceration with orbital implants and artificial prosthesis",
+    "category": "procedure"
+  },
+  {
+    "id": 115,
+    "name": "Telecanthus correction",
+    "category": "procedure"
+  },
+  {
+    "id": 116,
+    "name": "Orbital decompression",
+    "category": "procedure"
+  },
+  {
+    "id": 117,
+    "name": "Exenteration",
+    "category": "procedure"
+  },
+  {
+    "id": 118,
+    "name": "Exenteration with skin grafting",
+    "category": "procedure"
+  },
+  {
+    "id": 119,
+    "name": "Fracture orbital repair",
+    "category": "procedure"
+  },
+  {
+    "id": 120,
+    "name": "Retinal laser procedures",
+    "category": "procedure"
+  },
+  {
+    "id": 121,
+    "name": "Retinal detachment surgery",
+    "category": "procedure"
+  },
+  {
+    "id": 122,
+    "name": "Retinal detachment surgery with scleral buckling",
+    "category": "procedure"
+  },
+  {
+    "id": 123,
+    "name": "Buckle removal",
+    "category": "procedure"
+  },
+  {
+    "id": 124,
+    "name": "Silicone oil removal",
+    "category": "procedure"
+  },
+  {
+    "id": 125,
+    "name": "Anterior retinal cryopexy",
+    "category": "procedure"
+  },
+  {
+    "id": 126,
+    "name": "Squint correction for one eye",
+    "category": "procedure"
+  },
+  {
+    "id": 127,
+    "name": "Squint correction for both eyes",
+    "category": "procedure"
+  },
+  {
+    "id": 128,
+    "name": "Trabeculectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 129,
+    "name": "Trabeculotomy",
+    "category": "procedure"
+  },
+  {
+    "id": 130,
+    "name": "Trabeculectomy with Trabeculotomy",
+    "category": "procedure"
+  },
+  {
+    "id": 131,
+    "name": "Trephition",
+    "category": "procedure"
+  },
+  {
+    "id": 132,
+    "name": "Goniotomy",
+    "category": "procedure"
+  },
+  {
+    "id": 133,
+    "name": "Glaucoma surgery with Glaucoma valves (valve cost extra)",
+    "category": "procedure"
+  },
+  {
+    "id": 134,
+    "name": "Cyclocryotherapy",
+    "category": "procedure"
+  },
+  {
+    "id": 135,
+    "name": "YAG laser iridotomy",
+    "category": "procedure"
+  },
+  {
+    "id": 136,
+    "name": "YAG laser capsulotomy",
+    "category": "procedure"
+  },
+  {
+    "id": 137,
+    "name": "ALT-Argon laser trabeculoplasty",
+    "category": "procedure"
+  },
+  {
+    "id": 138,
+    "name": "PDT-Photodymic therapy",
+    "category": "procedure"
+  },
+  {
+    "id": 139,
+    "name": "TTT- Transpupillary thermal therapy",
+    "category": "procedure"
+  },
+  {
+    "id": 140,
+    "name": "PTK- Phototherapeutic keratectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 141,
+    "name": "Argon/diode laser for retinal detatchment",
+    "category": "procedure"
+  },
+  {
+    "id": 142,
+    "name": "Intralase application for keratoconus",
+    "category": "procedure"
+  },
+  {
+    "id": 143,
+    "name": "EOG- electro-oculogram",
+    "category": "procedure"
+  },
+  {
+    "id": 144,
+    "name": "ERG- Electro-retinogram",
+    "category": "procedure"
+  },
+  {
+    "id": 145,
+    "name": "VEP- visually evoked potential",
+    "category": "procedure"
+  },
+  {
+    "id": 146,
+    "name": "Vitrectomy- pars plana",
+    "category": "procedure"
+  },
+  {
+    "id": 147,
+    "name": "Intravitreal injections- of antibiotics",
+    "category": "procedure"
+  },
+  {
+    "id": 148,
+    "name": "Intravitreal injections- of lucentis excluding cost of drug",
+    "category": "procedure"
+  },
+  {
+    "id": 149,
+    "name": "X- Ray orbit",
+    "category": "procedure"
+  },
+  {
+    "id": 150,
+    "name": "CT-orbit and brain",
+    "category": "procedure"
+  },
+  {
+    "id": 151,
+    "name": "MRI- Orbit and brain",
+    "category": "procedure"
+  },
+  {
+    "id": 152,
+    "name": "Dacryocystography",
+    "category": "procedure"
+  },
+  {
+    "id": 153,
+    "name": "Orbital angio-graphical studies",
+    "category": "procedure"
+  },
+  {
+    "id": 154,
+    "name": "ECCE with IOL",
+    "category": "procedure"
+  },
+  {
+    "id": 155,
+    "name": "SICS with IOL",
+    "category": "procedure"
+  },
+  {
+    "id": 156,
+    "name": "Phaco with foldable IOL (silicone and acrylic)/PMMA IOL",
+    "category": "procedure"
+  },
+  {
+    "id": 157,
+    "name": "Pars plana lensectomy with/without IOL",
+    "category": "procedure"
+  },
+  {
+    "id": 158,
+    "name": "Secondary IOL implantation- AC IOL PC IOL or scleral\nfixated IOL",
+    "category": "procedure"
+  },
+  {
+    "id": 159,
+    "name": "Cataract extraction with IOL with capsular tension rings\n(Cionni’s ring)",
+    "category": "procedure"
+  },
+  {
+    "id": 160,
+    "name": "Optic nerve sheathotomy",
+    "category": "procedure"
+  },
+  {
+    "id": 161,
+    "name": "Iridodialysis repair or papillary reconstruction",
+    "category": "procedure"
+  },
+  {
+    "id": 162,
+    "name": "Iris cyst removal",
+    "category": "procedure"
+  },
+  {
+    "id": 163,
+    "name": "Lid Abscess incision and Drainage",
+    "category": "procedure"
+  },
+  {
+    "id": 164,
+    "name": "Orbital Abscess incision and Drainage",
+    "category": "procedure"
+  },
+  {
+    "id": 165,
+    "name": "Biopsy",
+    "category": "procedure"
+  },
+  {
+    "id": 166,
+    "name": "Paracentesis",
+    "category": "procedure"
+  },
+  {
+    "id": 167,
+    "name": "Scleral graft for scleral melting or perforation",
+    "category": "procedure"
+  },
+  {
+    "id": 168,
+    "name": "Amniotic membrane grafting",
+    "category": "procedure"
+  },
+  {
+    "id": 169,
+    "name": "Cyclodiathermy",
+    "category": "procedure"
+  },
+  {
+    "id": 170,
+    "name": "Intraocular foreign body removal",
+    "category": "procedure"
+  },
+  {
+    "id": 171,
+    "name": "Electrolysis",
+    "category": "procedure"
+  },
+  {
+    "id": 172,
+    "name": "Perforating injury repair",
+    "category": "procedure"
+  },
+  {
+    "id": 173,
+    "name": "Botulinum injection for blepharospasm or squint",
+    "category": "procedure"
+  },
+  {
+    "id": 174,
+    "name": "Flap Operation per quadrant",
+    "category": "procedure"
+  },
+  {
+    "id": 175,
+    "name": "Gingivectomy per quadrant",
+    "category": "procedure"
+  },
+  {
+    "id": 176,
+    "name": "Reduction & immobilization of fracture- Maxilla Under LA",
+    "category": "procedure"
+  },
+  {
+    "id": 177,
+    "name": "Reduction & immobilization of fracture-Mandible Under LA",
+    "category": "procedure"
+  },
+  {
+    "id": 178,
+    "name": "splints/Cirucum mandibular wiring under LA",
+    "category": "procedure"
+  },
+  {
+    "id": 179,
+    "name": "splints/Cirucum mandibular wiring under GA",
+    "category": "procedure"
+  },
+  {
+    "id": 180,
+    "name": "Internal wire fixation/plate fixation of Maxilla under LA",
+    "category": "procedure"
+  },
+  {
+    "id": 181,
+    "name": "Internal wire fixation/plate fixation of Maxilla under GA",
+    "category": "procedure"
+  },
+  {
+    "id": 182,
+    "name": "Internal wire fixation/plate fixation of Mandible under LA",
+    "category": "procedure"
+  },
+  {
+    "id": 183,
+    "name": "Internal wire fixation/plate fixation of Mandible under GA",
+    "category": "procedure"
+  },
+  {
+    "id": 184,
+    "name": "Extraction per tooth under LA",
+    "category": "procedure"
+  },
+  {
+    "id": 185,
+    "name": "Complicated Ext. per Tooth under LA",
+    "category": "procedure"
+  },
+  {
+    "id": 186,
+    "name": "Extraction of impacted tooth under LA",
+    "category": "procedure"
+  },
+  {
+    "id": 187,
+    "name": "Extraction in mentally retarded/patients with systemic\ndiseases/patient with special needs under short term GA",
+    "category": "procedure"
+  },
+  {
+    "id": 188,
+    "name": "Cyst & tumour of Maxilla /mandible by enucleation/ excision/\nmarsupalisation upto 4 cms under LA",
+    "category": "procedure"
+  },
+  {
+    "id": 189,
+    "name": "Cyst & tumour of Maxilla/mandible by enucleation/ excision/\nmarsupalisation size more than 4 cms under LA",
+    "category": "procedure"
+  },
+  {
+    "id": 190,
+    "name": "Cyst & tumour of Maxilla/mandible by enucleation / excision /\nmarsupalisation size more than 4 cms under GA",
+    "category": "procedure"
+  },
+  {
+    "id": 191,
+    "name": "TM joint ankylosis- under GA",
+    "category": "procedure"
+  },
+  {
+    "id": 192,
+    "name": "Biopsy Intraoral-Soft tissue",
+    "category": "procedure"
+  },
+  {
+    "id": 193,
+    "name": "Biopsy Intraoral-Bone",
+    "category": "procedure"
+  },
+  {
+    "id": 194,
+    "name": "Hemi-mandibulectomy with graft",
+    "category": "procedure"
+  },
+  {
+    "id": 195,
+    "name": "Hemi-mandibulectomy without graft",
+    "category": "procedure"
+  },
+  {
+    "id": 196,
+    "name": "Segmental-mandibulectomy with graft",
+    "category": "procedure"
+  },
+  {
+    "id": 197,
+    "name": "Segmental-mandibulectomy without graft",
+    "category": "procedure"
+  },
+  {
+    "id": 198,
+    "name": "Maxillectomy- Total with graft",
+    "category": "procedure"
+  },
+  {
+    "id": 199,
+    "name": "Maxillectomy- Total without graft",
+    "category": "procedure"
+  },
+  {
+    "id": 200,
+    "name": "Maxillectomy- partial with graft",
+    "category": "procedure"
+  },
+  {
+    "id": 201,
+    "name": "Maxillectomy- partial without graft",
+    "category": "procedure"
+  },
+  {
+    "id": 202,
+    "name": "Release of fibrous bands & grafting -in (OSMF) treatment under GA",
+    "category": "procedure"
+  },
+  {
+    "id": 203,
+    "name": "Pre-prosthetic surgery- Alveoloplasty",
+    "category": "procedure"
+  },
+  {
+    "id": 204,
+    "name": "Pre-prosthetic surgery - ridge augmentation",
+    "category": "procedure"
+  },
+  {
+    "id": 205,
+    "name": "Root canal Treatment(RCT) Anterior teeth(per tooth)",
+    "category": "procedure"
+  },
+  {
+    "id": 206,
+    "name": "Root canal Treatment(RCT) Posterior teeth (per tooth)",
+    "category": "procedure"
+  },
+  {
+    "id": 207,
+    "name": "Apicoectomy- Single root",
+    "category": "procedure"
+  },
+  {
+    "id": 208,
+    "name": "Apicoectomy-Multiple roots",
+    "category": "procedure"
+  },
+  {
+    "id": 209,
+    "name": "Metal Crown-per unit",
+    "category": "procedure"
+  },
+  {
+    "id": 210,
+    "name": "Metal Crown with Acrylic facing per unit",
+    "category": "procedure"
+  },
+  {
+    "id": 211,
+    "name": "Complete single denture-metal based",
+    "category": "procedure"
+  },
+  {
+    "id": 212,
+    "name": "Complete denture- acrylic based per arch",
+    "category": "procedure"
+  },
+  {
+    "id": 213,
+    "name": "Removable partial denture-Metal based-upto 3 teeth",
+    "category": "procedure"
+  },
+  {
+    "id": 214,
+    "name": "Removable partial denture-Metal based-more than 3 teeth",
+    "category": "procedure"
+  },
+  {
+    "id": 215,
+    "name": "Removable partial denture-Acrylic based-upto 3 teeth",
+    "category": "procedure"
+  },
+  {
+    "id": 216,
+    "name": "Removable partial denture-Acrylic based-more than 3 teeth",
+    "category": "procedure"
+  },
+  {
+    "id": 217,
+    "name": "Amalgum restoration-per tooth",
+    "category": "procedure"
+  },
+  {
+    "id": 218,
+    "name": "Composite Restoration-per tooth-anterior tooth",
+    "category": "procedure"
+  },
+  {
+    "id": 219,
+    "name": "Glas Ionomer-per tooth",
+    "category": "procedure"
+  },
+  {
+    "id": 220,
+    "name": "Scaling & polishing",
+    "category": "procedure"
+  },
+  {
+    "id": 221,
+    "name": "Removable Orthodontics appliance- per Arch",
+    "category": "procedure"
+  },
+  {
+    "id": 222,
+    "name": "Fixed Orhtodontics-per Arch",
+    "category": "procedure"
+  },
+  {
+    "id": 223,
+    "name": "Space maintainers-Fixed",
+    "category": "procedure"
+  },
+  {
+    "id": 224,
+    "name": "Habit breaking appliances-removable",
+    "category": "procedure"
+  },
+  {
+    "id": 225,
+    "name": "Habit breaking appliances-Fixed",
+    "category": "procedure"
+  },
+  {
+    "id": 226,
+    "name": "Expansion plate",
+    "category": "procedure"
+  },
+  {
+    "id": 227,
+    "name": "Feeding appliance for cleft palate",
+    "category": "procedure"
+  },
+  {
+    "id": 228,
+    "name": "Maxillo-facial prosthesis (sal/auricular/orbital/facial lost part)",
+    "category": "procedure"
+  },
+  {
+    "id": 229,
+    "name": "Functional orthodentic appliances",
+    "category": "procedure"
+  },
+  {
+    "id": 230,
+    "name": "Obturator (Maxillo-facial)",
+    "category": "procedure"
+  },
+  {
+    "id": 231,
+    "name": "Occlusal night guard(splint)",
+    "category": "procedure"
+  },
+  {
+    "id": 232,
+    "name": "Pure Tone Audiogram",
+    "category": "procedure"
+  },
+  {
+    "id": 233,
+    "name": "Impedence with stepedeal reflex",
+    "category": "procedure"
+  },
+  {
+    "id": 234,
+    "name": "SISI Tone Decay",
+    "category": "procedure"
+  },
+  {
+    "id": 235,
+    "name": "Multiple hearing assessment test to Adults",
+    "category": "procedure"
+  },
+  {
+    "id": 236,
+    "name": "Speech Discrimination Score",
+    "category": "procedure"
+  },
+  {
+    "id": 237,
+    "name": "Speech Assessment",
+    "category": "procedure"
+  },
+  {
+    "id": 238,
+    "name": "Speech therapy per session of 30-40 minutes",
+    "category": "procedure"
+  },
+  {
+    "id": 239,
+    "name": "Cold Calorie Test for Vestibular function",
+    "category": "procedure"
+  },
+  {
+    "id": 240,
+    "name": "Removal of foreign body From Nose",
+    "category": "procedure"
+  },
+  {
+    "id": 241,
+    "name": "Removal of foreign body From Ear",
+    "category": "procedure"
+  },
+  {
+    "id": 242,
+    "name": "Syringing (Ear)",
+    "category": "procedure"
+  },
+  {
+    "id": 243,
+    "name": "Polyp removal under LA",
+    "category": "procedure"
+  },
+  {
+    "id": 244,
+    "name": "Polyp removal under GA",
+    "category": "procedure"
+  },
+  {
+    "id": 245,
+    "name": "Peritonsillar abscess Drainage under LA",
+    "category": "procedure"
+  },
+  {
+    "id": 246,
+    "name": "Myringoplasty",
+    "category": "procedure"
+  },
+  {
+    "id": 247,
+    "name": "Staepedectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 248,
+    "name": "Myringotomy with Grommet insertion",
+    "category": "procedure"
+  },
+  {
+    "id": 249,
+    "name": "Tympanotomy",
+    "category": "procedure"
+  },
+  {
+    "id": 250,
+    "name": "Tympanoplasty",
+    "category": "procedure"
+  },
+  {
+    "id": 251,
+    "name": "Mastoidectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 252,
+    "name": "Otoplasty",
+    "category": "procedure"
+  },
+  {
+    "id": 253,
+    "name": "Labyrinthectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 254,
+    "name": "Skull Base surgery",
+    "category": "procedure"
+  },
+  {
+    "id": 255,
+    "name": "Facial Nerve Decompression",
+    "category": "procedure"
+  },
+  {
+    "id": 256,
+    "name": "Septoplasty",
+    "category": "procedure"
+  },
+  {
+    "id": 257,
+    "name": "Submucous Resection",
+    "category": "procedure"
+  },
+  {
+    "id": 258,
+    "name": "Septo-rhinoplasty",
+    "category": "procedure"
+  },
+  {
+    "id": 259,
+    "name": "Rhinoplasty- Non-cosmetic",
+    "category": "procedure"
+  },
+  {
+    "id": 260,
+    "name": "Fracture Reduction",
+    "category": "procedure"
+  },
+  {
+    "id": 261,
+    "name": "Intra nasal Diathermy",
+    "category": "procedure"
+  },
+  {
+    "id": 262,
+    "name": "Turbinectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 263,
+    "name": "Endoscopic DCR",
+    "category": "procedure"
+  },
+  {
+    "id": 264,
+    "name": "Endoscopic Surgery",
+    "category": "procedure"
+  },
+  {
+    "id": 265,
+    "name": "Septal Perforation Repair",
+    "category": "procedure"
+  },
+  {
+    "id": 266,
+    "name": "Antrum Puncture",
+    "category": "procedure"
+  },
+  {
+    "id": 267,
+    "name": "Lateral Rhinotomy",
+    "category": "procedure"
+  },
+  {
+    "id": 268,
+    "name": "Cranio-facial resection",
+    "category": "procedure"
+  },
+  {
+    "id": 269,
+    "name": "Caldwell Luc Surgery",
+    "category": "procedure"
+  },
+  {
+    "id": 270,
+    "name": "Angiofibroma Excision",
+    "category": "procedure"
+  },
+  {
+    "id": 271,
+    "name": "Endoscopic Hypophysectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 272,
+    "name": "Endoscopic Optic Nerve Decompression",
+    "category": "procedure"
+  },
+  {
+    "id": 273,
+    "name": "Decompression of Orbit",
+    "category": "procedure"
+  },
+  {
+    "id": 274,
+    "name": "Punch/Wedge biopsy",
+    "category": "procedure"
+  },
+  {
+    "id": 275,
+    "name": "Tonsillectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 276,
+    "name": "Uvulo-palatoplasty",
+    "category": "procedure"
+  },
+  {
+    "id": 277,
+    "name": "FESS for antrochoal polyp",
+    "category": "procedure"
+  },
+  {
+    "id": 278,
+    "name": "FESS for ethmoidal polyp",
+    "category": "procedure"
+  },
+  {
+    "id": 279,
+    "name": "Polyp removal ear",
+    "category": "procedure"
+  },
+  {
+    "id": 280,
+    "name": "Polyp removal Nose(Septal polyp)",
+    "category": "procedure"
+  },
+  {
+    "id": 281,
+    "name": "Mastoidectomy plus Ossciculoplasty including TORP or PORP",
+    "category": "procedure"
+  },
+  {
+    "id": 282,
+    "name": "Endolymphatic sac decompression",
+    "category": "procedure"
+  },
+  {
+    "id": 283,
+    "name": "Diagnostic endoscopy under GA",
+    "category": "procedure"
+  },
+  {
+    "id": 284,
+    "name": "Yonges operation for Atrophic rhinitis",
+    "category": "procedure"
+  },
+  {
+    "id": 285,
+    "name": "Vidian neurectomy for vasomotor Rhinitis",
+    "category": "procedure"
+  },
+  {
+    "id": 286,
+    "name": "Nasal Packing-anterior",
+    "category": "procedure"
+  },
+  {
+    "id": 287,
+    "name": "Nasal Packing-posterior",
+    "category": "procedure"
+  },
+  {
+    "id": 288,
+    "name": "Ranula Excision",
+    "category": "procedure"
+  },
+  {
+    "id": 289,
+    "name": "Tongue Tie excision",
+    "category": "procedure"
+  },
+  {
+    "id": 290,
+    "name": "Sub Mandibular Duct Lithotomy",
+    "category": "procedure"
+  },
+  {
+    "id": 291,
+    "name": "Adenoidectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 292,
+    "name": "Palatopharyngoplasty",
+    "category": "procedure"
+  },
+  {
+    "id": 293,
+    "name": "Pharyngoplasty",
+    "category": "procedure"
+  },
+  {
+    "id": 294,
+    "name": "Styloidectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 295,
+    "name": "Direct laryngoscopy including Biopsy under GA",
+    "category": "procedure"
+  },
+  {
+    "id": 296,
+    "name": "Oesophagoscopy/foreign body removal from",
+    "category": "procedure"
+  },
+  {
+    "id": 297,
+    "name": "Bronchoscopy with F.B.removal",
+    "category": "procedure"
+  },
+  {
+    "id": 298,
+    "name": "Other Major Surgery",
+    "category": "procedure"
+  },
+  {
+    "id": 299,
+    "name": "Other Minor Surgery",
+    "category": "procedure"
+  },
+  {
+    "id": 300,
+    "name": "Ear Lobe Repair one side",
+    "category": "procedure"
+  },
+  {
+    "id": 301,
+    "name": "Excision of Pinna for Growth (Squamous/Basal/ Injuries) Skin Only",
+    "category": "procedure"
+  },
+  {
+    "id": 302,
+    "name": "Excision of Pinna for Growth (Squamous/Basal/ Injuries) Skin and Cartilage",
+    "category": "procedure"
+  },
+  {
+    "id": 303,
+    "name": "Partial Amputation of Pinna",
+    "category": "procedure"
+  },
+  {
+    "id": 304,
+    "name": "Total Amputation of Pinna",
+    "category": "procedure"
+  },
+  {
+    "id": 305,
+    "name": "Total Amputation & Excision of External Auditory Meatus",
+    "category": "procedure"
+  },
+  {
+    "id": 306,
+    "name": "Excision of Cystic Hygroma",
+    "category": "procedure"
+  },
+  {
+    "id": 307,
+    "name": "Excision of Cystic Hygroma Extensive",
+    "category": "procedure"
+  },
+  {
+    "id": 308,
+    "name": "Excision of Branchial Cyst",
+    "category": "procedure"
+  },
+  {
+    "id": 309,
+    "name": "Excision of Branchial Sinus",
+    "category": "procedure"
+  },
+  {
+    "id": 310,
+    "name": "Excision of Pharyngeal Diverticulum",
+    "category": "procedure"
+  },
+  {
+    "id": 311,
+    "name": "Excision of Carotid Body-Tumours",
+    "category": "procedure"
+  },
+  {
+    "id": 312,
+    "name": "Operation for Cervical Rib",
+    "category": "procedure"
+  },
+  {
+    "id": 313,
+    "name": "Block Dissection of Cervical Lymph Nodes",
+    "category": "procedure"
+  },
+  {
+    "id": 314,
+    "name": "Pharyngectomy & Reconstruction",
+    "category": "procedure"
+  },
+  {
+    "id": 315,
+    "name": "Operation for Carcinoma Lip - Wedge-Excision",
+    "category": "procedure"
+  },
+  {
+    "id": 316,
+    "name": "Operation for Carcinoma Lip - Vermilionectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 317,
+    "name": "Operation for Carcinoma Lip - Wedge Excision and Vermilonectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 318,
+    "name": "Estlander Operation",
+    "category": "procedure"
+  },
+  {
+    "id": 319,
+    "name": "Abbe Operation",
+    "category": "procedure"
+  },
+  {
+    "id": 320,
+    "name": "Cheek Advancement",
+    "category": "procedure"
+  },
+  {
+    "id": 321,
+    "name": "Excision of the Maxilla",
+    "category": "procedure"
+  },
+  {
+    "id": 322,
+    "name": "Excision of mandible-segmental",
+    "category": "procedure"
+  },
+  {
+    "id": 323,
+    "name": "Mandibulectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 324,
+    "name": "Partial Glossectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 325,
+    "name": "Hemiglossectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 326,
+    "name": "Total Glossectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 327,
+    "name": "Commondo Operation",
+    "category": "procedure"
+  },
+  {
+    "id": 328,
+    "name": "Parotidectomy - Superficial",
+    "category": "procedure"
+  },
+  {
+    "id": 329,
+    "name": "Parotidectomy - Total",
+    "category": "procedure"
+  },
+  {
+    "id": 330,
+    "name": "Parotidectomy - Radical",
+    "category": "procedure"
+  },
+  {
+    "id": 331,
+    "name": "Repair of Parotid Duct",
+    "category": "procedure"
+  },
+  {
+    "id": 332,
+    "name": "Removal of Submandibular Salivary gland",
+    "category": "procedure"
+  },
+  {
+    "id": 333,
+    "name": "Hemithyroidectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 334,
+    "name": "Partial Thyroidectomy (lobectomy)",
+    "category": "procedure"
+  },
+  {
+    "id": 335,
+    "name": "Subtotal Thyroidectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 336,
+    "name": "Total Thyroidectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 337,
+    "name": "Resection Enucleation of thyroid Adenoma",
+    "category": "procedure"
+  },
+  {
+    "id": 338,
+    "name": "Total Thyroidectomy and Block Dissection",
+    "category": "procedure"
+  },
+  {
+    "id": 339,
+    "name": "Excision of Lingual Thyroid",
+    "category": "procedure"
+  },
+  {
+    "id": 340,
+    "name": "Excision of Thyroglossal Cyst/Fistula",
+    "category": "procedure"
+  },
+  {
+    "id": 341,
+    "name": "Excision of Parathyroid Adenoma/Carcinoma",
+    "category": "procedure"
+  },
+  {
+    "id": 342,
+    "name": "Laryngectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 343,
+    "name": "Laryngo Pharyngectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 344,
+    "name": "Hyoid Suspension",
+    "category": "procedure"
+  },
+  {
+    "id": 345,
+    "name": "Genioplasty",
+    "category": "procedure"
+  },
+  {
+    "id": 346,
+    "name": "Direct Laryngoscopy including biopsy under GA",
+    "category": "procedure"
+  },
+  {
+    "id": 347,
+    "name": "Phonosurgery",
+    "category": "procedure"
+  },
+  {
+    "id": 348,
+    "name": "Fibroptic examition of Larynx under LA",
+    "category": "procedure"
+  },
+  {
+    "id": 349,
+    "name": "Microlaryngeal Surgery",
+    "category": "procedure"
+  },
+  {
+    "id": 350,
+    "name": "Laryngofissure",
+    "category": "procedure"
+  },
+  {
+    "id": 351,
+    "name": "Tracheal Stenosis Excision",
+    "category": "procedure"
+  },
+  {
+    "id": 352,
+    "name": "Excisional Biopsies",
+    "category": "procedure"
+  },
+  {
+    "id": 353,
+    "name": "Benign Tumour Excisions",
+    "category": "procedure"
+  },
+  {
+    "id": 354,
+    "name": "Temporal Bone subtotal resection",
+    "category": "procedure"
+  },
+  {
+    "id": 355,
+    "name": "Modified Radical Neck Dissection",
+    "category": "procedure"
+  },
+  {
+    "id": 356,
+    "name": "Carotid Body Excision",
+    "category": "procedure"
+  },
+  {
+    "id": 357,
+    "name": "Total Laryngectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 358,
+    "name": "Flap Reconstructive Surgery",
+    "category": "procedure"
+  },
+  {
+    "id": 359,
+    "name": "Parapharyngeal Tumour Excision",
+    "category": "procedure"
+  },
+  {
+    "id": 360,
+    "name": "Other Major Surgery",
+    "category": "procedure"
+  },
+  {
+    "id": 361,
+    "name": "Other Minor Surgery",
+    "category": "procedure"
+  },
+  {
+    "id": 362,
+    "name": "Drainage of abscess",
+    "category": "procedure"
+  },
+  {
+    "id": 363,
+    "name": "Excision of lumps",
+    "category": "procedure"
+  },
+  {
+    "id": 364,
+    "name": "Local mastectomy-simple",
+    "category": "procedure"
+  },
+  {
+    "id": 365,
+    "name": "Radical mastectomy-formal or modified.",
+    "category": "procedure"
+  },
+  {
+    "id": 366,
+    "name": "Excision of mammary fistula",
+    "category": "procedure"
+  },
+  {
+    "id": 367,
+    "name": "Segmental resection of breast",
+    "category": "procedure"
+  },
+  {
+    "id": 368,
+    "name": "Other Major Surgery",
+    "category": "procedure"
+  },
+  {
+    "id": 369,
+    "name": "Other Minor Surgery",
+    "category": "procedure"
+  },
+  {
+    "id": 370,
+    "name": "Injury Of Superficial Soft Tissues",
+    "category": "procedure"
+  },
+  {
+    "id": 371,
+    "name": "Suturing of small wounds",
+    "category": "procedure"
+  },
+  {
+    "id": 372,
+    "name": "Secondary suture of wounds",
+    "category": "procedure"
+  },
+  {
+    "id": 373,
+    "name": "Debridement of wounds",
+    "category": "procedure"
+  },
+  {
+    "id": 374,
+    "name": "Removal Of Foreign Bodies- without C-ARM",
+    "category": "procedure"
+  },
+  {
+    "id": 375,
+    "name": "Excision of Cervical Lymph Node under LA",
+    "category": "procedure"
+  },
+  {
+    "id": 376,
+    "name": "Excision of Axillary Lymph Node under Gl Anaesthesia",
+    "category": "procedure"
+  },
+  {
+    "id": 377,
+    "name": "Excision of Inguinal Lymph Node under LA",
+    "category": "procedure"
+  },
+  {
+    "id": 378,
+    "name": "Excision Biopsy of Ulcers",
+    "category": "procedure"
+  },
+  {
+    "id": 379,
+    "name": "Excision Biopsy of Superficial Lumps",
+    "category": "procedure"
+  },
+  {
+    "id": 380,
+    "name": "Incision Biopsy of Growths/Ulcers",
+    "category": "procedure"
+  },
+  {
+    "id": 381,
+    "name": "Trucut Needle Biopsy (Including Needle)",
+    "category": "procedure"
+  },
+  {
+    "id": 382,
+    "name": "Percutaneous Kidney Biopsy",
+    "category": "procedure"
+  },
+  {
+    "id": 383,
+    "name": "Marrow Biopsy (Open)",
+    "category": "procedure"
+  },
+  {
+    "id": 384,
+    "name": "Muscle Biopsy",
+    "category": "procedure"
+  },
+  {
+    "id": 385,
+    "name": "Scalene Node Biopsy",
+    "category": "procedure"
+  },
+  {
+    "id": 386,
+    "name": "Excision of Sebaceous Cysts",
+    "category": "procedure"
+  },
+  {
+    "id": 387,
+    "name": "Excision of Superficial Lipoma",
+    "category": "procedure"
+  },
+  {
+    "id": 388,
+    "name": "Excision of Superficial Neurofibroma",
+    "category": "procedure"
+  },
+  {
+    "id": 389,
+    "name": "Excision of Dermoid Cysts",
+    "category": "procedure"
+  },
+  {
+    "id": 390,
+    "name": "Haemorrhoidectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 391,
+    "name": "Stappler haemorrhoidectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 392,
+    "name": "keloid excision",
+    "category": "procedure"
+  },
+  {
+    "id": 393,
+    "name": "Varicose vein Surgery- Trendelenburg operation with suturing or ligation",
+    "category": "procedure"
+  },
+  {
+    "id": 394,
+    "name": "Atresia of Oesophagus and Tracheo Oesophageal Fistula",
+    "category": "procedure"
+  },
+  {
+    "id": 395,
+    "name": "Operations for Replacement of Oesophagus by Colon",
+    "category": "procedure"
+  },
+  {
+    "id": 396,
+    "name": "Oesophagectomy for Carcinoma Easophagus",
+    "category": "procedure"
+  },
+  {
+    "id": 397,
+    "name": "Oesophageal Intubation (Mausseau Barbin Tube)",
+    "category": "procedure"
+  },
+  {
+    "id": 398,
+    "name": "Achalasia Cardia Transthoracic",
+    "category": "procedure"
+  },
+  {
+    "id": 399,
+    "name": "Achalasia Cardia Abdominal",
+    "category": "procedure"
+  },
+  {
+    "id": 400,
+    "name": "Oesophago Gastrectomy for mid 1/3 lesion",
+    "category": "procedure"
+  },
+  {
+    "id": 401,
+    "name": "Heller’s Operation",
+    "category": "procedure"
+  },
+  {
+    "id": 402,
+    "name": "Colon-Inter position or Replacement of Oesophagus",
+    "category": "procedure"
+  },
+  {
+    "id": 403,
+    "name": "Oesophago Gastrectomy – Lower Corringers procedure",
+    "category": "procedure"
+  },
+  {
+    "id": 404,
+    "name": "Other Major Surgery",
+    "category": "procedure"
+  },
+  {
+    "id": 405,
+    "name": "Other Minor Surgery",
+    "category": "procedure"
+  },
+  {
+    "id": 406,
+    "name": "Gastroscopy",
+    "category": "procedure"
+  },
+  {
+    "id": 407,
+    "name": "Gastric & Duodenal Biopsy (Endoscopic)",
+    "category": "procedure"
+  },
+  {
+    "id": 408,
+    "name": "Pyloromyotomy",
+    "category": "procedure"
+  },
+  {
+    "id": 409,
+    "name": "Gastrostomy",
+    "category": "procedure"
+  },
+  {
+    "id": 410,
+    "name": "Simple Closure of Perforated peptic Ulcer",
+    "category": "procedure"
+  },
+  {
+    "id": 411,
+    "name": "Vagotomy Pyleroplasty / Gastro Jejunostomy",
+    "category": "procedure"
+  },
+  {
+    "id": 412,
+    "name": "Duodenojejunostomy",
+    "category": "procedure"
+  },
+  {
+    "id": 413,
+    "name": "Partial/Subtotal Gastrectomy for Carcinoma",
+    "category": "procedure"
+  },
+  {
+    "id": 414,
+    "name": "Partial/Subtotal Gastrectomy for Ulcer",
+    "category": "procedure"
+  },
+  {
+    "id": 415,
+    "name": "Operation for Bleeding Peptic Ulcer",
+    "category": "procedure"
+  },
+  {
+    "id": 416,
+    "name": "Operation for Gastrojejunal Ulcer",
+    "category": "procedure"
+  },
+  {
+    "id": 417,
+    "name": "Total Gastrectomy for Cancer",
+    "category": "procedure"
+  },
+  {
+    "id": 418,
+    "name": "Highly Selective Vagotomy",
+    "category": "procedure"
+  },
+  {
+    "id": 419,
+    "name": "Selective Vagotomy & Drainage",
+    "category": "procedure"
+  },
+  {
+    "id": 420,
+    "name": "Congenital Diaphragmatic Hernia",
+    "category": "procedure"
+  },
+  {
+    "id": 421,
+    "name": "Hiatus Hernia Repair- Abdominal",
+    "category": "procedure"
+  },
+  {
+    "id": 422,
+    "name": "Hiatus Hernia Repair- Transthoracic",
+    "category": "procedure"
+  },
+  {
+    "id": 423,
+    "name": "Exploratory Laparotomy (open)",
+    "category": "procedure"
+  },
+  {
+    "id": 424,
+    "name": "Epigastric Hernia Repair",
+    "category": "procedure"
+  },
+  {
+    "id": 425,
+    "name": "Umbilical Hernia Repair",
+    "category": "procedure"
+  },
+  {
+    "id": 426,
+    "name": "Ventral /incisional Hernia Repair",
+    "category": "procedure"
+  },
+  {
+    "id": 427,
+    "name": "Inguinal Hernia Herniorraphy",
+    "category": "procedure"
+  },
+  {
+    "id": 428,
+    "name": "Inguinal Hernia - Hernioplasty",
+    "category": "procedure"
+  },
+  {
+    "id": 429,
+    "name": "Femoral Hernia Repair",
+    "category": "procedure"
+  },
+  {
+    "id": 430,
+    "name": "Rare Hernias Repair (Spigalion Obturator Lumbar Sciatic)",
+    "category": "procedure"
+  },
+  {
+    "id": 431,
+    "name": "Splenectomy - For Trauma",
+    "category": "procedure"
+  },
+  {
+    "id": 432,
+    "name": "Splenectomy - For Hypersplenism",
+    "category": "procedure"
+  },
+  {
+    "id": 433,
+    "name": "Splenorenal Anastomosis",
+    "category": "procedure"
+  },
+  {
+    "id": 434,
+    "name": "Portocaval Anastomosis",
+    "category": "procedure"
+  },
+  {
+    "id": 435,
+    "name": "Direct Operation on Oesophagus for Portal Hypertension",
+    "category": "procedure"
+  },
+  {
+    "id": 436,
+    "name": "Mesentericocaval Anastomosis",
+    "category": "procedure"
+  },
+  {
+    "id": 437,
+    "name": "Warren Shunt",
+    "category": "procedure"
+  },
+  {
+    "id": 438,
+    "name": "Pancerato Duodenectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 439,
+    "name": "By Pass Procedure for Inoperable Carcinoma of Pancreas",
+    "category": "procedure"
+  },
+  {
+    "id": 440,
+    "name": "Cystojejunostomy or Cystogastrostomy",
+    "category": "procedure"
+  },
+  {
+    "id": 441,
+    "name": "Cholecystectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 442,
+    "name": "Cholecystectomy & Exploration of CBD",
+    "category": "procedure"
+  },
+  {
+    "id": 443,
+    "name": "Repair of CBD",
+    "category": "procedure"
+  },
+  {
+    "id": 444,
+    "name": "Operation for Hydatid Cyst of Liver",
+    "category": "procedure"
+  },
+  {
+    "id": 445,
+    "name": "Cholecystostomy",
+    "category": "procedure"
+  },
+  {
+    "id": 446,
+    "name": "Hepatic Resections (Lobectomy /Hepatectomy)",
+    "category": "procedure"
+  },
+  {
+    "id": 447,
+    "name": "Operation on Adrenal Glands - Bilateral",
+    "category": "procedure"
+  },
+  {
+    "id": 448,
+    "name": "Operation on Adrenal Glands - Unilateral",
+    "category": "procedure"
+  },
+  {
+    "id": 449,
+    "name": "Appendicectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 450,
+    "name": "Appendicular Abscess – Drainage",
+    "category": "procedure"
+  },
+  {
+    "id": 451,
+    "name": "Mesenteric Cyst- Excision",
+    "category": "procedure"
+  },
+  {
+    "id": 452,
+    "name": "Peritonioscopy/Laparoscopy",
+    "category": "procedure"
+  },
+  {
+    "id": 453,
+    "name": "Jejunostomy",
+    "category": "procedure"
+  },
+  {
+    "id": 454,
+    "name": "Ileostomy",
+    "category": "procedure"
+  },
+  {
+    "id": 455,
+    "name": "Resection & Anastomosis of Small Intestine including exploratory\nLaparotomy",
+    "category": "procedure"
+  },
+  {
+    "id": 456,
+    "name": "Duodenal Diverticulum",
+    "category": "procedure"
+  },
+  {
+    "id": 457,
+    "name": "Operation for Intestinal Obstruction",
+    "category": "procedure"
+  },
+  {
+    "id": 458,
+    "name": "Operation for Intestinal perforation",
+    "category": "procedure"
+  },
+  {
+    "id": 459,
+    "name": "Benign Tumours of Small Intestine",
+    "category": "procedure"
+  },
+  {
+    "id": 460,
+    "name": "Excision of Small Intestine Fistula",
+    "category": "procedure"
+  },
+  {
+    "id": 461,
+    "name": "Operations for GI Bleed",
+    "category": "procedure"
+  },
+  {
+    "id": 462,
+    "name": "Operations for Haemorrhage of Small Intestines",
+    "category": "procedure"
+  },
+  {
+    "id": 463,
+    "name": "Operations of the Duplication of the Intestines--- including exploratory\nLaparotomy",
+    "category": "procedure"
+  },
+  {
+    "id": 464,
+    "name": "Operations for Recurrent Intestinal Obstruction (Noble\nPlication & Other Operations for Adhesions)",
+    "category": "procedure"
+  },
+  {
+    "id": 465,
+    "name": "Ilieosigmoidostomy and related resection",
+    "category": "procedure"
+  },
+  {
+    "id": 466,
+    "name": "Ilieotransverse Colostomy and related resection",
+    "category": "procedure"
+  },
+  {
+    "id": 467,
+    "name": "Caecostomy",
+    "category": "procedure"
+  },
+  {
+    "id": 468,
+    "name": "Loop Colostomy Transverse Sigmoid",
+    "category": "procedure"
+  },
+  {
+    "id": 469,
+    "name": "Terminal Colostomy",
+    "category": "procedure"
+  },
+  {
+    "id": 470,
+    "name": "Closure of Colostomy",
+    "category": "procedure"
+  },
+  {
+    "id": 471,
+    "name": "Right Hemi-Colectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 472,
+    "name": "Left Hemi-Colectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 473,
+    "name": "Total Colectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 474,
+    "name": "Operations for Volvulus of Large Bowel",
+    "category": "procedure"
+  },
+  {
+    "id": 475,
+    "name": "Operations for Sigmoid Diverticulitis",
+    "category": "procedure"
+  },
+  {
+    "id": 476,
+    "name": "Fissure in Ano with Internal sphinctrectomy with fissurectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 477,
+    "name": "Fissure in Ano - Fissurectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 478,
+    "name": "Rectal Polyp-Excision",
+    "category": "procedure"
+  },
+  {
+    "id": 479,
+    "name": "Fistula in Ano - High Fistulectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 480,
+    "name": "Fistula in Ano - Low Fistulectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 481,
+    "name": "Prolapse Rectum - Theirch Wiring",
+    "category": "procedure"
+  },
+  {
+    "id": 482,
+    "name": "Prolapse Rectum - Rectopexy",
+    "category": "procedure"
+  },
+  {
+    "id": 483,
+    "name": "Prolapse Rectum - Grahams Operation",
+    "category": "procedure"
+  },
+  {
+    "id": 484,
+    "name": "Operations for Hirschsprungs Disease",
+    "category": "procedure"
+  },
+  {
+    "id": 485,
+    "name": "Excision of Pilonidal Sinus (open)",
+    "category": "procedure"
+  },
+  {
+    "id": 486,
+    "name": "Excision of Pilonidal Sinus with closure",
+    "category": "procedure"
+  },
+  {
+    "id": 487,
+    "name": "Abdomino-Perineal Excision of Rectum",
+    "category": "procedure"
+  },
+  {
+    "id": 488,
+    "name": "Anterior Resection of rectum",
+    "category": "procedure"
+  },
+  {
+    "id": 489,
+    "name": "Pull Through Abdominal Resection",
+    "category": "procedure"
+  },
+  {
+    "id": 490,
+    "name": "Retro Peritoneal Tumor Removal",
+    "category": "procedure"
+  },
+  {
+    "id": 491,
+    "name": "Radio ablation of varicose veins (RFA Ablation)",
+    "category": "procedure"
+  },
+  {
+    "id": 492,
+    "name": "Laser ablation of varicose veins",
+    "category": "procedure"
+  },
+  {
+    "id": 493,
+    "name": "Laparoscopic Fundoplication",
+    "category": "procedure"
+  },
+  {
+    "id": 494,
+    "name": "Laparoscopic Splenectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 495,
+    "name": "Laparoscopic Removal of hydatid cyst",
+    "category": "procedure"
+  },
+  {
+    "id": 496,
+    "name": "Laparoscopic treatment of Pseudo Pancreatic cyst",
+    "category": "procedure"
+  },
+  {
+    "id": 497,
+    "name": "Laparoscopic Whipple's operation (Laparoscopic Pancreatico\nDuodenectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 498,
+    "name": "Laparoscopic GI bypass operation",
+    "category": "procedure"
+  },
+  {
+    "id": 499,
+    "name": "Laparoscopic Total Colectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 500,
+    "name": "Laparoscopic Hemicolectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 501,
+    "name": "Laparoscopic Anterior Resection (of Intestine/ Rectum)",
+    "category": "procedure"
+  },
+  {
+    "id": 502,
+    "name": "Laparoscopic Cholecystetomy",
+    "category": "procedure"
+  },
+  {
+    "id": 503,
+    "name": "Laparoscopic Appedicectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 504,
+    "name": "Laparoscopic Hernia - inguinoplasty (including Tacker and Mesh)",
+    "category": "procedure"
+  },
+  {
+    "id": 505,
+    "name": "Laparoscopic ventral Hernia Repair",
+    "category": "procedure"
+  },
+  {
+    "id": 506,
+    "name": "Laparoscopic Paraumblical Hernia Repair",
+    "category": "procedure"
+  },
+  {
+    "id": 507,
+    "name": "Laparoscopic Adrenelectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 508,
+    "name": "Laparoscopic Nephrectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 509,
+    "name": "Other Major Surgery",
+    "category": "procedure"
+  },
+  {
+    "id": 510,
+    "name": "Other Minor Surgery",
+    "category": "procedure"
+  },
+  {
+    "id": 511,
+    "name": "Coronary Care with Cardiac Monitoring (Room Rent extra)",
+    "category": "procedure"
+  },
+  {
+    "id": 512,
+    "name": "Compressed air / piped oxygen /per hour",
+    "category": "procedure"
+  },
+  {
+    "id": 513,
+    "name": "Ventilator charges (Per day)",
+    "category": "procedure"
+  },
+  {
+    "id": 514,
+    "name": "Paediatric care for New born (Per day)",
+    "category": "procedure"
+  },
+  {
+    "id": 515,
+    "name": "Incubator charges (Per day)",
+    "category": "procedure"
+  },
+  {
+    "id": 516,
+    "name": "Neonatal ICU charges (Per day)",
+    "category": "procedure"
+  },
+  {
+    "id": 517,
+    "name": "Resuscitation",
+    "category": "procedure"
+  },
+  {
+    "id": 518,
+    "name": "Exchange Transfusion",
+    "category": "procedure"
+  },
+  {
+    "id": 519,
+    "name": "Pneupack ventilator in Nursery (Per day)",
+    "category": "procedure"
+  },
+  {
+    "id": 520,
+    "name": "Atrial Septal Defect(ASD) closure\nVentricular septal defect (VSD) with graft",
+    "category": "procedure"
+  },
+  {
+    "id": 522,
+    "name": "TOF/TAPVC/TCPC/REV/RSOV repair",
+    "category": "procedure"
+  },
+  {
+    "id": 523,
+    "name": "BD Glenn/Left atrium myxoma",
+    "category": "procedure"
+  },
+  {
+    "id": 524,
+    "name": "Senning/Arterial Switch Operation (ASO) with graft",
+    "category": "procedure"
+  },
+  {
+    "id": 525,
+    "name": "Double Switch Operation (DSO)",
+    "category": "procedure"
+  },
+  {
+    "id": 526,
+    "name": "Atrioventricular(AV) canal repair",
+    "category": "procedure"
+  },
+  {
+    "id": 527,
+    "name": "Fontan PROCEDURE",
+    "category": "procedure"
+  },
+  {
+    "id": 528,
+    "name": "Conduit repair",
+    "category": "procedure"
+  },
+  {
+    "id": 529,
+    "name": "Coronary Artery Bypass Graft surgery (CABG)",
+    "category": "procedure"
+  },
+  {
+    "id": 530,
+    "name": "CABG + Intra-Aortic Balloon Pump (IABP)",
+    "category": "procedure"
+  },
+  {
+    "id": 531,
+    "name": "CABG + Valve.",
+    "category": "procedure"
+  },
+  {
+    "id": 532,
+    "name": "CABG without bypass.",
+    "category": "procedure"
+  },
+  {
+    "id": 533,
+    "name": "Ascending aorta replacement",
+    "category": "procedure"
+  },
+  {
+    "id": 534,
+    "name": "Double Valve Replacement (DVR)",
+    "category": "procedure"
+  },
+  {
+    "id": 535,
+    "name": "Mitral valve Replacement(MVR)/ Aortic valve Replacement(AVR)",
+    "category": "procedure"
+  },
+  {
+    "id": 536,
+    "name": "Mitral Valve repair + Aortic Valve repair",
+    "category": "procedure"
+  },
+  {
+    "id": 537,
+    "name": "Aorta femoral bypass",
+    "category": "procedure"
+  },
+  {
+    "id": 538,
+    "name": "Blalock-Taussig shunt (BT Shunt) / Coarctation",
+    "category": "procedure"
+  },
+  {
+    "id": 539,
+    "name": "Pulmonary Artery Banding (PA Banding) Septostomy",
+    "category": "procedure"
+  },
+  {
+    "id": 540,
+    "name": "Pericardectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 541,
+    "name": "Congenital cytomegalovirus (CMV)/ patent ductus arteriosus (PDA)",
+    "category": "procedure"
+  },
+  {
+    "id": 542,
+    "name": "Gunshot injury",
+    "category": "procedure"
+  },
+  {
+    "id": 543,
+    "name": "Heart transplant",
+    "category": "procedure"
+  },
+  {
+    "id": 544,
+    "name": "Balloon coronary angioplasty/PTCA",
+    "category": "procedure"
+  },
+  {
+    "id": 545,
+    "name": "Balloon coronary angioplasty/PTCA without Vascular Closure Device",
+    "category": "procedure"
+  },
+  {
+    "id": 546,
+    "name": "Rotablation",
+    "category": "procedure"
+  },
+  {
+    "id": 547,
+    "name": "Balloon Mitral Valvotomy / Percutaneous transvenous mitral\ncommissurotomy (PTMC) -",
+    "category": "procedure"
+  },
+  {
+    "id": 548,
+    "name": "Cardiac Catheterization (CATH)",
+    "category": "procedure"
+  },
+  {
+    "id": 549,
+    "name": "Aortic Arch Replacement",
+    "category": "procedure"
+  },
+  {
+    "id": 550,
+    "name": "Aortic Dissection",
+    "category": "procedure"
+  },
+  {
+    "id": 551,
+    "name": "Thoraco Abdominal Aneurism Repair",
+    "category": "procedure"
+  },
+  {
+    "id": 552,
+    "name": "Embolectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 553,
+    "name": "Vascular Repair",
+    "category": "procedure"
+  },
+  {
+    "id": 554,
+    "name": "Bentall Repair with Prosthetic Valve",
+    "category": "procedure"
+  },
+  {
+    "id": 555,
+    "name": "Bentall Repair with Biologic Valve",
+    "category": "procedure"
+  },
+  {
+    "id": 556,
+    "name": "Coaractation dilatation",
+    "category": "procedure"
+  },
+  {
+    "id": 557,
+    "name": "Coaractation dilatation with Stenting",
+    "category": "procedure"
+  },
+  {
+    "id": 558,
+    "name": "TPI Single Chamber",
+    "category": "procedure"
+  },
+  {
+    "id": 559,
+    "name": "TPI Dual Chamber",
+    "category": "procedure"
+  },
+  {
+    "id": 560,
+    "name": "Permanent pacemaker implantation (PPI)- Single chamber",
+    "category": "procedure"
+  },
+  {
+    "id": 561,
+    "name": "Permanent pacemaker implantation- Dual Chamber",
+    "category": "procedure"
+  },
+  {
+    "id": 562,
+    "name": "Permanent pacemaker implantation (PPI)- Biventricular",
+    "category": "procedure"
+  },
+  {
+    "id": 563,
+    "name": "Automatic implantable Cardioverter defibrillator AICD Single chamber",
+    "category": "procedure"
+  },
+  {
+    "id": 564,
+    "name": "Automatic implantable Cardioverter defibrillator AICD - Dual Chamber",
+    "category": "procedure"
+  },
+  {
+    "id": 565,
+    "name": "Combo device implantation",
+    "category": "procedure"
+  },
+  {
+    "id": 566,
+    "name": "Diagnostic Electrophysiological studies conventional (including catheter)",
+    "category": "procedure"
+  },
+  {
+    "id": 567,
+    "name": "Ambulatory BP monitoring",
+    "category": "procedure"
+  },
+  {
+    "id": 568,
+    "name": "External Loop/event recording ( maximum up to 7 days)",
+    "category": "procedure"
+  },
+  {
+    "id": 569,
+    "name": "RF Ablation conventional",
+    "category": "procedure"
+  },
+  {
+    "id": 570,
+    "name": "Radiofrequency (RF) ablation Atrial Tachycardia/with 3-D mapping – all\ninclusive",
+    "category": "procedure"
+  },
+  {
+    "id": 571,
+    "name": "Endomyocardial biopsy",
+    "category": "procedure"
+  },
+  {
+    "id": 572,
+    "name": "Intra aortic balloon pump (IABP)",
+    "category": "procedure"
+  },
+  {
+    "id": 573,
+    "name": "Intravascular coils",
+    "category": "procedure"
+  },
+  {
+    "id": 574,
+    "name": "Septostomy- Balloon",
+    "category": "procedure"
+  },
+  {
+    "id": 575,
+    "name": "Septostomy- Blade",
+    "category": "procedure"
+  },
+  {
+    "id": 576,
+    "name": "Aortic valve balloon dilatation (AVBD) / Pulmonary valve Balloon Dilatation\n(PVBD)",
+    "category": "procedure"
+  },
+  {
+    "id": 577,
+    "name": "Digital subtraction angiography-Peripheral artery",
+    "category": "procedure"
+  },
+  {
+    "id": 578,
+    "name": "Digital subtraction angiography- venogram",
+    "category": "procedure"
+  },
+  {
+    "id": 579,
+    "name": "CT Guided biopsy",
+    "category": "procedure"
+  },
+  {
+    "id": 580,
+    "name": "Sinogram",
+    "category": "procedure"
+  },
+  {
+    "id": 581,
+    "name": "Peripheral Angioplasty with VCD",
+    "category": "procedure"
+  },
+  {
+    "id": 582,
+    "name": "Peripheral Angioplasty",
+    "category": "procedure"
+  },
+  {
+    "id": 583,
+    "name": "Renal Angioplasty",
+    "category": "procedure"
+  },
+  {
+    "id": 584,
+    "name": "Intravascular ultrasound (IVUS)",
+    "category": "procedure"
+  },
+  {
+    "id": 585,
+    "name": "Fractional Flow Reserve (FFR) inclusive of cost of wire",
+    "category": "procedure"
+  },
+  {
+    "id": 586,
+    "name": "Holter analysis",
+    "category": "procedure"
+  },
+  {
+    "id": 587,
+    "name": "Aortic stent grafting for aortic aneurysm",
+    "category": "procedure"
+  },
+  {
+    "id": 588,
+    "name": "Inferior Vena Cava (IVC) filter implantation (Cost of Filter extra)",
+    "category": "procedure"
+  },
+  {
+    "id": 589,
+    "name": "ASD device closure",
+    "category": "procedure"
+  },
+  {
+    "id": 589,
+    "name": "VSD device closure",
+    "category": "procedure"
+  },
+  {
+    "id": 589,
+    "name": "PDA device closure",
+    "category": "procedure"
+  },
+  {
+    "id": 590,
+    "name": "Electrocardiogram (ECG)",
+    "category": "procedure"
+  },
+  {
+    "id": 591,
+    "name": "Head--up tilt test (HUTT)",
+    "category": "procedure"
+  },
+  {
+    "id": 592,
+    "name": "2D echocardiography",
+    "category": "procedure"
+  },
+  {
+    "id": 593,
+    "name": "3D echocardiography",
+    "category": "procedure"
+  },
+  {
+    "id": 594,
+    "name": "Fetal Echo",
+    "category": "procedure"
+  },
+  {
+    "id": 595,
+    "name": "2D Transesophageal Echocardiography (TEE)",
+    "category": "procedure"
+  },
+  {
+    "id": 596,
+    "name": "3D Transesophageal Echocardiography (TEE)",
+    "category": "procedure"
+  },
+  {
+    "id": 597,
+    "name": "Stress Echo- exercise",
+    "category": "procedure"
+  },
+  {
+    "id": 598,
+    "name": "Stress Echo- pharmacological",
+    "category": "procedure"
+  },
+  {
+    "id": 599,
+    "name": "Stress Myocardial Perfusion Imaging(MPI)-exercise",
+    "category": "procedure"
+  },
+  {
+    "id": 600,
+    "name": "Stress Myocardial Perfusion Imaging (MPI) – pharmacological",
+    "category": "procedure"
+  },
+  {
+    "id": 601,
+    "name": "Coronary angiography",
+    "category": "procedure"
+  },
+  {
+    "id": 602,
+    "name": "CT coronary angiography",
+    "category": "procedure"
+  },
+  {
+    "id": 603,
+    "name": "Cardiac CT scan",
+    "category": "procedure"
+  },
+  {
+    "id": 604,
+    "name": "Cardiac MRI",
+    "category": "procedure"
+  },
+  {
+    "id": 605,
+    "name": "Stress Cardiac MRI",
+    "category": "procedure"
+  },
+  {
+    "id": 606,
+    "name": "MR angiography.",
+    "category": "procedure"
+  },
+  {
+    "id": 607,
+    "name": "Cardiac PET",
+    "category": "procedure"
+  },
+  {
+    "id": 608,
+    "name": "Pericardiocentesis",
+    "category": "procedure"
+  },
+  {
+    "id": 609,
+    "name": "Other Major Surgery",
+    "category": "procedure"
+  },
+  {
+    "id": 610,
+    "name": "Other Minor Surgery",
+    "category": "procedure"
+  },
+  {
+    "id": 611,
+    "name": "Normal delivery with or without Episiotomy & P. repair",
+    "category": "procedure"
+  },
+  {
+    "id": 612,
+    "name": "vacuum delivery",
+    "category": "procedure"
+  },
+  {
+    "id": 613,
+    "name": "Forceps Delivery",
+    "category": "procedure"
+  },
+  {
+    "id": 614,
+    "name": "Cesarean Section(CS)",
+    "category": "procedure"
+  },
+  {
+    "id": 615,
+    "name": "Cesarean Hysterectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 616,
+    "name": "Rupture Uterus closure & repair with Tubal Ligation",
+    "category": "procedure"
+  },
+  {
+    "id": 617,
+    "name": "Perforation of Uterus after D/E Laparotomy & Closure",
+    "category": "procedure"
+  },
+  {
+    "id": 618,
+    "name": "Laparotomy for Ectopic pregnancy",
+    "category": "procedure"
+  },
+  {
+    "id": 619,
+    "name": "Laparotomy-peritonitis Lavage and Drainage",
+    "category": "procedure"
+  },
+  {
+    "id": 620,
+    "name": "Salphingo-Oophorectomy/ Oophorectomy Laparoscopic",
+    "category": "procedure"
+  },
+  {
+    "id": 621,
+    "name": "Ovarian Cystectomy-laparoscopic.",
+    "category": "procedure"
+  },
+  {
+    "id": 622,
+    "name": "Ovarian Cystectomy -laparotomy.",
+    "category": "procedure"
+  },
+  {
+    "id": 623,
+    "name": "Salpingo-Oophorectomy-laparotomy",
+    "category": "procedure"
+  },
+  {
+    "id": 624,
+    "name": "Laparoscopic Broad Ligament Hematoma Drainage with repair",
+    "category": "procedure"
+  },
+  {
+    "id": 625,
+    "name": "Exploration of perineal Haematoma & Repair",
+    "category": "procedure"
+  },
+  {
+    "id": 626,
+    "name": "Exploration of abdominal Haematoma (after laparotomy + LSCS)",
+    "category": "procedure"
+  },
+  {
+    "id": 627,
+    "name": "Manual Removal of Placenta",
+    "category": "procedure"
+  },
+  {
+    "id": 628,
+    "name": "Examination under anesthesia (EUA)",
+    "category": "procedure"
+  },
+  {
+    "id": 629,
+    "name": "Burst-abdomen Repair",
+    "category": "procedure"
+  },
+  {
+    "id": 630,
+    "name": "Gaping Perineal Wound Secondary Suturing",
+    "category": "procedure"
+  },
+  {
+    "id": 631,
+    "name": "Gaping abdominal wound Secondary Suturing",
+    "category": "procedure"
+  },
+  {
+    "id": 632,
+    "name": "Complete perineal tear-repair",
+    "category": "procedure"
+  },
+  {
+    "id": 633,
+    "name": "Exploration of PPH-tear repair",
+    "category": "procedure"
+  },
+  {
+    "id": 634,
+    "name": "Suction evacuation vesicular mole",
+    "category": "procedure"
+  },
+  {
+    "id": 635,
+    "name": "Suction evacuation Missed abortion/ incomplete abortion",
+    "category": "procedure"
+  },
+  {
+    "id": 636,
+    "name": "Colpotomy",
+    "category": "procedure"
+  },
+  {
+    "id": 637,
+    "name": "Repair of post-coital tear/ perineal injury",
+    "category": "procedure"
+  },
+  {
+    "id": 638,
+    "name": "Excision of urethral caruncle",
+    "category": "procedure"
+  },
+  {
+    "id": 639,
+    "name": "Shirodhkar/ McDonald stitch",
+    "category": "procedure"
+  },
+  {
+    "id": 640,
+    "name": "Abdominal Hysterectomy with or without salpingo-oophorectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 641,
+    "name": "Non-descent Vaginal Hysterectomy (NDVH)",
+    "category": "procedure"
+  },
+  {
+    "id": 642,
+    "name": "Vaginal Hysterectomy with repairs (UV Prolapse)",
+    "category": "procedure"
+  },
+  {
+    "id": 643,
+    "name": "Myomectomy -laparotomy",
+    "category": "procedure"
+  },
+  {
+    "id": 644,
+    "name": "Myomectomy -laparoscopic",
+    "category": "procedure"
+  },
+  {
+    "id": 645,
+    "name": "Vaginoplasty",
+    "category": "procedure"
+  },
+  {
+    "id": 646,
+    "name": "Vulvectomy -Simple",
+    "category": "procedure"
+  },
+  {
+    "id": 647,
+    "name": "Vulvectomy-Radical",
+    "category": "procedure"
+  },
+  {
+    "id": 648,
+    "name": "Rectovaginal Fistula (RVF) Repair",
+    "category": "procedure"
+  },
+  {
+    "id": 649,
+    "name": "Manchester Operation",
+    "category": "procedure"
+  },
+  {
+    "id": 650,
+    "name": "Shirodkar’s sling Operation or other sling operations for prolapse uterus",
+    "category": "procedure"
+  },
+  {
+    "id": 651,
+    "name": "Laparoscopic sling operations for prolapse uterus",
+    "category": "procedure"
+  },
+  {
+    "id": 652,
+    "name": "Diagnostic Curettage",
+    "category": "procedure"
+  },
+  {
+    "id": 653,
+    "name": "Cervical Biopsy",
+    "category": "procedure"
+  },
+  {
+    "id": 654,
+    "name": "Polypectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 655,
+    "name": "Other-Minor Operation Endometrial",
+    "category": "procedure"
+  },
+  {
+    "id": 656,
+    "name": "Excision Vaginal Cyst/Bartholin Cyst",
+    "category": "procedure"
+  },
+  {
+    "id": 657,
+    "name": "Excision Vaginal Septum",
+    "category": "procedure"
+  },
+  {
+    "id": 658,
+    "name": "Laparoscopy -Diagnostic with chromopertubation and or adhesiolysis and\ndrilling",
+    "category": "procedure"
+  },
+  {
+    "id": 659,
+    "name": "Laparoscopy Sterilization",
+    "category": "procedure"
+  },
+  {
+    "id": 660,
+    "name": "LAVH",
+    "category": "procedure"
+  },
+  {
+    "id": 661,
+    "name": "Balloon Temponade for PPH",
+    "category": "procedure"
+  },
+  {
+    "id": 662,
+    "name": "Total laparoscopic hysterectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 663,
+    "name": "Laparoscopic treatment of Ectopic pregnancy- salpingectomy/salpinostomy\nconservative",
+    "category": "procedure"
+  },
+  {
+    "id": 664,
+    "name": "Conisation of cervix",
+    "category": "procedure"
+  },
+  {
+    "id": 665,
+    "name": "Trachhelectomy of cervix for early CA cervix",
+    "category": "procedure"
+  },
+  {
+    "id": 666,
+    "name": "Hysteroscopic cannulation",
+    "category": "procedure"
+  },
+  {
+    "id": 667,
+    "name": "Laparotomy recannalization of Fallopian tubes-(Tubuloplasty)",
+    "category": "procedure"
+  },
+  {
+    "id": 668,
+    "name": "Laparoscopic recannalization of Fallopian tubes- (Tubuloplasty)",
+    "category": "procedure"
+  },
+  {
+    "id": 669,
+    "name": "Colposcopy",
+    "category": "procedure"
+  },
+  {
+    "id": 670,
+    "name": "Inversion of Uterus – Vaginal Reposition",
+    "category": "procedure"
+  },
+  {
+    "id": 671,
+    "name": "Inversion of Uterus – Abdominal Reposition",
+    "category": "procedure"
+  },
+  {
+    "id": 672,
+    "name": "Laparoscopic VVF Repair",
+    "category": "procedure"
+  },
+  {
+    "id": 673,
+    "name": "Abdominal VVF Repair",
+    "category": "procedure"
+  },
+  {
+    "id": 674,
+    "name": "Vaginal VVF Repair",
+    "category": "procedure"
+  },
+  {
+    "id": 675,
+    "name": "Interventional Ultrasonography (CVS)",
+    "category": "procedure"
+  },
+  {
+    "id": 676,
+    "name": "Amniocentesis",
+    "category": "procedure"
+  },
+  {
+    "id": 677,
+    "name": "Karyotyping",
+    "category": "procedure"
+  },
+  {
+    "id": 678,
+    "name": "Thermal balloon ablation.",
+    "category": "procedure"
+  },
+  {
+    "id": 679,
+    "name": "Ultrasonographic myolysis",
+    "category": "procedure"
+  },
+  {
+    "id": 680,
+    "name": "Vaginal Myomectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 681,
+    "name": "Intra Uterine Inseminition",
+    "category": "procedure"
+  },
+  {
+    "id": 682,
+    "name": "ICSI",
+    "category": "procedure"
+  },
+  {
+    "id": 683,
+    "name": "Laparotomy abdominal sacro-colpopexy",
+    "category": "procedure"
+  },
+  {
+    "id": 684,
+    "name": "Vaginal Colpopexy",
+    "category": "procedure"
+  },
+  {
+    "id": 685,
+    "name": "Laparoscopic abdominal sacro-colpopexy",
+    "category": "procedure"
+  },
+  {
+    "id": 686,
+    "name": "Laparotomy pelvic Lymphadenectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 687,
+    "name": "Laparoscopic pelvic Lymphadenectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 688,
+    "name": "Endometrial aspiration cytology/biopsy",
+    "category": "procedure"
+  },
+  {
+    "id": 689,
+    "name": "Transvaginal sonography (TVS for Follicular monitioring /aspiration)",
+    "category": "procedure"
+  },
+  {
+    "id": 690,
+    "name": "laparoscopic treatment for stress incontinence",
+    "category": "procedure"
+  },
+  {
+    "id": 691,
+    "name": "Transvaginal tapes for Stress incontinence",
+    "category": "procedure"
+  },
+  {
+    "id": 692,
+    "name": "trans-obturator tapes for Stress incontinence",
+    "category": "procedure"
+  },
+  {
+    "id": 693,
+    "name": "Interventional radiographic arterial embolization",
+    "category": "procedure"
+  },
+  {
+    "id": 694,
+    "name": "Diagnostic cystoscopy",
+    "category": "procedure"
+  },
+  {
+    "id": 695,
+    "name": "Staging laparotomy surgery for CA Ovary",
+    "category": "procedure"
+  },
+  {
+    "id": 696,
+    "name": "Internal Iliac ligation",
+    "category": "procedure"
+  },
+  {
+    "id": 697,
+    "name": "stepwise devascularisation",
+    "category": "procedure"
+  },
+  {
+    "id": 698,
+    "name": "Assisted breech delivery",
+    "category": "procedure"
+  },
+  {
+    "id": 699,
+    "name": "Intra-uterine fetal blood transfusion",
+    "category": "procedure"
+  },
+  {
+    "id": 700,
+    "name": "Hysteroscopy TCRE",
+    "category": "procedure"
+  },
+  {
+    "id": 701,
+    "name": "Hysteroscopy Removal of IUCD",
+    "category": "procedure"
+  },
+  {
+    "id": 702,
+    "name": "Hysteroscopy Removal of Septum",
+    "category": "procedure"
+  },
+  {
+    "id": 703,
+    "name": "Hysteroscopy Diagnostic",
+    "category": "procedure"
+  },
+  {
+    "id": 704,
+    "name": "Radical Hysterectomy for Cancer cervix with pelvic lymphadenectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 705,
+    "name": "Radical Hysterectomy for Cancer endometrium extending to cervix with\npelvic and para aortic lymphadenectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 706,
+    "name": "Sterilization Post partum (minilap)",
+    "category": "procedure"
+  },
+  {
+    "id": 707,
+    "name": "Sterilization interval (minilap)",
+    "category": "procedure"
+  },
+  {
+    "id": 708,
+    "name": "Ultrasonography Level II scan/Anomaly Scan",
+    "category": "procedure"
+  },
+  {
+    "id": 709,
+    "name": "Fetal nuchal Translucency",
+    "category": "procedure"
+  },
+  {
+    "id": 710,
+    "name": "Fetal Doppler/Umblical Doppler/Uterine Vessel Doppler (USG Colour\nDoppler Pregnancy)",
+    "category": "procedure"
+  },
+  {
+    "id": 711,
+    "name": "MTP- 1st Trimester",
+    "category": "procedure"
+  },
+  {
+    "id": 712,
+    "name": "MTP - 2nd Trimester",
+    "category": "procedure"
+  },
+  {
+    "id": 713,
+    "name": "Quadruple test",
+    "category": "procedure"
+  },
+  {
+    "id": 714,
+    "name": "Biophysical score",
+    "category": "procedure"
+  },
+  {
+    "id": 715,
+    "name": "Other Major Surgery",
+    "category": "procedure"
+  },
+  {
+    "id": 716,
+    "name": "Other Minor Surgery",
+    "category": "procedure"
+  },
+  {
+    "id": 717,
+    "name": "Partial Nephrectomy -open",
+    "category": "procedure"
+  },
+  {
+    "id": 718,
+    "name": "Partial Nephrectomy-laproscopic/endoscopic",
+    "category": "procedure"
+  },
+  {
+    "id": 719,
+    "name": "Nephrolithomy -open",
+    "category": "procedure"
+  },
+  {
+    "id": 720,
+    "name": "Nephrolithomy -laproscopic/endoscopic",
+    "category": "procedure"
+  },
+  {
+    "id": 721,
+    "name": "Pyelolithotomy-open",
+    "category": "procedure"
+  },
+  {
+    "id": 722,
+    "name": "Pyelolithotomy -laproscopic/endoscopic",
+    "category": "procedure"
+  },
+  {
+    "id": 723,
+    "name": "Operations for Hydronephrosis -pyeloplasty open",
+    "category": "procedure"
+  },
+  {
+    "id": 724,
+    "name": "Operations for Hydronephrosis -pyeloplasty Lap/endoscopic",
+    "category": "procedure"
+  },
+  {
+    "id": 725,
+    "name": "Operations for Hydronephrosis Endoplyelotomy antegrade",
+    "category": "procedure"
+  },
+  {
+    "id": 726,
+    "name": "Operations for Hydronephrosis Endoplyelotomy retrograde",
+    "category": "procedure"
+  },
+  {
+    "id": 727,
+    "name": "Operations for Hydronephrosis -ureterocalicostomy",
+    "category": "procedure"
+  },
+  {
+    "id": 728,
+    "name": "Operations for Hydronephrosis-Ileal ureter",
+    "category": "procedure"
+  },
+  {
+    "id": 729,
+    "name": "Open Drainage of Perinephric Abscess",
+    "category": "procedure"
+  },
+  {
+    "id": 730,
+    "name": "Percutaneous Drainage of Perinephric Abscess -Ultrasound guided",
+    "category": "procedure"
+  },
+  {
+    "id": 731,
+    "name": "Cavernostomy",
+    "category": "procedure"
+  },
+  {
+    "id": 732,
+    "name": "Operations for Cyst of the Kidney -open",
+    "category": "procedure"
+  },
+  {
+    "id": 733,
+    "name": "Operations for Cyst of the Kidney -Lap/endoscopic",
+    "category": "procedure"
+  },
+  {
+    "id": 734,
+    "name": "Ureterolithotomy -open",
+    "category": "procedure"
+  },
+  {
+    "id": 735,
+    "name": "Ureterolithotomy-Lap/Endoscopic",
+    "category": "procedure"
+  },
+  {
+    "id": 736,
+    "name": "Nephroureterectomy open",
+    "category": "procedure"
+  },
+  {
+    "id": 737,
+    "name": "Nephroureterectomy -Lap/Endoscopic",
+    "category": "procedure"
+  },
+  {
+    "id": 738,
+    "name": "Operations for Ureter for -Double Ureters",
+    "category": "procedure"
+  },
+  {
+    "id": 739,
+    "name": "Operations for Ureter -for Ectopia of Single Ureter",
+    "category": "procedure"
+  },
+  {
+    "id": 740,
+    "name": "Operations for Vesico- ureteric Reflux -Open",
+    "category": "procedure"
+  },
+  {
+    "id": 741,
+    "name": "Operations for Vesico- ureteric Reflux-Lap/Endoscopic",
+    "category": "procedure"
+  },
+  {
+    "id": 742,
+    "name": "Operations for Vesico- ureteric Reflux/ Urinary incontinence with bulking\nagents",
+    "category": "procedure"
+  },
+  {
+    "id": 743,
+    "name": "Ureterostomy - Cutaneous",
+    "category": "procedure"
+  },
+  {
+    "id": 744,
+    "name": "Uretero-Colic anastomosis",
+    "category": "procedure"
+  },
+  {
+    "id": 745,
+    "name": "Formation of an Ileal Conduit",
+    "category": "procedure"
+  },
+  {
+    "id": 746,
+    "name": "Ureteric Catheterisation",
+    "category": "procedure"
+  },
+  {
+    "id": 747,
+    "name": "Biopsy of Bladder (Cystoscopic)",
+    "category": "procedure"
+  },
+  {
+    "id": 748,
+    "name": "Cysto-Litholapaxy",
+    "category": "procedure"
+  },
+  {
+    "id": 749,
+    "name": "Operations for Injuries of the Bladder",
+    "category": "procedure"
+  },
+  {
+    "id": 750,
+    "name": "Suprapubic Drainage (Cystostomy/vesicostomy)",
+    "category": "procedure"
+  },
+  {
+    "id": 751,
+    "name": "Simple Cystectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 752,
+    "name": "Diverticulectomy -open",
+    "category": "procedure"
+  },
+  {
+    "id": 753,
+    "name": "Diverticulectomy- Lap/Endoscopic",
+    "category": "procedure"
+  },
+  {
+    "id": 754,
+    "name": "Diverticulectomy -Endoscopic incision of neck",
+    "category": "procedure"
+  },
+  {
+    "id": 755,
+    "name": "Augmentation Cystoplasty",
+    "category": "procedure"
+  },
+  {
+    "id": 756,
+    "name": "Operations for Extrophy of the Bladder- Single stage repair",
+    "category": "procedure"
+  },
+  {
+    "id": 757,
+    "name": "Operations for Extrophy of the Bladder- Multistage repair",
+    "category": "procedure"
+  },
+  {
+    "id": 758,
+    "name": "Operations for Extrophy of the Bladder- simple cystectomy with urinary\ndiversion",
+    "category": "procedure"
+  },
+  {
+    "id": 759,
+    "name": "Repair of Ureterocoel -Open",
+    "category": "procedure"
+  },
+  {
+    "id": 760,
+    "name": "Repair of Ureterocoel -Lap/Endoscopic",
+    "category": "procedure"
+  },
+  {
+    "id": 761,
+    "name": "Repair of Ureterocoel -Endoscopic incision",
+    "category": "procedure"
+  },
+  {
+    "id": 762,
+    "name": "Open Suprapubic Prostatectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 763,
+    "name": "Open Retropubic Prostatectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 764,
+    "name": "Transurethral Resection of Prostate (TURP)",
+    "category": "procedure"
+  },
+  {
+    "id": 765,
+    "name": "Urethroscopy/ Cystopanendoscopy",
+    "category": "procedure"
+  },
+  {
+    "id": 766,
+    "name": "Internal urethrotomy -optical",
+    "category": "procedure"
+  },
+  {
+    "id": 767,
+    "name": "Internal urethrotomy -Core through urethroplasty",
+    "category": "procedure"
+  },
+  {
+    "id": 768,
+    "name": "Urethral Reconstruction -End to end ansatamosis",
+    "category": "procedure"
+  },
+  {
+    "id": 769,
+    "name": "Urethral Reconstruction - substitution urethroplasty (Transpubic\nurethroplasty",
+    "category": "procedure"
+  },
+  {
+    "id": 770,
+    "name": "Abdomino Perineal urethroplasty",
+    "category": "procedure"
+  },
+  {
+    "id": 771,
+    "name": "Posterior Urethral Valve fulguration.",
+    "category": "procedure"
+  },
+  {
+    "id": 772,
+    "name": "Operations for Incontinence of Urine - Male -Open",
+    "category": "procedure"
+  },
+  {
+    "id": 773,
+    "name": "Operations for Incontinence of Urine - Male -Sling",
+    "category": "procedure"
+  },
+  {
+    "id": 774,
+    "name": "Operations for Incontinence of Urine - Male-Bulking agent",
+    "category": "procedure"
+  },
+  {
+    "id": 775,
+    "name": "Operations for Incontinence of Urine - Female -Open",
+    "category": "procedure"
+  },
+  {
+    "id": 776,
+    "name": "Operations for Incontinence of Urine - Female-Sling",
+    "category": "procedure"
+  },
+  {
+    "id": 777,
+    "name": "Operations for Incontinence of Urine - Female-Bulking agent",
+    "category": "procedure"
+  },
+  {
+    "id": 778,
+    "name": "Reduction of Paraphimosis",
+    "category": "procedure"
+  },
+  {
+    "id": 779,
+    "name": "Circumcision",
+    "category": "procedure"
+  },
+  {
+    "id": 780,
+    "name": "Meatotomy",
+    "category": "procedure"
+  },
+  {
+    "id": 781,
+    "name": "Meatoplasty",
+    "category": "procedure"
+  },
+  {
+    "id": 782,
+    "name": "Operations for Hypospadias + Chordee Correction",
+    "category": "procedure"
+  },
+  {
+    "id": 783,
+    "name": "Operations for Hypospadias - Second Stage",
+    "category": "procedure"
+  },
+  {
+    "id": 784,
+    "name": "Operations for Hypospadias - One Stage Repair",
+    "category": "procedure"
+  },
+  {
+    "id": 785,
+    "name": "Operations for Crippled Hypospadias",
+    "category": "procedure"
+  },
+  {
+    "id": 786,
+    "name": "Operations for Epispadias _primary repair",
+    "category": "procedure"
+  },
+  {
+    "id": 787,
+    "name": "Operations for Epispadias-crippled epispadias",
+    "category": "procedure"
+  },
+  {
+    "id": 788,
+    "name": "Partial Amputation of the Penis",
+    "category": "procedure"
+  },
+  {
+    "id": 789,
+    "name": "Total amputation of the Penis",
+    "category": "procedure"
+  },
+  {
+    "id": 790,
+    "name": "Orchidectomy-Simple",
+    "category": "procedure"
+  },
+  {
+    "id": 791,
+    "name": "Orchidectomy -Radical",
+    "category": "procedure"
+  },
+  {
+    "id": 792,
+    "name": "Post Radical Orchidectomy retroperitoneal lymph node dissection.",
+    "category": "procedure"
+  },
+  {
+    "id": 793,
+    "name": "Epididymectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 794,
+    "name": "Adreneclectomy Unilateral/Bilateral for Tumour/For Carcinoma- Open",
+    "category": "procedure"
+  },
+  {
+    "id": 795,
+    "name": "Adreneclectomy Unilateral/Bilateral for Tumour/For Carcinoma -\nLap/Endoscopic",
+    "category": "procedure"
+  },
+  {
+    "id": 796,
+    "name": "Operations for Hydrocele - Unilateral",
+    "category": "procedure"
+  },
+  {
+    "id": 797,
+    "name": "Operations for Hydrocele - Bilateral",
+    "category": "procedure"
+  },
+  {
+    "id": 798,
+    "name": "Operation for Torsion of Testis",
+    "category": "procedure"
+  },
+  {
+    "id": 799,
+    "name": "Micro-surgical Vasovasostomy /Vaso epidedymal ansatamosis.",
+    "category": "procedure"
+  },
+  {
+    "id": 800,
+    "name": "Operations for Varicocele Unilateral-Microsurgical",
+    "category": "procedure"
+  },
+  {
+    "id": 801,
+    "name": "Operations for Varicocele Palomo’s Unilateral - Lap",
+    "category": "procedure"
+  },
+  {
+    "id": 802,
+    "name": "Operations for Varicocele Bilateral --Microsurgical",
+    "category": "procedure"
+  },
+  {
+    "id": 803,
+    "name": "Operations for Varicocele Bilateral – Lap/ Palomo",
+    "category": "procedure"
+  },
+  {
+    "id": 804,
+    "name": "Block Dissection of ilio-inguinal Nodes - One Side (For Ca- Penis)",
+    "category": "procedure"
+  },
+  {
+    "id": 805,
+    "name": "Block Dissection of ilio-inguinal Nodes - Both Sides (For Ca- Penis)",
+    "category": "procedure"
+  },
+  {
+    "id": 806,
+    "name": "Excision of Filarial Scrotum",
+    "category": "procedure"
+  },
+  {
+    "id": 807,
+    "name": "Kidney Transplantation (related)",
+    "category": "procedure"
+  },
+  {
+    "id": 808,
+    "name": "Kidney Transplantation (Spousal/ unrelated) Including immunosuppressant\ntherapy",
+    "category": "procedure"
+  },
+  {
+    "id": 809,
+    "name": "ABO incompatible Transplantation",
+    "category": "procedure"
+  },
+  {
+    "id": 810,
+    "name": "Swap Transplantation",
+    "category": "procedure"
+  },
+  {
+    "id": 811,
+    "name": "Kidney Transplant Graft Nephrectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 812,
+    "name": "Donor Nephrectomy (open)",
+    "category": "procedure"
+  },
+  {
+    "id": 813,
+    "name": "Donor Nephrectomy (Laproscopic)",
+    "category": "procedure"
+  },
+  {
+    "id": 814,
+    "name": "Cadaver Transplantation",
+    "category": "procedure"
+  },
+  {
+    "id": 815,
+    "name": "Kidney Transplant with Native Kidney Nephrectomy (Related)/ Unilateral",
+    "category": "procedure"
+  },
+  {
+    "id": 816,
+    "name": "Kidney Transplant with Native Kidney Nephrectomy (Related)/ Bilateral",
+    "category": "procedure"
+  },
+  {
+    "id": 817,
+    "name": "Kidney Transplant with Native Kidney Nephrectomy (Spousal/ Unrelated)\nUnilateral",
+    "category": "procedure"
+  },
+  {
+    "id": 818,
+    "name": "Kidney Transplant with Native Kidney Nephrectomy (Spousal/ Unrelated)\nBilateral",
+    "category": "procedure"
+  },
+  {
+    "id": 819,
+    "name": "Post-Transplant Collection drainage for Lymphocele (open)",
+    "category": "procedure"
+  },
+  {
+    "id": 820,
+    "name": "Post-Transplant Collection drainage for Lymphocele (percutaneous)",
+    "category": "procedure"
+  },
+  {
+    "id": 821,
+    "name": "Post-Transplant Collection drainage for Lymphocele (Laproscopic)",
+    "category": "procedure"
+  },
+  {
+    "id": 822,
+    "name": "Arteriovenous Fistula for Haemodialysis",
+    "category": "procedure"
+  },
+  {
+    "id": 823,
+    "name": "Arteriovenous Shunt for Haemodialysis",
+    "category": "procedure"
+  },
+  {
+    "id": 824,
+    "name": "Jugular Catheterization for Haemodialysis",
+    "category": "procedure"
+  },
+  {
+    "id": 825,
+    "name": "Subclavian Catheterization for Haemodialysis",
+    "category": "procedure"
+  },
+  {
+    "id": 826,
+    "name": "One sided (single Lumen) Femoral Catheterization for Haemodialysis",
+    "category": "procedure"
+  },
+  {
+    "id": 827,
+    "name": "Bilateral (single Lumen) Femoral Catheterization for Haemodialysis",
+    "category": "procedure"
+  },
+  {
+    "id": 828,
+    "name": "Double Lumen Femoral Catheterization for Haemodialysis",
+    "category": "procedure"
+  },
+  {
+    "id": 829,
+    "name": "Permcath Insertion",
+    "category": "procedure"
+  },
+  {
+    "id": 830,
+    "name": "Arterio venous Prosthetic Graft",
+    "category": "procedure"
+  },
+  {
+    "id": 831,
+    "name": "Single lumen Jugular Catheterization",
+    "category": "procedure"
+  },
+  {
+    "id": 832,
+    "name": "Single lumen Subclavian Catheterization",
+    "category": "procedure"
+  },
+  {
+    "id": 833,
+    "name": "Plasma Exchange/ Plasma phresis",
+    "category": "procedure"
+  },
+  {
+    "id": 834,
+    "name": "Open method CAPD catheter insertion",
+    "category": "procedure"
+  },
+  {
+    "id": 835,
+    "name": "Schlendinger method CAPD catheter insertion",
+    "category": "procedure"
+  },
+  {
+    "id": 836,
+    "name": "Sustained low efficiency hemodialysis",
+    "category": "procedure"
+  },
+  {
+    "id": 837,
+    "name": "Continuous Veno venous/Arteriovenous Hemofilteration",
+    "category": "procedure"
+  },
+  {
+    "id": 838,
+    "name": "Hemodialysis for Sero negative cases",
+    "category": "procedure"
+  },
+  {
+    "id": 839,
+    "name": "Hemodialysis for Sero Positive cases",
+    "category": "procedure"
+  },
+  {
+    "id": 840,
+    "name": "Acute Peritoneal Dialysis",
+    "category": "procedure"
+  },
+  {
+    "id": 841,
+    "name": "Fistologram for Arteriovenous Fistula",
+    "category": "procedure"
+  },
+  {
+    "id": 842,
+    "name": "Ultrasound guided kidney Biopsy",
+    "category": "procedure"
+  },
+  {
+    "id": 843,
+    "name": "Fistula stenosis dilation",
+    "category": "procedure"
+  },
+  {
+    "id": 844,
+    "name": "Slow continuous Ultrafilteration",
+    "category": "procedure"
+  },
+  {
+    "id": 845,
+    "name": "PCNL - Unilateral",
+    "category": "procedure"
+  },
+  {
+    "id": 846,
+    "name": "PCNL - Bilateral",
+    "category": "procedure"
+  },
+  {
+    "id": 847,
+    "name": "Endoscopic Bulking agent Inject",
+    "category": "procedure"
+  },
+  {
+    "id": 848,
+    "name": "Testicular Biopsy",
+    "category": "procedure"
+  },
+  {
+    "id": 849,
+    "name": "Radical Nephrectomy -Open",
+    "category": "procedure"
+  },
+  {
+    "id": 850,
+    "name": "Radical Nephrectomy -Lap/Endoscopic",
+    "category": "procedure"
+  },
+  {
+    "id": 851,
+    "name": "Radical Nephrectomy plus IV thrombus",
+    "category": "procedure"
+  },
+  {
+    "id": 852,
+    "name": "Radical Nephrectomy plus IV thrombus plus cardiac bypass.",
+    "category": "procedure"
+  },
+  {
+    "id": 853,
+    "name": "Vesico Vaginal Fistula Repair (Open)",
+    "category": "procedure"
+  },
+  {
+    "id": 854,
+    "name": "Vesico Vaginal Fistula Repair (Laproscopic)",
+    "category": "procedure"
+  },
+  {
+    "id": 855,
+    "name": "Radical Cystectomy -Ileal conduit",
+    "category": "procedure"
+  },
+  {
+    "id": 856,
+    "name": "Radical Cystectomy - continent diversion.",
+    "category": "procedure"
+  },
+  {
+    "id": 857,
+    "name": "Radical Cystectomy – Neo bladder",
+    "category": "procedure"
+  },
+  {
+    "id": 858,
+    "name": "Nephrectomy Simple -Open",
+    "category": "procedure"
+  },
+  {
+    "id": 859,
+    "name": "Nephrectomy Simple-lap/Endoscopic",
+    "category": "procedure"
+  },
+  {
+    "id": 860,
+    "name": "Nephrostomy -Open",
+    "category": "procedure"
+  },
+  {
+    "id": 861,
+    "name": "Nephrostomy -Lap/Endoscopic",
+    "category": "procedure"
+  },
+  {
+    "id": 862,
+    "name": "Ureteric Re- implant for Megaureter/Vesicoureteric reflex/uterocele (open)",
+    "category": "procedure"
+  },
+  {
+    "id": 863,
+    "name": "Ureteric Re -implant for Megaureter/Vesicoureteric reflex/ uterocele\n(Laproscopic)",
+    "category": "procedure"
+  },
+  {
+    "id": 864,
+    "name": "Partial Cystectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 865,
+    "name": "TURP & TUR Bladder Tumour",
+    "category": "procedure"
+  },
+  {
+    "id": 866,
+    "name": "TURP with Cystolithotripsy",
+    "category": "procedure"
+  },
+  {
+    "id": 867,
+    "name": "Closure of Urethral Fistula",
+    "category": "procedure"
+  },
+  {
+    "id": 868,
+    "name": "Orchidopexy - Unilateral -Open",
+    "category": "procedure"
+  },
+  {
+    "id": 869,
+    "name": "Orchidopexy - Unilateral- Lap/Endoscopic",
+    "category": "procedure"
+  },
+  {
+    "id": 870,
+    "name": "Orchidopexy - Bilateral -Open",
+    "category": "procedure"
+  },
+  {
+    "id": 871,
+    "name": "Orchidopexy - Bilateral -Lap/Endoscopic",
+    "category": "procedure"
+  },
+  {
+    "id": 872,
+    "name": "Cystolithotomy -Suprapubic",
+    "category": "procedure"
+  },
+  {
+    "id": 873,
+    "name": "Endoscopic Removal of Stone in Bladder",
+    "category": "procedure"
+  },
+  {
+    "id": 874,
+    "name": "Resection Bladder Neck Endoscopic /Bladder neck incision/transurethral\nincision on prostrate",
+    "category": "procedure"
+  },
+  {
+    "id": 875,
+    "name": "Ureteroscopic Surgery",
+    "category": "procedure"
+  },
+  {
+    "id": 876,
+    "name": "Urethroplasty 1st Stage",
+    "category": "procedure"
+  },
+  {
+    "id": 877,
+    "name": "Scrotal Exploration",
+    "category": "procedure"
+  },
+  {
+    "id": 878,
+    "name": "Perineal Urethrostomy",
+    "category": "procedure"
+  },
+  {
+    "id": 879,
+    "name": "Dilatation of Stricture Urethra under G.A.",
+    "category": "procedure"
+  },
+  {
+    "id": 880,
+    "name": "Dilatation of Stricture Urethra under LA",
+    "category": "procedure"
+  },
+  {
+    "id": 881,
+    "name": "Laproscopic Nephrectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 882,
+    "name": "Laproscopic partial Nephrectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 883,
+    "name": "Laproscopic pyelolithotomy",
+    "category": "procedure"
+  },
+  {
+    "id": 884,
+    "name": "Laproscopic Pyeloplasty",
+    "category": "procedure"
+  },
+  {
+    "id": 885,
+    "name": "Laproscopic surgery for Renal cyst",
+    "category": "procedure"
+  },
+  {
+    "id": 886,
+    "name": "Laproscopic ureterolithotomy",
+    "category": "procedure"
+  },
+  {
+    "id": 887,
+    "name": "Laproscopic Nephro ureterotectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 888,
+    "name": "Lithotripsy Extra corporeal shock wave.",
+    "category": "procedure"
+  },
+  {
+    "id": 889,
+    "name": "Uroflow Study (Uroflometry)",
+    "category": "procedure"
+  },
+  {
+    "id": 890,
+    "name": "Urodynamic Study (Cystometry)",
+    "category": "procedure"
+  },
+  {
+    "id": 891,
+    "name": "Cystoscopy with Retrograde Catheter -Unilateral /RGP",
+    "category": "procedure"
+  },
+  {
+    "id": 892,
+    "name": "Cystoscopy with Retrograde Catheter - Bilateral /RGP",
+    "category": "procedure"
+  },
+  {
+    "id": 893,
+    "name": "Cystoscopy with Bladder Biopsy (Cold Cup Biopsy)",
+    "category": "procedure"
+  },
+  {
+    "id": 894,
+    "name": "Voiding-cysto-urethrogram and retrograde urethrogram (Nephrostogram)",
+    "category": "procedure"
+  },
+  {
+    "id": 895,
+    "name": "Radical prostatectomy-Open",
+    "category": "procedure"
+  },
+  {
+    "id": 896,
+    "name": "Radical prostatectomy-Laproscopic",
+    "category": "procedure"
+  },
+  {
+    "id": 897,
+    "name": "Radical prostatectomy- Robotic (Robotic Partial Nephrectomy)",
+    "category": "procedure"
+  },
+  {
+    "id": 898,
+    "name": "Hollmium YAG Prostate Surgery",
+    "category": "procedure"
+  },
+  {
+    "id": 899,
+    "name": "Hollmium YAG OIU",
+    "category": "procedure"
+  },
+  {
+    "id": 900,
+    "name": "Hollmium YAG Core Through",
+    "category": "procedure"
+  },
+  {
+    "id": 901,
+    "name": "Hollmium YAG Stone Lithotripsy",
+    "category": "procedure"
+  },
+  {
+    "id": 902,
+    "name": "Green Light laser for prostate",
+    "category": "procedure"
+  },
+  {
+    "id": 903,
+    "name": "RIRS/ Flexible Ureteroscopy",
+    "category": "procedure"
+  },
+  {
+    "id": 904,
+    "name": "Microscopic VEA/ Vaso-Vasostomy (for Infertility)",
+    "category": "procedure"
+  },
+  {
+    "id": 905,
+    "name": "Cystoscopic Botulinum Toxin Injection ( Over active bladder/ Neurogenic\nbladder)",
+    "category": "procedure"
+  },
+  {
+    "id": 906,
+    "name": "Peyronie’s disease – Plaque excision with grafting",
+    "category": "procedure"
+  },
+  {
+    "id": 907,
+    "name": "High Intensity Focus Ultrasound (HIFU) (Robotic) for\nCarcinoma prostrate and renal cell carcinoma",
+    "category": "procedure"
+  },
+  {
+    "id": 908,
+    "name": "Prosthetic surgery for urinary incontinence",
+    "category": "procedure"
+  },
+  {
+    "id": 909,
+    "name": "TRUS guided prostate biopsy",
+    "category": "procedure"
+  },
+  {
+    "id": 910,
+    "name": "Ultra sound guided PCN",
+    "category": "procedure"
+  },
+  {
+    "id": 911,
+    "name": "Other Major Surgery",
+    "category": "procedure"
+  },
+  {
+    "id": 912,
+    "name": "Other Minor Surgery",
+    "category": "procedure"
+  },
+  {
+    "id": 913,
+    "name": "Craniotomy and Evacuation of Haematoma -Subdural",
+    "category": "procedure"
+  },
+  {
+    "id": 914,
+    "name": "Craniotomy and Evacuation of Haematoma -Extradural",
+    "category": "procedure"
+  },
+  {
+    "id": 915,
+    "name": "Evacuation /Excision of Brain Abscess by craniotomy",
+    "category": "procedure"
+  },
+  {
+    "id": 916,
+    "name": "Excision of Lobe (Frontal Temporal Cerebellum etc.)",
+    "category": "procedure"
+  },
+  {
+    "id": 917,
+    "name": "Excision of Brain Tumours -Supratentorial",
+    "category": "procedure"
+  },
+  {
+    "id": 918,
+    "name": "Excision of Brain Tumours -Infratentorial",
+    "category": "procedure"
+  },
+  {
+    "id": 919,
+    "name": "Surgery of spinal Cord Tumours",
+    "category": "procedure"
+  },
+  {
+    "id": 920,
+    "name": "Ventriculoatrial /Ventriculoperitoneal Shunt",
+    "category": "procedure"
+  },
+  {
+    "id": 921,
+    "name": "Twist Drill Craniostomy",
+    "category": "procedure"
+  },
+  {
+    "id": 922,
+    "name": "Subdural Tapping",
+    "category": "procedure"
+  },
+  {
+    "id": 923,
+    "name": "Ventricular Tapping",
+    "category": "procedure"
+  },
+  {
+    "id": 924,
+    "name": "Abscess Tapping",
+    "category": "procedure"
+  },
+  {
+    "id": 925,
+    "name": "Placement of ICP Monitor -",
+    "category": "procedure"
+  },
+  {
+    "id": 926,
+    "name": "Skull Traction Application",
+    "category": "procedure"
+  },
+  {
+    "id": 927,
+    "name": "Lumber Pressure Monitoring",
+    "category": "procedure"
+  },
+  {
+    "id": 928,
+    "name": "Vascular Malformations",
+    "category": "procedure"
+  },
+  {
+    "id": 929,
+    "name": "Meningo Encephalocoele excision and repair",
+    "category": "procedure"
+  },
+  {
+    "id": 930,
+    "name": "Meningomyelocoel Repair",
+    "category": "procedure"
+  },
+  {
+    "id": 931,
+    "name": "C.S.F. Rhinorrhaea Repair",
+    "category": "procedure"
+  },
+  {
+    "id": 932,
+    "name": "Cranioplasty",
+    "category": "procedure"
+  },
+  {
+    "id": 933,
+    "name": "Anterior Cervical Dissectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 934,
+    "name": "Brachial Plexus Exploration and neurotization",
+    "category": "procedure"
+  },
+  {
+    "id": 935,
+    "name": "Median Nerve Decompression",
+    "category": "procedure"
+  },
+  {
+    "id": 936,
+    "name": "Peripheral Nerve Surgery – Major",
+    "category": "procedure"
+  },
+  {
+    "id": 937,
+    "name": "Peripheral Nerve Surgery Minor",
+    "category": "procedure"
+  },
+  {
+    "id": 938,
+    "name": "Ventriculo-Atrial Shunt",
+    "category": "procedure"
+  },
+  {
+    "id": 939,
+    "name": "Nerve Biopsy",
+    "category": "procedure"
+  },
+  {
+    "id": 940,
+    "name": "Brain Biopsy",
+    "category": "procedure"
+  },
+  {
+    "id": 941,
+    "name": "Anterior Cervical Spine Surgery with fusion",
+    "category": "procedure"
+  },
+  {
+    "id": 942,
+    "name": "Anterio Lateral Decompression of spine",
+    "category": "procedure"
+  },
+  {
+    "id": 943,
+    "name": "Brain Mapping",
+    "category": "procedure"
+  },
+  {
+    "id": 944,
+    "name": "Cervical or Dorsal or Lumbar Laminectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 945,
+    "name": "Combined Trans-oral Surgery & CV Junction Fusion",
+    "category": "procedure"
+  },
+  {
+    "id": 946,
+    "name": "C.V. Junction Fusion procedures",
+    "category": "procedure"
+  },
+  {
+    "id": 947,
+    "name": "Depressed Fracture Elevation",
+    "category": "procedure"
+  },
+  {
+    "id": 948,
+    "name": "Lumbar Discectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 949,
+    "name": "Endarterectomy (Carotid)",
+    "category": "procedure"
+  },
+  {
+    "id": 950,
+    "name": "R.F. Lesion for Trigeminal Neuralgia",
+    "category": "procedure"
+  },
+  {
+    "id": 951,
+    "name": "Spasticity Surgery -",
+    "category": "procedure"
+  },
+  {
+    "id": 952,
+    "name": "Spinal Fusion Procedure",
+    "category": "procedure"
+  },
+  {
+    "id": 953,
+    "name": "Spinal Intra Medullary Tumours",
+    "category": "procedure"
+  },
+  {
+    "id": 954,
+    "name": "Spinal Bifida Surgery Major",
+    "category": "procedure"
+  },
+  {
+    "id": 955,
+    "name": "Spinal Bifida Surgery Minor",
+    "category": "procedure"
+  },
+  {
+    "id": 956,
+    "name": "Stereotaxic Procedures- biopsy/aspiration of cyst",
+    "category": "procedure"
+  },
+  {
+    "id": 957,
+    "name": "Trans Sphenoidal Surgery",
+    "category": "procedure"
+  },
+  {
+    "id": 958,
+    "name": "Trans Oral Surgery",
+    "category": "procedure"
+  },
+  {
+    "id": 959,
+    "name": "Implantation of DBS -One electrode",
+    "category": "procedure"
+  },
+  {
+    "id": 960,
+    "name": "Implantation of DBS -two electrodes",
+    "category": "procedure"
+  },
+  {
+    "id": 961,
+    "name": "Endoscopic aqueductoplasty",
+    "category": "procedure"
+  },
+  {
+    "id": 962,
+    "name": "Facial nerve reconstruction",
+    "category": "procedure"
+  },
+  {
+    "id": 963,
+    "name": "Carotid stenting",
+    "category": "procedure"
+  },
+  {
+    "id": 964,
+    "name": "Cervical disc arthroplasty",
+    "category": "procedure"
+  },
+  {
+    "id": 965,
+    "name": "Lumbar disc arthroplasty",
+    "category": "procedure"
+  },
+  {
+    "id": 966,
+    "name": "Corpus callostomy for Epilepsy",
+    "category": "procedure"
+  },
+  {
+    "id": 967,
+    "name": "Hemishpherotomy for Epilepsy",
+    "category": "procedure"
+  },
+  {
+    "id": 968,
+    "name": "Endoscopic CSF rhinorrhea repair",
+    "category": "procedure"
+  },
+  {
+    "id": 969,
+    "name": "Burr hole evacuation of chronic subdural haematoma",
+    "category": "procedure"
+  },
+  {
+    "id": 970,
+    "name": "Epilepsy surgery",
+    "category": "procedure"
+  },
+  {
+    "id": 971,
+    "name": "RF lesion for facet joint pain syndrome",
+    "category": "procedure"
+  },
+  {
+    "id": 972,
+    "name": "Cervical laminoplasty",
+    "category": "procedure"
+  },
+  {
+    "id": 973,
+    "name": "Lateral mass C1-C2 screw fixation",
+    "category": "procedure"
+  },
+  {
+    "id": 974,
+    "name": "Microsurgical decompression for Trigeminal nerve",
+    "category": "procedure"
+  },
+  {
+    "id": 975,
+    "name": "Microsurgical decompression for hemifacial spasm",
+    "category": "procedure"
+  },
+  {
+    "id": 976,
+    "name": "IC EC bypass procedures",
+    "category": "procedure"
+  },
+  {
+    "id": 977,
+    "name": "Image guided craniotomy",
+    "category": "procedure"
+  },
+  {
+    "id": 978,
+    "name": "Baclofen pump implantation",
+    "category": "procedure"
+  },
+  {
+    "id": 979,
+    "name": "Programmable VP shunt",
+    "category": "procedure"
+  },
+  {
+    "id": 980,
+    "name": "Endoscopic sympathectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 981,
+    "name": "Lumber puncture",
+    "category": "procedure"
+  },
+  {
+    "id": 982,
+    "name": "External ventricular drainage (EVD)",
+    "category": "procedure"
+  },
+  {
+    "id": 983,
+    "name": "Endoscopic 3rd ventriculostomy",
+    "category": "procedure"
+  },
+  {
+    "id": 984,
+    "name": "Endoscopic cranial surgery/Biopsy/aspiration",
+    "category": "procedure"
+  },
+  {
+    "id": 985,
+    "name": "Endoscopic discectomy (Lumbar Cervical)",
+    "category": "procedure"
+  },
+  {
+    "id": 986,
+    "name": "Aneurysm coiling (Endovascular)",
+    "category": "procedure"
+  },
+  {
+    "id": 987,
+    "name": "Surgery for skull fractures",
+    "category": "procedure"
+  },
+  {
+    "id": 988,
+    "name": "Carpel Tunnel decompression",
+    "category": "procedure"
+  },
+  {
+    "id": 989,
+    "name": "Clipping of intracranial aneurysm",
+    "category": "procedure"
+  },
+  {
+    "id": 990,
+    "name": "Surgery for intracranial Arteriovenous malformarions(AVM)",
+    "category": "procedure"
+  },
+  {
+    "id": 991,
+    "name": "Foramen magnum decompression for Chari Malformation",
+    "category": "procedure"
+  },
+  {
+    "id": 992,
+    "name": "Dorsal column stimulation for backache in failed back syndrome",
+    "category": "procedure"
+  },
+  {
+    "id": 993,
+    "name": "Surgery for recurrent disc prolapse/epidural fibrosis",
+    "category": "procedure"
+  },
+  {
+    "id": 994,
+    "name": "Surgery for brain stem tumours",
+    "category": "procedure"
+  },
+  {
+    "id": 995,
+    "name": "Decompressive craniotomy for hemishpherical acute\nsubdural haematoma/brain swelling/large infarct",
+    "category": "procedure"
+  },
+  {
+    "id": 996,
+    "name": "Intra-arterial thrombolysis with TPA (for ischemic stroke )",
+    "category": "procedure"
+  },
+  {
+    "id": 997,
+    "name": "Steriotactic aspiration of intracerebral haematoma",
+    "category": "procedure"
+  },
+  {
+    "id": 998,
+    "name": "Endoscopic aspiration of intracerebellar haematoma",
+    "category": "procedure"
+  },
+  {
+    "id": 999,
+    "name": "Steriotactic Radiosurgery for brain pathology(X knife/Gamma) - ONE\nsession",
+    "category": "procedure"
+  },
+  {
+    "id": 1000,
+    "name": "Steriotactic Radiosurgery for brain pathology(X knife / Gamma knife -Two or\nmore sessions",
+    "category": "procedure"
+  },
+  {
+    "id": 1001,
+    "name": "Chemotheraphy wafers for malignant brain tumors",
+    "category": "procedure"
+  },
+  {
+    "id": 1002,
+    "name": "Battery Placement for DBS",
+    "category": "procedure"
+  },
+  {
+    "id": 1003,
+    "name": "Baclofen pump implantation for spasticity",
+    "category": "procedure"
+  },
+  {
+    "id": 1004,
+    "name": "Peripheral Nerve tumor surgery",
+    "category": "procedure"
+  },
+  {
+    "id": 1005,
+    "name": "Surgery Intra Cranial Meningioma",
+    "category": "procedure"
+  },
+  {
+    "id": 1006,
+    "name": "Surgery for Intracranial Schwannoma",
+    "category": "procedure"
+  },
+  {
+    "id": 1007,
+    "name": "Surgery for Gliomas",
+    "category": "procedure"
+  },
+  {
+    "id": 1008,
+    "name": "Surgery for Orbital tumors",
+    "category": "procedure"
+  },
+  {
+    "id": 1009,
+    "name": "Surgery for Cranial (Skull) tumors",
+    "category": "procedure"
+  },
+  {
+    "id": 1010,
+    "name": "Surgery for Scalp AVM’s",
+    "category": "procedure"
+  },
+  {
+    "id": 1011,
+    "name": "Kyphoplasty",
+    "category": "procedure"
+  },
+  {
+    "id": 1012,
+    "name": "Balloon Kyphoplasty",
+    "category": "procedure"
+  },
+  {
+    "id": 1013,
+    "name": "Lesioning procedures for Parkinson’s disease Dystonia etc.",
+    "category": "procedure"
+  },
+  {
+    "id": 1014,
+    "name": "Other Major Surgery",
+    "category": "procedure"
+  },
+  {
+    "id": 1015,
+    "name": "Other Minor Surgery",
+    "category": "procedure"
+  },
+  {
+    "id": 1016,
+    "name": "Excision of thyroglossal Duct/Cyst",
+    "category": "procedure"
+  },
+  {
+    "id": 1017,
+    "name": "Diaphragmatic Hernia Repair (Thoracic or Abdominal Approach)",
+    "category": "procedure"
+  },
+  {
+    "id": 1018,
+    "name": "Tracheo Oesophageal Fistula (Correction Surgery)",
+    "category": "procedure"
+  },
+  {
+    "id": 1019,
+    "name": "Colon Replacement of Oesophagus",
+    "category": "procedure"
+  },
+  {
+    "id": 1020,
+    "name": "Omphalo Mesenteric Cyst Excision",
+    "category": "procedure"
+  },
+  {
+    "id": 1021,
+    "name": "Omphalo Mesenteric Duct- Excision",
+    "category": "procedure"
+  },
+  {
+    "id": 1022,
+    "name": "Meckels Diverticulectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 1023,
+    "name": "Omphalocele 1st Stage (Hernia Repair)",
+    "category": "procedure"
+  },
+  {
+    "id": 1024,
+    "name": "Omphalocele 2nd Stge (Hernia Repair)",
+    "category": "procedure"
+  },
+  {
+    "id": 1025,
+    "name": "Gastrochisis Repair",
+    "category": "procedure"
+  },
+  {
+    "id": 1026,
+    "name": "Inguinal Herniotomy",
+    "category": "procedure"
+  },
+  {
+    "id": 1027,
+    "name": "Congenital Hydrocele",
+    "category": "procedure"
+  },
+  {
+    "id": 1028,
+    "name": "Hydrocele of Cord",
+    "category": "procedure"
+  },
+  {
+    "id": 1029,
+    "name": "Torsion Testis Operation",
+    "category": "procedure"
+  },
+  {
+    "id": 1030,
+    "name": "Congenital Pyloric Stenosis- operation",
+    "category": "procedure"
+  },
+  {
+    "id": 1031,
+    "name": "Duodenal- Atresia Operation",
+    "category": "procedure"
+  },
+  {
+    "id": 1032,
+    "name": "Pancreatic Ring Operation",
+    "category": "procedure"
+  },
+  {
+    "id": 1033,
+    "name": "Meconium Ileus Operation",
+    "category": "procedure"
+  },
+  {
+    "id": 1034,
+    "name": "Malrotation of Intestines Operation",
+    "category": "procedure"
+  },
+  {
+    "id": 1035,
+    "name": "Rectal Biopsy (Megacolon)",
+    "category": "procedure"
+  },
+  {
+    "id": 1036,
+    "name": "Colostomy Transverse",
+    "category": "procedure"
+  },
+  {
+    "id": 1037,
+    "name": "Colostomy Left Iliac",
+    "category": "procedure"
+  },
+  {
+    "id": 1038,
+    "name": "Abdominal Perineal Pull Through (Hirschaprugis Disease)",
+    "category": "procedure"
+  },
+  {
+    "id": 1039,
+    "name": "Imperforate Anus Low Anomaly -Cut Back Operation",
+    "category": "procedure"
+  },
+  {
+    "id": 1040,
+    "name": "Imperforate Anus Low Anomaly - Perineal Anoplasty",
+    "category": "procedure"
+  },
+  {
+    "id": 1041,
+    "name": "Imperforate Anus High Anomaly -Sacroabdomino Perineal Pull Through",
+    "category": "procedure"
+  },
+  {
+    "id": 1042,
+    "name": "Imperforate Anus High Anomaly - Closure of Colostomy",
+    "category": "procedure"
+  },
+  {
+    "id": 1043,
+    "name": "Intususception Operation",
+    "category": "procedure"
+  },
+  {
+    "id": 1044,
+    "name": "Choledochoduodenostomy for Atresia of Extra Hepatic Billiary Duct",
+    "category": "procedure"
+  },
+  {
+    "id": 1045,
+    "name": "Operation of Choledochal Cyst",
+    "category": "procedure"
+  },
+  {
+    "id": 1046,
+    "name": "Nephrectomy for -Pyonephrosis",
+    "category": "procedure"
+  },
+  {
+    "id": 1047,
+    "name": "Nephrectomy for - Hydronephrosis",
+    "category": "procedure"
+  },
+  {
+    "id": 1048,
+    "name": "Nephrectomy for -Wilms Tumour",
+    "category": "procedure"
+  },
+  {
+    "id": 1049,
+    "name": "Paraortic Lymphadenoctomy with Nephrectomy for Wilms Tumour",
+    "category": "procedure"
+  },
+  {
+    "id": 1050,
+    "name": "Sacro-Coccygeal Teratoma Excision",
+    "category": "procedure"
+  },
+  {
+    "id": 1051,
+    "name": "Neuroblastoma Debulking",
+    "category": "procedure"
+  },
+  {
+    "id": 1052,
+    "name": "Neuroblastoma Total Excision",
+    "category": "procedure"
+  },
+  {
+    "id": 1053,
+    "name": "Rhabdomyosarcoma wide Excision",
+    "category": "procedure"
+  },
+  {
+    "id": 1054,
+    "name": "Congenital Atresia & Stenosis of Small Intestine",
+    "category": "procedure"
+  },
+  {
+    "id": 1055,
+    "name": "Muconium ileus",
+    "category": "procedure"
+  },
+  {
+    "id": 1056,
+    "name": "Mal-rotation & Volvulus of the Midgut",
+    "category": "procedure"
+  },
+  {
+    "id": 1057,
+    "name": "Excision of Meckle’s Deverticulum",
+    "category": "procedure"
+  },
+  {
+    "id": 1058,
+    "name": "Other Major Surgery",
+    "category": "procedure"
+  },
+  {
+    "id": 1059,
+    "name": "Other Minor Surgery",
+    "category": "procedure"
+  },
+  {
+    "id": 1060,
+    "name": "Primary Suturing of Wound",
+    "category": "procedure"
+  },
+  {
+    "id": 1061,
+    "name": "Injection of Keloids - Ganglion",
+    "category": "procedure"
+  },
+  {
+    "id": 1062,
+    "name": "Injection of Keloids - Haemangioma",
+    "category": "procedure"
+  },
+  {
+    "id": 1063,
+    "name": "Free Grafts - Wolfe Grafts",
+    "category": "procedure"
+  },
+  {
+    "id": 1064,
+    "name": "Free Grafts - Theirech- Small Area 5%",
+    "category": "procedure"
+  },
+  {
+    "id": 1065,
+    "name": "Free Grafts - Large Area 10%",
+    "category": "procedure"
+  },
+  {
+    "id": 1066,
+    "name": "Free Grafts - Very Large Area 20% and above.",
+    "category": "procedure"
+  },
+  {
+    "id": 1067,
+    "name": "Skin Flaps - Rotation Flaps",
+    "category": "procedure"
+  },
+  {
+    "id": 1068,
+    "name": "Skin Flaps - Advancement Flaps",
+    "category": "procedure"
+  },
+  {
+    "id": 1069,
+    "name": "Skin Flaps - Direct- cross Leg Flaps- Cross Arm Flap",
+    "category": "procedure"
+  },
+  {
+    "id": 1070,
+    "name": "Skin Flaps - Cross Finger",
+    "category": "procedure"
+  },
+  {
+    "id": 1071,
+    "name": "Skin Flaps - Abdominal",
+    "category": "procedure"
+  },
+  {
+    "id": 1072,
+    "name": "Skin Flaps - Thoracic",
+    "category": "procedure"
+  },
+  {
+    "id": 1073,
+    "name": "Skin Flaps - Arm Etc.",
+    "category": "procedure"
+  },
+  {
+    "id": 1074,
+    "name": "Subcutaneous Pedicle Flaps Raising",
+    "category": "procedure"
+  },
+  {
+    "id": 1075,
+    "name": "Subcutaneous Pedicle Flaps Delay",
+    "category": "procedure"
+  },
+  {
+    "id": 1076,
+    "name": "Subcutaneous Pedicle Flaps Transfer",
+    "category": "procedure"
+  },
+  {
+    "id": 1077,
+    "name": "Cartilage Grafting",
+    "category": "procedure"
+  },
+  {
+    "id": 1078,
+    "name": "Reduction of Facial Fractures of Nose",
+    "category": "procedure"
+  },
+  {
+    "id": 1079,
+    "name": "Reduction of Facial Fractures of Maxilla",
+    "category": "procedure"
+  },
+  {
+    "id": 1080,
+    "name": "Reduction of Fractures of Mandible & Maxilla - Eye Let Splinting",
+    "category": "procedure"
+  },
+  {
+    "id": 1081,
+    "name": "Reduction of Fractures of Mandible & Maxilla - Cast Netal Splints",
+    "category": "procedure"
+  },
+  {
+    "id": 1082,
+    "name": "Reduction of Fractures of Mandible & Maxilla - Gumming Splints",
+    "category": "procedure"
+  },
+  {
+    "id": 1083,
+    "name": "Internal Wire Fixation of Mandible & Maxilla",
+    "category": "procedure"
+  },
+  {
+    "id": 1084,
+    "name": "Cleft Lip - repair.",
+    "category": "procedure"
+  },
+  {
+    "id": 1085,
+    "name": "Cleft Palate Repair",
+    "category": "procedure"
+  },
+  {
+    "id": 1086,
+    "name": "Primary Bone Grafting for alveolar cleft in Cleft Lip",
+    "category": "procedure"
+  },
+  {
+    "id": 1087,
+    "name": "Secondary Surgery for Cleft Lip Deformity",
+    "category": "procedure"
+  },
+  {
+    "id": 1088,
+    "name": "Secondary Surgery for Cleft Palate",
+    "category": "procedure"
+  },
+  {
+    "id": 1089,
+    "name": "Reconstruction of Eyelid Defects - Minor",
+    "category": "procedure"
+  },
+  {
+    "id": 1090,
+    "name": "Reconstruction of Eyelid Defects - Major",
+    "category": "procedure"
+  },
+  {
+    "id": 1091,
+    "name": "Plastic Surgery of Different Regions of the Ear - Minor",
+    "category": "procedure"
+  },
+  {
+    "id": 1092,
+    "name": "Plastic Surgery of Different Regions of the Ear - Major",
+    "category": "procedure"
+  },
+  {
+    "id": 1093,
+    "name": "Plastic Surgery of the Nose - Minor",
+    "category": "procedure"
+  },
+  {
+    "id": 1094,
+    "name": "Plastic Surgery of the Nose - Major",
+    "category": "procedure"
+  },
+  {
+    "id": 1095,
+    "name": "Plastic Surgery for Facial Paralysis (Support with Reanimation)",
+    "category": "procedure"
+  },
+  {
+    "id": 1096,
+    "name": "Pendulous Breast - Mammoplasty",
+    "category": "procedure"
+  },
+  {
+    "id": 1097,
+    "name": "Underdeveloped Breast Mammoplasty",
+    "category": "procedure"
+  },
+  {
+    "id": 1098,
+    "name": "After Mastectomy (Reconstruction)Mammoplasty",
+    "category": "procedure"
+  },
+  {
+    "id": 1099,
+    "name": "Syndactyly Repair",
+    "category": "procedure"
+  },
+  {
+    "id": 1100,
+    "name": "Dermabrasion Face",
+    "category": "procedure"
+  },
+  {
+    "id": 1101,
+    "name": "upto 30% Burns 1st Dressing",
+    "category": "procedure"
+  },
+  {
+    "id": 1102,
+    "name": "upto 30% Burns Subsequent Dressing",
+    "category": "procedure"
+  },
+  {
+    "id": 1103,
+    "name": "30% to 50% Burns 1st Dressing",
+    "category": "procedure"
+  },
+  {
+    "id": 1104,
+    "name": "30% to 50% Burns Subsequent Dressing",
+    "category": "procedure"
+  },
+  {
+    "id": 1105,
+    "name": "Extensive Burn -above 50% Frist Dressing",
+    "category": "procedure"
+  },
+  {
+    "id": 1106,
+    "name": "Extensive Burn -above 50% Subsequent dressing",
+    "category": "procedure"
+  },
+  {
+    "id": 1107,
+    "name": "Plaster Work",
+    "category": "procedure"
+  },
+  {
+    "id": 1108,
+    "name": "Fingers (post slab)",
+    "category": "procedure"
+  },
+  {
+    "id": 1109,
+    "name": "Fingers full plaster",
+    "category": "procedure"
+  },
+  {
+    "id": 1110,
+    "name": "Colles Fracture - Below elbow",
+    "category": "procedure"
+  },
+  {
+    "id": 1111,
+    "name": "Colles Fracture - Full plaster",
+    "category": "procedure"
+  },
+  {
+    "id": 1112,
+    "name": "Colles fracture Ant. Or post. slab",
+    "category": "procedure"
+  },
+  {
+    "id": 1113,
+    "name": "Above elbow full plaster",
+    "category": "procedure"
+  },
+  {
+    "id": 1114,
+    "name": "Above Knee post-slab",
+    "category": "procedure"
+  },
+  {
+    "id": 1115,
+    "name": "Below Knee full plaster",
+    "category": "procedure"
+  },
+  {
+    "id": 1116,
+    "name": "Below Knee post-slab",
+    "category": "procedure"
+  },
+  {
+    "id": 1117,
+    "name": "Tube Plaster (or plaster cylinder)",
+    "category": "procedure"
+  },
+  {
+    "id": 1118,
+    "name": "Above knee full plaster",
+    "category": "procedure"
+  },
+  {
+    "id": 1119,
+    "name": "Above knee full slab",
+    "category": "procedure"
+  },
+  {
+    "id": 1120,
+    "name": "Minerva Jacket",
+    "category": "procedure"
+  },
+  {
+    "id": 1121,
+    "name": "Plaster Jacket",
+    "category": "procedure"
+  },
+  {
+    "id": 1122,
+    "name": "Shoulder spica",
+    "category": "procedure"
+  },
+  {
+    "id": 1123,
+    "name": "Single Hip spica",
+    "category": "procedure"
+  },
+  {
+    "id": 1124,
+    "name": "Double Hip spica",
+    "category": "procedure"
+  },
+  {
+    "id": 1125,
+    "name": "Strapping of Finger",
+    "category": "procedure"
+  },
+  {
+    "id": 1126,
+    "name": "Strapping of Toes",
+    "category": "procedure"
+  },
+  {
+    "id": 1127,
+    "name": "Strapping of Wrist",
+    "category": "procedure"
+  },
+  {
+    "id": 1128,
+    "name": "Strapping of Elbow",
+    "category": "procedure"
+  },
+  {
+    "id": 1129,
+    "name": "Strapping of Knee",
+    "category": "procedure"
+  },
+  {
+    "id": 1130,
+    "name": "Strapping of Ankle",
+    "category": "procedure"
+  },
+  {
+    "id": 1131,
+    "name": "Strapping of Chest",
+    "category": "procedure"
+  },
+  {
+    "id": 1132,
+    "name": "Strapping of Shoulder",
+    "category": "procedure"
+  },
+  {
+    "id": 1133,
+    "name": "Figure of 8 bandage",
+    "category": "procedure"
+  },
+  {
+    "id": 1134,
+    "name": "Collar and cuff sling",
+    "category": "procedure"
+  },
+  {
+    "id": 1135,
+    "name": "Ball bandage",
+    "category": "procedure"
+  },
+  {
+    "id": 1136,
+    "name": "Application of P.O.P Casts for Upper & Lower Limbs",
+    "category": "procedure"
+  },
+  {
+    "id": 1137,
+    "name": "Application of Functiol Cast Brace",
+    "category": "procedure"
+  },
+  {
+    "id": 1138,
+    "name": "Application of Skin Traction",
+    "category": "procedure"
+  },
+  {
+    "id": 1139,
+    "name": "Application of Skeletal Tractions",
+    "category": "procedure"
+  },
+  {
+    "id": 1140,
+    "name": "Bandage & Strappings for Fractures",
+    "category": "procedure"
+  },
+  {
+    "id": 1141,
+    "name": "Aspiration & Intra Articular Injections",
+    "category": "procedure"
+  },
+  {
+    "id": 1142,
+    "name": "Application of P.O.P Spices & Jackets",
+    "category": "procedure"
+  },
+  {
+    "id": 1143,
+    "name": "Close Reduction of Fractures of Limb & P.O.P",
+    "category": "procedure"
+  },
+  {
+    "id": 1144,
+    "name": "Reduction of Compound Fractures",
+    "category": "procedure"
+  },
+  {
+    "id": 1145,
+    "name": "Open Reduction & Internal Fixation of Fingurs & Toes",
+    "category": "procedure"
+  },
+  {
+    "id": 1146,
+    "name": "Open Reduction offracture of Long Bones of Upper / Lower\nLimb -iling & Exterl Fixation",
+    "category": "procedure"
+  },
+  {
+    "id": 1147,
+    "name": "Open Reduction of fracture of Long Bones of Upper / Lower\nLimb -AO Procedures",
+    "category": "procedure"
+  },
+  {
+    "id": 1148,
+    "name": "Tension Band Wirings",
+    "category": "procedure"
+  },
+  {
+    "id": 1149,
+    "name": "Bone Grafting",
+    "category": "procedure"
+  },
+  {
+    "id": 1150,
+    "name": "Excision of Bone Tumours",
+    "category": "procedure"
+  },
+  {
+    "id": 1151,
+    "name": "Excision or other Operations for Scaphoid Fractures",
+    "category": "procedure"
+  },
+  {
+    "id": 1152,
+    "name": "Sequestrectomy & Saucerisation",
+    "category": "procedure"
+  },
+  {
+    "id": 1153,
+    "name": "Sequestrectomy & Saucerizations -Arthrotomy",
+    "category": "procedure"
+  },
+  {
+    "id": 1154,
+    "name": "Multiple Pinning Fracture Neck Femur",
+    "category": "procedure"
+  },
+  {
+    "id": 1155,
+    "name": "Plate Fixations for Fracture Neck Femur",
+    "category": "procedure"
+  },
+  {
+    "id": 1156,
+    "name": "A.O.Compression Procedures for Fracture Neck Femur",
+    "category": "procedure"
+  },
+  {
+    "id": 1157,
+    "name": "Open Reduction of Fracture Neck Femur Muscle Pedicle\nGraft and Internal Fixations",
+    "category": "procedure"
+  },
+  {
+    "id": 1158,
+    "name": "Close Reduction of Dislocations",
+    "category": "procedure"
+  },
+  {
+    "id": 1159,
+    "name": "Open Reduction of Dislocations",
+    "category": "procedure"
+  },
+  {
+    "id": 1160,
+    "name": "Open Reduction of Fracture Dislocation & Internal Fixation",
+    "category": "procedure"
+  },
+  {
+    "id": 1161,
+    "name": "Neurolysis/Nerve repair",
+    "category": "procedure"
+  },
+  {
+    "id": 1162,
+    "name": "Nerve Repair with Grafting",
+    "category": "procedure"
+  },
+  {
+    "id": 1163,
+    "name": "Tendon with Transplant or Graft",
+    "category": "procedure"
+  },
+  {
+    "id": 1164,
+    "name": "Tendon Lengthening/Tendon repair",
+    "category": "procedure"
+  },
+  {
+    "id": 1165,
+    "name": "Tendon Transfer",
+    "category": "procedure"
+  },
+  {
+    "id": 1166,
+    "name": "Laminectomy Excision Disc and Tumours",
+    "category": "procedure"
+  },
+  {
+    "id": 1167,
+    "name": "Spil Ostectomy and Internal Fixations",
+    "category": "procedure"
+  },
+  {
+    "id": 1168,
+    "name": "Anterolateral decompression for tuberculosis/ Costo- Transversectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 1169,
+    "name": "Antereolateral Decompression and Spil Fusion",
+    "category": "procedure"
+  },
+  {
+    "id": 1170,
+    "name": "Corrective Ostectomy & Internal Fixation - short bones",
+    "category": "procedure"
+  },
+  {
+    "id": 1171,
+    "name": "Corrective Ostectomy & Internal Fixation - long bones",
+    "category": "procedure"
+  },
+  {
+    "id": 1172,
+    "name": "Arthrodesis of - Minor Joints",
+    "category": "procedure"
+  },
+  {
+    "id": 1173,
+    "name": "Arthrodesis of - Major Joints",
+    "category": "procedure"
+  },
+  {
+    "id": 1174,
+    "name": "Soft Tissue Operations for C.T.E.V.",
+    "category": "procedure"
+  },
+  {
+    "id": 1175,
+    "name": "Soft Tissue Operations for Polio",
+    "category": "procedure"
+  },
+  {
+    "id": 1176,
+    "name": "Hemiarthroplasty- Hip",
+    "category": "procedure"
+  },
+  {
+    "id": 1177,
+    "name": "Hemiarthroplasty- Shoulder",
+    "category": "procedure"
+  },
+  {
+    "id": 1178,
+    "name": "Operations for Brachial Plexus & Cervical Rib",
+    "category": "procedure"
+  },
+  {
+    "id": 1179,
+    "name": "Amputations - Below Knee",
+    "category": "procedure"
+  },
+  {
+    "id": 1180,
+    "name": "Amputations - Below Elbow",
+    "category": "procedure"
+  },
+  {
+    "id": 1181,
+    "name": "Amputations - Above Knee",
+    "category": "procedure"
+  },
+  {
+    "id": 1182,
+    "name": "Amputations - Above Elbow",
+    "category": "procedure"
+  },
+  {
+    "id": 1183,
+    "name": "Amputations - Forequarter",
+    "category": "procedure"
+  },
+  {
+    "id": 1184,
+    "name": "Amputations -Hind Quarter and Hemipelvectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 1185,
+    "name": "Disarticulations - Major joint",
+    "category": "procedure"
+  },
+  {
+    "id": 1186,
+    "name": "Disarticulations - Minor joint",
+    "category": "procedure"
+  },
+  {
+    "id": 1187,
+    "name": "Arthrography",
+    "category": "procedure"
+  },
+  {
+    "id": 1188,
+    "name": "Arthroscopy - Diagnostic",
+    "category": "procedure"
+  },
+  {
+    "id": 1189,
+    "name": "Arthroscopy-therapeutic: without implant",
+    "category": "procedure"
+  },
+  {
+    "id": 1190,
+    "name": "Arthroscopy-therapeutic: with implant",
+    "category": "procedure"
+  },
+  {
+    "id": 1191,
+    "name": "Soft Tissue Operation on JOINTS -SMALL",
+    "category": "procedure"
+  },
+  {
+    "id": 1192,
+    "name": "Soft Tissue Operation on JOINTS -LARGE",
+    "category": "procedure"
+  },
+  {
+    "id": 1193,
+    "name": "Myocutaneous and Fasciocutaneous Flap Procedures for Limbs",
+    "category": "procedure"
+  },
+  {
+    "id": 1194,
+    "name": "Removal of Wires & Screw",
+    "category": "procedure"
+  },
+  {
+    "id": 1195,
+    "name": "Removal of Plates",
+    "category": "procedure"
+  },
+  {
+    "id": 1196,
+    "name": "Total Hip Replacement",
+    "category": "procedure"
+  },
+  {
+    "id": 1197,
+    "name": "Total Ankle Joint Replacement",
+    "category": "procedure"
+  },
+  {
+    "id": 1198,
+    "name": "Total Knee Joint Replacement",
+    "category": "procedure"
+  },
+  {
+    "id": 1199,
+    "name": "Total Shoulder Joint Replacement",
+    "category": "procedure"
+  },
+  {
+    "id": 1200,
+    "name": "Total Elbow Joint Replacement",
+    "category": "procedure"
+  },
+  {
+    "id": 1201,
+    "name": "Total Wrist Joint Replacement",
+    "category": "procedure"
+  },
+  {
+    "id": 1202,
+    "name": "Total finger joint replacement",
+    "category": "procedure"
+  },
+  {
+    "id": 1203,
+    "name": "Tubular external fixator",
+    "category": "procedure"
+  },
+  {
+    "id": 1204,
+    "name": "Ilizarov's external fixator",
+    "category": "procedure"
+  },
+  {
+    "id": 1205,
+    "name": "Pelvi-acetebular fracture -Internal fixation",
+    "category": "procedure"
+  },
+  {
+    "id": 1206,
+    "name": "Meniscectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 1207,
+    "name": "Meniscus Repair",
+    "category": "procedure"
+  },
+  {
+    "id": 1208,
+    "name": "ACL Reconstruction",
+    "category": "procedure"
+  },
+  {
+    "id": 1209,
+    "name": "PCL Reconstruction",
+    "category": "procedure"
+  },
+  {
+    "id": 1210,
+    "name": "Knee Collateral Ligament Reconstruction",
+    "category": "procedure"
+  },
+  {
+    "id": 1211,
+    "name": "Bencarf Repair Shoulder",
+    "category": "procedure"
+  },
+  {
+    "id": 1212,
+    "name": "RC Repair",
+    "category": "procedure"
+  },
+  {
+    "id": 1213,
+    "name": "Biceps tenodesis",
+    "category": "procedure"
+  },
+  {
+    "id": 1214,
+    "name": "Distal biceps tendon repair",
+    "category": "procedure"
+  },
+  {
+    "id": 1215,
+    "name": "Arthrolysis of knee",
+    "category": "procedure"
+  },
+  {
+    "id": 1216,
+    "name": "Capsulotomy of Shoulder",
+    "category": "procedure"
+  },
+  {
+    "id": 1217,
+    "name": "Conservative Pop",
+    "category": "procedure"
+  },
+  {
+    "id": 1218,
+    "name": "Application for CTEV per sitting",
+    "category": "procedure"
+  },
+  {
+    "id": 1219,
+    "name": "Total Hip Replacement Revision Stage-I",
+    "category": "procedure"
+  },
+  {
+    "id": 1220,
+    "name": "Total Hip Replacement Revision Stage-II",
+    "category": "procedure"
+  },
+  {
+    "id": 1221,
+    "name": "Total Knee Replacement Revision Stage-I",
+    "category": "procedure"
+  },
+  {
+    "id": 1222,
+    "name": "Total Knee Replacement Revision Stage-II",
+    "category": "procedure"
+  },
+  {
+    "id": 1223,
+    "name": "Illizarov/ external fixation for limb lengthening/ deformity correction",
+    "category": "procedure"
+  },
+  {
+    "id": 1224,
+    "name": "Discectomy/ Micro Discectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 1225,
+    "name": "Laminectomy",
+    "category": "procedure"
+  },
+  {
+    "id": 1226,
+    "name": "Spinal Fixation Cervical/dorsolumbar/ lumbosacral",
+    "category": "procedure"
+  },
+  {
+    "id": 1227,
+    "name": "Fusion Surgery Cervical/ Lumbar Spine upto 2 Level",
+    "category": "procedure"
+  },
+  {
+    "id": 1228,
+    "name": "More than 2 Level",
+    "category": "procedure"
+  },
+  {
+    "id": 1229,
+    "name": "Scoliosis Surgery/ Deformity Correction of Spine",
+    "category": "procedure"
+  },
+  {
+    "id": 1230,
+    "name": "Vertebroplasty",
+    "category": "procedure"
+  },
+  {
+    "id": 1231,
+    "name": "Spinal Injections",
+    "category": "procedure"
+  },
+  {
+    "id": 1232,
+    "name": "DHS for Fracture Neck Femur",
+    "category": "procedure"
+  },
+  {
+    "id": 1233,
+    "name": "Proximal Femoral Nail (PFN for IT Fracture)",
+    "category": "procedure"
+  },
+  {
+    "id": 1234,
+    "name": "Spinal Osteotomy",
+    "category": "procedure"
+  },
+  {
+    "id": 1235,
+    "name": "Illizarov’s / External Fixation for Trauma",
+    "category": "procedure"
+  },
+  {
+    "id": 1236,
+    "name": "Soft Tissue Operations for Polio/ Cerebral Palsy",
+    "category": "procedure"
+  },
+  {
+    "id": 1237,
+    "name": "Mini Fixator for Hand/Foot",
+    "category": "procedure"
+  },
+  {
+    "id": 1238,
+    "name": "Other Major Surgery",
+    "category": "procedure"
+  },
+  {
+    "id": 1239,
+    "name": "Other Minor Surgery",
+    "category": "procedure"
+  },
+  {
+    "id": 1240,
+    "name": "Ultrasonic therapy",
+    "category": "procedure"
+  },
+  {
+    "id": 1241,
+    "name": "S.W. Diathermy",
+    "category": "procedure"
+  },
+  {
+    "id": 1242,
+    "name": "Electrical stimulation (therapeutic)",
+    "category": "procedure"
+  },
+  {
+    "id": 1243,
+    "name": "Muscle testing and diagnostic",
+    "category": "procedure"
+  },
+  {
+    "id": 1244,
+    "name": "Infra red",
+    "category": "procedure"
+  },
+  {
+    "id": 1245,
+    "name": "U.V. Therapeutic dose",
+    "category": "procedure"
+  },
+  {
+    "id": 1246,
+    "name": "Intermittent Lumbar Traction",
+    "category": "procedure"
+  },
+  {
+    "id": 1247,
+    "name": "Intermittent Cervical traction",
+    "category": "procedure"
+  },
+  {
+    "id": 1248,
+    "name": "Wax bath",
+    "category": "procedure"
+  },
+  {
+    "id": 1249,
+    "name": "Hot pack",
+    "category": "procedure"
+  },
+  {
+    "id": 1250,
+    "name": "Breathing Exercises & Postural Drainage",
+    "category": "procedure"
+  },
+  {
+    "id": 1251,
+    "name": "Cerebral Palsy – exercise",
+    "category": "procedure"
+  },
+  {
+    "id": 1252,
+    "name": "Post – polio exercise",
+    "category": "procedure"
+  },
+  {
+    "id": 1253,
+    "name": "Cobalt 60 therapy",
+    "category": "procedure"
+  },
+  {
+    "id": 1254,
+    "name": "Radical therapy",
+    "category": "procedure"
+  },
+  {
+    "id": 1255,
+    "name": "Palliative therapy",
+    "category": "procedure"
+  },
+  {
+    "id": 1256,
+    "name": "Linear accelerator",
+    "category": "procedure"
+  },
+  {
+    "id": 1257,
+    "name": "Radical therapy",
+    "category": "procedure"
+  },
+  {
+    "id": 1258,
+    "name": "Palliative therapy",
+    "category": "procedure"
+  },
+  {
+    "id": 1259,
+    "name": "3 D Planning",
+    "category": "procedure"
+  },
+  {
+    "id": 1260,
+    "name": "2 D Planing",
+    "category": "procedure"
+  },
+  {
+    "id": 1261,
+    "name": "IMRT(Intensity Modulated radiotherapy)",
+    "category": "procedure"
+  },
+  {
+    "id": 1262,
+    "name": "SRT (Stereotactic radiotherapy)",
+    "category": "procedure"
+  },
+  {
+    "id": 1263,
+    "name": "SRS(Stereotactic radio surgery)",
+    "category": "procedure"
+  },
+  {
+    "id": 1264,
+    "name": "IGRT(Image guided radiotherapy)",
+    "category": "procedure"
+  },
+  {
+    "id": 1265,
+    "name": "Respiratory Gating-alongwith Linear accelerator planning",
+    "category": "procedure"
+  },
+  {
+    "id": 1266,
+    "name": "Electron beam with Linear accelerator",
+    "category": "procedure"
+  },
+  {
+    "id": 1267,
+    "name": "Tomotherapy",
+    "category": "procedure"
+  },
+  {
+    "id": 1268,
+    "name": "Intracavitory",
+    "category": "procedure"
+  },
+  {
+    "id": 1269,
+    "name": "Interstitial",
+    "category": "procedure"
+  },
+  {
+    "id": 1270,
+    "name": "Intraluminal",
+    "category": "procedure"
+  },
+  {
+    "id": 1271,
+    "name": "Surface mould",
+    "category": "procedure"
+  },
+  {
+    "id": 1272,
+    "name": "GLIADAL WAFER",
+    "category": "procedure"
+  },
+  {
+    "id": 1273,
+    "name": "Neoadjuvant",
+    "category": "procedure"
+  },
+  {
+    "id": 1274,
+    "name": "Adjuvant",
+    "category": "procedure"
+  },
+  {
+    "id": 1275,
+    "name": "Concurrent-chemoadiation",
+    "category": "procedure"
+  },
+  {
+    "id": 1276,
+    "name": "Single drug",
+    "category": "procedure"
+  },
+  {
+    "id": 1277,
+    "name": "Multiple drugs",
+    "category": "procedure"
+  },
+  {
+    "id": 1278,
+    "name": "Targeted therapy",
+    "category": "procedure"
+  },
+  {
+    "id": 1279,
+    "name": "Chemoport facility",
+    "category": "procedure"
+  },
+  {
+    "id": 1280,
+    "name": "PICC line (peripherally inserted Central canulisation)",
+    "category": "procedure"
+  },
+  {
+    "id": 1281,
+    "name": "Upper G.I. Endoscopy + Lower G.I. Endoscopy",
+    "category": "procedure"
+  },
+  {
+    "id": 1282,
+    "name": "Diagnostic endoscopy",
+    "category": "procedure"
+  },
+  {
+    "id": 1283,
+    "name": "Endoscopic biopsy",
+    "category": "procedure"
+  },
+  {
+    "id": 1284,
+    "name": "Endoscopic mucosal resection",
+    "category": "procedure"
+  },
+  {
+    "id": 1285,
+    "name": "Oesophageal stricture dilatation",
+    "category": "procedure"
+  },
+  {
+    "id": 1286,
+    "name": "Balloon dilatation of achalasia cardia",
+    "category": "procedure"
+  },
+  {
+    "id": 1287,
+    "name": "Foreign body removal",
+    "category": "procedure"
+  },
+  {
+    "id": 1288,
+    "name": "Oesophageal stenting",
+    "category": "procedure"
+  },
+  {
+    "id": 1289,
+    "name": "Band ligation of oesophageal varices",
+    "category": "procedure"
+  },
+  {
+    "id": 1290,
+    "name": "Sclerotherapy of oesophageal varices",
+    "category": "procedure"
+  },
+  {
+    "id": 1291,
+    "name": "Glue injection of varices",
+    "category": "procedure"
+  },
+  {
+    "id": 1292,
+    "name": "Argon plasma coagulation",
+    "category": "procedure"
+  },
+  {
+    "id": 1293,
+    "name": "Pyloric balloon dilatation",
+    "category": "procedure"
+  },
+  {
+    "id": 1294,
+    "name": "Enteranal stenting",
+    "category": "procedure"
+  },
+  {
+    "id": 1295,
+    "name": "Duodenal stricture dilation",
+    "category": "procedure"
+  },
+  {
+    "id": 1296,
+    "name": "Single balloon enterocopy",
+    "category": "procedure"
+  },
+  {
+    "id": 1297,
+    "name": "Double balloon enteroscopy",
+    "category": "procedure"
+  },
+  {
+    "id": 1298,
+    "name": "Capsule endoscopy",
+    "category": "procedure"
+  },
+  {
+    "id": 1299,
+    "name": "Piles banding",
+    "category": "procedure"
+  },
+  {
+    "id": 1300,
+    "name": "Colonic stricture dilatation",
+    "category": "procedure"
+  },
+  {
+    "id": 1301,
+    "name": "Hot biopsy forceps procedures",
+    "category": "procedure"
+  },
+  {
+    "id": 1302,
+    "name": "Colonic stenting",
+    "category": "procedure"
+  },
+  {
+    "id": 1303,
+    "name": "Junction biopsy",
+    "category": "procedure"
+  },
+  {
+    "id": 1304,
+    "name": "Conjugal microscopy",
+    "category": "procedure"
+  },
+  {
+    "id": 1305,
+    "name": "Endoscopic sphincterotomy",
+    "category": "procedure"
+  },
+  {
+    "id": 1306,
+    "name": "CBD stone extraction",
+    "category": "procedure"
+  },
+  {
+    "id": 1307,
+    "name": "CBD stricture dilatation",
+    "category": "procedure"
+  },
+  {
+    "id": 1308,
+    "name": "Biliary stenting (plastic and metallic)",
+    "category": "procedure"
+  },
+  {
+    "id": 1309,
+    "name": "Mechanical lithotripsy of CBD stones",
+    "category": "procedure"
+  },
+  {
+    "id": 1310,
+    "name": "Pancreatic sphincterotomy",
+    "category": "procedure"
+  },
+  {
+    "id": 1311,
+    "name": "Pancreatic stricture dilatation",
+    "category": "procedure"
+  },
+  {
+    "id": 1312,
+    "name": "Pancreatic stone extraction",
+    "category": "procedure"
+  },
+  {
+    "id": 1313,
+    "name": "Mechanical lithotripsy of pancreatic stones",
+    "category": "procedure"
+  },
+  {
+    "id": 1314,
+    "name": "Endoscopic cysto gastrostomy",
+    "category": "procedure"
+  },
+  {
+    "id": 1315,
+    "name": "Balloon dilatation of papilla",
+    "category": "procedure"
+  },
+  {
+    "id": 1316,
+    "name": "Ultrasound guided FNAC",
+    "category": "procedure"
+  },
+  {
+    "id": 1317,
+    "name": "Ultrasound guided abscess Drainage",
+    "category": "procedure"
+  },
+  {
+    "id": 1318,
+    "name": "PTBD",
+    "category": "procedure"
+  },
+  {
+    "id": 1319,
+    "name": "Diagnostic angiography",
+    "category": "procedure"
+  },
+  {
+    "id": 1320,
+    "name": "Vascular embolization",
+    "category": "procedure"
+  },
+  {
+    "id": 1321,
+    "name": "TIPS",
+    "category": "procedure"
+  },
+  {
+    "id": 1322,
+    "name": "IVC graphy + hepatic veinography",
+    "category": "procedure"
+  },
+  {
+    "id": 1323,
+    "name": "Muscular stenting",
+    "category": "procedure"
+  },
+  {
+    "id": 1324,
+    "name": "BRTO",
+    "category": "procedure"
+  },
+  {
+    "id": 1325,
+    "name": "Portal haemodymic studies",
+    "category": "procedure"
+  },
+  {
+    "id": 1326,
+    "name": "Manometry and PH metry",
+    "category": "procedure"
+  },
+  {
+    "id": 1327,
+    "name": "Oesophageal PH metry",
+    "category": "procedure"
+  },
+  {
+    "id": 1328,
+    "name": "Oesophageal manometry",
+    "category": "procedure"
+  },
+  {
+    "id": 1329,
+    "name": "Small bowel manometry",
+    "category": "procedure"
+  },
+  {
+    "id": 1330,
+    "name": "Anorectal manometry",
+    "category": "procedure"
+  },
+  {
+    "id": 1331,
+    "name": "Colonic manometry",
+    "category": "procedure"
+  },
+  {
+    "id": 1332,
+    "name": "Biliary manometry",
+    "category": "procedure"
+  },
+  {
+    "id": 1333,
+    "name": "Sengstaken blackenesse tube tempode",
+    "category": "procedure"
+  },
+  {
+    "id": 1334,
+    "name": "Lintas machles tube tempode",
+    "category": "procedure"
+  },
+  {
+    "id": 1335,
+    "name": "Fecal fat test/ fecal chymotrypsin/ fecal elastase",
+    "category": "procedure"
+  },
+  {
+    "id": 1336,
+    "name": "Breath tests",
+    "category": "procedure"
+  },
+  {
+    "id": 1337,
+    "name": "Extra corporeal shortwave lithotripsy",
+    "category": "procedure"
+  },
+  {
+    "id": 1338,
+    "name": "Liver biopsy",
+    "category": "procedure"
+  },
+  {
+    "id": 1,
+    "name": "TAVI/TAVR Implant",
+    "category": "procedure"
+  },
+  {
+    "id": 2,
+    "name": "TAVI/TAVR Procedure cost",
+    "category": "procedure"
+  },
+  {
+    "id": 3,
+    "name": "IVL (Coronary Intra Vascular Lithotripsy / Short wave Lithotripsy) – including\nGST",
+    "category": "procedure"
+  },
+  {
+    "id": 1339,
+    "name": "Dental IOPA X-ray",
+    "category": "lab_test"
+  },
+  {
+    "id": 1340,
+    "name": "Occlusal X-ray",
+    "category": "lab_test"
+  },
+  {
+    "id": 1341,
+    "name": "OPG X-ray",
+    "category": "lab_test"
+  },
+  {
+    "id": 1342,
+    "name": "Lung Ventilation & Perfusion Scan (V/Q Scan)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1343,
+    "name": "Lung Perfusion Scan",
+    "category": "lab_test"
+  },
+  {
+    "id": 1344,
+    "name": "Whole Body Bone Scan with SPECT.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1345,
+    "name": "Three phase whole body Bone Scan",
+    "category": "lab_test"
+  },
+  {
+    "id": 1346,
+    "name": "Brain Perfusion SPECT Scan with Technetium 99m radiopharmaceuticals.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1347,
+    "name": "Radionuclide Cisternography for CSF leak",
+    "category": "lab_test"
+  },
+  {
+    "id": 1348,
+    "name": "Gastro esophageal Reflux Study (G.E.R. Study)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1349,
+    "name": "Gastro intestinal Bleed (GloB.) Study with Technetium 99m\nlabeled RBCs.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1350,
+    "name": "Hepatobiliary Scintigraphy.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1351,
+    "name": "Meckel's Scan",
+    "category": "lab_test"
+  },
+  {
+    "id": 1352,
+    "name": "Hepatosplenic scintigraphy with Technetium-99m radiopharmaceuticals",
+    "category": "lab_test"
+  },
+  {
+    "id": 1353,
+    "name": "Gastric emptying",
+    "category": "lab_test"
+  },
+  {
+    "id": 1354,
+    "name": "Renal Cortical Scintigraphy with Technetium 99m D.M.S.A.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1355,
+    "name": "Dynamic Renography.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1356,
+    "name": "Dynamic Renography with Diuretic.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1357,
+    "name": "Dynamic Renography with Captopril",
+    "category": "lab_test"
+  },
+  {
+    "id": 1358,
+    "name": "Testicular Scan",
+    "category": "lab_test"
+  },
+  {
+    "id": 1359,
+    "name": "Thyroid Uptake measurements with 131-Iodine.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1360,
+    "name": "Thyroid Scan with Technetium 99m Pertechnetate.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1361,
+    "name": "Lodine-131 Whole Body Scan.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1362,
+    "name": "Whole Body Scan with M.I.B.G.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1363,
+    "name": "Parathyroid Scan",
+    "category": "lab_test"
+  },
+  {
+    "id": 1364,
+    "name": "131-lodine Therapy",
+    "category": "lab_test"
+  },
+  {
+    "id": 1365,
+    "name": "131-lodine Therapy <15mCi",
+    "category": "lab_test"
+  },
+  {
+    "id": 1366,
+    "name": "131-lodine Therapy 15-50mCi",
+    "category": "lab_test"
+  },
+  {
+    "id": 1367,
+    "name": "131-lodine Therapy 51-100mCi",
+    "category": "lab_test"
+  },
+  {
+    "id": 1368,
+    "name": "131-lodine Therapy >100mCi",
+    "category": "lab_test"
+  },
+  {
+    "id": 1369,
+    "name": "Phosphorus-32 therapy for metastatic bone pain palliation",
+    "category": "lab_test"
+  },
+  {
+    "id": 1370,
+    "name": "Samarium-153 therapy for metastatic bone pain palliation",
+    "category": "lab_test"
+  },
+  {
+    "id": 1371,
+    "name": "Radiosynovectomy with Yttrium",
+    "category": "lab_test"
+  },
+  {
+    "id": 1372,
+    "name": "Stress thallium / Myocardial Perfusion Scintigraphy",
+    "category": "lab_test"
+  },
+  {
+    "id": 1373,
+    "name": "Rest thallium / Myocardial Perfusion Scintigraphy",
+    "category": "lab_test"
+  },
+  {
+    "id": 1374,
+    "name": "Venography",
+    "category": "lab_test"
+  },
+  {
+    "id": 1375,
+    "name": "TMT",
+    "category": "lab_test"
+  },
+  {
+    "id": 1376,
+    "name": "TEE",
+    "category": "lab_test"
+  },
+  {
+    "id": 1377,
+    "name": "Lymph angiography",
+    "category": "lab_test"
+  },
+  {
+    "id": 1378,
+    "name": "Scintimammography.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1379,
+    "name": "Indium lableled octeriotide Scan.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1380,
+    "name": "FDG Whole body PET/CT Scan",
+    "category": "lab_test"
+  },
+  {
+    "id": 1381,
+    "name": "Brain/Heart FDG PET/CT Scan",
+    "category": "lab_test"
+  },
+  {
+    "id": 1382,
+    "name": "Gallium-68 Peptide PET/CT imaging for Neuroendocrine tumor",
+    "category": "lab_test"
+  },
+  {
+    "id": 1383,
+    "name": "Urine routine- pH Specific gravity sugar protein and microscopy",
+    "category": "lab_test"
+  },
+  {
+    "id": 1384,
+    "name": "Urine-Microalbumin",
+    "category": "lab_test"
+  },
+  {
+    "id": 1385,
+    "name": "Stool routine",
+    "category": "lab_test"
+  },
+  {
+    "id": 1386,
+    "name": "Stool occult blood",
+    "category": "lab_test"
+  },
+  {
+    "id": 1387,
+    "name": "Post coital smear examination",
+    "category": "lab_test"
+  },
+  {
+    "id": 1388,
+    "name": "Semen analysis",
+    "category": "lab_test"
+  },
+  {
+    "id": 1389,
+    "name": "Haemoglobin (Hb)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1390,
+    "name": "Total Leucocytic Count (TLC)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1391,
+    "name": "Differential Leucocytic Count (DLC)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1392,
+    "name": "E.S.R.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1393,
+    "name": "Total Red Cell count with MCVMCHMCHCDRW",
+    "category": "lab_test"
+  },
+  {
+    "id": 1394,
+    "name": "Complete Haemogram/CBC HbRBC count and indices\nTLC DLC Platelet ESR Peripheral smear examination",
+    "category": "lab_test"
+  },
+  {
+    "id": 1395,
+    "name": "Platelet count",
+    "category": "lab_test"
+  },
+  {
+    "id": 1396,
+    "name": "Reticulocyte count",
+    "category": "lab_test"
+  },
+  {
+    "id": 1397,
+    "name": "Absolute Eosinophil count",
+    "category": "lab_test"
+  },
+  {
+    "id": 1398,
+    "name": "Packed Cell Volume (PCV)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1399,
+    "name": "Peripheral Smear Examination",
+    "category": "lab_test"
+  },
+  {
+    "id": 1400,
+    "name": "Smear for Malaria parasite",
+    "category": "lab_test"
+  },
+  {
+    "id": 1401,
+    "name": "Bleeding Time",
+    "category": "lab_test"
+  },
+  {
+    "id": 1402,
+    "name": "Osmotic fragility Test",
+    "category": "lab_test"
+  },
+  {
+    "id": 1403,
+    "name": "Bone Marrow Smear Examination",
+    "category": "lab_test"
+  },
+  {
+    "id": 1404,
+    "name": "Bone Marrow Smear Examination with iron stain",
+    "category": "lab_test"
+  },
+  {
+    "id": 1405,
+    "name": "Bone Marrow Smear Examination and cytochemistry",
+    "category": "lab_test"
+  },
+  {
+    "id": 1406,
+    "name": "Activated partial ThromboplastinTime (APTT)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1407,
+    "name": "Rapid test for malaria(card test)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1408,
+    "name": "WBC cytochemistry for leukemia -Complete panel",
+    "category": "lab_test"
+  },
+  {
+    "id": 1409,
+    "name": "Bleeding Disorder panel- PT APTT Thrombin Time\nFibrinogen D-Dimer/ FDP",
+    "category": "lab_test"
+  },
+  {
+    "id": 1410,
+    "name": "Factor Assays-Factor VIII",
+    "category": "lab_test"
+  },
+  {
+    "id": 1411,
+    "name": "Factor Assays-Factor IX",
+    "category": "lab_test"
+  },
+  {
+    "id": 1412,
+    "name": "Platelet Function test",
+    "category": "lab_test"
+  },
+  {
+    "id": 1413,
+    "name": "Tests for hypercoagulable states- Protein C Protein S Antithrombin",
+    "category": "lab_test"
+  },
+  {
+    "id": 1414,
+    "name": "Tests for lupus anticoagulant",
+    "category": "lab_test"
+  },
+  {
+    "id": 1415,
+    "name": "Tests for Antiphospholipid antibody IgG IgM ( for cardiolipin and B2\nGlycoprotein 1)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1416,
+    "name": "Thalassemia studies (Red Cell indices and Hb HPLC)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1417,
+    "name": "Tests for Sickling / Hb HPLC)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1418,
+    "name": "Blood Group & RH Type",
+    "category": "lab_test"
+  },
+  {
+    "id": 1419,
+    "name": "Cross match",
+    "category": "lab_test"
+  },
+  {
+    "id": 1420,
+    "name": "Coomb’s Test Direct",
+    "category": "lab_test"
+  },
+  {
+    "id": 1421,
+    "name": "Coomb’s Test Indirect",
+    "category": "lab_test"
+  },
+  {
+    "id": 1422,
+    "name": "3 cell panel- antibody screening for pregnant female",
+    "category": "lab_test"
+  },
+  {
+    "id": 1423,
+    "name": "11 cells panel for antibody identification",
+    "category": "lab_test"
+  },
+  {
+    "id": 1424,
+    "name": "HBs Ag",
+    "category": "lab_test"
+  },
+  {
+    "id": 1425,
+    "name": "HCV",
+    "category": "lab_test"
+  },
+  {
+    "id": 1426,
+    "name": "HIV I and II",
+    "category": "lab_test"
+  },
+  {
+    "id": 1427,
+    "name": "VDRL",
+    "category": "lab_test"
+  },
+  {
+    "id": 1428,
+    "name": "RH Antibody titer",
+    "category": "lab_test"
+  },
+  {
+    "id": 1429,
+    "name": "Platelet Concentrate",
+    "category": "lab_test"
+  },
+  {
+    "id": 1430,
+    "name": "Random Donor Platelet(RDP)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1431,
+    "name": "Single Donor Platelet (SDP- Aphresis)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1432,
+    "name": "Routine-H & E",
+    "category": "lab_test"
+  },
+  {
+    "id": 1433,
+    "name": "special stain",
+    "category": "lab_test"
+  },
+  {
+    "id": 1434,
+    "name": "Immunohistochemistry(IHC)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1435,
+    "name": "Frozen section",
+    "category": "lab_test"
+  },
+  {
+    "id": 1436,
+    "name": "Paraffin section",
+    "category": "lab_test"
+  },
+  {
+    "id": 1437,
+    "name": "Pap Smear",
+    "category": "lab_test"
+  },
+  {
+    "id": 1438,
+    "name": "Body fluid for Malignant cells",
+    "category": "lab_test"
+  },
+  {
+    "id": 1439,
+    "name": "FNAC",
+    "category": "lab_test"
+  },
+  {
+    "id": 1440,
+    "name": "Leukemia panel /Lymphoma panel",
+    "category": "lab_test"
+  },
+  {
+    "id": 1441,
+    "name": "PNH Panel-CD55CD59",
+    "category": "lab_test"
+  },
+  {
+    "id": 1442,
+    "name": "Karyotyping",
+    "category": "lab_test"
+  },
+  {
+    "id": 1443,
+    "name": "FISH",
+    "category": "lab_test"
+  },
+  {
+    "id": 1444,
+    "name": "Blood Glucose Random",
+    "category": "lab_test"
+  },
+  {
+    "id": 1445,
+    "name": "24 hrs urine for ProteinsSodium creatinine",
+    "category": "lab_test"
+  },
+  {
+    "id": 1446,
+    "name": "Blood Urea Nitrogen",
+    "category": "lab_test"
+  },
+  {
+    "id": 1447,
+    "name": "Serum Creatinine",
+    "category": "lab_test"
+  },
+  {
+    "id": 1448,
+    "name": "Urine Bile Pigment and Salt",
+    "category": "lab_test"
+  },
+  {
+    "id": 1449,
+    "name": "Urine Urobilinogen",
+    "category": "lab_test"
+  },
+  {
+    "id": 1450,
+    "name": "Urine Ketones",
+    "category": "lab_test"
+  },
+  {
+    "id": 1451,
+    "name": "Urine Occult Blood",
+    "category": "lab_test"
+  },
+  {
+    "id": 1452,
+    "name": "Urine total proteins",
+    "category": "lab_test"
+  },
+  {
+    "id": 1453,
+    "name": "Rheumatoid Factor test",
+    "category": "lab_test"
+  },
+  {
+    "id": 1454,
+    "name": "Bence Jones protein",
+    "category": "lab_test"
+  },
+  {
+    "id": 1455,
+    "name": "Serum Uric Acid",
+    "category": "lab_test"
+  },
+  {
+    "id": 1456,
+    "name": "Serum Bilirubin total & direct",
+    "category": "lab_test"
+  },
+  {
+    "id": 1457,
+    "name": "Serum Iron",
+    "category": "lab_test"
+  },
+  {
+    "id": 1458,
+    "name": "C.R.P.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1459,
+    "name": "C.R.P Quantitative",
+    "category": "lab_test"
+  },
+  {
+    "id": 1460,
+    "name": "Body fluid (CSF/Ascitic Fluid etc.)Sugar Protein etc.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1461,
+    "name": "Albumin.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1462,
+    "name": "Creatinine clearance.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1463,
+    "name": "Serum Cholesterol",
+    "category": "lab_test"
+  },
+  {
+    "id": 1464,
+    "name": "Total Iron Binding Capacity",
+    "category": "lab_test"
+  },
+  {
+    "id": 1465,
+    "name": "Glucose (Fasting & PP)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1466,
+    "name": "Serum Calcium –Total",
+    "category": "lab_test"
+  },
+  {
+    "id": 1467,
+    "name": "Serum Calcium –Ionic",
+    "category": "lab_test"
+  },
+  {
+    "id": 1468,
+    "name": "Serum Phosphorus",
+    "category": "lab_test"
+  },
+  {
+    "id": 1469,
+    "name": "Total Protein Alb/Glo Ratio",
+    "category": "lab_test"
+  },
+  {
+    "id": 1470,
+    "name": "IgG.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1471,
+    "name": "IgM.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1472,
+    "name": "IgA.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1473,
+    "name": "ANA.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1474,
+    "name": "Ds DNA.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1475,
+    "name": "S.G.P.T.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1476,
+    "name": "S.G.O.T.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1477,
+    "name": "Serum amylase",
+    "category": "lab_test"
+  },
+  {
+    "id": 1478,
+    "name": "Serum Lipase",
+    "category": "lab_test"
+  },
+  {
+    "id": 1479,
+    "name": "Serum Lactate",
+    "category": "lab_test"
+  },
+  {
+    "id": 1480,
+    "name": "Serum Magnesium",
+    "category": "lab_test"
+  },
+  {
+    "id": 1481,
+    "name": "Serum Sodium",
+    "category": "lab_test"
+  },
+  {
+    "id": 1482,
+    "name": "Serum Potassium",
+    "category": "lab_test"
+  },
+  {
+    "id": 1483,
+    "name": "Serum Ammonia",
+    "category": "lab_test"
+  },
+  {
+    "id": 1484,
+    "name": "Anemia Profile",
+    "category": "lab_test"
+  },
+  {
+    "id": 1485,
+    "name": "Serum Testosterone",
+    "category": "lab_test"
+  },
+  {
+    "id": 1486,
+    "name": "Imprint Smear From Endoscopy",
+    "category": "lab_test"
+  },
+  {
+    "id": 1487,
+    "name": "Triglyceride",
+    "category": "lab_test"
+  },
+  {
+    "id": 1488,
+    "name": "Glucose Tolerance Test (GTT)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1489,
+    "name": "Triple Marker.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1490,
+    "name": "C.P.K.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1491,
+    "name": "Foetal Haemoglobin (HbF)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1492,
+    "name": "Prothrombin Time (P.T.)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1493,
+    "name": "L.D.H.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1494,
+    "name": "Alkaline Phosphatase",
+    "category": "lab_test"
+  },
+  {
+    "id": 1495,
+    "name": "Acid Phosphatase",
+    "category": "lab_test"
+  },
+  {
+    "id": 1496,
+    "name": "CK MB",
+    "category": "lab_test"
+  },
+  {
+    "id": 1497,
+    "name": "CK MB Mass",
+    "category": "lab_test"
+  },
+  {
+    "id": 1498,
+    "name": "Troponin I",
+    "category": "lab_test"
+  },
+  {
+    "id": 1499,
+    "name": "Troponin T",
+    "category": "lab_test"
+  },
+  {
+    "id": 1500,
+    "name": "Glucose Phosphate Dehydrogenase (G 6PD)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1501,
+    "name": "Lithium.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1502,
+    "name": "Dilantin (phenytoin).",
+    "category": "lab_test"
+  },
+  {
+    "id": 1503,
+    "name": "Carbamazepine.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1504,
+    "name": "Valproic acid.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1505,
+    "name": "Feritin.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1506,
+    "name": "Blood gas analysis",
+    "category": "lab_test"
+  },
+  {
+    "id": 1507,
+    "name": "Blood gas analysis with electrolytes",
+    "category": "lab_test"
+  },
+  {
+    "id": 1508,
+    "name": "Urine pregnancy test",
+    "category": "lab_test"
+  },
+  {
+    "id": 1509,
+    "name": "Tests for Antiphospholipid antibodies syndrome.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1510,
+    "name": "Hb A1 C",
+    "category": "lab_test"
+  },
+  {
+    "id": 1511,
+    "name": "Hb Electrophoresis/ Hb HPLC",
+    "category": "lab_test"
+  },
+  {
+    "id": 1512,
+    "name": "Kidney Function Test.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1513,
+    "name": "Liver Function Test.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1514,
+    "name": "Lipid Profile.( Total cholesterolLDLHDLtreigylcerides)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1515,
+    "name": "Serum Iron",
+    "category": "lab_test"
+  },
+  {
+    "id": 1516,
+    "name": "Total Iron Binding Capacity",
+    "category": "lab_test"
+  },
+  {
+    "id": 1517,
+    "name": "Serum Ferritin",
+    "category": "lab_test"
+  },
+  {
+    "id": 1518,
+    "name": "Vitamin B12 assay.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1519,
+    "name": "Folic Acid assay.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1520,
+    "name": "Extended Lipid Profile.( Total cholesterolLDLHDLtreigylceridesApo A1Apo\nBLp(a) )",
+    "category": "lab_test"
+  },
+  {
+    "id": 1521,
+    "name": "Apo A1.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1522,
+    "name": "Apo B.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1523,
+    "name": "Lp (a).",
+    "category": "lab_test"
+  },
+  {
+    "id": 1524,
+    "name": "CD 34 and 8 counts",
+    "category": "lab_test"
+  },
+  {
+    "id": 1525,
+    "name": "CD 34 and 8 percentage",
+    "category": "lab_test"
+  },
+  {
+    "id": 1526,
+    "name": "LDL.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1527,
+    "name": "Homocysteine.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1528,
+    "name": "HB Electrophoresis.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1529,
+    "name": "Serum Electrophoresis.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1530,
+    "name": "Fibrinogen.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1531,
+    "name": "Chloride.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1532,
+    "name": "Magnesium.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1533,
+    "name": "GGTP.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1534,
+    "name": "Lipase.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1535,
+    "name": "Fructosamine.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1536,
+    "name": "β2 microglobulin",
+    "category": "lab_test"
+  },
+  {
+    "id": 1537,
+    "name": "Catecholamines.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1538,
+    "name": "Creatinine clearance.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1539,
+    "name": "PSA- Total.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1540,
+    "name": "PSA- Free.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1541,
+    "name": "AFP.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1542,
+    "name": "HCG.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1543,
+    "name": "CA. 125.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1544,
+    "name": "CA 199.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1545,
+    "name": "CA 15.3.",
+    "category": "lab_test"
+  },
+  {
+    "id": 1546,
+    "name": "Vinyl Mandelic Acid",
+    "category": "lab_test"
+  },
+  {
+    "id": 1547,
+    "name": "Calcitonin",
+    "category": "lab_test"
+  },
+  {
+    "id": 1548,
+    "name": "Carcioembryonic antigen(CEA)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1549,
+    "name": "Immunofluorescence",
+    "category": "lab_test"
+  },
+  {
+    "id": 1550,
+    "name": "Direct(Skin and kidney Disease)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1551,
+    "name": "Indirect (antids DNA Anti Smith ANCA)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1552,
+    "name": "VitD3 assay",
+    "category": "lab_test"
+  },
+  {
+    "id": 1553,
+    "name": "Serum Protein electrophoresis with immunofixationelectrophoresis (IFE)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1554,
+    "name": "BETA-2 Microglobulin assay",
+    "category": "lab_test"
+  },
+  {
+    "id": 1555,
+    "name": "Anti cycliocitrullinated peptide (Anti CCP)",
+    "category": "lab_test"
+  },
+  {
+    "id": 1556,
+    "name": "Anti tissuetransglutaminase antibody",
+    "category": "lab_test"
+  },
+  {
+    "id": 1557,
+    "name": "Serum Erythropoetin",
+    "category": "lab_test"
+  },
+  {
+    "id": 1558,
+    "name": "ACTH",
+    "category": "lab_test"
+  },
+  {
+    "id": 1559,
+    "name": "T3 T4 TSH",
+    "category": "lab_test"
+  },
+  {
+    "id": 1560,
+    "name": "T3",
+    "category": "scan"
+  },
+  {
+    "id": 1561,
+    "name": "T4",
+    "category": "scan"
+  },
+  {
+    "id": 1562,
+    "name": "TSH",
+    "category": "scan"
+  },
+  {
+    "id": 1563,
+    "name": "LH",
+    "category": "scan"
+  },
+  {
+    "id": 1564,
+    "name": "FSH",
+    "category": "scan"
+  },
+  {
+    "id": 1565,
+    "name": "Prolactin",
+    "category": "scan"
+  },
+  {
+    "id": 1566,
+    "name": "Cortisol",
+    "category": "scan"
+  },
+  {
+    "id": 1567,
+    "name": "PTH(Paratharmone)",
+    "category": "scan"
+  },
+  {
+    "id": 1568,
+    "name": "C-Peptide.",
+    "category": "scan"
+  },
+  {
+    "id": 1569,
+    "name": "Insulin.",
+    "category": "scan"
+  },
+  {
+    "id": 1570,
+    "name": "Progesterone.",
+    "category": "scan"
+  },
+  {
+    "id": 1571,
+    "name": "17-DH Progesterone.",
+    "category": "scan"
+  },
+  {
+    "id": 1572,
+    "name": "DHEAS.",
+    "category": "scan"
+  },
+  {
+    "id": 1573,
+    "name": "Androstendione.",
+    "category": "scan"
+  },
+  {
+    "id": 1574,
+    "name": "Growth Hormone.",
+    "category": "scan"
+  },
+  {
+    "id": 1575,
+    "name": "TPO.",
+    "category": "scan"
+  },
+  {
+    "id": 1576,
+    "name": "Throglobulin.",
+    "category": "scan"
+  },
+  {
+    "id": 1577,
+    "name": "Hydatic Serology.",
+    "category": "scan"
+  },
+  {
+    "id": 1578,
+    "name": "Anti Sperm Antibodies.",
+    "category": "scan"
+  },
+  {
+    "id": 1579,
+    "name": "Qualitative.",
+    "category": "scan"
+  },
+  {
+    "id": 1580,
+    "name": "Quantitative.",
+    "category": "scan"
+  },
+  {
+    "id": 1581,
+    "name": "Qualitative.",
+    "category": "scan"
+  },
+  {
+    "id": 1582,
+    "name": "HPV serology",
+    "category": "scan"
+  },
+  {
+    "id": 1583,
+    "name": "Rota Virus serology",
+    "category": "scan"
+  },
+  {
+    "id": 1584,
+    "name": "PCR for TB",
+    "category": "scan"
+  },
+  {
+    "id": 1585,
+    "name": "PCR for HIV",
+    "category": "scan"
+  },
+  {
+    "id": 1586,
+    "name": "Chlamydae antigen",
+    "category": "scan"
+  },
+  {
+    "id": 1587,
+    "name": "chlamydae antibody",
+    "category": "scan"
+  },
+  {
+    "id": 1588,
+    "name": "Brucella serology",
+    "category": "scan"
+  },
+  {
+    "id": 1589,
+    "name": "Influenza A serology",
+    "category": "scan"
+  },
+  {
+    "id": 1590,
+    "name": "USG for Obstetrics - Anomalies scan",
+    "category": "scan"
+  },
+  {
+    "id": 1591,
+    "name": "Abdomen USG",
+    "category": "scan"
+  },
+  {
+    "id": 1592,
+    "name": "Pelvic USG ( prostate gynae infertility etc)",
+    "category": "scan"
+  },
+  {
+    "id": 1593,
+    "name": "Small parts USG ( scrotum thyroid parathyroid etc)",
+    "category": "scan"
+  },
+  {
+    "id": 1594,
+    "name": "Neonatal head (Tranfontanellar)",
+    "category": "scan"
+  },
+  {
+    "id": 1595,
+    "name": "Neonatal spine",
+    "category": "scan"
+  },
+  {
+    "id": 1596,
+    "name": "Contrast enhanced USG",
+    "category": "scan"
+  },
+  {
+    "id": 1597,
+    "name": "USG Breast",
+    "category": "scan"
+  },
+  {
+    "id": 1598,
+    "name": "USG Hystero-Salpaingography (HSG)",
+    "category": "scan"
+  },
+  {
+    "id": 1599,
+    "name": "Carotid Doppler",
+    "category": "scan"
+  },
+  {
+    "id": 1600,
+    "name": "Arterial Colour Doppler",
+    "category": "scan"
+  },
+  {
+    "id": 1601,
+    "name": "Venous Colour Doppler",
+    "category": "scan"
+  },
+  {
+    "id": 1602,
+    "name": "Colour Doppler renal arteries / any other organ",
+    "category": "scan"
+  },
+  {
+    "id": 1603,
+    "name": "USG guided intervention- FNAC",
+    "category": "scan"
+  },
+  {
+    "id": 1604,
+    "name": "USG guided intervention - biopsy",
+    "category": "scan"
+  },
+  {
+    "id": 1605,
+    "name": "USG guided intervention - nephrostomy",
+    "category": "scan"
+  },
+  {
+    "id": 1606,
+    "name": "Abdomen AP Supine or Erect (One film)",
+    "category": "scan"
+  },
+  {
+    "id": 1607,
+    "name": "Abdomen Lateral view (one film)",
+    "category": "scan"
+  },
+  {
+    "id": 1608,
+    "name": "Chest PA view (one film)",
+    "category": "scan"
+  },
+  {
+    "id": 1609,
+    "name": "Chest Lateral (one film)",
+    "category": "scan"
+  },
+  {
+    "id": 1610,
+    "name": "Mastoids: Towne view oblique views (3 films)",
+    "category": "scan"
+  },
+  {
+    "id": 1611,
+    "name": "Extremities bones & Joints AP & Lateral views (Two films)",
+    "category": "scan"
+  },
+  {
+    "id": 1612,
+    "name": "Pelvis A.P (one film)",
+    "category": "scan"
+  },
+  {
+    "id": 1613,
+    "name": "T. M. Joints (one film)",
+    "category": "scan"
+  },
+  {
+    "id": 1614,
+    "name": "Abdomen & Pelvis for K. U. B.",
+    "category": "scan"
+  },
+  {
+    "id": 1615,
+    "name": "Skull A. P. & Lateral (2 films)",
+    "category": "scan"
+  },
+  {
+    "id": 1616,
+    "name": "Spine A. P. & Lateral (2 films)",
+    "category": "scan"
+  },
+  {
+    "id": 1617,
+    "name": "PNS view (1 film)",
+    "category": "scan"
+  },
+  {
+    "id": 1618,
+    "name": "Barium Swallow",
+    "category": "scan"
+  },
+  {
+    "id": 1619,
+    "name": "Barium Upper GI study",
+    "category": "scan"
+  },
+  {
+    "id": 1620,
+    "name": "Barium Upper GI study (Double contrast)",
+    "category": "scan"
+  },
+  {
+    "id": 1621,
+    "name": "Barium Meal follow through",
+    "category": "scan"
+  },
+  {
+    "id": 1622,
+    "name": "Barium Enema (Single contrast/double contrast)",
+    "category": "scan"
+  },
+  {
+    "id": 1623,
+    "name": "Small bowel enteroclysis",
+    "category": "scan"
+  },
+  {
+    "id": 1624,
+    "name": "ERCP (Endoscopic Retrograde Cholangio – Pancreatography)",
+    "category": "scan"
+  },
+  {
+    "id": 1625,
+    "name": "General :Fistulography /Sinography/Sialography/Dacrocystography/ T-Tube\ncholangiogram/Nephrostogram",
+    "category": "scan"
+  },
+  {
+    "id": 1626,
+    "name": "Percutaneous transhepatic cholangiography (PTC)",
+    "category": "scan"
+  },
+  {
+    "id": 1627,
+    "name": "Intravenous Pyelography (IVP)",
+    "category": "scan"
+  },
+  {
+    "id": 1628,
+    "name": "Micturating Cystourethrography (MCU)",
+    "category": "scan"
+  },
+  {
+    "id": 1629,
+    "name": "Retrograde Urethrography (RGU)",
+    "category": "scan"
+  },
+  {
+    "id": 1630,
+    "name": "Contrast Hystero-Salpingography (HSG)",
+    "category": "scan"
+  },
+  {
+    "id": 1631,
+    "name": "X ray - Arthrography",
+    "category": "scan"
+  },
+  {
+    "id": 1632,
+    "name": "Cephalography",
+    "category": "scan"
+  },
+  {
+    "id": 1633,
+    "name": "Myelography",
+    "category": "scan"
+  },
+  {
+    "id": 1634,
+    "name": "Diagnostic Digital Subtraction Angiography (DSA)",
+    "category": "scan"
+  },
+  {
+    "id": 1635,
+    "name": "X-ray Mammography",
+    "category": "scan"
+  },
+  {
+    "id": 1636,
+    "name": "MRI Mammography",
+    "category": "scan"
+  },
+  {
+    "id": 1637,
+    "name": "CT Head-Without Contrast (NCCT Head)",
+    "category": "scan"
+  },
+  {
+    "id": 1638,
+    "name": "CT Head- with Contrast (+ CT angiography)",
+    "category": "scan"
+  },
+  {
+    "id": 1639,
+    "name": "C. T. Chest - without contrast (for lungs)",
+    "category": "scan"
+  },
+  {
+    "id": 1640,
+    "name": "C. T. Scan Lower Abdomen(incl. Pelvis) With Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1641,
+    "name": "C. T. Scan Lower Abdomen( Incl. Pelvis) Without Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1642,
+    "name": "C. T. Scan Whole Abdomen Without Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1643,
+    "name": "C. T. Scan Whole Abdomen With Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1644,
+    "name": "Triple Phase CT abdomen",
+    "category": "scan"
+  },
+  {
+    "id": 1645,
+    "name": "CT angiography abdomen/ Chest",
+    "category": "scan"
+  },
+  {
+    "id": 1646,
+    "name": "CT Enteroclysis",
+    "category": "scan"
+  },
+  {
+    "id": 1647,
+    "name": "C. T. Scan Neck – Without Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1648,
+    "name": "C. T. Scan Neck – With Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1649,
+    "name": "C. T. Scan Orbits - Without Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1650,
+    "name": "C. T. Scan Orbits - With Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1651,
+    "name": "C. T. Scan of Para Nasal Sinuses- Without Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1652,
+    "name": "C. T. Scan of Para Nasal Sinuses - With Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1653,
+    "name": "C. T. Spine (Cervical Dorsal Lumbar Sacral)–without contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1654,
+    "name": "CT Temporal bone – without contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1655,
+    "name": "CT - Dental",
+    "category": "scan"
+  },
+  {
+    "id": 1656,
+    "name": "C. T. Scan Limbs -Without Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1657,
+    "name": "C. T. Scan Limbs -With Contrast including CT angiography",
+    "category": "scan"
+  },
+  {
+    "id": 1658,
+    "name": "C.T. Guided intervention –FNAC",
+    "category": "scan"
+  },
+  {
+    "id": 1659,
+    "name": "C.T. Guided Trucut Biopsy",
+    "category": "scan"
+  },
+  {
+    "id": 1660,
+    "name": "C. T. Guided intervention -percutaneous catheter drainage / tube placement",
+    "category": "scan"
+  },
+  {
+    "id": 1661,
+    "name": "MRI Head – Without Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1662,
+    "name": "MRI Head – With Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1663,
+    "name": "MRI Orbits – Without Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1664,
+    "name": "MRI Orbits – With Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1665,
+    "name": "MRI Nasopharynx and PNS – Without Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1666,
+    "name": "MRI Nasopharynx and PNS – With Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1667,
+    "name": "MR for Salivary Glands with Sialography",
+    "category": "scan"
+  },
+  {
+    "id": 1668,
+    "name": "MRI Neck - Without Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1669,
+    "name": "MRI Neck- with contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1670,
+    "name": "MRI Shoulder – Without contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1671,
+    "name": "MRI Shoulder – With conntrast",
+    "category": "scan"
+  },
+  {
+    "id": 1672,
+    "name": "MRI shoulder both Joints - Without contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1673,
+    "name": "MRI Shoulder both joints – With contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1674,
+    "name": "MRI Wrist Single joint - Without contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1675,
+    "name": "MRI Wrist Single joint - With contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1676,
+    "name": "MRI Wrist both joints - Without contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1677,
+    "name": "MRI Wrist Both joints - With contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1678,
+    "name": "MRI knee Single joint - Without contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1679,
+    "name": "MRI knee Single joint - With contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1680,
+    "name": "MRI knee both joints - Without contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1681,
+    "name": "MRI knee both joints - With contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1682,
+    "name": "MRI Ankle Single joint - Without contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1683,
+    "name": "MRI Ankle single joint - With contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1684,
+    "name": "MRI Ankle both joints - With contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1685,
+    "name": "MRI Ankle both joints - Without contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1686,
+    "name": "MRI Hip - With contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1687,
+    "name": "MRI Hip – without contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1688,
+    "name": "MRI Pelvis – Without Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1689,
+    "name": "MRI Pelvis – with contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1690,
+    "name": "MRI Extremities - With contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1691,
+    "name": "MRI Extremities - Without contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1692,
+    "name": "MRI Temporomandibular – B/L - With contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1693,
+    "name": "MRI Temporomandibular – B/L - Without contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1694,
+    "name": "MR Temporal Bone/ Inner ear with contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1695,
+    "name": "MR Temporal Bone/ Inner ear without contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1696,
+    "name": "MRI Abdomen – Without Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1697,
+    "name": "MRI Abdomen – With Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1698,
+    "name": "MRI Breast - With Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1699,
+    "name": "MRI Breast - Without Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1700,
+    "name": "MRI Spine Screening - Without Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1701,
+    "name": "MRI Chest – Without Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1702,
+    "name": "MRI Chest – With Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1703,
+    "name": "MRI Cervical/Cervico Dorsal Spine – Without Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1704,
+    "name": "MRI Cervical/ Cervico Dorsal Spine – With Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1705,
+    "name": "MRI Dorsal/ Dorso Lumbar Spine - Without Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1706,
+    "name": "MRI Dorsal/ Dorso Lumbar Spine – With Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1707,
+    "name": "MRI Lumbar/ Lumbo-Sacral Spine – Without Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1708,
+    "name": "MRI Lumbar/ Lumbo-Sacral Spine – With Contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1709,
+    "name": "Whole body MRI (For oncological workup)",
+    "category": "scan"
+  },
+  {
+    "id": 1710,
+    "name": "MR cholecysto-pancreatography.",
+    "category": "scan"
+  },
+  {
+    "id": 1711,
+    "name": "MRI Angiography - with contrast",
+    "category": "scan"
+  },
+  {
+    "id": 1712,
+    "name": "MR Enteroclysis",
+    "category": "scan"
+  },
+  {
+    "id": 1713,
+    "name": "Dexa Scan Bone Densitometry - Two sites",
+    "category": "scan"
+  },
+  {
+    "id": 1714,
+    "name": "Dexa Scan Bone Densitometry - Three sites (Spine Hip & extremity)",
+    "category": "scan"
+  },
+  {
+    "id": 1715,
+    "name": "Dexa Scan Bone Densitometry Whole body",
+    "category": "scan"
+  },
+  {
+    "id": 1716,
+    "name": "EEG/Video EEG",
+    "category": "scan"
+  },
+  {
+    "id": 1717,
+    "name": "EMG (Electro myography)",
+    "category": "scan"
+  },
+  {
+    "id": 1718,
+    "name": "Nerve condition velocity (at least 2 limbs)",
+    "category": "scan"
+  },
+  {
+    "id": 1719,
+    "name": "Decremental response (before and after neo stigmine)",
+    "category": "scan"
+  },
+  {
+    "id": 1720,
+    "name": "Incremental response",
+    "category": "scan"
+  },
+  {
+    "id": 1721,
+    "name": "SSEP (Somato sensory evoked potentials)",
+    "category": "scan"
+  },
+  {
+    "id": 1722,
+    "name": "Poly somnography",
+    "category": "scan"
+  },
+  {
+    "id": 1723,
+    "name": "Brachial plexus study",
+    "category": "scan"
+  },
+  {
+    "id": 1724,
+    "name": "Muscle biopsy",
+    "category": "scan"
+  },
+  {
+    "id": 1725,
+    "name": "ACHR anti body titre",
+    "category": "scan"
+  },
+  {
+    "id": 1726,
+    "name": "Anti MUSK body titre",
+    "category": "scan"
+  },
+  {
+    "id": 1727,
+    "name": "Serum COPPER",
+    "category": "scan"
+  },
+  {
+    "id": 1728,
+    "name": "Serum ceruloplasmin",
+    "category": "scan"
+  },
+  {
+    "id": 1729,
+    "name": "Urinary copper",
+    "category": "scan"
+  },
+  {
+    "id": 1730,
+    "name": "Serum homocystine",
+    "category": "scan"
+  },
+  {
+    "id": 1731,
+    "name": "Serum valproate level",
+    "category": "scan"
+  },
+  {
+    "id": 1732,
+    "name": "Serum phenol barbitone level",
+    "category": "scan"
+  },
+  {
+    "id": 1733,
+    "name": "Coagulation profile",
+    "category": "scan"
+  },
+  {
+    "id": 1734,
+    "name": "Protein C S anti thrombine – III",
+    "category": "scan"
+  },
+  {
+    "id": 1735,
+    "name": "Serum lactate level",
+    "category": "scan"
+  },
+  {
+    "id": 1736,
+    "name": "Basic studies including cell count protein sugar gram stain\nIndia Ink preparation and smear for AFP",
+    "category": "scan"
+  },
+  {
+    "id": 1737,
+    "name": "Special studies",
+    "category": "scan"
+  },
+  {
+    "id": 1738,
+    "name": "PCR for tuberculosis/ Herpes simplex",
+    "category": "scan"
+  },
+  {
+    "id": 1739,
+    "name": "Bacterial culture and sensitivity",
+    "category": "scan"
+  },
+  {
+    "id": 1740,
+    "name": "Mycobacterial culture and sensitivity",
+    "category": "scan"
+  },
+  {
+    "id": 1741,
+    "name": "Fungal culture",
+    "category": "scan"
+  },
+  {
+    "id": 1742,
+    "name": "Malignant cells",
+    "category": "scan"
+  },
+  {
+    "id": 1743,
+    "name": "Anti measles antibody titre (with serum antibody titre)",
+    "category": "scan"
+  },
+  {
+    "id": 1744,
+    "name": "Viral culture",
+    "category": "scan"
+  },
+  {
+    "id": 1745,
+    "name": "Antibody titre (Herpes simplex cytomegalo virus flavivirus zoster varicella\nvirus)",
+    "category": "scan"
+  },
+  {
+    "id": 1746,
+    "name": "Oligoclonal band",
+    "category": "scan"
+  },
+  {
+    "id": 1747,
+    "name": "Myelin Basic protein",
+    "category": "scan"
+  },
+  {
+    "id": 1748,
+    "name": "Lactate",
+    "category": "scan"
+  },
+  {
+    "id": 1749,
+    "name": "Crypto coccal antigen",
+    "category": "scan"
+  },
+  {
+    "id": 1750,
+    "name": "D-xylase test",
+    "category": "scan"
+  },
+  {
+    "id": 1751,
+    "name": "Fecal fat test/ fecal chymotrypsin/ fecal elastase",
+    "category": "scan"
+  },
+  {
+    "id": 1752,
+    "name": "Breath tests",
+    "category": "scan"
+  },
+  {
+    "id": 1753,
+    "name": "H pylori serology for ciliac disease",
+    "category": "scan"
+  },
+  {
+    "id": 1754,
+    "name": "HBV genotyping",
+    "category": "scan"
+  },
+  {
+    "id": 1755,
+    "name": "HCV genotyping",
+    "category": "scan"
+  },
+  {
+    "id": 1756,
+    "name": "Urinary VMA",
+    "category": "scan"
+  },
+  {
+    "id": 1757,
+    "name": "Urinary metanephrine/Normetanephrine",
+    "category": "scan"
+  },
+  {
+    "id": 1758,
+    "name": "Urinary free catecholamine",
+    "category": "scan"
+  },
+  {
+    "id": 1759,
+    "name": "Serum catecholamine",
+    "category": "scan"
+  },
+  {
+    "id": 1760,
+    "name": "Serum aldosterone",
+    "category": "scan"
+  },
+  {
+    "id": 1761,
+    "name": "24 Hr urinary aldosterone",
+    "category": "scan"
+  },
+  {
+    "id": 1762,
+    "name": "Plasma renin activity",
+    "category": "scan"
+  },
+  {
+    "id": 1763,
+    "name": "Serum aldosterone/renin ratio",
+    "category": "scan"
+  },
+  {
+    "id": 1764,
+    "name": "Osmolality urine",
+    "category": "scan"
+  },
+  {
+    "id": 1765,
+    "name": "Osmolality serum",
+    "category": "scan"
+  },
+  {
+    "id": 1766,
+    "name": "Urinary sodium",
+    "category": "scan"
+  },
+  {
+    "id": 1767,
+    "name": "Urinary Chloride",
+    "category": "scan"
+  },
+  {
+    "id": 1768,
+    "name": "Urinary potassium",
+    "category": "scan"
+  },
+  {
+    "id": 1769,
+    "name": "Urinary calcium",
+    "category": "scan"
+  },
+  {
+    "id": 1770,
+    "name": "Thyroid binding globulin",
+    "category": "scan"
+  },
+  {
+    "id": 1771,
+    "name": "24 hr. urinary free cotisole",
+    "category": "scan"
+  },
+  {
+    "id": 1772,
+    "name": "Islet cell antebody",
+    "category": "scan"
+  },
+  {
+    "id": 1773,
+    "name": "GAD antibody",
+    "category": "scan"
+  },
+  {
+    "id": 1774,
+    "name": "Insulin associated antibody",
+    "category": "scan"
+  },
+  {
+    "id": 1775,
+    "name": "IGF-1",
+    "category": "scan"
+  },
+  {
+    "id": 1776,
+    "name": "IGF-BP3",
+    "category": "scan"
+  },
+  {
+    "id": 1777,
+    "name": "Sex hormone binding globulin",
+    "category": "scan"
+  },
+  {
+    "id": 1778,
+    "name": "USG guided FNAC thyroid gland",
+    "category": "scan"
+  },
+  {
+    "id": 1779,
+    "name": "E2",
+    "category": "scan"
+  },
+  {
+    "id": 1780,
+    "name": "Thyro globulin antibody",
+    "category": "scan"
+  },
+  {
+    "id": 1781,
+    "name": "Kappa Lambda Light Chains, Free, Serum/ Serum freelight chains (SFLC)",
+    "category": "scan"
+  },
+  {
+    "id": 1782,
+    "name": "Serum IGE Level",
+    "category": "scan"
+  },
+  {
+    "id": 1783,
+    "name": "NT-Pro BNP",
+    "category": "scan"
+  },
+  {
+    "id": 1784,
+    "name": "CECT Chest",
+    "category": "scan"
+  },
+  {
+    "id": 1785,
+    "name": "MRI-Prostate (Multi-parametric) ( Including CD)",
+    "category": "scan"
+  },
+  {
+    "id": 1786,
+    "name": "HCV RNA Quantitative",
+    "category": "scan"
+  },
+  {
+    "id": 1787,
+    "name": "Tarcolimus",
+    "category": "scan"
+  },
+  {
+    "id": 1788,
+    "name": "Protein Creatinine Ratio, Urine",
+    "category": "scan"
+  },
+  {
+    "id": 1789,
+    "name": "Fibroscan Liver",
+    "category": "scan"
+  },
+  {
+    "id": 1790,
+    "name": "HLA B27 (PCR)",
+    "category": "scan"
+  },
+  {
+    "id": 1791,
+    "name": "Mantoux Test",
+    "category": "scan"
+  },
+  {
+    "id": 1792,
+    "name": "Procalcitonin",
+    "category": "scan"
+  },
+  {
+    "id": 1793,
+    "name": "TORCH Test",
+    "category": "scan"
+  },
+  {
+    "id": 1794,
+    "name": "Intracoronary optical coherence tomography (OCT) / Intravascular optical\ncoherence tomography (IVOCT) /Intravascular Ventricular Assist System",
+    "category": "scan"
+  },
+  {
+    "id": 1795,
+    "name": "Fractional Flow Reserve (FFR) (inclusive of cost of\nwire)",
+    "category": "scan"
+  },
+  {
+    "id": 1796,
+    "name": "Anti -Smooth Muscle Antibody Test (ASMA)",
+    "category": "scan"
+  },
+  {
+    "id": 1797,
+    "name": "C ANCA-IFA",
+    "category": "scan"
+  },
+  {
+    "id": 1798,
+    "name": "P ANCA-IFA",
+    "category": "scan"
+  },
+  {
+    "id": 1799,
+    "name": "Angiotensin converting enzyme (ACE)",
+    "category": "scan"
+  },
+  {
+    "id": 1800,
+    "name": "Endo bronchial Ultrasound (EBUS) -Trans bronchial needle aspiration\n(TBNA) -Using New Needle",
+    "category": "scan"
+  },
+  {
+    "id": 1801,
+    "name": "Extractable Nuclear Antigens (ENA) - Quantitative",
+    "category": "scan"
+  },
+  {
+    "id": 1802,
+    "name": "Chromogranin A",
+    "category": "scan"
+  },
+  {
+    "id": 1803,
+    "name": "Faecal calprotectin (fecal calprotectin)",
+    "category": "scan"
+  },
+  {
+    "id": 1804,
+    "name": "C3-COMPLEMENT",
+    "category": "scan"
+  },
+  {
+    "id": 1805,
+    "name": "C4-COMPLEMENT",
+    "category": "scan"
+  },
+  {
+    "id": 1806,
+    "name": "Genexpert Test",
+    "category": "scan"
+  },
+  {
+    "id": 1807,
+    "name": "DJ stent removal",
+    "category": "scan"
+  },
+  {
+    "id": 1808,
+    "name": "Pulmonary Function Test (PFT) / (Spirometry with DLCO)",
+    "category": "scan"
+  },
+  {
+    "id": 1809,
+    "name": "EUS (Endoscopic Ultrasound) guided FNAC (Using with Needle)",
+    "category": "scan"
+  },
+  {
+    "id": 1810,
+    "name": "CT Urography",
+    "category": "scan"
+  },
+  {
+    "id": 1811,
+    "name": "Video Laryngoscopy",
+    "category": "scan"
+  },
+  {
+    "id": 1812,
+    "name": "CT Angio-Neck Vessels",
+    "category": "scan"
+  },
+  {
+    "id": 1813,
+    "name": "H1N1 (RT-PCR)",
+    "category": "scan"
+  },
+  {
+    "id": 1814,
+    "name": "Erythropoietin Level (Select CGHS rate code 1557 for approved rate)",
+    "category": "scan"
+  },
+  {
+    "id": 1815,
+    "name": "Anti HEV IgM",
+    "category": "scan"
+  },
+  {
+    "id": 1816,
+    "name": "Anti HAV IgM",
+    "category": "scan"
+  },
+  {
+    "id": 1817,
+    "name": "HBsAg Quantitative",
+    "category": "scan"
+  },
+  {
+    "id": 1818,
+    "name": "Typhidot IgM",
+    "category": "scan"
+  },
+  {
+    "id": 1819,
+    "name": "Hepatitis B Core Antibody (HBcAb) Level (Hepatitis B Core IgM Antibody)",
+    "category": "scan"
+  },
+  {
+    "id": 1820,
+    "name": "Anti HBs",
+    "category": "scan"
+  },
+  {
+    "id": 1821,
+    "name": "Free Triiodothyronine (FT3)",
+    "category": "scan"
+  },
+  {
+    "id": 1822,
+    "name": "Free Thyroxine (FT4)",
+    "category": "scan"
+  },
+  {
+    "id": 1823,
+    "name": "Widal Test",
+    "category": "scan"
+  },
+  {
+    "id": 1824,
+    "name": "Dengue Serology",
+    "category": "scan"
+  },
+  {
+    "id": 1825,
+    "name": "Blood component charges - Whole Blood per Unit",
+    "category": "scan"
+  },
+  {
+    "id": 1826,
+    "name": "Blood component charges - Packed Red Cell per Unit",
+    "category": "scan"
+  },
+  {
+    "id": 1827,
+    "name": "Blood component charges - Fresh Frozen Plasma",
+    "category": "scan"
+  },
+  {
+    "id": 1828,
+    "name": "Platelet Concentrate- Random Donor Platelet (RDP)",
+    "category": "scan"
+  },
+  {
+    "id": 1829,
+    "name": "Blood component charges - Cryoprecipitate",
+    "category": "scan"
+  },
+  {
+    "id": 1830,
+    "name": "Platelet Concentrate - Single Donor Platelet (SDP)-Apheresis per unit",
+    "category": "scan"
+  },
+  {
+    "id": 1831,
+    "name": "CCS Group A Officer of above 40 years of age -Male, Annual Health Check\nup",
+    "category": "scan"
+  },
+  {
+    "id": 1832,
+    "name": "CCS Group A Officer of above 40 years of age -female, Annual Health\nCheck up",
+    "category": "scan"
+  },
+  {
+    "id": 1833,
+    "name": "Interleukin 6 (IL 6)",
+    "category": "can_procedure"
+  },
+  {
+    "id": 1834,
+    "name": "High resolution computed Tomography (HRCT Chest)",
+    "category": "can_procedure"
+  },
+  {
+    "id": 1835,
+    "name": "Fluid air exchange (per eye)",
+    "category": "can_procedure"
+  },
+  {
+    "id": 1836,
+    "name": "C3F8 GAS Injection (per eye)",
+    "category": "can_procedure"
+  },
+  {
+    "id": 1837,
+    "name": "Diurnal variation of IOP (per eye)",
+    "category": "can_procedure"
+  },
+  {
+    "id": 1838,
+    "name": "Silicone oil injection (per eye)",
+    "category": "can_procedure"
+  },
+  {
+    "id": 1839,
+    "name": "Epiretinal Membrane (ERM) Peeling (per eye)",
+    "category": "can_procedure"
+  },
+  {
+    "id": 1840,
+    "name": "Epiretinal Membrane (ERM) Removal (per eye)",
+    "category": "can_procedure"
+  },
+  {
+    "id": 1841,
+    "name": "Internal limiting membrane (ILM) peeling (per eye)",
+    "category": "can_procedure"
+  },
+  {
+    "id": 1842,
+    "name": "Punctoplasty (per eye)",
+    "category": "can_procedure"
+  },
+  {
+    "id": 1843,
+    "name": "Punctal plug(Collagen/silicone) (per eye)",
+    "category": "can_procedure"
+  },
+  {
+    "id": 1844,
+    "name": "Laser Trabeculoplasty Gonioplasty (both eyes)",
+    "category": "can_procedure"
+  },
+  {
+    "id": 1845,
+    "name": "Eye laser pulse therapy (per eye)",
+    "category": "can_procedure"
+  },
+  {
+    "id": 1846,
+    "name": "Glaucoma valve/Glaucoma Ahmed valve",
+    "category": "can_procedure"
+  },
+  {
+    "id": 1847,
+    "name": "Malyugin Ring",
+    "category": "can_procedure"
+  },
+  {
+    "id": 1848,
+    "name": "Globe exploration (eye surgery)",
+    "category": "can_procedure"
+  },
+  {
+    "id": 1849,
+    "name": "Scleral Fixation Tissue glue",
+    "category": "can_procedure"
+  },
+  {
+    "id": 1850,
+    "name": "Fibro optic Nasal Endoscopy",
+    "category": "can_procedure"
+  },
+  {
+    "id": 1851,
+    "name": "Video Stroboscopy",
+    "category": "can_procedure"
+  },
+  {
+    "id": 1852,
+    "name": "Video Bronchoscopy with BAL",
+    "category": "can_procedure"
+  },
+  {
+    "id": 1853,
+    "name": "Sleep deprived EEG (Rate shall be the same CGHS rate of EEG/Video\nEEG) (Select CGHS rate code 1716)",
+    "category": "can_procedure"
+  }
+]

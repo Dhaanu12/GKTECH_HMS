@@ -193,11 +193,13 @@ export default function DoctorPatients() {
                         <tbody className="divide-y divide-gray-100/50 bg-white/40 backdrop-blur-sm">
                             {filteredPatients.length > 0 ? (
                                 filteredPatients.map((patient) => (
-                                    <tr key={patient.patient_id} className="hover:bg-blue-50/40 transition-colors duration-200 group">
+                                    <tr key={patient.patient_id} className={`transition-colors duration-200 group border-b border-gray-100/50 
+                                        ${patient.is_mlc ? 'bg-red-50/10 hover:bg-red-50/20' : 'hover:bg-blue-50/40'}`}>
                                         <td className="px-8 py-5">
                                             <div className="flex items-center gap-4">
                                                 {patient.gender === 'Female' ? (
-                                                    <div className="w-12 h-12 bg-gradient-to-br from-pink-100 to-rose-100 rounded-2xl flex items-center justify-center text-pink-600 shadow-sm group-hover:scale-110 transition-transform duration-300 ring-1 ring-white">
+                                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-300 ring-1 ring-white
+                                                        ${patient.is_mlc ? 'bg-red-100 text-red-600 shadow-red-200' : 'bg-gradient-to-br from-pink-100 to-rose-100 text-pink-600'}`}>
                                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
                                                             <path d="M12 15a6 6 0 1 0 0-12 6 6 0 0 0 0 12Z" />
                                                             <path d="M12 15v7" />
@@ -205,7 +207,8 @@ export default function DoctorPatients() {
                                                         </svg>
                                                     </div>
                                                 ) : patient.gender === 'Male' ? (
-                                                    <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-2xl flex items-center justify-center text-blue-600 shadow-sm group-hover:scale-110 transition-transform duration-300 ring-1 ring-white">
+                                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-300 ring-1 ring-white
+                                                        ${patient.is_mlc ? 'bg-red-100 text-red-600 shadow-red-200' : 'bg-gradient-to-br from-blue-100 to-indigo-100 text-blue-600'}`}>
                                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
                                                             <circle cx="10" cy="10" r="6" />
                                                             <path d="M14.29 5.71 19 1" />
@@ -215,12 +218,22 @@ export default function DoctorPatients() {
                                                         </svg>
                                                     </div>
                                                 ) : (
-                                                    <div className="w-12 h-12 bg-gradient-to-br from-slate-100 to-gray-200 rounded-2xl flex items-center justify-center text-slate-600 font-bold text-lg shadow-sm group-hover:scale-110 transition-transform duration-300 ring-1 ring-white">
+                                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-lg shadow-sm group-hover:scale-110 transition-transform duration-300 ring-1 ring-white
+                                                        ${patient.is_mlc ? 'bg-red-100 text-red-600 shadow-red-200' : 'bg-gradient-to-br from-slate-100 to-gray-200 text-slate-600'}`}>
                                                         {patient.first_name?.charAt(0)}
                                                     </div>
                                                 )}
                                                 <div>
-                                                    <span className="font-bold text-slate-800 text-lg block group-hover:text-blue-700 transition-colors">{patient.first_name} {patient.last_name}</span>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className={`font-bold text-lg block transition-colors ${patient.is_mlc ? 'text-red-700' : 'text-slate-800 group-hover:text-blue-700'}`}>
+                                                            {patient.first_name} {patient.last_name}
+                                                        </span>
+                                                        {patient.is_mlc && (
+                                                            <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-bold text-red-700 ring-1 ring-inset ring-red-600/20 animate-pulse">
+                                                                <AlertCircle className="w-3 h-3" /> MLC
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                     <span className="text-xs font-mono text-slate-400 bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 mt-1 inline-block">{patient.mrn_number}</span>
                                                 </div>
                                             </div>
@@ -241,7 +254,10 @@ export default function DoctorPatients() {
                                             {patient.contact_number}
                                         </td>
                                         <td className="px-8 py-5 text-right">
-                                            <Link href={`/doctor/patients/${patient.patient_id}`} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:shadow-lg hover:shadow-blue-500/30 transition-all font-semibold text-sm hover:-translate-y-0.5">
+                                            <Link href={`/doctor/patients/${patient.patient_id}`} className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-white font-semibold text-sm hover:-translate-y-0.5 transition-all shadow-md
+                                                ${patient.is_mlc
+                                                    ? 'bg-gradient-to-r from-red-600 to-rose-600 hover:shadow-red-500/30'
+                                                    : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:shadow-blue-500/30'}`}>
                                                 View Record <ArrowUpRight className="w-4 h-4" />
                                             </Link>
                                         </td>

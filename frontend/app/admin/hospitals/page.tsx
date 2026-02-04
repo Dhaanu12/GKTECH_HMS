@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Plus, Building2, Search, Edit2, Loader2, Power, Upload } from 'lucide-react';
+import { Plus, Building2, Search, Edit2, Loader2, Power, Upload, Stethoscope } from 'lucide-react';
+import MedicalServicesSelector from '@/components/MedicalServicesSelector';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -22,9 +23,9 @@ interface ModuleConfig {
 }
 
 export default function HospitalsPage() {
-    const [departments, setDepartments] = useState([]);
-    const [services, setServices] = useState([]);
-    const [hospitals, setHospitals] = useState([]);
+    const [departments, setDepartments] = useState<any[]>([]);
+    const [services, setServices] = useState<any[]>([]);
+    const [hospitals, setHospitals] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [editingHospital, setEditingHospital] = useState<any>(null);
@@ -51,6 +52,7 @@ export default function HospitalsPage() {
 
     const [searchTerm, setSearchTerm] = useState('');
     const [viewingHospital, setViewingHospital] = useState<any>(null);
+    const [managingServicesHospital, setManagingServicesHospital] = useState<any>(null);
 
     useEffect(() => {
         fetchHospitals();
@@ -64,7 +66,27 @@ export default function HospitalsPage() {
             const response = await axios.get(`${API_URL}/hospitals`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setHospitals(response.data.data.hospitals || []);
+            const hospitalsData = response.data.data.hospitals || [];
+
+            // Fetch medical services count for each hospital
+            const hospitalsWithCounts = await Promise.all(
+                hospitalsData.map(async (hospital: any) => {
+                    try {
+                        const servicesRes = await axios.get(
+                            `${API_URL}/medical-services/hospital/${hospital.hospital_id}`,
+                            { headers: { Authorization: `Bearer ${token}` } }
+                        );
+                        return {
+                            ...hospital,
+                            medical_services_count: servicesRes.data.services?.length || 0
+                        };
+                    } catch (err) {
+                        return { ...hospital, medical_services_count: 0 };
+                    }
+                })
+            );
+
+            setHospitals(hospitalsWithCounts);
         } catch (error) {
             console.error('Error fetching hospitals:', error);
         } finally {
@@ -166,20 +188,11 @@ export default function HospitalsPage() {
                 formDataPayload.append('admin_email', formData.admin_email);
                 formDataPayload.append('admin_phone', formData.admin_phone);
                 formDataPayload.append('admin_password', formData.admin_password);
-
-                // For arrays, we might need to stringify or append multiple times depending on backend
-                // Assuming backend expects JSON array or individual fields. 
-                // Since middleware usually parses JSON bodies, but this is multipart.
-                // It's safer to append items individually or JSON stringify if backend parses it.
-                // Let's assume we need to send arrays as multiple fields for now or handle parsing in backend. 
-                // Or easier: stringify them and parse in backend? 
-                // Wait, most backend frameworks with multer ignore body fields if not simple values unless parsed.
-                // But typically express body-parser handles other fields. Arrays might be tricky.
-                // Let's stringify for safety and ensure backend can parse? 
-                // Actually, let's just loop and append.
-                formData.department_ids.forEach(id => formDataPayload.append('department_ids[]', id.toString()));
-                formData.service_ids.forEach(id => formDataPayload.append('service_ids[]', id.toString()));
             }
+
+            // Append mappings for both Create and Edit
+            formData.department_ids.forEach(id => formDataPayload.append('department_ids[]', id.toString()));
+            formData.service_ids.forEach(id => formDataPayload.append('service_ids[]', id.toString()));
 
             if (editingHospital) {
                 // Update existing hospital
@@ -222,7 +235,7 @@ export default function HospitalsPage() {
         }
     };
 
-    const handleEdit = (hospital: any) => {
+    const handleEdit = async (hospital: any) => {
         setEditingHospital(hospital);
         // Format date for input field (YYYY-MM-DD)
         const formattedDate = hospital.established_date ? new Date(hospital.established_date).toISOString().split('T')[0] : '';
@@ -249,6 +262,24 @@ export default function HospitalsPage() {
             logo: null
         });
         setShowModal(true);
+
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.get(`${API_URL}/hospitals/${hospital.hospital_id}/mappings`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            const deptIds = response.data.data.departments.map((d: any) => Number(d.department_id));
+            const svcIds = response.data.data.services.map((s: any) => Number(s.service_id));
+
+            setFormData(prev => ({
+                ...prev,
+                department_ids: deptIds,
+                service_ids: svcIds
+            }));
+        } catch (error) {
+            console.error('Error fetching hospital mappings:', error);
+        }
     };
 
     const handleView = (hospital: any) => {
@@ -326,6 +357,13 @@ export default function HospitalsPage() {
                                         title="View Details"
                                     >
                                         <Search className="w-5 h-5" />
+                                    </button>
+                                    <button
+                                        onClick={() => setManagingServicesHospital(hospital)}
+                                        className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition"
+                                        title="Manage Medical Services"
+                                    >
+                                        <Stethoscope className="w-5 h-5" />
                                     </button>
                                     <button
                                         onClick={() => handleEdit(hospital)}
@@ -738,62 +776,60 @@ export default function HospitalsPage() {
                                 </div>
                             )}
 
-                            {/* Departments & Services Selection - Only on Create for now */}
-                            {!editingHospital && (
-                                <div className="pt-6 border-t border-gray-200/50">
-                                    <div className="space-y-6">
-                                        {/* Departments */}
-                                        <div>
-                                            <h3 className="text-lg font-semibold text-gray-900 mb-3">Departments</h3>
-                                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-48 overflow-y-auto p-2 border border-gray-200 rounded-lg bg-gray-50/50">
-                                                {departments.map((dept: any) => (
-                                                    <label key={dept.department_id} className="flex items-center space-x-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-100 p-1 rounded">
-                                                        <input
-                                                            type="checkbox"
-                                                            value={dept.department_id}
-                                                            checked={formData.department_ids.includes(dept.department_id)}
-                                                            onChange={(e) => {
-                                                                const id = parseInt(e.target.value);
-                                                                const newIds = e.target.checked
-                                                                    ? [...formData.department_ids, id]
-                                                                    : formData.department_ids.filter((i: number) => i !== id);
-                                                                setFormData({ ...formData, department_ids: newIds });
-                                                            }}
-                                                            className="rounded text-blue-600 focus:ring-blue-500"
-                                                        />
-                                                        <span>{dept.department_name}</span>
-                                                    </label>
-                                                ))}
-                                            </div>
+                            {/* Departments & Services Selection */}
+                            <div className="pt-6 border-t border-gray-200/50">
+                                <div className="space-y-6">
+                                    {/* Departments */}
+                                    <div>
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-3">Departments</h3>
+                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-48 overflow-y-auto p-2 border border-gray-200 rounded-lg bg-gray-50/50">
+                                            {departments.map((dept: any) => (
+                                                <label key={dept.department_id} className="flex items-center space-x-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-100 p-1 rounded">
+                                                    <input
+                                                        type="checkbox"
+                                                        value={dept.department_id}
+                                                        checked={formData.department_ids.includes(Number(dept.department_id))}
+                                                        onChange={(e) => {
+                                                            const id = parseInt(e.target.value);
+                                                            const newIds = e.target.checked
+                                                                ? [...formData.department_ids, id]
+                                                                : formData.department_ids.filter((i: number) => i !== id);
+                                                            setFormData({ ...formData, department_ids: newIds });
+                                                        }}
+                                                        className="rounded text-blue-600 focus:ring-blue-500"
+                                                    />
+                                                    <span>{dept.department_name}</span>
+                                                </label>
+                                            ))}
                                         </div>
+                                    </div>
 
-                                        {/* Services */}
-                                        <div>
-                                            <h3 className="text-lg font-semibold text-gray-900 mb-3">Services</h3>
-                                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-60 overflow-y-auto p-2 border border-gray-200 rounded-lg bg-gray-50/50">
-                                                {services.map((svc: any) => (
-                                                    <label key={svc.service_id} className="flex items-center space-x-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-100 p-1 rounded">
-                                                        <input
-                                                            type="checkbox"
-                                                            value={svc.service_id}
-                                                            checked={formData.service_ids.includes(svc.service_id)}
-                                                            onChange={(e) => {
-                                                                const id = parseInt(e.target.value);
-                                                                const newIds = e.target.checked
-                                                                    ? [...formData.service_ids, id]
-                                                                    : formData.service_ids.filter((i: number) => i !== id);
-                                                                setFormData({ ...formData, service_ids: newIds });
-                                                            }}
-                                                            className="rounded text-blue-600 focus:ring-blue-500"
-                                                        />
-                                                        <span>{svc.service_name}</span>
-                                                    </label>
-                                                ))}
-                                            </div>
+                                    {/* Services */}
+                                    <div>
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-3">Services</h3>
+                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-60 overflow-y-auto p-2 border border-gray-200 rounded-lg bg-gray-50/50">
+                                            {services.map((svc: any) => (
+                                                <label key={svc.service_id} className="flex items-center space-x-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-100 p-1 rounded">
+                                                    <input
+                                                        type="checkbox"
+                                                        value={svc.service_id}
+                                                        checked={formData.service_ids.includes(Number(svc.service_id))}
+                                                        onChange={(e) => {
+                                                            const id = parseInt(e.target.value);
+                                                            const newIds = e.target.checked
+                                                                ? [...formData.service_ids, id]
+                                                                : formData.service_ids.filter((i: number) => i !== id);
+                                                            setFormData({ ...formData, service_ids: newIds });
+                                                        }}
+                                                        className="rounded text-blue-600 focus:ring-blue-500"
+                                                    />
+                                                    <span>{svc.service_name}</span>
+                                                </label>
+                                            ))}
                                         </div>
                                     </div>
                                 </div>
-                            )}
+                            </div>
 
                             <div className="flex justify-end gap-3 pt-6 border-t border-gray-200/50">
                                 <button
@@ -811,6 +847,39 @@ export default function HospitalsPage() {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Medical Services Management Modal */}
+            {managingServicesHospital && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
+                        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-purple-100 flex justify-between items-center">
+                            <div>
+                                <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-purple-800 bg-clip-text text-transparent">
+                                    Manage Medical Services
+                                </h2>
+                                <p className="text-sm text-gray-600 mt-1">
+                                    {managingServicesHospital.hospital_name}
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setManagingServicesHospital(null)}
+                                className="text-gray-400 hover:text-gray-600 transition"
+                            >
+                                <span className="text-2xl">&times;</span>
+                            </button>
+                        </div>
+                        <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+                            <MedicalServicesSelector
+                                hospitalId={managingServicesHospital.hospital_id}
+                                onSave={() => {
+                                    setManagingServicesHospital(null);
+                                    fetchHospitals();
+                                }}
+                            />
+                        </div>
                     </div>
                 </div>
             )}

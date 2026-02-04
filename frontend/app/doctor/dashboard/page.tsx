@@ -3,13 +3,19 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/lib/AuthContext';
-import { FileText, Users, Calendar, Clock, Activity, Loader2, ArrowRight, Sparkles } from 'lucide-react';
+import {
+    FileText, Users, Calendar, Clock, Activity, Loader2, ArrowRight, Sparkles,
+    ChevronRight, Stethoscope, AlertCircle, DollarSign, UserCheck,
+    PlayCircle, ListTodo, CalendarClock, Pill, Bell
+} from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 const API_URL = 'http://localhost:5000/api';
 
 export default function DoctorDashboard() {
     const { user } = useAuth();
+    const router = useRouter();
     const [stats, setStats] = useState({
         todayAppointments: 0,
         todayOpd: 0,
@@ -18,8 +24,24 @@ export default function DoctorDashboard() {
     });
     const [loading, setLoading] = useState(true);
 
+    // New state for enhanced dashboard
+    const [waitingPatients, setWaitingPatients] = useState<any[]>([]);
+    const [pendingPrescriptions, setPendingPrescriptions] = useState<any[]>([]);
+    const [todayRevenue, setTodayRevenue] = useState(0);
+    const [completedToday, setCompletedToday] = useState(0);
+
+    // Follow-up stats for this doctor
+    const [followUpStats, setFollowUpStats] = useState<any>({
+        overdue_count: 0,
+        due_today_count: 0,
+        upcoming_week_count: 0
+    });
+    const [followUpPatients, setFollowUpPatients] = useState<any[]>([]);
+
     useEffect(() => {
         fetchStats();
+        fetchWaitingQueue();
+        fetchFollowUpData();
     }, []);
 
     const fetchStats = async () => {
@@ -39,51 +61,139 @@ export default function DoctorDashboard() {
         }
     };
 
-    const statCards = [
+    const fetchWaitingQueue = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const today = new Date().toISOString().split('T')[0];
+
+            // Use the same API as My Appointments page - returns pre-filtered data for this doctor
+            const response = await axios.get(`${API_URL}/doctors/schedule?date=${today}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (response.data.status === 'success') {
+                const data = response.data.data;
+
+                // Waiting queue from API (already filtered for this doctor)
+                const queue = data.waitingQueue || [];
+                // Sort: MLC first, then by token/time
+                const sortedQueue = queue.sort((a: any, b: any) => {
+                    if (a.is_mlc && !b.is_mlc) return -1;
+                    if (!a.is_mlc && b.is_mlc) return 1;
+                    return 0;
+                });
+                setWaitingPatients(sortedQueue);
+
+                // Completed today
+                setCompletedToday((data.completedConsultations || []).length);
+
+                // Pending prescriptions = waiting patients that need Rx (approximate)
+                const inProgress = (data.waitingQueue || []).filter((p: any) =>
+                    p.visit_status === 'In-consultation'
+                );
+                setPendingPrescriptions(inProgress);
+
+                // Calculate today's revenue from completed consultations
+                const revenue = (data.completedConsultations || [])
+                    .reduce((sum: number, c: any) => sum + (parseFloat(c.consultation_fee) || 0), 0);
+                setTodayRevenue(revenue);
+            }
+        } catch (error) {
+            console.error('Error fetching waiting queue:', error);
+        }
+    };
+
+    // Fetch doctor's pending follow-ups
+    const fetchFollowUpData = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const [statsRes, dueRes] = await Promise.all([
+                axios.get(`${API_URL}/follow-ups/stats`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                }),
+                axios.get(`${API_URL}/follow-ups/due?range=all`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                })
+            ]);
+
+            if (statsRes.data.status === 'success') {
+                setFollowUpStats(statsRes.data.data);
+            }
+            if (dueRes.data.status === 'success') {
+                // Combine overdue and due_today for display
+                const allDue = [
+                    ...(dueRes.data.data.overdue || []),
+                    ...(dueRes.data.data.due_today || [])
+                ].slice(0, 3); // Show top 3
+                setFollowUpPatients(allDue);
+            }
+        } catch (error) {
+            console.error('Error fetching follow-up data:', error);
+        }
+    };
+
+    // Handle "Next Patient" click - Navigate to first waiting patient
+    const handleNextPatient = () => {
+        if (waitingPatients.length > 0) {
+            const nextPatient = waitingPatients[0];
+            router.push(`/doctor/patients/${nextPatient.patient_id}`);
+        }
+    };
+
+    const actionableCards = [
         {
-            title: 'Today\'s Appointments',
-            value: stats.todayAppointments,
-            icon: Calendar,
-            color: 'from-blue-500 to-blue-600',
-            bg: 'bg-blue-50',
-            text: 'text-blue-600'
-        },
-        {
-            title: 'OPD Consultations',
-            value: stats.todayOpd,
+            title: 'Waiting Now',
+            value: waitingPatients.length,
             icon: Clock,
-            color: 'from-orange-400 to-orange-500',
-            bg: 'bg-orange-50',
-            text: 'text-orange-600'
+            color: 'from-amber-400 to-orange-500',
+            bg: 'bg-amber-50',
+            text: 'text-amber-600',
+            border: 'border-amber-200',
+            action: waitingPatients.length > 0 ? handleNextPatient : undefined,
+            actionLabel: 'Start Next →'
         },
         {
-            title: 'Total Patients',
-            value: stats.totalPatients,
-            icon: Users,
-            color: 'from-green-500 to-emerald-600',
-            bg: 'bg-green-50',
-            text: 'text-green-600'
+            title: 'Completed Today',
+            value: completedToday,
+            icon: UserCheck,
+            color: 'from-emerald-500 to-teal-600',
+            bg: 'bg-emerald-50',
+            text: 'text-emerald-600',
+            border: 'border-emerald-200'
         },
         {
-            title: 'Total OPD Visits',
-            value: stats.consultationsIssued,
-            icon: FileText,
-            color: 'from-purple-500 to-indigo-600',
-            bg: 'bg-purple-50',
-            text: 'text-purple-600'
+            title: 'Pending Rx',
+            value: pendingPrescriptions.length,
+            icon: Pill,
+            color: 'from-rose-400 to-red-500',
+            bg: 'bg-rose-50',
+            text: 'text-rose-600',
+            border: 'border-rose-200',
+            urgent: pendingPrescriptions.length > 0
+        },
+        {
+            title: 'Revenue Today',
+            value: `₹${todayRevenue.toLocaleString()}`,
+            icon: DollarSign,
+            color: 'from-blue-500 to-indigo-600',
+            bg: 'bg-blue-50',
+            text: 'text-blue-600',
+            border: 'border-blue-200'
         },
     ];
 
     return (
         <div className="space-y-8">
-            {/* Header Content */}
-            {/* Smart Briefing */}
-            {/* Header Content */}
+            {/* Header with Smart Briefing */}
             <div className="flex flex-col md:flex-row justify-between items-end gap-4">
-                {/* Smart Briefing */}
                 <div className="flex items-center gap-2 text-sm font-medium text-slate-600 bg-blue-50/50 px-3 py-1.5 rounded-lg border border-blue-100 max-w-fit animate-in fade-in slide-in-from-bottom-2 duration-700 delay-150">
                     <Sparkles className="w-4 h-4 text-blue-500 animate-pulse" />
-                    <span>AI Insight: You have <span className="text-blue-700 font-bold">{stats.todayAppointments} appointments</span> today. 2 slot gaps available in the afternoon.</span>
+                    <span>
+                        {waitingPatients.length > 0
+                            ? <>You have <span className="text-amber-600 font-bold">{waitingPatients.length} patients waiting</span>. First patient: <span className="text-blue-700 font-bold">{waitingPatients[0]?.patient_name}</span></>
+                            : <>No patients waiting. Your next appointment info will appear here.</>
+                        }
+                    </span>
                 </div>
 
                 <div className="text-sm font-medium text-slate-400 bg-white/50 px-4 py-2 rounded-full border border-slate-200/50 backdrop-blur-sm self-center md:self-auto">
@@ -91,19 +201,30 @@ export default function DoctorDashboard() {
                 </div>
             </div>
 
-            {/* Stats Grid - "Visionary" Style */}
+            {/* Actionable Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {statCards.map((stat, index) => {
+                {actionableCards.map((stat) => {
                     const Icon = stat.icon;
                     return (
-                        <div key={stat.title} className="glass-card p-6 rounded-2xl relative overflow-hidden group hover:-translate-y-1 transition-all duration-300">
+                        <div
+                            key={stat.title}
+                            className={`glass-card p-6 rounded-2xl relative overflow-hidden group hover:-translate-y-1 transition-all duration-300 ${stat.urgent ? 'ring-2 ring-rose-300 animate-pulse' : ''} ${stat.action ? 'cursor-pointer' : ''}`}
+                            onClick={stat.action}
+                        >
                             <div className="flex justify-between items-start mb-4 relative z-10">
                                 <div className={`p-3 rounded-xl ${stat.bg} ${stat.text} transition-colors`}>
                                     <Icon className="w-6 h-6" />
                                 </div>
-                                <div className={`text-xs font-bold px-2 py-1 rounded-full bg-slate-100 text-slate-500 group-hover:bg-white/80 transition`}>
-                                    Stats
-                                </div>
+                                {stat.action && (
+                                    <button className="text-xs font-bold px-3 py-1.5 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:shadow-lg hover:shadow-blue-500/30 transition-all">
+                                        {stat.actionLabel}
+                                    </button>
+                                )}
+                                {stat.urgent && (
+                                    <span className="text-xs font-bold px-2 py-1 rounded-full bg-rose-100 text-rose-600 animate-pulse">
+                                        Action Needed
+                                    </span>
+                                )}
                             </div>
                             <div className="relative z-10">
                                 <h4 className="text-slate-500 text-sm font-semibold mb-1">{stat.title}</h4>
@@ -111,85 +232,243 @@ export default function DoctorDashboard() {
                                     {loading ? <Loader2 className="w-6 h-6 animate-spin text-slate-400" /> : stat.value}
                                 </p>
                             </div>
-                            {/* Decorative Background */}
                             <div className={`absolute -right-6 -bottom-6 w-32 h-32 rounded-full bg-gradient-to-br ${stat.color} opacity-10 blur-2xl group-hover:opacity-20 transition-opacity duration-500`}></div>
                         </div>
                     );
                 })}
             </div>
 
-            {/* Quick Actions & Recent Activity */}
+            {/* Main Content: Queue + Quick Actions */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Quick Actions Panel */}
-                <div className="lg:col-span-2 glass-panel p-8 rounded-3xl relative overflow-hidden">
-                    <div className="flex items-center gap-3 mb-8">
-                        <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
-                            <Sparkles className="w-5 h-5" />
+
+                {/* Live Patient Queue Panel */}
+                <div className="lg:col-span-2 glass-panel p-6 rounded-3xl relative overflow-hidden">
+                    <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-amber-100 rounded-lg text-amber-600">
+                                <Users className="w-5 h-5" />
+                            </div>
+                            <h2 className="text-xl font-bold text-slate-800">Patient Queue</h2>
+                            <span className="text-xs font-bold px-2 py-1 rounded-full bg-amber-100 text-amber-700">
+                                {waitingPatients.length} waiting
+                            </span>
                         </div>
-                        <h2 className="text-xl font-bold text-slate-800">Quick Actions</h2>
+                        {waitingPatients.length > 0 && (
+                            <button
+                                onClick={handleNextPatient}
+                                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold text-sm hover:shadow-lg hover:shadow-blue-500/30 transition-all hover:-translate-y-0.5"
+                            >
+                                <PlayCircle className="w-4 h-4" />
+                                Start Next
+                            </button>
+                        )}
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
-                        <Link href="/doctor/prescriptions" className="group relative p-6 bg-white/60 hover:bg-white rounded-2xl border border-white/60 hover:border-blue-200 shadow-sm hover:shadow-lg hover:shadow-blue-500/10 transition-all duration-300">
-                            <div className="flex flex-col items-start gap-4 h-full">
-                                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-500/30 group-hover:scale-110 transition-transform duration-300">
-                                    <FileText className="w-6 h-6" />
-                                </div>
-                                <div className="flex-1">
-                                    <h3 className="text-lg font-bold text-slate-800 group-hover:text-blue-700 transition-colors">Prescriptions</h3>
-                                    <p className="text-slate-500 text-xs mt-1">Create & manage Rx</p>
-                                </div>
-                                <div className="absolute right-4 top-4 opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all duration-300">
-                                    <ArrowRight className="w-5 h-5 text-blue-500" />
-                                </div>
+                    {waitingPatients.length > 0 ? (
+                        <div className="space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+                            {waitingPatients.map((patient, index) => {
+                                const isMlc = patient.is_mlc;
+                                return (
+                                    <div
+                                        key={patient.opd_id}
+                                        onClick={() => router.push(`/doctor/patients/${patient.patient_id}`)}
+                                        className={`flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer hover:shadow-md 
+                                            ${isMlc
+                                                ? 'bg-red-50/20 border-red-200 shadow-sm'
+                                                : index === 0
+                                                    ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 shadow-sm'
+                                                    : 'bg-white/60 border-slate-100 hover:bg-white'
+                                            }
+                                        `}
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm relative 
+                                                ${isMlc
+                                                    ? 'bg-red-100 text-red-600 border border-red-200 shadow-red-500/20 shadow-lg'
+                                                    : index === 0
+                                                        ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/30'
+                                                        : 'bg-slate-100 text-slate-600'
+                                                }`}>
+                                                {index + 1}
+                                                {isMlc && (
+                                                    <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75"></span>
+                                                        <span className="relative inline-flex rounded-full h-3 w-3 bg-red-600"></span>
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div>
+                                                <p className="font-bold text-slate-800 flex items-center gap-2">
+                                                    {patient.patient_name}
+                                                    {index === 0 && !isMlc && (
+                                                        <span className="text-xs font-bold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
+                                                            NEXT
+                                                        </span>
+                                                    )}
+                                                    {isMlc && (
+                                                        <span className="text-[10px] font-extrabold text-white bg-red-600 px-2 py-0.5 rounded-full shadow-lg shadow-red-500/30 animate-pulse">
+                                                            PRIORITY
+                                                        </span>
+                                                    )}
+                                                </p>
+                                                <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
+                                                    <span>{patient.gender}, {patient.age} yrs</span>
+                                                    <span>•</span>
+                                                    <span className={isMlc ? 'text-red-600 font-bold' : 'text-amber-600 font-medium'}>
+                                                        {patient.chief_complaint?.slice(0, 30) || (isMlc ? 'Emergency' : 'No complaint')}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <div className="text-right">
+                                                <p className="text-xs text-slate-400">Wait time</p>
+                                                <p className={`text-sm font-bold ${isMlc ? 'text-red-700' : 'text-slate-700'}`}>
+                                                    {(() => {
+                                                        const waitMinutes = Math.floor((Date.now() - new Date(patient.created_at || patient.visit_date).getTime()) / 60000);
+                                                        if (waitMinutes >= 60) {
+                                                            const hours = Math.floor(waitMinutes / 60);
+                                                            const mins = waitMinutes % 60;
+                                                            return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+                                                        }
+                                                        return `${waitMinutes} min`;
+                                                    })()}
+                                                </p>
+                                            </div>
+                                            <ChevronRight className={`w-5 h-5 ${isMlc ? 'text-red-300' : 'text-slate-300'}`} />
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <div className="text-center py-12">
+                            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <UserCheck className="w-8 h-8 text-slate-400" />
                             </div>
-                        </Link>
-
-                        <Link href="/doctor/appointments" className="group relative p-6 bg-white/60 hover:bg-white rounded-2xl border border-white/60 hover:border-purple-200 shadow-sm hover:shadow-lg hover:shadow-purple-500/10 transition-all duration-300">
-                            <div className="flex flex-col items-start gap-4 h-full">
-                                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-purple-500/30 group-hover:scale-110 transition-transform duration-300">
-                                    <Calendar className="w-6 h-6" />
-                                </div>
-                                <div className="flex-1">
-                                    <h3 className="text-lg font-bold text-slate-800 group-hover:text-purple-700 transition-colors">Appointments</h3>
-                                    <p className="text-slate-500 text-xs mt-1">View Schedule</p>
-                                </div>
-                                <div className="absolute right-4 top-4 opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all duration-300">
-                                    <ArrowRight className="w-5 h-5 text-purple-500" />
-                                </div>
-                            </div>
-                        </Link>
-
-                        <Link href="/doctor/patients" className="group relative p-6 bg-white/60 hover:bg-white rounded-2xl border border-white/60 hover:border-emerald-200 shadow-sm hover:shadow-lg hover:shadow-emerald-500/10 transition-all duration-300">
-                            <div className="flex flex-col items-start gap-4 h-full">
-                                <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-500/30 group-hover:scale-110 transition-transform duration-300">
-                                    <Users className="w-6 h-6" />
-                                </div>
-                                <div className="flex-1">
-                                    <h3 className="text-lg font-bold text-slate-800 group-hover:text-emerald-700 transition-colors">My Patients</h3>
-                                    <p className="text-slate-500 text-xs mt-1">Medical Records</p>
-                                </div>
-                                <div className="absolute right-4 top-4 opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all duration-300">
-                                    <ArrowRight className="w-5 h-5 text-emerald-500" />
-                                </div>
-                            </div>
-                        </Link>
-                    </div>
+                            <h3 className="text-lg font-bold text-slate-700 mb-1">No Patients Waiting</h3>
+                            <p className="text-slate-500 text-sm">Your queue is clear! New patients will appear here when registered.</p>
+                        </div>
+                    )}
                 </div>
 
-                {/* Right Column: Mini Schedule or Status */}
-                <div className="glass-card p-6 rounded-3xl flex flex-col items-center justify-center text-center relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-b from-blue-50/50 to-transparent pointer-events-none"></div>
-                    <div className="p-4 bg-blue-100 rounded-full text-blue-600 mb-4 relative z-10">
-                        <Activity className="w-8 h-8" />
+                {/* Quick Actions Sidebar */}
+                <div className="space-y-6">
+                    {/* Primary Action: Next Patient (prominent) */}
+                    {waitingPatients.length > 0 && (
+                        <button
+                            onClick={handleNextPatient}
+                            className="w-full p-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-2xl text-white shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 transition-all hover:-translate-y-1 group"
+                        >
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                                        <Stethoscope className="w-7 h-7" />
+                                    </div>
+                                    <div className="text-left">
+                                        <p className="text-blue-100 text-xs font-medium uppercase tracking-wider">Next Patient</p>
+                                        <p className="text-xl font-bold">{waitingPatients[0]?.patient_name}</p>
+                                        <p className="text-blue-200 text-xs">{waitingPatients[0]?.chief_complaint?.slice(0, 25) || 'View details'}</p>
+                                    </div>
+                                </div>
+                                <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
+                            </div>
+                        </button>
+                    )}
+
+                    {/* Quick Links */}
+                    <div className="glass-card p-5 rounded-2xl">
+                        <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Quick Actions</h3>
+                        <div className="space-y-2">
+                            <Link href="/doctor/patients" className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition group">
+                                <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform">
+                                    <Users className="w-5 h-5" />
+                                </div>
+                                <div className="flex-1">
+                                    <p className="font-semibold text-slate-800">My Patients</p>
+                                    <p className="text-xs text-slate-500">View all records</p>
+                                </div>
+                                <ChevronRight className="w-4 h-4 text-slate-400" />
+                            </Link>
+
+
+                            {/* PRESCRIPTIONS - TEMPORARILY DISABLED 
+                            <Link href="/doctor/prescriptions" className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition group">
+                                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
+                                    <FileText className="w-5 h-5" />
+                                </div>
+                                <div className="flex-1">
+                                    <p className="font-semibold text-slate-800">Prescriptions</p>
+                                    <p className="text-xs text-slate-500">Create & manage Rx</p>
+                                </div>
+                                <ChevronRight className="w-4 h-4 text-slate-400" />
+                            </Link>
+                            */}
+
+                            <Link href="/doctor/appointments" className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition group">
+                                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center text-purple-600 group-hover:scale-110 transition-transform">
+                                    <Calendar className="w-5 h-5" />
+                                </div>
+                                <div className="flex-1">
+                                    <p className="font-semibold text-slate-800">Appointments</p>
+                                    <p className="text-xs text-slate-500">{stats.todayAppointments} scheduled today</p>
+                                </div>
+                                <ChevronRight className="w-4 h-4 text-slate-400" />
+                            </Link>
+                        </div>
                     </div>
-                    <h3 className="text-lg font-bold text-slate-800 mb-2 relative z-10">AI Assistance</h3>
-                    <p className="text-slate-500 text-sm mb-6 relative z-10">Your AI Clinical Scribe is active and ready to assist with today's consultations.</p>
-                    <button className="px-6 py-2 bg-slate-800 text-white text-sm font-semibold rounded-lg hover:bg-slate-700 transition relative z-10">
-                        View Settings
-                    </button>
+
+                    {/* Pending Follow-ups Widget */}
+                    <div className="glass-card p-5 rounded-2xl border border-purple-100 bg-purple-50/30">
+                        <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                                <Bell className="w-4 h-4 text-purple-600" />
+                                <h3 className="text-sm font-bold text-purple-700">Pending Follow-ups</h3>
+                            </div>
+                            {(followUpStats.overdue_count + followUpStats.due_today_count) > 0 && (
+                                <span className="px-2 py-0.5 bg-purple-500 text-white text-xs font-bold rounded-full">
+                                    {followUpStats.overdue_count + followUpStats.due_today_count}
+                                </span>
+                            )}
+                        </div>
+
+                        {followUpPatients.length > 0 ? (
+                            <div className="space-y-2 mb-3">
+                                {followUpPatients.map((fu: any) => (
+                                    <Link
+                                        key={fu.outcome_id}
+                                        href={`/doctor/patients/${fu.patient_id}`}
+                                        className={`flex items-center gap-3 p-2 rounded-lg transition ${fu.follow_up_status === 'overdue' ? 'bg-red-50 hover:bg-red-100' : 'bg-green-50 hover:bg-green-100'}`}
+                                    >
+                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${fu.follow_up_status === 'overdue' ? 'bg-red-200 text-red-700' : 'bg-green-200 text-green-700'}`}>
+                                            {fu.patient_first_name?.[0]}{fu.patient_last_name?.[0]}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-medium text-slate-800 text-sm truncate">
+                                                {fu.patient_first_name} {fu.patient_last_name}
+                                            </p>
+                                            <p className={`text-xs font-medium ${fu.follow_up_status === 'overdue' ? 'text-red-600' : 'text-green-600'}`}>
+                                                {fu.follow_up_status === 'overdue' ? `${fu.days_overdue} days overdue` : 'Due today'}
+                                            </p>
+                                        </div>
+                                        <ChevronRight className="w-4 h-4 text-slate-400" />
+                                    </Link>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-slate-500 text-sm mb-3">
+                                No patients due for follow-up this week.
+                            </p>
+                        )}
+
+                        {(followUpStats.overdue_count + followUpStats.due_today_count) > 3 && (
+                            <Link href="/doctor/patients" className="text-purple-600 text-sm font-bold hover:underline">
+                                View All ({followUpStats.overdue_count + followUpStats.due_today_count}) →
+                            </Link>
+                        )}
+                    </div>
                 </div>
             </div>
-        </div >
+        </div>
     );
 }

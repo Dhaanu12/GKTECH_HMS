@@ -193,7 +193,12 @@ exports.getHospitalServices = async (req, res) => {
              FROM services s
              JOIN branch_services bs ON s.service_id = bs.service_id
              WHERE bs.branch_id = $1 AND bs.is_active = true
-             ORDER BY s.service_name`,
+             UNION ALL
+             SELECT ms.service_id, ms.service_code, ms.service_name, ms.category as service_description, 18 as gst_rate, bms.is_active
+             FROM medical_services ms
+             JOIN branch_medical_services bms ON ms.service_id = bms.service_id
+             WHERE bms.branch_id = $1 AND bms.is_active = true
+             ORDER BY service_name`,
             [branchId]
         );
         res.status(200).json({ success: true, data: result.rows });

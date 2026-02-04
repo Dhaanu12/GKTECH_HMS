@@ -1,0 +1,107 @@
+[
+  {
+    "id": 1833,
+    "name": "Interleukin 6 (IL 6)",
+    "category": "can_procedure"
+  },
+  {
+    "id": 1834,
+    "name": "High resolution computed Tomography (HRCT Chest)",
+    "category": "can_procedure"
+  },
+  {
+    "id": 1835,
+    "name": "Fluid air exchange (per eye)",
+    "category": "can_procedure"
+  },
+  {
+    "id": 1836,
+    "name": "C3F8 GAS Injection (per eye)",
+    "category": "can_procedure"
+  },
+  {
+    "id": 1837,
+    "name": "Diurnal variation of IOP (per eye)",
+    "category": "can_procedure"
+  },
+  {
+    "id": 1838,
+    "name": "Silicone oil injection (per eye)",
+    "category": "can_procedure"
+  },
+  {
+    "id": 1839,
+    "name": "Epiretinal Membrane (ERM) Peeling (per eye)",
+    "category": "can_procedure"
+  },
+  {
+    "id": 1840,
+    "name": "Epiretinal Membrane (ERM) Removal (per eye)",
+    "category": "can_procedure"
+  },
+  {
+    "id": 1841,
+    "name": "Internal limiting membrane (ILM) peeling (per eye)",
+    "category": "can_procedure"
+  },
+  {
+    "id": 1842,
+    "name": "Punctoplasty (per eye)",
+    "category": "can_procedure"
+  },
+  {
+    "id": 1843,
+    "name": "Punctal plug(Collagen/silicone) (per eye)",
+    "category": "can_procedure"
+  },
+  {
+    "id": 1844,
+    "name": "Laser Trabeculoplasty Gonioplasty (both eyes)",
+    "category": "can_procedure"
+  },
+  {
+    "id": 1845,
+    "name": "Eye laser pulse therapy (per eye)",
+    "category": "can_procedure"
+  },
+  {
+    "id": 1846,
+    "name": "Glaucoma valve/Glaucoma Ahmed valve",
+    "category": "can_procedure"
+  },
+  {
+    "id": 1847,
+    "name": "Malyugin Ring",
+    "category": "can_procedure"
+  },
+  {
+    "id": 1848,
+    "name": "Globe exploration (eye surgery)",
+    "category": "can_procedure"
+  },
+  {
+    "id": 1849,
+    "name": "Scleral Fixation Tissue glue",
+    "category": "can_procedure"
+  },
+  {
+    "id": 1850,
+    "name": "Fibro optic Nasal Endoscopy",
+    "category": "can_procedure"
+  },
+  {
+    "id": 1851,
+    "name": "Video Stroboscopy",
+    "category": "can_procedure"
+  },
+  {
+    "id": 1852,
+    "name": "Video Bronchoscopy with BAL",
+    "category": "can_procedure"
+  },
+  {
+    "id": 1853,
+    "name": "Sleep deprived EEG (Rate shall be the same CGHS rate of EEG/Video\nEEG) (Select CGHS rate code 1716)",
+    "category": "can_procedure"
+  }
+]

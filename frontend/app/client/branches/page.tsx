@@ -2,21 +2,24 @@
 
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Plus, Building2, Loader2, Edit2, MapPin, Power } from 'lucide-react';
+import { Plus, Building2, Loader2, Edit2, MapPin, Power, Stethoscope } from 'lucide-react';
 import { useAuth } from '../../../lib/AuthContext';
 import SearchableSelect from '../../../components/ui/SearchableSelect';
+import BillingSetupFormNew from '../../../components/BillingSetupFormNew';
+import MedicalServicesSelector from '../../../components/MedicalServicesSelector';
 
 const API_URL = 'http://localhost:5000/api';
 
 export default function BranchesPage() {
     const { user } = useAuth();
-    const [branches, setBranches] = useState([]);
+    const [branches, setBranches] = useState<any[]>([]);
     const [hospitals, setHospitals] = useState<any[]>([]);
     const [departments, setDepartments] = useState<any[]>([]);
     const [services, setServices] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [editingBranch, setEditingBranch] = useState<any>(null);
+    const [activeTab, setActiveTab] = useState<'details' | 'billing'>('details');
     const [formData, setFormData] = useState({
         hospital_id: '',
         branch_name: '',
@@ -32,6 +35,7 @@ export default function BranchesPage() {
         service_ids: [] as number[]
     });
     const [errors, setErrors] = useState<any>({});
+    const [managingServicesBranch, setManagingServicesBranch] = useState<any>(null);
 
     useEffect(() => {
         if (user) {
@@ -54,7 +58,27 @@ export default function BranchesPage() {
             const response = await axios.get(url, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setBranches(response.data.data.branches || []);
+            const branchesData = response.data.data.branches || [];
+
+            // Fetch medical services count for each branch
+            const branchesWithCounts = await Promise.all(
+                branchesData.map(async (branch: any) => {
+                    try {
+                        const servicesRes = await axios.get(
+                            `${API_URL}/medical-services/branch/${branch.branch_id}`,
+                            { headers: { Authorization: `Bearer ${token}` } }
+                        );
+                        return {
+                            ...branch,
+                            medical_services_count: servicesRes.data.services?.length || 0
+                        };
+                    } catch (err) {
+                        return { ...branch, medical_services_count: 0 };
+                    }
+                })
+            );
+
+            setBranches(branchesWithCounts);
         } catch (error) {
             console.error('Error fetching branches:', error);
         } finally {
@@ -134,10 +158,11 @@ export default function BranchesPage() {
         }
     };
 
-    const handleEdit = (branch: any) => {
+    const handleEdit = async (branch: any) => {
         setEditingBranch(branch);
+        setActiveTab('details');
         setFormData({
-            hospital_id: branch.hospital_id,
+            hospital_id: String(branch.hospital_id),
             branch_name: branch.branch_name,
             branch_code: branch.branch_code,
             address_line1: branch.address_line1 || '',
@@ -151,6 +176,25 @@ export default function BranchesPage() {
             service_ids: []
         });
         setShowModal(true);
+
+        try {
+            const token = localStorage.getItem('token');
+            const [deptRes, svcRes] = await Promise.all([
+                axios.get(`${API_URL}/branches/${branch.branch_id}/departments`, { headers: { Authorization: `Bearer ${token}` } }),
+                axios.get(`${API_URL}/branches/${branch.branch_id}/services`, { headers: { Authorization: `Bearer ${token}` } })
+            ]);
+
+            const deptIds = deptRes.data.data.departments.map((d: any) => Number(d.department_id));
+            const svcIds = svcRes.data.data.services.map((s: any) => Number(s.service_id));
+
+            setFormData(prev => ({
+                ...prev,
+                department_ids: deptIds,
+                service_ids: svcIds
+            }));
+        } catch (error) {
+            console.error('Error fetching branch mappings:', error);
+        }
     };
 
     const toggleStatus = async (branchId: number, currentStatus: boolean) => {
@@ -205,6 +249,7 @@ export default function BranchesPage() {
                         if (user?.role_code === 'CLIENT_ADMIN' && user.hospital_id) {
                             setFormData(prev => ({ ...prev, hospital_id: String(user.hospital_id) }));
                         }
+                        setActiveTab('details');
                         setShowModal(true);
                     }}
                     className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium shadow-lg shadow-blue-500/30"
@@ -235,6 +280,13 @@ export default function BranchesPage() {
                                         <Power className="w-5 h-5" />
                                     </button>
                                     <button
+                                        onClick={() => setManagingServicesBranch(branch)}
+                                        className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition"
+                                        title="Manage Medical Services"
+                                    >
+                                        <Stethoscope className="w-5 h-5" />
+                                    </button>
+                                    <button
                                         onClick={() => handleEdit(branch)}
                                         className="text-gray-400 hover:text-blue-600 transition"
                                     >
@@ -258,12 +310,18 @@ export default function BranchesPage() {
                                 <MapPin className="w-3 h-3" />
                                 {branch.city}, {branch.state}
                             </p>
-                            <div className="flex gap-2 mt-3">
+                            <div className="flex gap-2 mt-3 flex-wrap">
                                 {!branch.is_active && (
                                     <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">Inactive</span>
                                 )}
                                 {branch.emergency_available && (
                                     <span className="px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full">Emergency</span>
+                                )}
+                                {branch.medical_services_count > 0 && (
+                                    <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-medium flex items-center gap-1">
+                                        <Stethoscope className="w-3 h-3" />
+                                        {branch.medical_services_count} Services
+                                    </span>
                                 )}
                             </div>
                         </div>
@@ -279,7 +337,7 @@ export default function BranchesPage() {
             {/* Modal with Glass Effect */}
             {showModal && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white/95 backdrop-blur-md rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-white/20">
+                    <div className={`bg-white/95 backdrop-blur-md rounded-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-white/20 transition-all duration-300 ${activeTab === 'billing' ? 'max-w-7xl' : 'max-w-3xl'}`}>
                         <div className="p-6 border-b border-gray-200/50 bg-gradient-to-r from-blue-50 to-blue-100">
                             <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent">
                                 {editingBranch ? 'Edit Branch' : 'Add New Branch'}
@@ -289,91 +347,117 @@ export default function BranchesPage() {
                             </p>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-                            {user?.role_code !== 'CLIENT_ADMIN' && (
-                                <div className="col-span-2">
-                                    <SearchableSelect
-                                        label="Select Hospital *"
-                                        options={hospitalOptions}
-                                        value={formData.hospital_id}
-                                        onChange={(val) => setFormData({ ...formData, hospital_id: val })}
-                                        placeholder="Select a hospital"
-                                        error={errors.hospital_id}
-                                    />
-                                </div>
-                            )}
+                        {editingBranch && (
+                            <div className="px-6 pt-4 flex gap-4 border-b border-gray-100">
+                                <button
+                                    onClick={() => setActiveTab('details')}
+                                    className={`pb-2 text-sm font-medium border-b-2 transition ${activeTab === 'details' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                                >
+                                    Branch Details
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('billing')}
+                                    className={`pb-2 text-sm font-medium border-b-2 transition ${activeTab === 'billing' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                                >
+                                    Billing Configuration
+                                </button>
+                            </div>
+                        )}
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Branch Name *</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        value={formData.branch_name}
-                                        onChange={(e) => setFormData({ ...formData, branch_name: e.target.value })}
-                                        className={`w-full px-4 py-2.5 border ${errors.branch_name ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80`}
-                                        placeholder="Downtown Medical Center"
-                                    />
-                                    {errors.branch_name && <p className="text-red-500 text-xs mt-1">{errors.branch_name}</p>}
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Branch Code *</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        value={formData.branch_code}
-                                        onChange={(e) => setFormData({ ...formData, branch_code: e.target.value })}
-                                        className={`w-full px-4 py-2.5 border ${errors.branch_code ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80`}
-                                        placeholder="BR-001"
-                                    />
-                                    {errors.branch_code && <p className="text-red-500 text-xs mt-1">{errors.branch_code}</p>}
-                                </div>
-                                <div className="col-span-2">
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
-                                    <input
-                                        type="text"
-                                        value={formData.address_line1}
-                                        onChange={(e) => setFormData({ ...formData, address_line1: e.target.value })}
-                                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80"
-                                        placeholder="123 Main Street"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">City *</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        value={formData.city}
-                                        onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                                        className={`w-full px-4 py-2.5 border ${errors.city ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80`}
-                                        placeholder="New York"
-                                    />
-                                    {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city}</p>}
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">State *</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        value={formData.state}
-                                        onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                                        className={`w-full px-4 py-2.5 border ${errors.state ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80`}
-                                        placeholder="NY"
-                                    />
-                                    {errors.state && <p className="text-red-500 text-xs mt-1">{errors.state}</p>}
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">ZIP Code</label>
-                                    <input
-                                        type="text"
-                                        value={formData.pincode}
-                                        onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
-                                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80"
-                                        placeholder="10001"
-                                    />
-                                </div>
-                                <div>
-                                    {/* <label className="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
+                        {activeTab === 'billing' && editingBranch ? (
+                            <div className="p-6">
+                                <BillingSetupFormNew
+                                    branchId={editingBranch.branch_id}
+                                    onClose={() => setActiveTab('details')}
+                                    branches={branches}
+                                />
+                            </div>
+                        ) : (
+                            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+                                {user?.role_code !== 'CLIENT_ADMIN' && (
+                                    <div className="col-span-2">
+                                        <SearchableSelect
+                                            label="Select Hospital *"
+                                            options={hospitalOptions}
+                                            value={formData.hospital_id}
+                                            onChange={(val) => setFormData({ ...formData, hospital_id: val })}
+                                            placeholder="Select a hospital"
+                                            error={errors.hospital_id}
+                                        />
+                                    </div>
+                                )}
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Branch Name *</label>
+                                        <input
+                                            type="text"
+                                            required
+                                            value={formData.branch_name}
+                                            onChange={(e) => setFormData({ ...formData, branch_name: e.target.value })}
+                                            className={`w-full px-4 py-2.5 border ${errors.branch_name ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80`}
+                                            placeholder="Downtown Medical Center"
+                                        />
+                                        {errors.branch_name && <p className="text-red-500 text-xs mt-1">{errors.branch_name}</p>}
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Branch Code *</label>
+                                        <input
+                                            type="text"
+                                            required
+                                            value={formData.branch_code}
+                                            onChange={(e) => setFormData({ ...formData, branch_code: e.target.value })}
+                                            className={`w-full px-4 py-2.5 border ${errors.branch_code ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80`}
+                                            placeholder="BR-001"
+                                        />
+                                        {errors.branch_code && <p className="text-red-500 text-xs mt-1">{errors.branch_code}</p>}
+                                    </div>
+                                    <div className="col-span-2">
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                                        <input
+                                            type="text"
+                                            value={formData.address_line1}
+                                            onChange={(e) => setFormData({ ...formData, address_line1: e.target.value })}
+                                            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80"
+                                            placeholder="123 Main Street"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">City *</label>
+                                        <input
+                                            type="text"
+                                            required
+                                            value={formData.city}
+                                            onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                                            className={`w-full px-4 py-2.5 border ${errors.city ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80`}
+                                            placeholder="New York"
+                                        />
+                                        {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city}</p>}
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">State *</label>
+                                        <input
+                                            type="text"
+                                            required
+                                            value={formData.state}
+                                            onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                                            className={`w-full px-4 py-2.5 border ${errors.state ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80`}
+                                            placeholder="NY"
+                                        />
+                                        {errors.state && <p className="text-red-500 text-xs mt-1">{errors.state}</p>}
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">ZIP Code</label>
+                                        <input
+                                            type="text"
+                                            value={formData.pincode}
+                                            onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
+                                            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80"
+                                            placeholder="10001"
+                                        />
+                                    </div>
+                                    <div>
+                                        {/* <label className="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
                                     <input
                                         type="tel"
                                         value={formData.contact_number}
@@ -381,48 +465,47 @@ export default function BranchesPage() {
                                         className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80"
                                         placeholder="+1 (555) 123-4567"
                                     /> */}
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Contact Number
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Contact Number
+                                        </label>
+
+                                        <input
+                                            type="tel"
+                                            value={formData.contact_number}
+                                            onChange={(e) => {
+                                                const value = e.target.value.replace(/\D/g, ""); // allow only digits
+                                                setFormData({ ...formData, contact_number: value });
+                                            }}
+                                            maxLength={10}
+                                            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80"
+                                            placeholder="1234567890"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">MLC Fee (₹)</label>
+                                        <input
+                                            type="number"
+                                            value={formData.mlc_fee}
+                                            onChange={(e) => setFormData({ ...formData, mlc_fee: e.target.value })}
+                                            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80"
+                                            placeholder="0.00"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-6 pt-4 border-t border-gray-200/50">
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.emergency_available}
+                                            onChange={(e) => setFormData({ ...formData, emergency_available: e.target.checked })}
+                                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                        />
+                                        <span className="text-sm font-medium text-gray-700">Has Emergency Services</span>
                                     </label>
-
-                                    <input
-                                        type="tel"
-                                        value={formData.contact_number}
-                                        onChange={(e) => {
-                                            const value = e.target.value.replace(/\D/g, ""); // allow only digits
-                                            setFormData({ ...formData, contact_number: value });
-                                        }}
-                                        maxLength={10}
-                                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80"
-                                        placeholder="1234567890"
-                                    />
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">MLC Fee (₹)</label>
-                                    <input
-                                        type="number"
-                                        value={formData.mlc_fee}
-                                        onChange={(e) => setFormData({ ...formData, mlc_fee: e.target.value })}
-                                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80"
-                                        placeholder="0.00"
-                                    />
-                                </div>
-                            </div>
 
-                            <div className="flex gap-6 pt-4 border-t border-gray-200/50">
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={formData.emergency_available}
-                                        onChange={(e) => setFormData({ ...formData, emergency_available: e.target.checked })}
-                                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                                    />
-                                    <span className="text-sm font-medium text-gray-700">Has Emergency Services</span>
-                                </label>
-                            </div>
-
-                            {/* Departments & Services Selection - Only on Create for now */}
-                            {!editingBranch && (
+                                {/* Departments & Services Selection */}
                                 <div className="space-y-6 pt-6 border-t border-gray-200/50">
                                     {/* Departments */}
                                     <div>
@@ -433,7 +516,7 @@ export default function BranchesPage() {
                                                     <input
                                                         type="checkbox"
                                                         value={dept.department_id}
-                                                        checked={formData.department_ids.includes(dept.department_id)}
+                                                        checked={formData.department_ids.includes(Number(dept.department_id))}
                                                         onChange={(e) => {
                                                             const id = parseInt(e.target.value);
                                                             const newIds = e.target.checked
@@ -458,7 +541,7 @@ export default function BranchesPage() {
                                                     <input
                                                         type="checkbox"
                                                         value={svc.service_id}
-                                                        checked={formData.service_ids.includes(svc.service_id)}
+                                                        checked={formData.service_ids.includes(Number(svc.service_id))}
                                                         onChange={(e) => {
                                                             const id = parseInt(e.target.value);
                                                             const newIds = e.target.checked
@@ -474,24 +557,57 @@ export default function BranchesPage() {
                                         </div>
                                     </div>
                                 </div>
-                            )}
 
-                            <div className="flex justify-end gap-3 pt-6 border-t border-gray-200/50">
-                                <button
-                                    type="button"
-                                    onClick={() => { setShowModal(false); resetForm(); }}
-                                    className="px-6 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition font-medium"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition font-medium shadow-lg shadow-blue-500/30"
-                                >
-                                    {editingBranch ? 'Update Branch' : 'Create Branch'}
-                                </button>
+                                <div className="flex justify-end gap-3 pt-6 border-t border-gray-200/50">
+                                    <button
+                                        type="button"
+                                        onClick={() => { setShowModal(false); resetForm(); }}
+                                        className="px-6 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition font-medium"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition font-medium shadow-lg shadow-blue-500/30"
+                                    >
+                                        {editingBranch ? 'Update Branch' : 'Create Branch'}
+                                    </button>
+                                </div>
+                            </form>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Medical Services Management Modal */}
+            {managingServicesBranch && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
+                        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-purple-100 flex justify-between items-center">
+                            <div>
+                                <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-purple-800 bg-clip-text text-transparent">
+                                    Manage Medical Services
+                                </h2>
+                                <p className="text-sm text-gray-600 mt-1">
+                                    {managingServicesBranch.branch_name}
+                                </p>
                             </div>
-                        </form>
+                            <button
+                                onClick={() => setManagingServicesBranch(null)}
+                                className="text-gray-400 hover:text-gray-600 transition"
+                            >
+                                <span className="text-2xl">&times;</span>
+                            </button>
+                        </div>
+                        <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+                            <MedicalServicesSelector
+                                branchId={managingServicesBranch.branch_id}
+                                onSave={() => {
+                                    setManagingServicesBranch(null);
+                                    fetchBranches();
+                                }}
+                            />
+                        </div>
                     </div>
                 </div>
             )}

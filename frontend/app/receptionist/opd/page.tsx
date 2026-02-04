@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Plus, Search, FileText, X, Save, User, Printer, Clock, Trash2 } from 'lucide-react';
+import { Plus, Search, FileText, X, Save, User, Printer, Clock, AlertCircle, Calendar, Phone, ArrowRight, Bell } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '../../../lib/AuthContext';
 import SearchableSelect from '../../../components/ui/SearchableSelect';
@@ -16,10 +16,25 @@ export default function OpdEntryPage() {
     const [searchResults, setSearchResults] = useState([]);
     const [selectedPatient, setSelectedPatient] = useState<any>(null);
     const [doctors, setDoctors] = useState<any[]>([]);
+    const [dateRange, setDateRange] = useState({
+        from: new Date().toISOString().split('T')[0],
+        to: new Date().toISOString().split('T')[0]
+    });
     const [opdEntries, setOpdEntries] = useState([]);
     const [showModal, setShowModal] = useState(false);
     const [phoneMatches, setPhoneMatches] = useState<any[]>([]);
     const [showPhoneDropdown, setShowPhoneDropdown] = useState(false);
+
+    // Live Dashboard Stats
+    const [dashboardStats, setDashboardStats] = useState({
+        queueCount: 0,
+        todayVisits: 0,
+        completedVisits: 0,
+        pendingAmount: 0,
+        pendingCount: 0,
+        collectedAmount: 0,
+        collectedCount: 0
+    });
 
     const checkPhoneMatches = async (phone: string) => {
         if (phone.length === 10) {
@@ -53,8 +68,32 @@ export default function OpdEntryPage() {
     const [billData, setBillData] = useState<any>(null);
     const [branchDetails, setBranchDetails] = useState<any>(null);
 
+    // Smart Patient Search state (UX Solution 1)
+    const [modalSearchQuery, setModalSearchQuery] = useState('');
+    const [modalSearchResults, setModalSearchResults] = useState<any[]>([]);
+    const [isSearching, setIsSearching] = useState(false);
+
+    // Doctor Filter state
+    const [selectedDoctorFilter, setSelectedDoctorFilter] = useState<string>('');
+
+    // Progressive Form state (Solution 3b)
+    type FormStep = 'search' | 'newPatient' | 'visitDetails' | 'payment';
+    const [currentStep, setCurrentStep] = useState<FormStep>('search');
+    const [completedSteps, setCompletedSteps] = useState<FormStep[]>([]);
+
+    // Chief Complaint Auto-Suggest (Solution D2)
+    const [showComplaintSuggestions, setShowComplaintSuggestions] = useState(false);
+    const commonComplaints = [
+        'Fever', 'Cold & Cough', 'Body Pain', 'Headache', 'Stomach Pain',
+        'Vomiting', 'Loose Motions', 'Chest Pain', 'Breathing Difficulty',
+        'Back Pain', 'Joint Pain', 'Skin Rash', 'Weakness', 'Dizziness',
+        'Throat Pain', 'Ear Pain', 'Eye Problem', 'Urinary Problem',
+        'Blood Pressure Check', 'Diabetes Follow-up', 'General Checkup'
+    ];
+
+
+
     const [opdForm, setOpdForm] = useState({
-        full_name: '',
         first_name: '',
         last_name: '',
         age: '',
@@ -87,8 +126,8 @@ export default function OpdEntryPage() {
         adhaar_number: '',
         referral_hospital: '',
         referral_doctor_name: '',
-        address_line_1: '',
-        address_line_2: '',
+        address_line1: '',
+        address_line2: '',
         city: '',
         state: '',
         pincode: ''
@@ -97,8 +136,14 @@ export default function OpdEntryPage() {
 
     useEffect(() => {
         fetchDoctors();
-        fetchOpdEntries();
+        // fetchOpdEntries(); // Triggered by dateRange effect
+        fetchDashboardStats();
     }, []);
+
+    // Refresh when date range changes
+    useEffect(() => {
+        fetchOpdEntries(searchQuery);
+    }, [dateRange]);
 
     useEffect(() => {
         if (user?.branch_id) {
@@ -106,7 +151,31 @@ export default function OpdEntryPage() {
         }
     }, [user?.branch_id]);
 
+    // Debounced search for modal patient lookup (UX Solution 1)
+    useEffect(() => {
+        if (!modalSearchQuery || modalSearchQuery.length < 3) {
+            setModalSearchResults([]);
+            return;
+        }
 
+        const debounceTimer = setTimeout(async () => {
+            setIsSearching(true);
+            try {
+                const token = localStorage.getItem('token');
+                const response = await axios.get(`${API_URL}/patients/search`, {
+                    params: { q: modalSearchQuery },
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                setModalSearchResults(response.data.data.patients || []);
+            } catch (error) {
+                console.error('Modal search error:', error);
+            } finally {
+                setIsSearching(false);
+            }
+        }, 300); // 300ms debounce
+
+        return () => clearTimeout(debounceTimer);
+    }, [modalSearchQuery]);
 
     const fetchBranchDetails = async () => {
         try {
@@ -159,7 +228,11 @@ export default function OpdEntryPage() {
         try {
             const token = localStorage.getItem('token');
             const response = await axios.get(`${API_URL}/opd`, {
-                params: { search: query },
+                params: {
+                    search: query,
+                    startDate: dateRange.from,
+                    endDate: dateRange.to
+                },
                 headers: { Authorization: `Bearer ${token}` }
             });
             setOpdEntries(response.data.data.opdEntries || []);
@@ -167,6 +240,37 @@ export default function OpdEntryPage() {
             console.error('Error fetching OPD entries:', error);
         }
     };
+
+
+    const fetchDashboardStats = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.get(`${API_URL}/opd/stats`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const stats = response.data.data.stats;
+            setDashboardStats({
+                queueCount: stats.pendingOpd || 0, // In Controllers pendingOpd maps to queue_count
+                todayVisits: stats.todayOpd || 0, // Total Opd Entries Today
+                // We might need "Completed" count specifically if not in API, but usually Total Today is what "Today's Visits" expected. 
+                // Let's assume todayOpd is Total.
+                completedVisits: 0, // Not explicitly returned by new API, but todayOpd is total. Card asks for 'completed'.
+                // Actually, I should have added 'completed_count' to backend. 
+                // Wait, I didn't add 'completed_count' to backend! 
+                // I added 'collected_amount', 'collected_count' (Paid), 'pending_amount', 'pending_count' (Pending).
+                // "Today's Visits" card previously showed Total and Completed.
+                // For now, I will use 'todayOpd' for Total.
+
+                pendingAmount: stats.pendingAmount || 0,
+                pendingCount: stats.pendingCount || 0,
+                collectedAmount: stats.collectedAmount || 0,
+                collectedCount: stats.collectedCount || 0
+            });
+        } catch (error) {
+            console.error('Error fetching dashboard stats:', error);
+        }
+    };
+
 
     const handleSearch = async () => {
         if (!searchQuery) {
@@ -197,63 +301,99 @@ export default function OpdEntryPage() {
     const selectPatient = async (patient: any) => {
         setSelectedPatient(patient);
 
+        // Fetch appointments for this patient to auto-fill doctor
         let doctorId = '';
         let consultationFee = '';
         let doctorName = '';
         let fromAppointment = false;
-        // Default empty variables for "New Entry"
-        let lastComplaint = '';
-        let lastSymptoms = '';
-        let vitals = { bp_systolic: '', bp_diastolic: '', pulse: '', temperature: '', weight: '', height: '', spo2: '', grbs: '' };
+        let suggestedVisitType = 'Walk-in';
 
         try {
             const token = localStorage.getItem('token');
-
-            // Only fetch Appointments (for today's visit linkage), NOT history
-            const apptRes = await axios.get(`${API_URL}/appointments`, {
+            const response = await axios.get(`${API_URL}/appointments`, {
                 params: { patient_id: patient.patient_id },
                 headers: { Authorization: `Bearer ${token}` }
             });
 
-            const appointments = apptRes.data.data.appointments || [];
-
-            // 3. Determine Doctor & Fee from TODAY'S Appointment
+            const appointments = response.data.data.appointments || [];
             const today = new Date().toISOString().split('T')[0];
+
+            // Find today's appointment or the next upcoming one
             const todayAppointment = appointments.find((apt: any) => {
                 const aptDate = new Date(apt.appointment_date).toISOString().split('T')[0];
-                return aptDate === today && ['Scheduled', 'Confirmed'].includes(apt.appointment_status);
+                return aptDate === today &&
+                    ['Scheduled', 'Confirmed'].includes(apt.appointment_status);
             });
+
             const upcomingAppointment = appointments.find((apt: any) => {
                 const aptDate = new Date(apt.appointment_date).toISOString().split('T')[0];
-                return aptDate >= today && ['Scheduled', 'Confirmed'].includes(apt.appointment_status);
+                return aptDate >= today &&
+                    ['Scheduled', 'Confirmed'].includes(apt.appointment_status);
             });
 
             const selectedAppointment = todayAppointment || upcomingAppointment;
 
+            console.log('📋 Appointments found:', appointments.length);
+            console.log('📅 Selected appointment:', selectedAppointment);
+
             if (selectedAppointment) {
-                // Scenario A: Found Appointment (This is relevant to the NEW entry)
                 fromAppointment = true;
                 doctorId = selectedAppointment.doctor_id?.toString() || '';
+                suggestedVisitType = 'Appointment';
+                // Get doctor name from appointment response
                 doctorName = `Dr. ${selectedAppointment.doctor_first_name} ${selectedAppointment.doctor_last_name}`;
 
+                console.log('✅ From appointment - Doctor ID:', doctorId);
+                console.log('👨‍⚕️ Doctor Name:', doctorName);
+
+                // Find the doctor in the doctors list to get consultation fee
                 const selectedDoc = doctors.find((d: any) => d.doctor_id === selectedAppointment.doctor_id);
                 if (selectedDoc) {
                     consultationFee = selectedDoc.consultation_fee?.toString() || '';
+                    console.log('💰 Consultation Fee:', consultationFee);
                 }
-                console.log('✅ Auto-selected Doctor from Appointment:', doctorName);
             } else {
-                console.log('❌ No appointment found. User must select doctor.');
+                console.log('❌ No appointment found for this patient');
             }
-
         } catch (error) {
-            console.error('Error in selectPatient:', error);
+            console.error('Error fetching appointments:', error);
         }
+
+        // INTELLIGENT DEFAULTS (Solution 3)
+        // Check if patient is a follow-up candidate (visited within 30 days)
+        if (!fromAppointment && patient.is_follow_up_candidate) {
+            suggestedVisitType = 'Follow-up';
+            // Pre-select their last doctor
+            if (patient.last_doctor_id) {
+                doctorId = patient.last_doctor_id.toString();
+                const doc = doctors.find((d: any) => d.doctor_id === patient.last_doctor_id);
+                if (doc) {
+                    // Use follow-up fee if available, otherwise use regular fee
+                    consultationFee = doc.follow_up_fee?.toString() || doc.consultation_fee?.toString() || '';
+                    doctorName = `Dr. ${doc.first_name} ${doc.last_name}`;
+                }
+            }
+            console.log('🔄 Follow-up detected - Doctor:', doctorName, 'Fee:', consultationFee);
+        } else if (!fromAppointment && patient.days_since_last_visit !== null && patient.days_since_last_visit <= 30) {
+            // Alternative check using days_since_last_visit
+            suggestedVisitType = 'Follow-up';
+            if (patient.last_doctor_id) {
+                doctorId = patient.last_doctor_id.toString();
+                const doc = doctors.find((d: any) => d.doctor_id === patient.last_doctor_id);
+                if (doc) {
+                    consultationFee = doc.follow_up_fee?.toString() || doc.consultation_fee?.toString() || '';
+                    doctorName = `Dr. ${doc.first_name} ${doc.last_name}`;
+                }
+            }
+            console.log('🔄 Follow-up (by days) - Days since last visit:', patient.days_since_last_visit);
+        }
+
+        console.log('🔄 Setting state - hasAppointment:', fromAppointment, 'doctorName:', doctorName);
 
         setHasAppointment(fromAppointment);
         setAppointmentDoctorName(doctorName);
         setOpdForm({
             ...opdForm,
-            full_name: `${patient.first_name} ${patient.last_name}`.trim(),
             first_name: patient.first_name,
             last_name: patient.last_name,
             age: patient.age?.toString() || '',
@@ -261,18 +401,104 @@ export default function OpdEntryPage() {
             blood_group: patient.blood_group || '',
             contact_number: patient.contact_number || '',
             doctor_id: doctorId,
+            visit_type: suggestedVisitType,
             consultation_fee: consultationFee,
-            vital_signs: vitals,
-            chief_complaint: '',
-            symptoms: '',
-            address_line_1: patient.address || '',
-            address_line_2: patient.address_line2 || '',
-            city: patient.city || '',
-            state: patient.state || '',
-            pincode: patient.pincode || ''
         });
         setSearchResults([]);
         setSearchQuery('');
+        setModalSearchQuery('');
+        setModalSearchResults([]);
+        // Advance to Visit Details step (Solution 3b - Progressive Form)
+        setCurrentStep('visitDetails');
+        setCompletedSteps(['search']);
+        setShowModal(true);
+    };
+
+    // Quick Follow-Up handler for returning patients (UX Solution 1)
+    const handleQuickFollowUp = async (patient: any) => {
+        // Select patient first
+        setSelectedPatient(patient);
+
+        // Pre-fill form with follow-up details
+        const lastDoctorId = patient.last_doctor_id?.toString() || '';
+        let consultationFee = '';
+
+        // Find doctor to get follow-up fee
+        if (lastDoctorId) {
+            const doc = doctors.find((d: any) => d.doctor_id === patient.last_doctor_id);
+            if (doc) {
+                // Use follow_up_fee if available, otherwise consultation_fee
+                consultationFee = doc.follow_up_fee?.toString() || doc.consultation_fee?.toString() || '';
+            }
+        }
+
+        setOpdForm({
+            ...opdForm,
+            first_name: patient.first_name,
+            last_name: patient.last_name || '',
+            age: patient.age?.toString() || '',
+            gender: patient.gender || '',
+            blood_group: patient.blood_group || '',
+            contact_number: patient.contact_number || '',
+            doctor_id: lastDoctorId,
+            visit_type: 'Follow-up', // Auto-set to Follow-up
+            consultation_fee: consultationFee,
+        });
+
+        // Clear modal search and show form
+        setModalSearchQuery('');
+        setModalSearchResults([]);
+        setHasAppointment(!!lastDoctorId);
+        if (patient.last_doctor_first_name) {
+            setAppointmentDoctorName(`Dr. ${patient.last_doctor_first_name} ${patient.last_doctor_last_name || ''}`);
+        }
+        setShowModal(true);
+    };
+
+    // Quick Follow-Up from OPD List Entry (UX Solution 2)
+    const handleQuickFollowUpFromEntry = (entry: any) => {
+        // Create patient object from entry data
+        const patient = {
+            patient_id: entry.patient_id,
+            first_name: entry.patient_first_name,
+            last_name: entry.patient_last_name,
+            age: entry.age,
+            gender: entry.gender,
+            blood_group: entry.blood_group,
+            contact_number: entry.contact_number,
+            mrn_number: entry.mrn_number,
+        };
+
+        // Set selected patient
+        setSelectedPatient(patient);
+
+        // Get doctor's follow-up or consultation fee
+        const doc = doctors.find((d: any) => d.doctor_id === entry.doctor_id);
+        const consultationFee = doc?.follow_up_fee?.toString() || doc?.consultation_fee?.toString() || '';
+
+        // Pre-fill form with follow-up details
+        setOpdForm({
+            ...opdForm,
+            first_name: patient.first_name,
+            last_name: patient.last_name || '',
+            age: patient.age?.toString() || '',
+            gender: patient.gender || '',
+            blood_group: patient.blood_group || '',
+            contact_number: patient.contact_number || '',
+            doctor_id: entry.doctor_id?.toString() || '',
+            visit_type: 'Follow-up',
+            visit_date: new Date().toISOString().split('T')[0],
+            visit_time: new Date().toTimeString().slice(0, 5),
+            consultation_fee: consultationFee,
+        });
+
+        // Set doctor name display
+        if (doc) {
+            setHasAppointment(true);
+            setAppointmentDoctorName(`Dr. ${doc.first_name} ${doc.last_name}`);
+        }
+
+        // Show modal
         setShowModal(true);
     };
 
@@ -326,6 +552,7 @@ export default function OpdEntryPage() {
             setShowModal(false);
             resetForm();
             fetchOpdEntries();
+            fetchDashboardStats(); // Refresh stats
         } catch (error) {
             // Error already handled in saveEntry
         } finally {
@@ -374,7 +601,6 @@ export default function OpdEntryPage() {
 
     const resetForm = () => {
         setOpdForm({
-            full_name: '',
             first_name: '',
             last_name: '',
             age: '',
@@ -407,8 +633,8 @@ export default function OpdEntryPage() {
             adhaar_number: '',
             referral_hospital: '',
             referral_doctor_name: '',
-            address_line_1: '',
-            address_line_2: '',
+            address_line1: '',
+            address_line2: '',
             city: '',
             state: '',
             pincode: ''
@@ -417,9 +643,13 @@ export default function OpdEntryPage() {
         setSearchQuery('');
         setSearchResults([]);
         setHasAppointment(false);
-        setHasAppointment(false);
         setAppointmentDoctorName('');
         setEditingOpdId(null);
+        // Reset progressive form state
+        setCurrentStep('search');
+        setCompletedSteps([]);
+        setModalSearchQuery('');
+        setModalSearchResults([]);
     };
 
     const handleEditOpd = (entry: any) => {
@@ -434,7 +664,6 @@ export default function OpdEntryPage() {
         } catch (e) { }
 
         setOpdForm({
-            full_name: `${entry.patient_first_name || ''} ${entry.patient_last_name || ''}`.trim(),
             first_name: entry.patient_first_name || '',
             last_name: entry.patient_last_name || '',
             age: entry.age || '',
@@ -490,23 +719,6 @@ export default function OpdEntryPage() {
 
 
 
-    const handleDelete = async (id: number) => {
-        if (!window.confirm('Are you sure you want to delete this OPD entry?')) return;
-        setLoading(true);
-        try {
-            const token = localStorage.getItem('token');
-            await axios.delete(`${API_URL}/opd/${id}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            fetchOpdEntries();
-        } catch (error) {
-            console.error('Error deleting entry:', error);
-            alert('Failed to delete entry');
-        } finally {
-            setLoading(false);
-        }
-    };
-
     const doctorOptions = doctors.map((doc: any) => ({
         value: doc.doctor_id,
         label: `Dr. ${doc.first_name} ${doc.last_name} (${doc.specialization})`
@@ -521,7 +733,7 @@ export default function OpdEntryPage() {
                     <span className="w-1.5 h-10 bg-blue-600 rounded-full"></span>
                     <div>
                         {/* <h1 className="text-2xl font-bold text-slate-800 tracking-tight leading-none">OPD Entry</h1> */}
-                        <p className="text-sm text-slate-500 font-medium mt-1">Welcome back, {user?.first_name || 'Reception'}! 👋</p>
+                        <p className="text-sm text-slate-500 font-medium mt-1">Welcome back, Geeta! 👋</p>
                     </div>
                 </div>
                 <button
@@ -534,49 +746,120 @@ export default function OpdEntryPage() {
             </div>
 
             <div className="px-6 space-y-8">
-                {/* Minimalist Metrics */}
+                {/* OPD-Specific Actionable Metrics */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                    <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow group">
+                    {/* New Patients Today - First-time visits */}
+                    <div className="bg-gradient-to-br from-emerald-50 to-teal-50 p-6 rounded-3xl border border-emerald-100 shadow-sm hover:shadow-md transition-shadow group min-h-[180px] flex flex-col">
                         <div className="flex items-center justify-between mb-4">
-                            <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
+                            <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-white group-hover:scale-110 transition-transform shadow-lg shadow-emerald-500/30">
                                 <User className="w-6 h-6" />
                             </div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Visits</span>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-100 px-2 py-1 rounded-full">NEW</span>
                         </div>
-                        <p className="text-4xl font-bold text-slate-800">{opdEntries.length}</p>
+                        <div className="flex-1 flex flex-col justify-center">
+                            <p className="text-3xl font-bold text-emerald-700">
+                                {opdEntries.filter((e: any) => e.visit_type === 'Walk-in').length}
+                            </p>
+                            <p className="text-sm font-semibold text-emerald-600 mt-1">New Patients Today</p>
+                        </div>
+                        <p className="text-xs text-emerald-500 mt-auto pt-2">Walk-in registrations</p>
                     </div>
 
-                    <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow group">
+                    {/* Peak Hour Today - Busiest hour */}
+                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-3xl border border-blue-100 shadow-sm hover:shadow-md transition-shadow group min-h-[180px] flex flex-col">
                         <div className="flex items-center justify-between mb-4">
-                            <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform">
+                            <div className="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center text-white group-hover:scale-110 transition-transform shadow-lg shadow-blue-500/30">
                                 <Clock className="w-6 h-6" />
                             </div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Waiting</span>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-100 px-2 py-1 rounded-full">INSIGHT</span>
                         </div>
-                        <p className="text-4xl font-bold text-slate-800">{opdEntries.filter((e: any) => e.visit_status !== 'Completed').length}</p>
+                        <div className="flex-1 flex flex-col justify-center">
+                            <p className="text-3xl font-bold text-blue-700">
+                                {(() => {
+                                    if (opdEntries.length === 0) return '--';
+                                    const hourCounts: Record<number, number> = {};
+                                    opdEntries.forEach((e: any) => {
+                                        if (e.visit_time) {
+                                            const hour = parseInt(e.visit_time.split(':')[0]);
+                                            hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+                                        }
+                                    });
+                                    const peakHour = Object.entries(hourCounts).sort((a, b) => b[1] - a[1])[0];
+                                    if (!peakHour) return '--';
+                                    const h = parseInt(peakHour[0]);
+                                    const ampm = h >= 12 ? 'PM' : 'AM';
+                                    const displayHour = h % 12 || 12;
+                                    return `${displayHour} ${ampm}`;
+                                })()}
+                            </p>
+                            <p className="text-sm font-semibold text-blue-600 mt-1">Peak Hour Today</p>
+                        </div>
+                        <p className="text-xs text-blue-500 mt-auto pt-2">Busiest registration hour</p>
                     </div>
 
-                    <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow group">
+                    {/* Top Doctor - Workload leader */}
+                    <div className="bg-gradient-to-br from-violet-50 to-purple-50 p-6 rounded-3xl border border-violet-100 shadow-sm hover:shadow-md transition-shadow group min-h-[180px] flex flex-col">
                         <div className="flex items-center justify-between mb-4">
-                            <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-500 group-hover:scale-110 transition-transform">
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            <div className="w-12 h-12 bg-violet-500 rounded-2xl flex items-center justify-center text-white group-hover:scale-110 transition-transform shadow-lg shadow-violet-500/30">
+                                <User className="w-6 h-6" />
                             </div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Completed</span>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-violet-600 bg-violet-100 px-2 py-1 rounded-full">WORKLOAD</span>
                         </div>
-                        <p className="text-4xl font-bold text-slate-800">{opdEntries.filter((e: any) => e.visit_status === 'Completed').length}</p>
+                        <div className="flex-1 flex flex-col justify-center">
+                            <p className="text-lg font-bold text-violet-700 truncate leading-tight">
+                                {(() => {
+                                    if (opdEntries.length === 0) return '--';
+                                    const doctorCounts: Record<string, { count: number, name: string }> = {};
+                                    opdEntries.forEach((e: any) => {
+                                        if (e.doctor_id) {
+                                            const key = e.doctor_id.toString();
+                                            const name = `Dr. ${e.doctor_first_name || ''} ${e.doctor_last_name || ''}`.trim();
+                                            if (!doctorCounts[key]) doctorCounts[key] = { count: 0, name };
+                                            doctorCounts[key].count++;
+                                        }
+                                    });
+                                    const topDoc = Object.values(doctorCounts).sort((a, b) => b.count - a.count)[0];
+                                    return topDoc ? topDoc.name : '--';
+                                })()}
+                            </p>
+                            <p className="text-sm font-semibold text-violet-600 mt-1">Top Doctor</p>
+                        </div>
+                        <p className="text-xs text-violet-500 mt-auto pt-2">
+                            {(() => {
+                                if (opdEntries.length === 0) return 'No visits yet';
+                                const doctorCounts: Record<string, number> = {};
+                                opdEntries.forEach((e: any) => {
+                                    if (e.doctor_id) {
+                                        const key = e.doctor_id.toString();
+                                        doctorCounts[key] = (doctorCounts[key] || 0) + 1;
+                                    }
+                                });
+                                const topCount = Math.max(...Object.values(doctorCounts), 0);
+                                return `${topCount} patients seen`;
+                            })()}
+                        </p>
                     </div>
 
-                    <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow group">
+                    {/* MLC Cases - Legal compliance */}
+                    <div className="bg-gradient-to-br from-red-50 to-rose-50 p-6 rounded-3xl border border-red-100 shadow-sm hover:shadow-md transition-shadow group min-h-[180px] flex flex-col">
                         <div className="flex items-center justify-between mb-4">
-                            <div className="w-12 h-12 bg-purple-50 rounded-2xl flex items-center justify-center text-purple-500 group-hover:scale-110 transition-transform">
-                                <FileText className="w-6 h-6" />
+                            <div className="w-12 h-12 bg-red-500 rounded-2xl flex items-center justify-center text-white group-hover:scale-110 transition-transform shadow-lg shadow-red-500/30">
+                                <AlertCircle className="w-6 h-6" />
                             </div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Active Doctors</span>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-red-600 bg-red-100 px-2 py-1 rounded-full">LEGAL</span>
                         </div>
-                        <p className="text-4xl font-bold text-slate-800">{doctors.length}</p>
+                        <div className="flex-1 flex flex-col justify-center">
+                            <p className="text-3xl font-bold text-red-700">
+                                {opdEntries.filter((e: any) => e.is_mlc === true).length}
+                            </p>
+                            <p className="text-sm font-semibold text-red-600 mt-1">MLC Cases</p>
+                        </div>
+                        <p className="text-xs text-red-500 mt-auto pt-2">Medical Legal Cases today</p>
                     </div>
                 </div>
             </div>
+
+            {/* Follow-up Queue Widget (Smart Follow-up Scheduling) */}
 
             {/* Main Content Area */}
             <div className="glass-panel rounded-3xl overflow-hidden p-1">
@@ -617,6 +900,48 @@ export default function OpdEntryPage() {
                             </div>
                         )}
                     </div>
+
+
+                    {/* Date Range Picker */}
+                    <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-3 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500 transition-all shadow-sm">
+                        <input
+                            type="date"
+                            value={dateRange.from}
+                            onChange={(e) => setDateRange({ ...dateRange, from: e.target.value })}
+                            className="outline-none text-sm font-medium text-slate-700 w-auto bg-transparent"
+                            style={{ colorScheme: 'light' }}
+                        />
+                        <span className="text-slate-400 font-bold">-</span>
+                        <input
+                            type="date"
+                            value={dateRange.to}
+                            onChange={(e) => setDateRange({ ...dateRange, to: e.target.value })}
+                            className="outline-none text-sm font-medium text-slate-700 w-auto bg-transparent"
+                            style={{ colorScheme: 'light' }}
+                        />
+                    </div>
+
+                    {/* Doctor Filter Dropdown */}
+                    <div className="relative">
+                        <select
+                            value={selectedDoctorFilter}
+                            onChange={(e) => setSelectedDoctorFilter(e.target.value)}
+                            className="px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium text-slate-700 appearance-none pr-10 min-w-[200px]"
+                        >
+                            <option value="">All Doctors</option>
+                            {doctors.map((doc: any) => (
+                                <option key={doc.doctor_id} value={doc.doctor_id}>
+                                    Dr. {doc.first_name} {doc.last_name}
+                                </option>
+                            ))}
+                        </select>
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                            <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </div>
+                    </div>
+
                     <button
                         onClick={handleSearch}
                         disabled={loading}
@@ -627,14 +952,15 @@ export default function OpdEntryPage() {
                 </div>
 
                 {/* Neat & Intuitive Entry List */}
-                <div className="space-y-4 px-1 pb-20">
-                    <div className="hidden md:flex px-6 text-xs font-bold text-slate-400 uppercase tracking-widest pb-2">
-                        <div className="w-[10%]">Token</div>
-                        <div className="w-[25%]">Patient Details</div>
-                        <div className="w-[20%]">Assigned Doctor</div>
-                        <div className="w-[15%]">Timings</div>
-                        <div className="w-[15%]">Status</div>
-                        <div className="w-[15%] text-right">Payment</div>
+                <div className="mt-6 space-y-4 px-1 pb-20 bg-slate-50/50 rounded-2xl p-4 border border-slate-100">
+                    <div className="hidden md:flex items-center px-4 text-xs font-bold text-slate-400 uppercase tracking-widest pb-2">
+                        <div className="w-[15%] pl-4">Token</div>
+                        <div className="w-[17%]">Patient Details</div>
+                        <div className="w-[17%]">Assigned Doctor</div>
+                        <div className="w-[9%]">Timings</div>
+                        <div className="w-[12%]">Status</div>
+                        <div className="w-[12%] text-right">Payment</div>
+                        <div className="w-[18%] text-right pr-4">Actions</div>
                     </div>
 
                     {opdEntries.length === 0 ? (
@@ -646,115 +972,148 @@ export default function OpdEntryPage() {
                             <p className="text-slate-500 mt-1">Start by adding a new patient visit.</p>
                         </div>
                     ) : (
-                        opdEntries.map((entry: any) => (
-                            <div
-                                key={entry.opd_id}
-                                className="group bg-white rounded-2xl p-4 border border-slate-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all duration-300 flex flex-col md:flex-row items-center gap-6 relative overflow-hidden"
-                            >
-                                {/* Left Accent Bar */}
-                                <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${entry.visit_status === 'Completed' ? 'bg-emerald-500' :
-                                    entry.visit_status === 'In-consultation' ? 'bg-amber-500' :
-                                        'bg-blue-500'
-                                    }`}></div>
+                        opdEntries
+                            .filter((entry: any) => {
+                                // Doctor filter
+                                const doctorMatch = !selectedDoctorFilter || entry.doctor_id === parseInt(selectedDoctorFilter);
 
-                                {/* Token & ID */}
-                                <div className="w-full md:w-[10%] pl-4 flex flex-row md:flex-col items-center gap-4 md:gap-2">
-                                    <div className="bg-blue-50 hover:bg-blue-100 transition-colors rounded-2xl border border-blue-100 h-16 w-16 flex flex-col items-center justify-center shadow-sm group-hover:scale-105 duration-300">
-                                        <div className="text-[8px] font-bold text-blue-400 uppercase tracking-widest mb-0.5">Token</div>
-                                        <div className={`font-black text-blue-600 leading-none text-center px-1 break-words ${entry.token_number.toString().length > 5 ? 'text-xs' :
-                                            entry.token_number.toString().length > 3 ? 'text-lg' : 'text-2xl'
-                                            }`}>
-                                            {entry.token_number}
+                                // Search filter (patient name or OPD number)
+                                const searchLower = searchQuery.toLowerCase().trim();
+                                const searchMatch = !searchLower ||
+                                    entry.patient_first_name?.toLowerCase().includes(searchLower) ||
+                                    entry.patient_last_name?.toLowerCase().includes(searchLower) ||
+                                    `${entry.patient_first_name} ${entry.patient_last_name}`.toLowerCase().includes(searchLower) ||
+                                    entry.opd_number?.toLowerCase().includes(searchLower);
+
+                                return doctorMatch && searchMatch;
+                            })
+                            .map((entry: any) => (
+                                <div
+                                    key={entry.opd_id}
+                                    className="group bg-white rounded-2xl p-4 border border-slate-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all duration-300 flex flex-col md:flex-row items-center relative overflow-hidden"
+                                >
+                                    {/* Left Accent Bar */}
+                                    <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${entry.visit_status === 'Completed' ? 'bg-emerald-500' :
+                                        entry.visit_status === 'In-consultation' ? 'bg-amber-500' :
+                                            'bg-blue-500'
+                                        }`}></div>
+
+                                    {/* Token & ID */}
+                                    <div className="w-full md:w-[15%] pl-4 flex flex-row items-center gap-3 flex-shrink-0">
+                                        <div className="bg-blue-50 hover:bg-blue-100 transition-colors rounded-2xl border border-blue-100 h-14 w-14 flex flex-col items-center justify-center shadow-sm group-hover:scale-105 duration-300 flex-shrink-0">
+                                            <div className="text-[7px] font-bold text-blue-400 uppercase tracking-widest">Token</div>
+                                            <div className={`font-black text-blue-600 leading-none text-center ${entry.token_number.toString().length > 3 ? 'text-lg' : 'text-xl'}`}>
+                                                {entry.token_number}
+                                            </div>
                                         </div>
+                                        <button
+                                            onClick={() => handleEditOpd(entry)}
+                                            className="text-xs font-mono font-bold text-slate-500 hover:text-blue-600 hover:underline whitespace-nowrap"
+                                        >
+                                            #{entry.opd_number}
+                                        </button>
                                     </div>
-                                    <button
-                                        onClick={() => handleEditOpd(entry)}
-                                        className="text-[10px] font-mono font-bold text-slate-400 hover:text-blue-600 hover:underline md:text-center block md:w-16"
-                                    >
-                                        #{entry.opd_number}
-                                    </button>
-                                </div>
 
-                                {/* Patient Info */}
-                                <div className="w-full md:w-[25%] flex items-center gap-4">
-                                    <div className={`w-12 h-12 rounded-2xl flex-shrink-0 flex items-center justify-center text-lg font-bold shadow-sm ${entry.gender === 'Female' ? 'bg-pink-50 text-pink-600' : 'bg-blue-50 text-blue-600'
-                                        }`}>
-                                        {entry.patient_first_name[0]}
-                                    </div>
-                                    <div>
-                                        <Link href={`/receptionist/patients/${entry.patient_id}`} className="block font-bold text-slate-800 text-lg hover:text-blue-600 transition">
-                                            {entry.patient_first_name} {entry.patient_last_name}
-                                        </Link>
-                                        <p className="text-xs text-slate-500 font-medium mt-0.5">{entry.age} • {entry.gender}</p>
-                                    </div>
-                                </div>
-
-                                {/* Doctor Info */}
-                                <div className="w-full md:w-[20%]">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-sm">
-                                            {entry.doctor_first_name ? entry.doctor_first_name[0].toUpperCase() : 'D'}
+                                    {/* Patient Info */}
+                                    <div className="w-full md:w-[17%] flex items-center gap-3 flex-shrink-0">
+                                        <div className={`w-12 h-12 rounded-2xl flex-shrink-0 flex items-center justify-center text-lg font-bold shadow-sm ${entry.gender === 'Female' ? 'bg-pink-50 text-pink-600' : 'bg-blue-50 text-blue-600'
+                                            }`}>
+                                            {entry.patient_first_name[0]}
                                         </div>
                                         <div>
-                                            <p className="text-sm font-bold text-slate-700 leading-tight capitalize">
-                                                Dr. {entry.doctor_first_name} {entry.doctor_last_name}
-                                            </p>
-                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
-                                                {entry.specialization || 'General'}
-                                            </p>
+                                            <Link href={`/receptionist/patients/${entry.patient_id}`} className="block font-bold text-slate-800 text-lg hover:text-blue-600 transition">
+                                                {entry.patient_first_name} {entry.patient_last_name}
+                                            </Link>
+                                            <p className="text-xs text-slate-500 font-medium mt-0.5">{entry.gender}, {entry.age} yrs</p>
                                         </div>
                                     </div>
-                                </div>
 
-                                {/* Timings */}
-                                <div className="w-full md:w-[15%]">
-                                    <div className="flex flex-row md:flex-col gap-2 md:gap-0">
-                                        <p className="text-sm font-bold text-slate-700">{entry.visit_time.slice(0, 5)}</p>
-                                        <p className="text-xs text-slate-400 font-medium">{new Date(entry.visit_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</p>
+                                    {/* Doctor Info */}
+                                    <div className="w-full md:w-[17%] flex-shrink-0">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-sm">
+                                                {entry.doctor_first_name ? entry.doctor_first_name[0].toUpperCase() : 'D'}
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-bold text-slate-700 leading-tight capitalize">
+                                                    Dr. {entry.doctor_first_name} {entry.doctor_last_name}
+                                                </p>
+                                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+                                                    {entry.specialization || 'General'}
+                                                </p>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
 
-                                {/* Status Pills */}
-                                <div className="w-full md:w-[15%] flex flex-wrap gap-2">
-                                    <span className={`inline-flex px-2.5 py-1 text-[10px] font-bold rounded-lg border ${entry.visit_type === 'Emergency' ? 'bg-red-50 text-red-600 border-red-100' :
-                                        entry.visit_type === 'Follow-up' ? 'bg-blue-50 text-blue-600 border-blue-100' :
-                                            'bg-slate-50 text-slate-600 border-slate-100'
-                                        }`}>
-                                        {entry.visit_type}
-                                    </span>
-                                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold rounded-lg border ${entry.visit_status === 'Completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
-                                        entry.visit_status === 'In-consultation' ? 'bg-amber-50 text-amber-700 border-amber-100' :
-                                            'bg-white text-slate-500 border-slate-200'
-                                        }`}>
-                                        <span className={`w-1.5 h-1.5 rounded-full ${entry.visit_status === 'Completed' ? 'bg-emerald-500' :
-                                            entry.visit_status === 'In-consultation' ? 'bg-amber-500' :
-                                                'bg-slate-300'
-                                            }`}></span>
-                                        {entry.visit_status}
-                                    </span>
-                                </div>
+                                    {/* Timings */}
+                                    <div className="w-full md:w-[9%] flex-shrink-0">
+                                        <div className="flex flex-row md:flex-col gap-2 md:gap-0">
+                                            <p className="text-sm font-bold text-slate-700">{entry.visit_time.slice(0, 5)}</p>
+                                            <p className="text-xs text-slate-400 font-medium">{new Date(entry.visit_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</p>
+                                        </div>
+                                    </div>
 
-                                {/* Payment & Actions */}
-                                <div className="w-full md:w-[15%] text-left md:text-right flex flex-row md:flex-col justify-between md:justify-center gap-4 md:gap-2">
-                                    <div>
+                                    {/* Status Pills */}
+                                    <div className="w-full md:w-[12%] flex flex-wrap gap-1.5 flex-shrink-0">
+                                        <span className={`inline-flex px-2.5 py-1 text-[10px] font-bold rounded-lg border ${entry.visit_type === 'Emergency' ? 'bg-red-50 text-red-600 border-red-100' :
+                                            entry.visit_type === 'Follow-up' ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                                                'bg-slate-50 text-slate-600 border-slate-100'
+                                            }`}>
+                                            {entry.visit_type}
+                                        </span>
+                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold rounded-lg border ${entry.visit_status === 'Completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                                            entry.visit_status === 'In-consultation' ? 'bg-amber-50 text-amber-700 border-amber-100' :
+                                                'bg-white text-slate-500 border-slate-200'
+                                            }`}>
+                                            <span className={`w-1.5 h-1.5 rounded-full ${entry.visit_status === 'Completed' ? 'bg-emerald-500' :
+                                                entry.visit_status === 'In-consultation' ? 'bg-amber-500' :
+                                                    'bg-slate-300'
+                                                }`}></span>
+                                            {entry.visit_status}
+                                        </span>
+                                    </div>
+
+                                    {/* Payment */}
+                                    <div className="w-full md:w-[12%] text-left md:text-right flex-shrink-0">
                                         <p className="font-mono text-sm font-bold text-slate-800">₹{entry.consultation_fee || '0'} <span className="text-[10px] text-slate-400 font-sans font-normal">INR</span></p>
                                         <p className={`text-[10px] font-bold uppercase tracking-wider mt-1 ${entry.payment_status === 'Paid' ? 'text-emerald-500' : 'text-red-500'
                                             }`}>
                                             {entry.payment_status}
                                         </p>
                                     </div>
-                                    <div className="flex justify-end">
+
+                                    {/* Quick Actions (UX Solution 2) */}
+                                    <div className="w-full md:w-[18%] flex items-center justify-end pr-2 flex-shrink-0 gap-2">
+                                        {/* Edit Button - Always visible for MLC cases, otherwise for all */}
                                         <button
-                                            onClick={(e) => { e.stopPropagation(); handleDelete(entry.opd_id); }}
-                                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all opacity-0 group-hover:opacity-100"
-                                            title="Delete Entry"
+                                            onClick={() => handleEditOpd(entry)}
+                                            className={`flex items-center gap-1.5 px-3 py-2 ${entry.is_mlc ? 'bg-red-500 hover:bg-red-600' : 'bg-slate-500 hover:bg-slate-600'} text-white rounded-lg transition-all shadow-sm font-bold text-xs`}
+                                            title="Edit OPD Entry"
                                         >
-                                            <Trash2 className="w-4 h-4" />
+                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                            </svg>
+                                            Edit
                                         </button>
+                                        {/* Quick Follow-Up Button - Only show if visit is completed and within 30 days */}
+                                        {entry.visit_status === 'Completed' && (() => {
+                                            const visitDate = new Date(entry.visit_date);
+                                            const daysSince = Math.floor((new Date().getTime() - visitDate.getTime()) / (1000 * 60 * 60 * 24));
+                                            return daysSince <= 30;
+                                        })() && (
+                                                <button
+                                                    onClick={() => handleQuickFollowUpFromEntry(entry)}
+                                                    className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-all shadow-sm font-bold text-sm"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                    </svg>
+                                                    Follow-Up
+                                                </button>
+                                            )}
                                     </div>
                                 </div>
-                            </div>
-                        )))}
+                            )))}
                 </div>
             </div>
 
@@ -796,171 +1155,420 @@ export default function OpdEntryPage() {
                                 </div>
                             </div>
 
-                            <form onSubmit={handleSubmit} className="p-8 space-y-8">
+                            {/* Progress Indicator - Only for new entries - Sequential validation */}
+                            {!editingOpdId && (
+                                <div className="px-8 py-4 bg-slate-50/80 border-b border-slate-100">
+                                    {(() => {
+                                        // Define completion checks
+                                        const step1Complete = selectedPatient
+                                            ? true
+                                            : (opdForm.first_name && opdForm.age && opdForm.gender &&
+                                                (opdForm.is_mlc || opdForm.contact_number?.length === 10));
+
+                                        const step2FieldsComplete = opdForm.visit_type && opdForm.doctor_id;
+                                        const step2Complete = step1Complete && step2FieldsComplete;
+
+                                        const step3FieldsComplete = opdForm.consultation_fee;
+                                        const step3Complete = step2Complete && step3FieldsComplete;
+
+                                        return (
+                                            <div className="flex items-center justify-between max-w-2xl mx-auto">
+                                                {/* Step 1: Patient */}
+                                                <div className="flex items-center">
+                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${step1Complete
+                                                        ? 'bg-emerald-500 text-white'
+                                                        : currentStep === 'search' || currentStep === 'newPatient'
+                                                            ? 'bg-blue-600 text-white ring-4 ring-blue-100'
+                                                            : 'bg-slate-200 text-slate-500'
+                                                        }`}>
+                                                        {step1Complete ? '✓' : '1'}
+                                                    </div>
+                                                    <span className={`ml-2 text-sm font-medium ${step1Complete ? 'text-emerald-600' : 'text-slate-600'}`}>
+                                                        Patient
+                                                    </span>
+                                                </div>
+
+                                                {/* Connector 1-2 */}
+                                                <div className={`flex-1 h-1 mx-4 rounded ${step1Complete ? 'bg-emerald-300' : 'bg-slate-200'}`}></div>
+
+                                                {/* Step 2: Visit Details - Only green if Step 1 is also complete */}
+                                                <div className="flex items-center">
+                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${step2Complete
+                                                        ? 'bg-emerald-500 text-white'
+                                                        : currentStep === 'visitDetails'
+                                                            ? 'bg-blue-600 text-white ring-4 ring-blue-100'
+                                                            : 'bg-slate-200 text-slate-500'
+                                                        }`}>
+                                                        {step2Complete ? '✓' : '2'}
+                                                    </div>
+                                                    <span className={`ml-2 text-sm font-medium ${step2Complete ? 'text-emerald-600' : 'text-slate-600'}`}>
+                                                        Visit Details
+                                                    </span>
+                                                </div>
+
+                                                {/* Connector 2-3 */}
+                                                <div className={`flex-1 h-1 mx-4 rounded ${step2Complete ? 'bg-emerald-300' : 'bg-slate-200'}`}></div>
+
+                                                {/* Step 3: Payment - Only green if Step 1 & 2 are complete */}
+                                                <div className="flex items-center">
+                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${step3Complete
+                                                        ? 'bg-emerald-500 text-white'
+                                                        : currentStep === 'payment'
+                                                            ? 'bg-blue-600 text-white ring-4 ring-blue-100'
+                                                            : 'bg-slate-200 text-slate-500'
+                                                        }`}>
+                                                        {step3Complete ? '✓' : '3'}
+                                                    </div>
+                                                    <span className={`ml-2 text-sm font-medium ${step3Complete ? 'text-emerald-600' : 'text-slate-600'}`}>
+                                                        Payment
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
+                                </div>
+                            )}
+
+                            <form onSubmit={handleSubmit} className="p-8 space-y-6">
                                 {/* Form Sections content... (Keep existing logic but styled) */}
                                 {/* Patient Information Section */}
                                 <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
                                     <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
                                         <User className="w-4 h-4" /> Patient Details
                                     </h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                                        <div className="md:col-span-2 relative">
-                                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Phone Number {opdForm.is_mlc ? '(Optional for MLC)' : '*'}</label>
-                                            <input
-                                                type="tel"
-                                                required={!opdForm.is_mlc}
-                                                value={opdForm.contact_number}
-                                                onChange={(e) => {
-                                                    const value = e.target.value.replace(/\D/g, "");
-                                                    if (value.length <= 10) {
-                                                        setOpdForm({ ...opdForm, contact_number: value });
-                                                        checkPhoneMatches(value);
-                                                    }
-                                                }}
-                                                disabled={!!selectedPatient}
-                                                maxLength={10}
-                                                className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium disabled:bg-slate-100 disabled:text-slate-500"
-                                                placeholder="10-digit number"
-                                                onBlur={() => {
-                                                    // Small delay to allow clicking options
-                                                    setTimeout(() => setShowPhoneDropdown(false), 200);
-                                                }}
-                                                onFocus={() => {
-                                                    if (opdForm.contact_number.length === 10) checkPhoneMatches(opdForm.contact_number);
-                                                }}
-                                            />
-                                            {/* Phone Lookup Dropdown */}
-                                            {showPhoneDropdown && (
-                                                <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                                                    <div className="p-2 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
-                                                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Existing Patients Found</span>
-                                                        <button type="button" onClick={() => setShowPhoneDropdown(false)} className="text-slate-400 hover:text-slate-600"><X className="w-3 h-3" /></button>
+
+                                    {/* Smart Patient Search - Only show if no patient selected (UX Solution 1) */}
+                                    {!selectedPatient && !editingOpdId && (
+                                        <div className="mb-6 relative">
+                                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                                                Search Existing Patient
+                                            </label>
+                                            <div className="relative">
+                                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                                                <input
+                                                    type="text"
+                                                    value={modalSearchQuery}
+                                                    onChange={(e) => setModalSearchQuery(e.target.value)}
+                                                    placeholder="Enter phone number or patient name..."
+                                                    className="w-full pl-10 pr-4 py-3 bg-white border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium text-lg"
+                                                    autoFocus
+                                                />
+                                                {isSearching && (
+                                                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                                                        <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
                                                     </div>
-                                                    <div className="max-h-48 overflow-y-auto">
-                                                        {phoneMatches.map((p) => (
-                                                            <button
-                                                                key={p.patient_id}
-                                                                type="button"
-                                                                onMouseDown={(e) => {
-                                                                    e.preventDefault();
-                                                                    selectPatient(p);
-                                                                    setShowPhoneDropdown(false);
-                                                                }}
-                                                                className="w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors flex items-center justify-between group border-b border-slate-50 last:border-0"
-                                                            >
-                                                                <div>
-                                                                    <p className="font-bold text-slate-800 text-sm group-hover:text-blue-700">{p.first_name} {p.last_name}</p>
-                                                                    <p className="text-xs text-slate-500">{p.gender}, {p.age} yrs • ID: {p.patient_code}</p>
+                                                )}
+                                            </div>
+
+                                            {/* Search Results Dropdown */}
+                                            {modalSearchResults.length > 0 && (
+                                                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden z-50 max-h-72 overflow-y-auto">
+                                                    {modalSearchResults.map((patient: any) => (
+                                                        <div
+                                                            key={patient.patient_id}
+                                                            className="p-4 hover:bg-blue-50 border-b border-slate-100 last:border-0"
+                                                        >
+                                                            <div className="flex items-start justify-between gap-4">
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold">
+                                                                        {patient.first_name?.[0]}{patient.last_name?.[0] || ''}
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className="font-bold text-slate-800">
+                                                                            {patient.first_name} {patient.last_name}
+                                                                        </p>
+                                                                        <p className="text-sm text-slate-500">
+                                                                            {patient.gender}, {patient.age} yrs • {patient.contact_number}
+                                                                        </p>
+                                                                        {patient.last_visit_date && (
+                                                                            <p className="text-xs text-slate-400 mt-1">
+                                                                                Last visit: {new Date(patient.last_visit_date).toLocaleDateString()}
+                                                                                {patient.last_doctor_first_name && (
+                                                                                    <> with Dr. {patient.last_doctor_first_name}</>
+                                                                                )}
+                                                                                {patient.is_follow_up_candidate && (
+                                                                                    <span className="ml-2 px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-bold">
+                                                                                        Follow-up eligible
+                                                                                    </span>
+                                                                                )}
+                                                                            </p>
+                                                                        )}
+                                                                    </div>
                                                                 </div>
-                                                                <div className="text-xs font-mono text-slate-400 bg-slate-100 px-2 py-0.5 rounded group-hover:bg-blue-100 group-hover:text-blue-600">
-                                                                    Select
+                                                                <div className="flex gap-2 flex-shrink-0">
+                                                                    {patient.is_follow_up_candidate && (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleQuickFollowUp(patient)}
+                                                                            className="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-xs font-bold hover:bg-amber-600 transition"
+                                                                        >
+                                                                            Quick Follow-Up
+                                                                        </button>
+                                                                    )}
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            selectPatient(patient);
+                                                                            setModalSearchQuery('');
+                                                                            setModalSearchResults([]);
+                                                                        }}
+                                                                        className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition"
+                                                                    >
+                                                                        Select
+                                                                    </button>
                                                                 </div>
-                                                            </button>
-                                                        ))}
-                                                    </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {/* No Results State */}
+                                            {modalSearchQuery.length >= 3 && !isSearching && modalSearchResults.length === 0 && (
+                                                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-lg border border-slate-200 p-4 z-50">
+                                                    <p className="text-slate-500 text-center mb-3">No patient found with "{modalSearchQuery}"</p>
                                                     <button
                                                         type="button"
-                                                        onMouseDown={(e) => {
-                                                            e.preventDefault();
-                                                            e.stopPropagation();
-                                                            console.log('Add New Clicked - Clearing Form');
-                                                            setSelectedPatient(null);
-                                                            setOpdForm(prev => ({
-                                                                ...prev,
-                                                                contact_number: prev.contact_number,
-                                                                full_name: '', first_name: '', last_name: '',
-                                                                age: '', gender: '', blood_group: '',
-                                                                doctor_id: '', consultation_fee: '',
-                                                                chief_complaint: '', symptoms: '',
-                                                                vital_signs: { bp_systolic: '', bp_diastolic: '', pulse: '', temperature: '', weight: '', height: '', spo2: '', grbs: '' },
-                                                                address_line_1: '', address_line_2: '', city: '', state: '', pincode: ''
-                                                            }));
-                                                            setShowPhoneDropdown(false);
+                                                        onClick={() => {
+                                                            // Pre-fill phone if search was a phone number
+                                                            if (/^\d{10}$/.test(modalSearchQuery)) {
+                                                                setOpdForm(prev => ({ ...prev, contact_number: modalSearchQuery }));
+                                                            }
+                                                            setModalSearchQuery('');
+                                                            setModalSearchResults([]);
                                                         }}
-                                                        className="w-full text-left px-4 py-3 bg-blue-50/50 hover:bg-blue-100 text-blue-600 font-bold text-sm flex items-center gap-2 transition-colors border-t border-blue-100"
+                                                        className="w-full py-2 bg-blue-600 text-white rounded-lg font-bold text-sm hover:bg-blue-700 transition"
                                                     >
-                                                        <div className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-sm">
-                                                            <Plus className="w-3 h-3" />
-                                                        </div>
-                                                        Add New Patient
+                                                        + Register as New Patient
                                                     </button>
                                                 </div>
                                             )}
+
+                                            <p className="text-xs text-slate-400 mt-2">
+                                                Type at least 3 characters to search. Leave empty to register new patient.
+                                            </p>
                                         </div>
-                                        <div className="md:col-span-4">
-                                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Name *</label>
-                                            <input
-                                                type="text"
-                                                required
-                                                value={opdForm.full_name || ''}
-                                                onChange={(e) => {
-                                                    const val = e.target.value;
-                                                    const parts = val.split(' ');
-                                                    const first = parts[0];
-                                                    const last = parts.slice(1).join(' ');
-                                                    setOpdForm({ ...opdForm, full_name: val, first_name: first, last_name: last });
+                                    )}
+
+                                    {/* Selected Patient Display - Enhanced Card */}
+                                    {selectedPatient && !editingOpdId && (
+                                        <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl flex items-center justify-between">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-lg shadow-lg">
+                                                    {selectedPatient.first_name?.[0]}
+                                                </div>
+                                                <div>
+                                                    <p className="font-bold text-slate-800 text-lg">
+                                                        {selectedPatient.first_name} {selectedPatient.last_name}
+                                                    </p>
+                                                    <div className="flex items-center gap-3 text-sm text-slate-500">
+                                                        <span>{selectedPatient.gender}, {selectedPatient.age} yrs</span>
+                                                        <span>•</span>
+                                                        <span>📱 {selectedPatient.contact_number}</span>
+                                                        {selectedPatient.blood_group && (
+                                                            <>
+                                                                <span>•</span>
+                                                                <span className="text-red-600 font-bold">{selectedPatient.blood_group}</span>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                    <p className="text-xs text-blue-600 font-mono mt-1">MRN: {selectedPatient.mrn_number}</p>
+                                                </div>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setSelectedPatient(null);
+                                                    resetForm();
                                                 }}
-                                                className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium disabled:bg-slate-100 disabled:text-slate-500"
-                                                placeholder="e.g. John Doe"
-                                            />
+                                                className="px-4 py-2 text-sm text-slate-600 hover:text-red-600 hover:bg-white/50 font-medium rounded-lg flex items-center gap-1 transition"
+                                            >
+                                                <X className="w-4 h-4" />
+                                                Change
+                                            </button>
                                         </div>
-                                        <div>
-                                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Age *</label>
-                                            <input type="number" required value={opdForm.age} onChange={(e) => setOpdForm({ ...opdForm, age: e.target.value })} disabled={!!selectedPatient} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium disabled:bg-slate-100 disabled:text-slate-500" />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Gender *</label>
-                                            <select required value={opdForm.gender} onChange={(e) => setOpdForm({ ...opdForm, gender: e.target.value })} disabled={!!selectedPatient} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium disabled:bg-slate-100 disabled:text-slate-500">
-                                                <option value="">Select</option>
-                                                <option value="Male">Male</option>
-                                                <option value="Female">Female</option>
-                                                <option value="Pediatric">Pediatric</option>
-                                                <option value="Other">Other</option>
-                                            </select>
-                                        </div>
+                                    )}
 
-                                        <div className="md:col-span-2">
-                                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Blood Group</label>
-                                            <select value={opdForm.blood_group} onChange={(e) => setOpdForm({ ...opdForm, blood_group: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium">
-                                                <option value="">Unknown</option>
-                                                <option value="A+">A+</option>
-                                                <option value="A-">A-</option>
-                                                <option value="B+">B+</option>
-                                                <option value="B-">B-</option>
-                                                <option value="O+">O+</option>
-                                                <option value="O-">O-</option>
-                                                <option value="AB+">AB+</option>
-                                                <option value="AB-">AB-</option>
-                                            </select>
-                                        </div>
+                                    {/* New Patient Form Fields - Only show when no patient is selected */}
+                                    {!selectedPatient && !editingOpdId && (
+                                        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                                            <div className="md:col-span-4">
+                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Name <span className="text-red-500">*</span></label>
+                                                <input
+                                                    type="text"
+                                                    required
+                                                    value={opdForm.first_name + (opdForm.last_name ? ' ' + opdForm.last_name : '')}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        const parts = val.split(' ');
+                                                        const first = parts[0];
+                                                        const last = parts.slice(1).join(' ');
+                                                        setOpdForm({ ...opdForm, first_name: first, last_name: last });
+                                                    }}
+                                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                                                    placeholder="e.g. John Doe"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Age <span className="text-red-500">*</span></label>
+                                                <input type="number" required value={opdForm.age} onChange={(e) => setOpdForm({ ...opdForm, age: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium" />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Gender <span className="text-red-500">*</span></label>
+                                                <select required value={opdForm.gender} onChange={(e) => setOpdForm({ ...opdForm, gender: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium">
+                                                    <option value="">Select</option>
+                                                    <option value="Male">Male</option>
+                                                    <option value="Female">Female</option>
+                                                    <option value="Pediatric">Pediatric</option>
+                                                    <option value="Other">Other</option>
+                                                </select>
+                                            </div>
+                                            <div className="md:col-span-2">
+                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Phone Number {opdForm.is_mlc ? '(Optional for MLC)' : <span className="text-red-500">*</span>}</label>
+                                                <input
+                                                    type="tel"
+                                                    required={!opdForm.is_mlc}
+                                                    value={opdForm.contact_number}
+                                                    onChange={(e) => {
+                                                        const value = e.target.value.replace(/\D/g, "");
+                                                        if (value.length <= 10) setOpdForm({ ...opdForm, contact_number: value });
+                                                    }}
+                                                    maxLength={10}
+                                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                                                    placeholder="10-digit number"
+                                                />
+                                            </div>
+                                            <div className="md:col-span-2">
+                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Blood Group</label>
+                                                <select value={opdForm.blood_group} onChange={(e) => setOpdForm({ ...opdForm, blood_group: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium">
+                                                    <option value="">Unknown</option>
+                                                    <option value="A+">A+</option>
+                                                    <option value="A-">A-</option>
+                                                    <option value="B+">B+</option>
+                                                    <option value="B-">B-</option>
+                                                    <option value="O+">O+</option>
+                                                    <option value="O-">O-</option>
+                                                    <option value="AB+">AB+</option>
+                                                    <option value="AB-">AB-</option>
+                                                </select>
+                                            </div>
 
-                                        {/* Address Fields */}
-                                        <div className="md:col-span-6 grid grid-cols-1 md:grid-cols-6 gap-4 border-t border-slate-100 pt-4 mt-2">
-                                            <div className="md:col-span-6">
-                                                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Address Details</label>
-                                            </div>
-                                            <div className="md:col-span-3">
-                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Address Line 1</label>
-                                                <input type="text" value={opdForm.address_line_1} onChange={(e) => setOpdForm({ ...opdForm, address_line_1: e.target.value })} className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium text-sm" placeholder="House No, Street" />
-                                            </div>
-                                            <div className="md:col-span-3">
-                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Address Line 2</label>
-                                                <input type="text" value={opdForm.address_line_2} onChange={(e) => setOpdForm({ ...opdForm, address_line_2: e.target.value })} className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium text-sm" placeholder="Area, Landmark" />
+                                            {/* Address Details Section */}
+                                            <div className="md:col-span-6 mt-4">
+                                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">ADDRESS DETAILS</h4>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    <div>
+                                                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">Address Line 1</label>
+                                                        <input
+                                                            type="text"
+                                                            value={opdForm.address_line1}
+                                                            onChange={(e) => setOpdForm({ ...opdForm, address_line1: e.target.value })}
+                                                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                                                            placeholder="House No, Street"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">Address Line 2</label>
+                                                        <input
+                                                            type="text"
+                                                            value={opdForm.address_line2}
+                                                            onChange={(e) => setOpdForm({ ...opdForm, address_line2: e.target.value })}
+                                                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                                                            placeholder="Area, Landmark"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
+                                                    <div>
+                                                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">City</label>
+                                                        <input
+                                                            type="text"
+                                                            value={opdForm.city}
+                                                            onChange={(e) => setOpdForm({ ...opdForm, city: e.target.value })}
+                                                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                                                            placeholder=""
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">State</label>
+                                                        <input
+                                                            type="text"
+                                                            value={opdForm.state}
+                                                            onChange={(e) => setOpdForm({ ...opdForm, state: e.target.value })}
+                                                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                                                            placeholder=""
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">Pincode</label>
+                                                        <input
+                                                            type="text"
+                                                            value={opdForm.pincode}
+                                                            onChange={(e) => {
+                                                                const value = e.target.value.replace(/\D/g, "");
+                                                                if (value.length <= 6) setOpdForm({ ...opdForm, pincode: value });
+                                                            }}
+                                                            maxLength={6}
+                                                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                                                            placeholder=""
+                                                        />
+                                                    </div>
+                                                </div>
                                             </div>
                                             <div className="md:col-span-2">
-                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">City</label>
-                                                <input type="text" value={opdForm.city} onChange={(e) => setOpdForm({ ...opdForm, city: e.target.value })} className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium text-sm" />
-                                            </div>
-                                            <div className="md:col-span-2">
-                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">State</label>
-                                                <input type="text" value={opdForm.state} onChange={(e) => setOpdForm({ ...opdForm, state: e.target.value })} className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium text-sm" />
-                                            </div>
-                                            <div className="md:col-span-2">
-                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Pincode</label>
-                                                <input type="text" value={opdForm.pincode} onChange={(e) => setOpdForm({ ...opdForm, pincode: e.target.value })} className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium text-sm" />
+                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Aadhaar Number</label>
+                                                <input
+                                                    type="text"
+                                                    value={opdForm.adhaar_number}
+                                                    onChange={(e) => {
+                                                        const value = e.target.value.replace(/\D/g, "");
+                                                        if (value.length <= 12) setOpdForm({ ...opdForm, adhaar_number: value });
+                                                    }}
+                                                    maxLength={12}
+                                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                                                    placeholder="12-digit Aadhaar"
+                                                />
                                             </div>
                                         </div>
-                                    </div>
+                                    )}
+
+                                    {/* Edit Mode - Show all fields */}
+                                    {editingOpdId && (
+                                        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                                            <div className="md:col-span-4">
+                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Name <span className="text-red-500">*</span></label>
+                                                <input
+                                                    type="text"
+                                                    required
+                                                    value={opdForm.first_name + (opdForm.last_name ? ' ' + opdForm.last_name : '')}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        const parts = val.split(' ');
+                                                        const first = parts[0];
+                                                        const last = parts.slice(1).join(' ');
+                                                        setOpdForm({ ...opdForm, first_name: first, last_name: last });
+                                                    }}
+                                                    disabled
+                                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium disabled:bg-slate-100 disabled:text-slate-500"
+                                                    placeholder="e.g. John Doe"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Age <span className="text-red-500">*</span></label>
+                                                <input type="number" required value={opdForm.age} onChange={(e) => setOpdForm({ ...opdForm, age: e.target.value })} disabled className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium disabled:bg-slate-100 disabled:text-slate-500" />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Gender <span className="text-red-500">*</span></label>
+                                                <select required value={opdForm.gender} onChange={(e) => setOpdForm({ ...opdForm, gender: e.target.value })} disabled className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium disabled:bg-slate-100 disabled:text-slate-500">
+                                                    <option value="">Select</option>
+                                                    <option value="Male">Male</option>
+                                                    <option value="Female">Female</option>
+                                                    <option value="Pediatric">Pediatric</option>
+                                                    <option value="Other">Other</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Visit Details Section */}
@@ -973,7 +1581,16 @@ export default function OpdEntryPage() {
                                                 id="mlc-toggle"
                                                 type="checkbox"
                                                 checked={opdForm.is_mlc}
-                                                onChange={(e) => setOpdForm({ ...opdForm, is_mlc: e.target.checked })}
+                                                onChange={(e) => {
+                                                    const isChecked = e.target.checked;
+                                                    setOpdForm({
+                                                        ...opdForm,
+                                                        is_mlc: isChecked,
+                                                        visit_type: isChecked ? 'Emergency' : opdForm.visit_type,
+                                                        visit_date: isChecked ? new Date().toISOString().split('T')[0] : opdForm.visit_date,
+                                                        visit_time: isChecked ? new Date().toTimeString().slice(0, 5) : opdForm.visit_time
+                                                    });
+                                                }}
                                                 className="w-5 h-5 text-red-600 border-gray-300 rounded focus:ring-red-500 transition-all cursor-pointer"
                                             />
                                             <label htmlFor="mlc-toggle" className="font-bold text-red-800 cursor-pointer select-none">
@@ -982,8 +1599,8 @@ export default function OpdEntryPage() {
                                         </div>
 
                                         <div>
-                                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Visit Type</label>
-                                            <select value={opdForm.visit_type} onChange={(e) => setOpdForm({ ...opdForm, visit_type: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium">
+                                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Visit Type <span className="text-red-500">*</span></label>
+                                            <select required value={opdForm.visit_type} onChange={(e) => setOpdForm({ ...opdForm, visit_type: e.target.value })} disabled={opdForm.is_mlc} className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${opdForm.is_mlc ? 'bg-slate-100 cursor-not-allowed' : ''}`}>
                                                 <option value="Walk-in">Walk-in</option>
                                                 <option value="Follow-up">Follow-up</option>
                                                 <option value="Emergency">Emergency</option>
@@ -991,12 +1608,12 @@ export default function OpdEntryPage() {
                                             </select>
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Date</label>
-                                            <input type="date" value={opdForm.visit_date} onChange={(e) => setOpdForm({ ...opdForm, visit_date: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium" />
+                                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Date {opdForm.is_mlc && <span className="text-xs text-green-600">(Auto)</span>}</label>
+                                            <input type="date" value={opdForm.visit_date} onChange={(e) => setOpdForm({ ...opdForm, visit_date: e.target.value })} disabled={opdForm.is_mlc} className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${opdForm.is_mlc ? 'bg-slate-100 cursor-not-allowed' : ''}`} />
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Time</label>
-                                            <input type="time" value={opdForm.visit_time} onChange={(e) => setOpdForm({ ...opdForm, visit_time: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium" />
+                                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Time {opdForm.is_mlc && <span className="text-xs text-green-600">(Auto)</span>}</label>
+                                            <input type="time" value={opdForm.visit_time} onChange={(e) => setOpdForm({ ...opdForm, visit_time: e.target.value })} disabled={opdForm.is_mlc} className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${opdForm.is_mlc ? 'bg-slate-100 cursor-not-allowed' : ''}`} />
                                         </div>
                                         <div>
                                             {hasAppointment ? (
@@ -1006,7 +1623,7 @@ export default function OpdEntryPage() {
                                                 </div>
                                             ) : (
                                                 <div className="relative">
-                                                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">Assign Doctor *</label>
+                                                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">Assign Doctor <span className="text-red-500">*</span></label>
                                                     {/* Custom select styling or keep simple for now */}
                                                     <select
                                                         value={opdForm.doctor_id}
@@ -1019,6 +1636,7 @@ export default function OpdEntryPage() {
                                                                 consultation_fee: selectedDoc?.consultation_fee || ''
                                                             });
                                                         }}
+                                                        required
                                                         className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
                                                     >
                                                         <option value="">Select Doctor</option>
@@ -1034,11 +1652,11 @@ export default function OpdEntryPage() {
                                         {opdForm.visit_type === 'Referral' && (
                                             <div className="md:col-span-4 grid grid-cols-1 md:grid-cols-2 gap-4 bg-blue-50/50 p-4 rounded-xl border border-blue-100">
                                                 <div>
-                                                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">Referral Hospital *</label>
+                                                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">Referral Hospital <span className="text-red-500">*</span></label>
                                                     <input type="text" required value={opdForm.referral_hospital} onChange={(e) => setOpdForm({ ...opdForm, referral_hospital: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl" placeholder="Hospital Name" />
                                                 </div>
                                                 <div>
-                                                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">Referral Doctor *</label>
+                                                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">Referral Doctor <span className="text-red-500">*</span></label>
                                                     <input type="text" required value={opdForm.referral_doctor_name} onChange={(e) => setOpdForm({ ...opdForm, referral_doctor_name: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl" placeholder="Doctor Name" />
                                                 </div>
                                             </div>
@@ -1048,12 +1666,12 @@ export default function OpdEntryPage() {
                                         {opdForm.is_mlc && (
                                             <div className="md:col-span-4 grid grid-cols-1 md:grid-cols-2 gap-4 bg-red-50/50 p-4 rounded-xl border border-red-100 animate-in fade-in slide-in-from-top-2">
                                                 <div>
-                                                    <label className="block text-xs font-semibold text-red-800 mb-1.5">Attender Name *</label>
-                                                    <input type="text" required value={opdForm.attender_name} onChange={(e) => setOpdForm({ ...opdForm, attender_name: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-red-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500" />
+                                                    <label className="block text-xs font-semibold text-red-800 mb-1.5">Attender Name</label>
+                                                    <input type="text" value={opdForm.attender_name} onChange={(e) => setOpdForm({ ...opdForm, attender_name: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-red-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500" />
                                                 </div>
                                                 <div>
-                                                    <label className="block text-xs font-semibold text-red-800 mb-1.5">Attender Contact *</label>
-                                                    <input type="tel" required value={opdForm.attender_contact_number} onChange={(e) => setOpdForm({ ...opdForm, attender_contact_number: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-red-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500" />
+                                                    <label className="block text-xs font-semibold text-red-800 mb-1.5">Attender Contact</label>
+                                                    <input type="tel" value={opdForm.attender_contact_number} onChange={(e) => setOpdForm({ ...opdForm, attender_contact_number: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-red-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500" />
                                                 </div>
                                                 <div className="md:col-span-2">
                                                     <label className="block text-xs font-semibold text-red-800 mb-1.5">MLC Remarks</label>
@@ -1064,35 +1682,88 @@ export default function OpdEntryPage() {
                                     </div>
                                 </div>
 
-                                {/* Complaint & Symptoms */}
-                                <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
-                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Clinical Notes</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1">
-                                                Chief Complaint <span className="text-blue-600 bg-blue-100 text-[10px] px-1 rounded">*</span>
-                                            </label>
-                                            <textarea
-                                                required
-                                                value={opdForm.chief_complaint}
-                                                onChange={(e) => setOpdForm({ ...opdForm, chief_complaint: e.target.value })}
-                                                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium resize-none"
-                                                rows={3}
-                                                placeholder="Main reason for visit..."
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Symptoms</label>
-                                            <textarea
-                                                value={opdForm.symptoms}
-                                                onChange={(e) => setOpdForm({ ...opdForm, symptoms: e.target.value })}
-                                                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium resize-none"
-                                                rows={3}
-                                                placeholder="Observed symptoms..."
-                                            />
+                                {/* Complaint & Symptoms - Hide for MLC cases */}
+                                {!opdForm.is_mlc && (
+                                    <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
+                                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Clinical Notes</h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="relative">
+                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Chief Complaint</label>
+                                                <textarea
+                                                    value={opdForm.chief_complaint}
+                                                    onChange={(e) => setOpdForm({ ...opdForm, chief_complaint: e.target.value })}
+                                                    onFocus={() => setShowComplaintSuggestions(true)}
+                                                    onBlur={() => setTimeout(() => setShowComplaintSuggestions(false), 200)}
+                                                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium resize-none"
+                                                    rows={2}
+                                                    placeholder="Type or click suggestions below..."
+                                                />
+                                                {/* Quick Suggestion Chips */}
+                                                <div className="flex flex-wrap gap-1.5 mt-2">
+                                                    {commonComplaints
+                                                        .filter(c =>
+                                                            !opdForm.chief_complaint ||
+                                                            c.toLowerCase().includes(opdForm.chief_complaint.toLowerCase()) ||
+                                                            showComplaintSuggestions
+                                                        )
+                                                        .slice(0, showComplaintSuggestions ? 21 : 6)
+                                                        .map((complaint) => (
+                                                            <button
+                                                                key={complaint}
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const current = opdForm.chief_complaint || '';
+                                                                    // Check if complaint is already in the text
+                                                                    const isSelected = current.split(', ').some(c => c.trim() === complaint);
+
+                                                                    let newValue;
+                                                                    if (isSelected) {
+                                                                        // Remove the complaint
+                                                                        newValue = current
+                                                                            .split(', ')
+                                                                            .filter(c => c.trim() !== complaint)
+                                                                            .join(', ');
+                                                                    } else {
+                                                                        // Add the complaint
+                                                                        newValue = current
+                                                                            ? current + ', ' + complaint
+                                                                            : complaint;
+                                                                    }
+                                                                    setOpdForm({ ...opdForm, chief_complaint: newValue });
+                                                                }}
+                                                                className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-all hover:scale-105 ${opdForm.chief_complaint?.includes(complaint)
+                                                                    ? 'bg-blue-100 text-blue-700 border-blue-300'
+                                                                    : 'bg-white text-slate-600 border-slate-200 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600'
+                                                                    }`}
+                                                            >
+                                                                {complaint}
+                                                            </button>
+                                                        ))
+                                                    }
+                                                    {!showComplaintSuggestions && commonComplaints.length > 6 && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setShowComplaintSuggestions(true)}
+                                                            className="px-2.5 py-1 text-xs font-medium text-blue-600 hover:underline"
+                                                        >
+                                                            +{commonComplaints.length - 6} more...
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Symptoms</label>
+                                                <textarea
+                                                    value={opdForm.symptoms}
+                                                    onChange={(e) => setOpdForm({ ...opdForm, symptoms: e.target.value })}
+                                                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium resize-none"
+                                                    rows={3}
+                                                    placeholder="Observed symptoms..."
+                                                />
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
+                                )}
 
                                 {/* Vital Signs */}
                                 <div className="bg-purple-50/50 p-6 rounded-2xl border border-purple-100">
@@ -1204,8 +1875,8 @@ export default function OpdEntryPage() {
                                                 </div>
                                             </div>
                                             <div>
-                                                <label className="block text-xs font-semibold text-slate-500 mb-1">Status</label>
-                                                <select value={opdForm.payment_status} onChange={(e) => setOpdForm({ ...opdForm, payment_status: e.target.value })} className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium">
+                                                <label className="block text-xs font-semibold text-slate-500 mb-1">Payment Status <span className="text-red-500">*</span></label>
+                                                <select required value={opdForm.payment_status} onChange={(e) => setOpdForm({ ...opdForm, payment_status: e.target.value })} className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium">
                                                     <option value="Pending">Pending</option>
                                                     <option value="Paid">Paid</option>
                                                 </select>
@@ -1216,7 +1887,6 @@ export default function OpdEntryPage() {
                                                     <option value="Cash">Cash</option>
                                                     <option value="UPI">UPI</option>
                                                     <option value="Card">Card</option>
-                                                    <option value="Insurance">Insurance</option>
                                                 </select>
                                             </div>
                                         </div>

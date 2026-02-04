@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { LayoutDashboard, Users, UserPlus, Building2, Hospital, Stethoscope, Activity, LogOut, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Users, UserPlus, Building2, Hospital, Stethoscope, Activity, LogOut, Menu, X, Settings } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
@@ -39,9 +39,11 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     const navItems = [
         { name: 'Dashboard', path: '/client/dashboard', icon: LayoutDashboard },
         { name: 'Branches', path: '/client/branches', icon: Building2 },
+        { name: 'Clinic Setup', path: '/client/clinic-setup', icon: Settings },
         { name: 'User Management', path: '/client/users', icon: Users },
         { name: 'Referrals', path: '/client/referrals', icon: Hospital },
         { name: 'Reports', path: '/client/reports', icon: Stethoscope },
+        { name: 'Schedule', path: '/client/doctor-schedule', icon: Activity },
         { name: 'Profile', path: '/client/profile', icon: Building2 },
     ];
 

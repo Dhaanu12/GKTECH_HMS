@@ -84,8 +84,19 @@ const authorize = (...allowedRoles) => {
                 return next(new AppError('User role not found.', 403));
             }
 
-            // Check if user's role is in allowed roles
-            if (!allowedRoles.includes(userWithRole.role_code)) {
+            // Debug log for authorization issues
+            console.log('🔐 Authorization check:', {
+                userId: req.user.user_id,
+                allowedRoles: allowedRoles,
+                userRoleCode: userWithRole.role_code,
+                match: allowedRoles.map(r => r.toUpperCase()).includes((userWithRole.role_code || '').toUpperCase())
+            });
+
+            // Check if user's role is in allowed roles (case-insensitive)
+            const normalizedAllowedRoles = allowedRoles.map(r => r.toUpperCase());
+            const userRoleNormalized = (userWithRole.role_code || '').toUpperCase();
+
+            if (!normalizedAllowedRoles.includes(userRoleNormalized)) {
                 return next(new AppError('You do not have permission to access this resource.', 403));
             }
 

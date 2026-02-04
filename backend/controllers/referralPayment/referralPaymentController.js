@@ -25,7 +25,12 @@ exports.downloadTemplate = async (req, res) => {
              FROM services s
              JOIN branch_services bs ON s.service_id = bs.service_id
              WHERE bs.branch_id = $1 AND bs.is_active = true 
-             ORDER BY s.service_name`,
+             UNION
+             SELECT ms.service_name
+             FROM medical_services ms
+             JOIN branch_medical_services bms ON ms.service_id = bms.service_id
+             WHERE bms.branch_id = $1 AND bms.is_active = true
+             ORDER BY service_name`,
             [branchId]
         );
 
@@ -122,7 +127,12 @@ exports.uploadReferralData = async (req, res) => {
             `SELECT s.service_name, s.service_code 
              FROM services s
              JOIN branch_services bs ON s.service_id = bs.service_id
-             WHERE bs.branch_id = $1 AND bs.is_active = true`,
+             WHERE bs.branch_id = $1 AND bs.is_active = true
+             UNION
+             SELECT ms.service_name, ms.service_code
+             FROM medical_services ms
+             JOIN branch_medical_services bms ON ms.service_id = bms.service_id
+             WHERE bms.branch_id = $1 AND bms.is_active = true`,
             [branch_id]
         );
         const serviceCodeMap = {}; // Name -> Code
