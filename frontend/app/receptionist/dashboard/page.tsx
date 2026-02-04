@@ -136,6 +136,7 @@ export default function ReceptionistDashboard() {
     const [doctorSearchQuery, setDoctorSearchQuery] = useState('');
 
     const [appointmentForm, setAppointmentForm] = useState({
+        patient_id: null as number | null,
         patient_name: '',
         phone_number: '',
         email: '',
@@ -147,6 +148,37 @@ export default function ReceptionistDashboard() {
         reason_for_visit: '',
         notes: ''
     });
+
+    // Phone search state for appointment modal
+    const [apptPhoneSearchResults, setApptPhoneSearchResults] = useState<any[]>([]);
+    const [isApptSearching, setIsApptSearching] = useState(false);
+    const [selectedApptPatient, setSelectedApptPatient] = useState<any>(null);
+
+    // Phone search useEffect - triggers when phone number has 8+ digits
+    useEffect(() => {
+        if (!appointmentForm.phone_number || appointmentForm.phone_number.length < 8) {
+            setApptPhoneSearchResults([]);
+            return;
+        }
+        const debounceTimer = setTimeout(async () => {
+            setIsApptSearching(true);
+            try {
+                const token = localStorage.getItem('token');
+                const response = await axios.get('http://localhost:5000/api/patients/search', {
+                    params: { q: appointmentForm.phone_number },
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                const results = response.data.data.patients || [];
+                setApptPhoneSearchResults(results);
+            } catch (error) {
+                console.error('Phone search error:', error);
+                setApptPhoneSearchResults([]);
+            } finally {
+                setIsApptSearching(false);
+            }
+        }, 300);
+        return () => clearTimeout(debounceTimer);
+    }, [appointmentForm.phone_number]);
 
     // --- Effects for Modal ---
     useEffect(() => {
@@ -241,27 +273,136 @@ export default function ReceptionistDashboard() {
     };
 
     const selectPatient = async (patient: any) => {
-        // For Convert to OPD: Only fill phone number first, store patient data as pending
-        // The actual fill happens after search completes (auto-fill if no results, or via dropdown selection)
+        // For Convert to OPD: Check if this appointment has a linked patient_id
+        // If yes, auto-select the patient and fill form directly
+        // If no, trigger phone search
         setPendingPatientData(patient);
-
-        setOpdForm({
-            ...opdForm,
-            contact_number: patient.contact_number || '',
-        });
-
-        // Trigger search for the prefilled phone number to show existing patients dropdown
-        if (patient.contact_number && patient.contact_number.length >= 8) {
-            setModalSearchQuery(patient.contact_number);
-        } else {
-            setModalSearchQuery('');
-            setModalSearchResults([]);
-        }
-
-        setCurrentStep('visitDetails');
-        setCompletedSteps(['search']);
         setIsFromConvertToOPD(true); // Mark as Convert to OPD mode
-        setShowModal(true);
+
+        if (patient.patient_id) {
+            // Appointment has a linked patient - fetch full details and auto-fill
+            try {
+                // Fetch full patient details to get address and other missing fields
+                const token = localStorage.getItem('token');
+                const response = await axios.get(`http://localhost:5000/api/patients/${patient.patient_id}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+
+                const fullPatient = response.data.data.patient;
+
+                setSelectedPatient(fullPatient);
+
+                // Get doctor info from appointment
+                let consultationFee = '';
+                if (patient.doctor_id) {
+                    const doc = doctors.find((d: any) => d.doctor_id === parseInt(patient.doctor_id));
+                    if (doc) {
+                        consultationFee = doc.consultation_fee?.toString() || '';
+                    }
+                }
+
+                setOpdForm({
+                    ...opdForm,
+                    first_name: fullPatient.first_name || '',
+                    last_name: fullPatient.last_name || '',
+                    age: fullPatient.age?.toString() || '',
+                    gender: fullPatient.gender || '',
+                    blood_group: fullPatient.blood_group || '',
+                    contact_number: fullPatient.contact_number || '',
+                    adhaar_number: fullPatient.aadhar_number || fullPatient.adhaar_number || '',
+                    address_line1: fullPatient.address || '',
+                    address_line2: fullPatient.address_line2 || '',
+                    city: fullPatient.city || '',
+                    state: fullPatient.state || '',
+                    pincode: fullPatient.pincode || '',
+                    doctor_id: patient.doctor_id?.toString() || '',
+                    visit_type: 'Appointment',
+                    consultation_fee: consultationFee,
+                    appointment_id: patient.appointment_id || '',
+                    chief_complaint: patient.reason_for_visit || ''
+                });
+
+                if (patient.doctor_name) {
+                    setAppointmentDoctorName(patient.doctor_name);
+                    setHasAppointment(true);
+                }
+
+                // Skip phone search - go directly to form
+                setModalSearchQuery('');
+                setModalSearchResults([]);
+                setPendingPatientData(null);
+                setCurrentStep('visitDetails');
+                setCompletedSteps(['search']);
+                setShowModal(true);
+            } catch (error) {
+                console.error("Error fetching patient details for conversion:", error);
+                // Fallback to partial data if fetch fails
+                setSelectedPatient({
+                    patient_id: patient.patient_id,
+                    first_name: patient.first_name,
+                    last_name: patient.last_name,
+                    contact_number: patient.contact_number,
+                    age: patient.age,
+                    gender: patient.gender,
+                    blood_group: patient.blood_group || ''
+                });
+
+                // Get doctor info from appointment
+                let consultationFee = '';
+                if (patient.doctor_id) {
+                    const doc = doctors.find((d: any) => d.doctor_id === parseInt(patient.doctor_id));
+                    if (doc) {
+                        consultationFee = doc.consultation_fee?.toString() || '';
+                    }
+                }
+
+                setOpdForm({
+                    ...opdForm,
+                    first_name: patient.first_name || '',
+                    last_name: patient.last_name || '',
+                    age: patient.age?.toString() || '',
+                    gender: patient.gender || '',
+                    blood_group: patient.blood_group || '',
+                    contact_number: patient.contact_number || '',
+                    adhaar_number: patient.aadhar_number || patient.adhaar_number || '',
+                    doctor_id: patient.doctor_id?.toString() || '',
+                    visit_type: 'Appointment',
+                    consultation_fee: consultationFee,
+                    appointment_id: patient.appointment_id || '',
+                    chief_complaint: patient.reason_for_visit || ''
+                });
+
+                if (patient.doctor_name) {
+                    setAppointmentDoctorName(patient.doctor_name);
+                    setHasAppointment(true);
+                }
+
+                setModalSearchQuery('');
+                setModalSearchResults([]);
+                setPendingPatientData(null);
+                setCurrentStep('visitDetails');
+                setCompletedSteps(['search']);
+                setShowModal(true);
+            }
+        } else {
+            // No patient_id - trigger phone search flow
+            setOpdForm({
+                ...opdForm,
+                contact_number: patient.contact_number || '',
+            });
+
+            // Trigger search for the prefilled phone number to show existing patients dropdown
+            if (patient.contact_number && patient.contact_number.length >= 8) {
+                setModalSearchQuery(patient.contact_number);
+            } else {
+                setModalSearchQuery('');
+                setModalSearchResults([]);
+            }
+
+            setCurrentStep('visitDetails');
+            setCompletedSteps(['search']);
+            setShowModal(true);
+        }
     };
 
     // This function is called when user clicks "Select" on a patient in the dropdown
@@ -645,6 +786,7 @@ export default function ReceptionistDashboard() {
 
     const resetAppointmentForm = () => {
         setAppointmentForm({
+            patient_id: null,
             patient_name: '',
             phone_number: '',
             email: '',
@@ -659,6 +801,23 @@ export default function ReceptionistDashboard() {
         setAppointmentStep(1);
         setBookingDepartment('');
         setSuggestedDoctorId(null);
+        setApptPhoneSearchResults([]);
+        setSelectedApptPatient(null);
+    };
+
+    // Handle selecting an existing patient from phone search dropdown
+    const handleApptPatientSelect = (patient: any) => {
+        setSelectedApptPatient(patient);
+        setAppointmentForm({
+            ...appointmentForm,
+            patient_id: patient.patient_id,
+            patient_name: `${patient.first_name} ${patient.last_name || ''}`.trim(),
+            phone_number: patient.contact_number || appointmentForm.phone_number,
+            email: patient.email || '',
+            age: patient.age?.toString() || '',
+            gender: patient.gender || ''
+        });
+        setApptPhoneSearchResults([]); // Close dropdown after selection
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -2145,11 +2304,8 @@ export default function ReceptionistDashboard() {
                                     <div className="bg-gradient-to-br from-gray-50 to-purple-50/30 rounded-2xl p-5 border border-purple-100">
                                         <h3 className="text-sm font-black text-slate-800 mb-4 uppercase tracking-wider">Patient Information</h3>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div className="md:col-span-2">
-                                                <label className="block text-xs font-bold text-slate-500 mb-1 ml-1">Patient Name *</label>
-                                                <input type="text" required value={appointmentForm.patient_name} onChange={(e) => setAppointmentForm({ ...appointmentForm, patient_name: e.target.value })} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-slate-700" placeholder="Enter Full Name" />
-                                            </div>
-                                            <div>
+                                            {/* Phone Number - First Field with Search */}
+                                            <div className="relative">
                                                 <label className="block text-xs font-bold text-slate-500 mb-1 ml-1">Phone Number *</label>
                                                 <input
                                                     type="tel"
@@ -2158,17 +2314,95 @@ export default function ReceptionistDashboard() {
                                                     onChange={(e) => {
                                                         const value = e.target.value.replace(/\D/g, "");
                                                         if (value.length <= 10) {
-                                                            setAppointmentForm({ ...appointmentForm, phone_number: value });
+                                                            setAppointmentForm({ ...appointmentForm, phone_number: value, patient_id: null });
+                                                            setSelectedApptPatient(null);
                                                         }
                                                     }}
                                                     className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-slate-700"
                                                     placeholder="10-digit number"
                                                     maxLength={10}
                                                 />
+
+                                                {/* Existing Patients Dropdown */}
+                                                {apptPhoneSearchResults.length > 0 && appointmentForm.phone_number.length >= 8 && (
+                                                    <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-50">
+                                                        <div className="flex items-center justify-between px-4 py-2 bg-slate-50 border-b border-slate-100">
+                                                            <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Existing Patients Found</span>
+                                                        </div>
+                                                        <div className="max-h-48 overflow-y-auto">
+                                                            {apptPhoneSearchResults.map((patient: any) => (
+                                                                <div
+                                                                    key={patient.patient_id}
+                                                                    className="px-4 py-3 hover:bg-purple-50 border-b border-slate-100 last:border-0 flex items-center justify-between"
+                                                                >
+                                                                    <div>
+                                                                        <p className="font-bold text-slate-800">{patient.first_name} {patient.last_name}</p>
+                                                                        <p className="text-sm text-slate-500">
+                                                                            {patient.gender}, {patient.age} yrs • ID: {patient.mrn_number}
+                                                                        </p>
+                                                                    </div>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleApptPatientSelect(patient)}
+                                                                        className="px-3 py-1.5 text-purple-600 border border-purple-200 rounded-lg text-xs font-bold hover:bg-purple-50 transition"
+                                                                    >
+                                                                        Select
+                                                                    </button>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                        <div
+                                                            className="px-4 py-3 bg-slate-50 border-t border-slate-100 flex items-center gap-2 cursor-pointer hover:bg-purple-50 transition"
+                                                            onClick={() => setApptPhoneSearchResults([])}
+                                                        >
+                                                            <div className="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center">
+                                                                <Plus className="w-4 h-4" />
+                                                            </div>
+                                                            <span className="font-semibold text-purple-600">Add New Patient</span>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Loading indicator */}
+                                                {isApptSearching && appointmentForm.phone_number.length >= 8 && (
+                                                    <div className="absolute right-3 top-1/2 translate-y-2">
+                                                        <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                                                    </div>
+                                                )}
                                             </div>
+
+                                            {/* Patient Name */}
+                                            <div className="md:col-span-2">
+                                                <div className="flex justify-between items-center mb-1 ml-1">
+                                                    <label className="block text-xs font-bold text-slate-500">Patient Name *</label>
+                                                    {selectedApptPatient && (
+                                                        <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                                            <User className="w-3 h-3" /> Selected
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <input
+                                                    type="text"
+                                                    required
+                                                    value={appointmentForm.patient_name}
+                                                    onChange={(e) => setAppointmentForm({ ...appointmentForm, patient_name: e.target.value })}
+                                                    disabled={appointmentForm.phone_number.length < 10 || (apptPhoneSearchResults.length > 0 && !selectedApptPatient)}
+                                                    className={`w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-slate-700 ${selectedApptPatient ? 'bg-purple-50 border-purple-200' : 'border-slate-200'
+                                                        } disabled:opacity-50 disabled:bg-slate-100 disabled:cursor-not-allowed`}
+                                                    placeholder="Enter Full Name"
+                                                />
+                                            </div>
+
                                             <div>
                                                 <label className="block text-xs font-bold text-slate-500 mb-1 ml-1">Email</label>
-                                                <input type="email" value={appointmentForm.email} onChange={(e) => setAppointmentForm({ ...appointmentForm, email: e.target.value })} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-slate-700 font-mono text-sm" placeholder="email@example.com" />
+                                                <input
+                                                    type="email"
+                                                    value={appointmentForm.email}
+                                                    onChange={(e) => setAppointmentForm({ ...appointmentForm, email: e.target.value })}
+                                                    disabled={appointmentForm.phone_number.length < 10 || (apptPhoneSearchResults.length > 0 && !selectedApptPatient)}
+                                                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-slate-700 font-mono text-sm disabled:opacity-50 disabled:bg-slate-100 disabled:cursor-not-allowed"
+                                                    placeholder="email@example.com"
+                                                />
                                             </div>
                                             <div>
                                                 <label className="block text-xs font-bold text-slate-500 mb-1 ml-1">Age</label>
@@ -2187,7 +2421,8 @@ export default function ReceptionistDashboard() {
                                                             input.value = input.value.slice(0, 3);
                                                         }
                                                     }}
-                                                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-slate-700"
+                                                    disabled={appointmentForm.phone_number.length < 10 || (apptPhoneSearchResults.length > 0 && !selectedApptPatient)}
+                                                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-slate-700 disabled:opacity-50 disabled:bg-slate-100 disabled:cursor-not-allowed"
                                                     placeholder="Age"
                                                     min="0"
                                                     max="999"
@@ -2195,7 +2430,12 @@ export default function ReceptionistDashboard() {
                                             </div>
                                             <div>
                                                 <label className="block text-xs font-bold text-slate-500 mb-1 ml-1">Gender</label>
-                                                <select value={appointmentForm.gender} onChange={(e) => setAppointmentForm({ ...appointmentForm, gender: e.target.value })} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-slate-700">
+                                                <select
+                                                    value={appointmentForm.gender}
+                                                    onChange={(e) => setAppointmentForm({ ...appointmentForm, gender: e.target.value })}
+                                                    disabled={appointmentForm.phone_number.length < 10 || (apptPhoneSearchResults.length > 0 && !selectedApptPatient)}
+                                                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-slate-700 disabled:opacity-50 disabled:bg-slate-100 disabled:cursor-not-allowed"
+                                                >
                                                     <option value="">Select</option>
                                                     <option value="Male">Male</option>
                                                     <option value="Female">Female</option>

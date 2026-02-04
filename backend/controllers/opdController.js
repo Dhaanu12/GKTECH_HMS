@@ -675,8 +675,8 @@ class OpdController {
             const updates = req.body;
             const branch_id = req.user.branch_id;
 
-            // Fields that can be updated by Receptionist
-            const allowedFields = [
+            // Fields that can be updated in OPD Entry
+            const opdFields = [
                 'payment_status', 'payment_method', 'consultation_fee',
                 'visit_type', 'visit_date', 'visit_time',
                 'symptoms', 'chief_complaint', 'vital_signs',
@@ -684,45 +684,115 @@ class OpdController {
                 'referral_hospital', 'referral_doctor_name'
             ];
 
-            const updateValues = [];
-            const queryParts = [];
-            let paramIndex = 1;
+            // Fields for Patient Update
+            const patientFields = [
+                'first_name', 'last_name', 'age', 'gender', 'contact_number', 'blood_group',
+                'address_line_1', 'address_line_2', 'city', 'state', 'pincode', 'adhaar_number'
+            ];
+
+            // 1. Update OPD Entry
+            const opdUpdateValues = [];
+            const opdQueryParts = [];
+            let opdParamIndex = 1;
 
             for (const key of Object.keys(updates)) {
-                if (allowedFields.includes(key)) {
-                    queryParts.push(`${key} = $${paramIndex}`);
-                    updateValues.push(updates[key]);
-                    paramIndex++;
+                if (opdFields.includes(key)) {
+                    opdQueryParts.push(`${key} = $${opdParamIndex}`);
+                    opdUpdateValues.push(updates[key]);
+                    opdParamIndex++;
                 }
             }
 
-            if (queryParts.length === 0) {
-                return next(new AppError('No valid fields to update', 400));
+            let updatedOpdEntry = null;
+
+            if (opdQueryParts.length > 0) {
+                opdUpdateValues.push(id);
+                opdUpdateValues.push(branch_id);
+
+                const queryText = `
+                    UPDATE opd_entries 
+                    SET ${opdQueryParts.join(', ')}
+                    WHERE opd_id = $${opdParamIndex} AND branch_id = $${opdParamIndex + 1}
+                    RETURNING *
+                `;
+
+                const result = await query(queryText, opdUpdateValues);
+                if (result.rows.length === 0) {
+                    return next(new AppError('OPD entry not found or unauthorized', 404));
+                }
+                updatedOpdEntry = result.rows[0];
+            } else {
+                // Fetch the entry if no OPD updates, to ensure existence and get patient_id
+                const existing = await query(`SELECT * FROM opd_entries WHERE opd_id = $1 AND branch_id = $2`, [id, branch_id]);
+                if (existing.rows.length === 0) {
+                    return next(new AppError('OPD entry not found or unauthorized', 404));
+                }
+                updatedOpdEntry = existing.rows[0];
             }
 
-            updateValues.push(id);
-            updateValues.push(branch_id);
+            // 2. Update Patient Details
+            if (updatedOpdEntry && updatedOpdEntry.patient_id) {
+                const patientUpdateValues = [];
+                const patientQueryParts = [];
+                let patientParamIndex = 1;
 
-            const queryText = `
-                UPDATE opd_entries 
-                SET ${queryParts.join(', ')}
-                WHERE opd_id = $${paramIndex} AND branch_id = $${paramIndex + 1}
-                RETURNING *
-            `;
+                // Handle mapping from frontend Request body to DB columns
+                // Frontend might send 'address_line1' but DB expects 'address'
+                // Or standardized in req.body? In createOpdEntry, we saw 'address_line_1'.
+                // Let's check the frontend payload. Frontend sends `address_line1`.
+                // Controller createOpdEntry destructures: `address_line_1` from req.body?
+                // Wait, check createOpdEntry at line 25: `address_line_1, address_line_2`
+                // But frontend opdForm has `address_line1`.
+                // Let's ensure mapping is correct.
 
-            const result = await query(queryText, updateValues);
+                // Mapping helpers
+                const mapField = (key) => {
+                    if (key === 'address_line1') return 'address'; // DB column usually 'address'
+                    if (key === 'address_line2') return 'address_line2';
+                    return key;
+                };
 
-            if (result.rows.length === 0) {
-                return next(new AppError('OPD entry not found or unauthorized', 404));
+                for (const key of Object.keys(updates)) {
+                    // Check if it's a patient field (handling the mapping mismatch if any)
+                    // Code below handles standard keys. We need to handle `address_line1` explicitly if it comes from frontend.
+                    if (['address_line1', 'address_line2', 'city', 'state', 'pincode', 'first_name', 'last_name', 'age', 'gender', 'contact_number', 'blood_group', 'adhaar_number'].includes(key)) {
+                        const dbCol = mapField(key);
+                        patientQueryParts.push(`${dbCol} = $${patientParamIndex}`);
+
+                        // Sanitize empty strings to NULL
+                        let val = updates[key];
+                        if (typeof val === 'string' && val.trim() === '') {
+                            val = null;
+                        }
+
+                        patientUpdateValues.push(val);
+                        patientParamIndex++;
+                    }
+                }
+
+                if (patientQueryParts.length > 0) {
+                    patientUpdateValues.push(updatedOpdEntry.patient_id);
+                    const patQuery = `
+                        UPDATE patients 
+                        SET ${patientQueryParts.join(', ')}
+                        WHERE patient_id = $${patientParamIndex}
+                    `;
+                    await query(patQuery, patientUpdateValues);
+                }
             }
 
             res.status(200).json({
                 status: 'success',
-                data: { opdEntry: result.rows[0] }
+                data: { opdEntry: updatedOpdEntry }
             });
         } catch (error) {
             console.error('Update OPD entry error:', error);
-            next(new AppError('Failed to update OPD entry', 500));
+            // Return specific error message for debugging
+            return res.status(500).json({
+                status: 'error',
+                message: error.message,
+                detail: error.detail || error.toString()
+            });
         }
     }
     /**

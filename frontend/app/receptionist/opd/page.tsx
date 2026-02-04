@@ -17,8 +17,8 @@ export default function OpdEntryPage() {
     const [selectedPatient, setSelectedPatient] = useState<any>(null);
     const [doctors, setDoctors] = useState<any[]>([]);
     const [dateRange, setDateRange] = useState({
-        from: new Date().toISOString().split('T')[0],
-        to: new Date().toISOString().split('T')[0]
+        from: new Date().toLocaleDateString('en-CA'), // YYYY-MM-DD in local time
+        to: new Date().toLocaleDateString('en-CA')
     });
     const [opdEntries, setOpdEntries] = useState([]);
     const [showModal, setShowModal] = useState(false);
@@ -672,7 +672,13 @@ export default function OpdEntryPage() {
             contact_number: entry.contact_number || '',
             doctor_id: entry.doctor_id,
             visit_type: entry.visit_type,
-            visit_date: new Date(entry.visit_date).toISOString().split('T')[0],
+            visit_date: (() => {
+                const d = new Date(entry.visit_date);
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            })(),
             visit_time: entry.visit_time,
             chief_complaint: entry.chief_complaint || '',
             symptoms: entry.symptoms || '',
@@ -686,7 +692,12 @@ export default function OpdEntryPage() {
             attender_contact_number: entry.attender_contact_number || '',
             adhaar_number: '',
             referral_hospital: entry.referral_hospital || '',
-            referral_doctor_name: entry.referral_doctor_name || ''
+            referral_doctor_name: entry.referral_doctor_name || '',
+            address_line1: entry.address_line1 || '',
+            address_line2: entry.address_line2 || '',
+            city: entry.city || '',
+            state: entry.state || '',
+            pincode: entry.pincode || ''
         });
 
         setSelectedPatient({
@@ -1534,38 +1545,103 @@ export default function OpdEntryPage() {
 
                                     {/* Edit Mode - Show all fields */}
                                     {editingOpdId && (
-                                        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                                            <div className="md:col-span-4">
-                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Name <span className="text-red-500">*</span></label>
-                                                <input
-                                                    type="text"
-                                                    required
-                                                    value={opdForm.first_name + (opdForm.last_name ? ' ' + opdForm.last_name : '')}
-                                                    onChange={(e) => {
-                                                        const val = e.target.value;
-                                                        const parts = val.split(' ');
-                                                        const first = parts[0];
-                                                        const last = parts.slice(1).join(' ');
-                                                        setOpdForm({ ...opdForm, first_name: first, last_name: last });
-                                                    }}
-                                                    disabled
-                                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium disabled:bg-slate-100 disabled:text-slate-500"
-                                                    placeholder="e.g. John Doe"
-                                                />
+                                        <div className="space-y-4">
+                                            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                                                <div className="md:col-span-4">
+                                                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">Name <span className="text-red-500">*</span></label>
+                                                    <input
+                                                        type="text"
+                                                        required
+                                                        value={opdForm.first_name + (opdForm.last_name ? ' ' + opdForm.last_name : '')}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value;
+                                                            const parts = val.split(' ');
+                                                            const first = parts[0];
+                                                            const last = parts.slice(1).join(' ');
+                                                            setOpdForm({ ...opdForm, first_name: first, last_name: last });
+                                                        }}
+                                                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                                                        placeholder="e.g. John Doe"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">Age <span className="text-red-500">*</span></label>
+                                                    <input type="number" required value={opdForm.age} onChange={(e) => setOpdForm({ ...opdForm, age: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium" />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">Gender <span className="text-red-500">*</span></label>
+                                                    <select required value={opdForm.gender} onChange={(e) => setOpdForm({ ...opdForm, gender: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium">
+                                                        <option value="">Select</option>
+                                                        <option value="Male">Male</option>
+                                                        <option value="Female">Female</option>
+                                                        <option value="Pediatric">Pediatric</option>
+                                                        <option value="Other">Other</option>
+                                                    </select>
+                                                </div>
+
+                                                {/* Added Missing Fields for Edit Mode */}
+                                                <div className="md:col-span-2">
+                                                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">Phone Number</label>
+                                                    <input
+                                                        type="tel"
+                                                        value={opdForm.contact_number}
+                                                        onChange={(e) => {
+                                                            const value = e.target.value.replace(/\D/g, "");
+                                                            if (value.length <= 10) setOpdForm({ ...opdForm, contact_number: value });
+                                                        }}
+                                                        maxLength={10}
+                                                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                                                        placeholder="10-digit number"
+                                                    />
+                                                </div>
+                                                <div className="md:col-span-2">
+                                                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">Blood Group</label>
+                                                    <select value={opdForm.blood_group} onChange={(e) => setOpdForm({ ...opdForm, blood_group: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium">
+                                                        <option value="">Unknown</option>
+                                                        <option value="A+">A+</option>
+                                                        <option value="A-">A-</option>
+                                                        <option value="B+">B+</option>
+                                                        <option value="B-">B-</option>
+                                                        <option value="O+">O+</option>
+                                                        <option value="O-">O-</option>
+                                                        <option value="AB+">AB+</option>
+                                                        <option value="AB-">AB-</option>
+                                                    </select>
+                                                </div>
+                                                <div className="md:col-span-2">
+                                                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">Aadhaar Number</label>
+                                                    <input
+                                                        type="text"
+                                                        value={opdForm.adhaar_number}
+                                                        onChange={(e) => {
+                                                            const value = e.target.value.replace(/\D/g, "");
+                                                            if (value.length <= 12) setOpdForm({ ...opdForm, adhaar_number: value });
+                                                        }}
+                                                        maxLength={12}
+                                                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                                                        placeholder="12-digit Aadhaar"
+                                                    />
+                                                </div>
                                             </div>
-                                            <div>
-                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Age <span className="text-red-500">*</span></label>
-                                                <input type="number" required value={opdForm.age} onChange={(e) => setOpdForm({ ...opdForm, age: e.target.value })} disabled className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium disabled:bg-slate-100 disabled:text-slate-500" />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Gender <span className="text-red-500">*</span></label>
-                                                <select required value={opdForm.gender} onChange={(e) => setOpdForm({ ...opdForm, gender: e.target.value })} disabled className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium disabled:bg-slate-100 disabled:text-slate-500">
-                                                    <option value="">Select</option>
-                                                    <option value="Male">Male</option>
-                                                    <option value="Female">Female</option>
-                                                    <option value="Pediatric">Pediatric</option>
-                                                    <option value="Other">Other</option>
-                                                </select>
+
+                                            {/* Address Details for Edit Mode */}
+                                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">ADDRESS DETAILS</h4>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    <div>
+                                                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">Address Line 1</label>
+                                                        <input type="text" value={opdForm.address_line1} onChange={(e) => setOpdForm({ ...opdForm, address_line1: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium" placeholder="House No, Street" />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">Address Line 2</label>
+                                                        <input type="text" value={opdForm.address_line2} onChange={(e) => setOpdForm({ ...opdForm, address_line2: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium" placeholder="Area, Landmark" />
+                                                    </div>
+                                                </div>
+                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
+                                                    <div> <label className="block text-xs font-semibold text-slate-700 mb-1.5">City</label> <input type="text" value={opdForm.city} onChange={(e) => setOpdForm({ ...opdForm, city: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium" /> </div>
+                                                    <div> <label className="block text-xs font-semibold text-slate-700 mb-1.5">State</label> <input type="text" value={opdForm.state} onChange={(e) => setOpdForm({ ...opdForm, state: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium" /> </div>
+                                                    <div> <label className="block text-xs font-semibold text-slate-700 mb-1.5">Pincode</label> <input type="text" value={opdForm.pincode} onChange={(e) => { const value = e.target.value.replace(/\D/g, ""); if (value.length <= 6) setOpdForm({ ...opdForm, pincode: value }); }} maxLength={6} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium" /> </div>
+                                                </div>
                                             </div>
                                         </div>
                                     )}
@@ -1919,7 +1995,7 @@ export default function OpdEntryPage() {
                                         disabled={loading}
                                         className="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg hover:shadow-blue-500/30 transition-all font-bold flex items-center gap-2 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
                                     >
-                                        {loading ? 'Saving...' : 'Register Visit'}
+                                        {loading ? 'Saving...' : (editingOpdId ? 'Update Visit' : 'Register Visit')}
                                     </button>
                                 </div>
                             </form>
