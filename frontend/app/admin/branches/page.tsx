@@ -183,7 +183,7 @@ export default function BranchesPage() {
         }
     };
 
-    const handleEdit = (branch: any) => {
+    const handleEdit = async (branch: any) => {
         setEditingBranch(branch);
         setActiveTab('details');
         setFormData({
@@ -204,6 +204,25 @@ export default function BranchesPage() {
                 : []
         });
         setShowModal(true);
+
+        try {
+            const token = localStorage.getItem('token');
+            const [deptRes, svcRes] = await Promise.all([
+                axios.get(`${API_URL}/branches/${branch.branch_id}/departments`, { headers: { Authorization: `Bearer ${token}` } }),
+                axios.get(`${API_URL}/branches/${branch.branch_id}/services`, { headers: { Authorization: `Bearer ${token}` } })
+            ]);
+
+            const deptIds = deptRes.data.data.departments.map((d: any) => Number(d.department_id));
+            const svcIds = svcRes.data.data.services.map((s: any) => Number(s.service_id));
+
+            setFormData(prev => ({
+                ...prev,
+                department_ids: deptIds,
+                service_ids: svcIds
+            }));
+        } catch (error) {
+            console.error('Error fetching branch mappings:', error);
+        }
     };
 
     const toggleStatus = async (branchId: number, currentStatus: boolean) => {
@@ -721,7 +740,8 @@ export default function BranchesPage() {
                                 )}
 
                                 {/* Departments & Services Selection - Only on Create for now */}
-                                {!editingBranch && (
+                                {/* Departments & Services Selection */}
+                                <div className="space-y-6 pt-6 border-t border-gray-200/50">
                                     <div className="space-y-6 pt-6 border-t border-gray-200/50">
                                         {/* Departments */}
                                         <div>
@@ -732,7 +752,7 @@ export default function BranchesPage() {
                                                         <input
                                                             type="checkbox"
                                                             value={dept.department_id}
-                                                            checked={formData.department_ids.includes(dept.department_id)}
+                                                            checked={formData.department_ids.includes(Number(dept.department_id))}
                                                             onChange={(e) => {
                                                                 const id = parseInt(e.target.value);
                                                                 const newIds = e.target.checked
@@ -757,7 +777,7 @@ export default function BranchesPage() {
                                                         <input
                                                             type="checkbox"
                                                             value={svc.service_id}
-                                                            checked={formData.service_ids.includes(svc.service_id)}
+                                                            checked={formData.service_ids.includes(Number(svc.service_id))}
                                                             onChange={(e) => {
                                                                 const id = parseInt(e.target.value);
                                                                 const newIds = e.target.checked
@@ -773,7 +793,7 @@ export default function BranchesPage() {
                                             </div>
                                         </div>
                                     </div>
-                                )}
+                                </div>
 
                                 <div className="flex justify-end gap-3 pt-6 border-t border-gray-200/50">
                                     <button

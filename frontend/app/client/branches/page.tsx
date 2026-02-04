@@ -12,7 +12,7 @@ const API_URL = 'http://localhost:5000/api';
 
 export default function BranchesPage() {
     const { user } = useAuth();
-    const [branches, setBranches] = useState([]);
+    const [branches, setBranches] = useState<any[]>([]);
     const [hospitals, setHospitals] = useState<any[]>([]);
     const [departments, setDepartments] = useState<any[]>([]);
     const [services, setServices] = useState<any[]>([]);
@@ -158,11 +158,11 @@ export default function BranchesPage() {
         }
     };
 
-    const handleEdit = (branch: any) => {
+    const handleEdit = async (branch: any) => {
         setEditingBranch(branch);
         setActiveTab('details');
         setFormData({
-            hospital_id: branch.hospital_id,
+            hospital_id: String(branch.hospital_id),
             branch_name: branch.branch_name,
             branch_code: branch.branch_code,
             address_line1: branch.address_line1 || '',
@@ -176,6 +176,25 @@ export default function BranchesPage() {
             service_ids: []
         });
         setShowModal(true);
+
+        try {
+            const token = localStorage.getItem('token');
+            const [deptRes, svcRes] = await Promise.all([
+                axios.get(`${API_URL}/branches/${branch.branch_id}/departments`, { headers: { Authorization: `Bearer ${token}` } }),
+                axios.get(`${API_URL}/branches/${branch.branch_id}/services`, { headers: { Authorization: `Bearer ${token}` } })
+            ]);
+
+            const deptIds = deptRes.data.data.departments.map((d: any) => Number(d.department_id));
+            const svcIds = svcRes.data.data.services.map((s: any) => Number(s.service_id));
+
+            setFormData(prev => ({
+                ...prev,
+                department_ids: deptIds,
+                service_ids: svcIds
+            }));
+        } catch (error) {
+            console.error('Error fetching branch mappings:', error);
+        }
     };
 
     const toggleStatus = async (branchId: number, currentStatus: boolean) => {
@@ -486,60 +505,58 @@ export default function BranchesPage() {
                                     </label>
                                 </div>
 
-                                {/* Departments & Services Selection - Only on Create for now */}
-                                {!editingBranch && (
-                                    <div className="space-y-6 pt-6 border-t border-gray-200/50">
-                                        {/* Departments */}
-                                        <div>
-                                            <h3 className="text-lg font-semibold text-gray-900 mb-3">Departments</h3>
-                                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-48 overflow-y-auto p-2 border border-gray-200 rounded-lg bg-gray-50/50">
-                                                {departments.map((dept: any) => (
-                                                    <label key={dept.department_id} className="flex items-center space-x-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-100 p-1 rounded">
-                                                        <input
-                                                            type="checkbox"
-                                                            value={dept.department_id}
-                                                            checked={formData.department_ids.includes(dept.department_id)}
-                                                            onChange={(e) => {
-                                                                const id = parseInt(e.target.value);
-                                                                const newIds = e.target.checked
-                                                                    ? [...formData.department_ids, id]
-                                                                    : formData.department_ids.filter((i: number) => i !== id);
-                                                                setFormData({ ...formData, department_ids: newIds });
-                                                            }}
-                                                            className="rounded text-blue-600 focus:ring-blue-500"
-                                                        />
-                                                        <span>{dept.department_name}</span>
-                                                    </label>
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        {/* Services */}
-                                        <div>
-                                            <h3 className="text-lg font-semibold text-gray-900 mb-3">Services</h3>
-                                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-60 overflow-y-auto p-2 border border-gray-200 rounded-lg bg-gray-50/50">
-                                                {services.map((svc: any) => (
-                                                    <label key={svc.service_id} className="flex items-center space-x-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-100 p-1 rounded">
-                                                        <input
-                                                            type="checkbox"
-                                                            value={svc.service_id}
-                                                            checked={formData.service_ids.includes(svc.service_id)}
-                                                            onChange={(e) => {
-                                                                const id = parseInt(e.target.value);
-                                                                const newIds = e.target.checked
-                                                                    ? [...formData.service_ids, id]
-                                                                    : formData.service_ids.filter((i: number) => i !== id);
-                                                                setFormData({ ...formData, service_ids: newIds });
-                                                            }}
-                                                            className="rounded text-blue-600 focus:ring-blue-500"
-                                                        />
-                                                        <span>{svc.service_name}</span>
-                                                    </label>
-                                                ))}
-                                            </div>
+                                {/* Departments & Services Selection */}
+                                <div className="space-y-6 pt-6 border-t border-gray-200/50">
+                                    {/* Departments */}
+                                    <div>
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-3">Departments</h3>
+                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-48 overflow-y-auto p-2 border border-gray-200 rounded-lg bg-gray-50/50">
+                                            {departments.map((dept: any) => (
+                                                <label key={dept.department_id} className="flex items-center space-x-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-100 p-1 rounded">
+                                                    <input
+                                                        type="checkbox"
+                                                        value={dept.department_id}
+                                                        checked={formData.department_ids.includes(Number(dept.department_id))}
+                                                        onChange={(e) => {
+                                                            const id = parseInt(e.target.value);
+                                                            const newIds = e.target.checked
+                                                                ? [...formData.department_ids, id]
+                                                                : formData.department_ids.filter((i: number) => i !== id);
+                                                            setFormData({ ...formData, department_ids: newIds });
+                                                        }}
+                                                        className="rounded text-blue-600 focus:ring-blue-500"
+                                                    />
+                                                    <span>{dept.department_name}</span>
+                                                </label>
+                                            ))}
                                         </div>
                                     </div>
-                                )}
+
+                                    {/* Services */}
+                                    <div>
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-3">Services</h3>
+                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-60 overflow-y-auto p-2 border border-gray-200 rounded-lg bg-gray-50/50">
+                                            {services.map((svc: any) => (
+                                                <label key={svc.service_id} className="flex items-center space-x-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-100 p-1 rounded">
+                                                    <input
+                                                        type="checkbox"
+                                                        value={svc.service_id}
+                                                        checked={formData.service_ids.includes(Number(svc.service_id))}
+                                                        onChange={(e) => {
+                                                            const id = parseInt(e.target.value);
+                                                            const newIds = e.target.checked
+                                                                ? [...formData.service_ids, id]
+                                                                : formData.service_ids.filter((i: number) => i !== id);
+                                                            setFormData({ ...formData, service_ids: newIds });
+                                                        }}
+                                                        className="rounded text-blue-600 focus:ring-blue-500"
+                                                    />
+                                                    <span>{svc.service_name}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
 
                                 <div className="flex justify-end gap-3 pt-6 border-t border-gray-200/50">
                                     <button

@@ -136,10 +136,19 @@ class HospitalController {
             await client.query(staffBranchQuery, [newStaff.staff_id, newBranch.branch_id]);
 
             // 8. Link Departments and Services to Main Branch if provided
-            const { department_ids, service_ids } = req.body;
+            let depts = req.body.department_ids || req.body['department_ids[]'];
+            let svcs = req.body.service_ids || req.body['service_ids[]'];
 
-            if (department_ids && department_ids.length > 0) {
-                for (const deptId of department_ids) {
+            // Handle potential string formats from multipart
+            if (typeof depts === 'string') { try { depts = JSON.parse(depts); } catch (e) { depts = [depts]; } }
+            if (typeof svcs === 'string') { try { svcs = JSON.parse(svcs); } catch (e) { svcs = [svcs]; } }
+
+            const deptIds = Array.isArray(depts) ? depts : (depts ? [depts] : []);
+            const svcIds = Array.isArray(svcs) ? svcs : (svcs ? [svcs] : []);
+
+            if (deptIds.length > 0) {
+                for (const deptId of deptIds) {
+                    if (!deptId) continue;
                     await client.query(
                         'INSERT INTO branch_departments (branch_id, department_id, is_operational) VALUES ($1, $2, true) ON CONFLICT DO NOTHING',
                         [newBranch.branch_id, deptId]
@@ -147,8 +156,9 @@ class HospitalController {
                 }
             }
 
-            if (service_ids && service_ids.length > 0) {
-                for (const svcId of service_ids) {
+            if (svcIds.length > 0) {
+                for (const svcId of svcIds) {
+                    if (!svcId) continue;
                     await client.query(
                         'INSERT INTO branch_services (branch_id, service_id, is_active) VALUES ($1, $2, true) ON CONFLICT DO NOTHING',
                         [newBranch.branch_id, svcId]
@@ -257,16 +267,123 @@ class HospitalController {
                 }
             }
 
-            const updatedHospital = await Hospital.update(id, updates);
+            // Extract mapping fields to avoid sending them to Hospitals table
+            const { department_ids, service_ids, ...hospitalUpdates } = updates;
+            delete hospitalUpdates['department_ids[]'];
+            delete hospitalUpdates['service_ids[]'];
+
+            const updatedHospital = await Hospital.update(id, hospitalUpdates);
 
             if (!updatedHospital) {
                 return next(new AppError('Hospital not found', 404));
+            }
+
+            // Update Mappings in Main Branch if provided
+            const deptInput = department_ids || req.body['department_ids[]'];
+            const svcInput = service_ids || req.body['service_ids[]'];
+
+            if (deptInput !== undefined || svcInput !== undefined) {
+                // Find main branch
+                const branchResult = await pool.query(
+                    'SELECT branch_id FROM branches WHERE hospital_id = $1 ORDER BY created_at ASC LIMIT 1',
+                    [id]
+                );
+
+                if (branchResult.rows.length > 0) {
+                    const mainBranchId = branchResult.rows[0].branch_id;
+
+                    // Update Departments
+                    if (deptInput !== undefined) {
+                        let depts = deptInput;
+                        if (typeof depts === 'string') { try { depts = JSON.parse(depts); } catch (e) { depts = [depts]; } }
+                        const finalDeptIds = Array.isArray(depts) ? depts : (depts ? [depts] : []);
+
+                        await pool.query(
+                            'UPDATE branch_departments SET is_operational = false WHERE branch_id = $1',
+                            [mainBranchId]
+                        );
+
+                        for (const deptId of finalDeptIds) {
+                            if (!deptId) continue;
+                            await pool.query(
+                                `INSERT INTO branch_departments (branch_id, department_id, is_operational) 
+                                 VALUES ($1, $2, true) 
+                                 ON CONFLICT (branch_id, department_id) 
+                                 DO UPDATE SET is_operational = true`,
+                                [mainBranchId, deptId]
+                            );
+                        }
+                    }
+
+                    // Update Services
+                    if (svcInput !== undefined) {
+                        let svcs = svcInput;
+                        if (typeof svcs === 'string') { try { svcs = JSON.parse(svcs); } catch (e) { svcs = [svcs]; } }
+                        const finalSvcIds = Array.isArray(svcs) ? svcs : (svcs ? [svcs] : []);
+
+                        await pool.query(
+                            'UPDATE branch_services SET is_active = false WHERE branch_id = $1',
+                            [mainBranchId]
+                        );
+
+                        for (const svcId of finalSvcIds) {
+                            if (!svcId) continue;
+                            await pool.query(
+                                `INSERT INTO branch_services (branch_id, service_id, is_active) 
+                                 VALUES ($1, $2, true) 
+                                 ON CONFLICT (branch_id, service_id) 
+                                 DO UPDATE SET is_active = true`,
+                                [mainBranchId, svcId]
+                            );
+                        }
+                    }
+                }
             }
 
             res.status(200).json({
                 status: 'success',
                 message: 'Hospital updated successfully',
                 data: { hospital: updatedHospital }
+            });
+        } catch (error) {
+            next(new AppError(error.message, 500));
+        }
+    }
+
+    /**
+     * Get Hospital Mappings (Departments and Services via Main Branch)
+     * Accessible by: SUPER_ADMIN, CLIENT_ADMIN
+     */
+    static async getHospitalMappings(req, res, next) {
+        try {
+            const { id } = req.params;
+
+            // Find main branch
+            const branchResult = await pool.query(
+                'SELECT branch_id FROM branches WHERE hospital_id = $1 ORDER BY created_at ASC LIMIT 1',
+                [id]
+            );
+
+            if (branchResult.rows.length === 0) {
+                return res.status(200).json({
+                    status: 'success',
+                    data: { departments: [], services: [] }
+                });
+            }
+
+            const mainBranchId = branchResult.rows[0].branch_id;
+
+            // Fetch Departments
+            const BranchDepartment = require('../models/BranchDepartment');
+            const departments = await BranchDepartment.findByBranch(mainBranchId);
+
+            // Fetch Services
+            const BranchService = require('../models/BranchService');
+            const services = await BranchService.findByBranch(mainBranchId);
+
+            res.status(200).json({
+                status: 'success',
+                data: { departments, services }
             });
         } catch (error) {
             next(new AppError(error.message, 500));

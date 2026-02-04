@@ -132,6 +132,50 @@ class BranchController {
                 return next(new AppError('Branch not found', 404));
             }
 
+            // Update Mappings if provided
+            const { department_ids, service_ids } = req.body;
+            const { pool } = require('../config/db');
+
+            // Update Departments
+            if (department_ids !== undefined) {
+                await pool.query(
+                    'UPDATE branch_departments SET is_operational = false WHERE branch_id = $1',
+                    [id]
+                );
+
+                if (department_ids.length > 0) {
+                    for (const deptId of department_ids) {
+                        await pool.query(
+                            `INSERT INTO branch_departments (branch_id, department_id, is_operational)
+                              VALUES ($1, $2, true)
+                              ON CONFLICT (branch_id, department_id)
+                              DO UPDATE SET is_operational = true`,
+                            [id, deptId]
+                        );
+                    }
+                }
+            }
+
+            // Update Services
+            if (service_ids !== undefined) {
+                await pool.query(
+                    'UPDATE branch_services SET is_active = false WHERE branch_id = $1',
+                    [id]
+                );
+
+                if (service_ids.length > 0) {
+                    for (const svcId of service_ids) {
+                        await pool.query(
+                            `INSERT INTO branch_services (branch_id, service_id, is_active)
+                              VALUES ($1, $2, true)
+                              ON CONFLICT (branch_id, service_id)
+                              DO UPDATE SET is_active = true`,
+                            [id, svcId]
+                        );
+                    }
+                }
+            }
+
             res.status(200).json({
                 status: 'success',
                 data: { branch: updatedBranch }
@@ -140,7 +184,6 @@ class BranchController {
             next(new AppError(error.message, 500));
         }
     }
-
     /**
      * Get Branches by Hospital
      */
@@ -229,6 +272,43 @@ class BranchController {
             res.status(200).json({
                 status: 'success',
                 data: { branch }
+            });
+        } catch (error) {
+            next(new AppError(error.message, 500));
+        }
+    }
+    /**
+     * Get Departments by Branch ID
+     */
+    static async getBranchDepartments(req, res, next) {
+        try {
+            const { id } = req.params;
+            const BranchDepartment = require('../models/BranchDepartment');
+            const departments = await BranchDepartment.findByBranch(id);
+
+            res.status(200).json({
+                status: 'success',
+                results: departments.length,
+                data: { departments }
+            });
+        } catch (error) {
+            next(new AppError(error.message, 500));
+        }
+    }
+
+    /**
+     * Get Services by Branch ID
+     */
+    static async getBranchServices(req, res, next) {
+        try {
+            const { id } = req.params;
+            const BranchService = require('../models/BranchService');
+            const services = await BranchService.findByBranch(id);
+
+            res.status(200).json({
+                status: 'success',
+                results: services.length,
+                data: { services }
             });
         } catch (error) {
             next(new AppError(error.message, 500));
