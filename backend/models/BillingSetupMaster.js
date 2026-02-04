@@ -31,6 +31,22 @@ class BillingSetupMaster extends BaseModel {
     async findByBranch(branchId) {
         return await this.findAll({ branch_id: branchId, is_active: true });
     }
+
+    /**
+     * Find by branch and service
+     * @param {Number} branchId
+     * @param {String} serviceName
+     * @param {String} typeOfService
+     * @returns {Promise<Object|null>}
+     */
+    async findByBranchAndService(branchId, serviceName, typeOfService) {
+        return await this.findOne({
+            branch_id: branchId,
+            service_name: serviceName,
+            type_of_service: typeOfService,
+            is_active: true
+        });
+    }
 }
 
 module.exports = new BillingSetupMaster();

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import axios from 'axios';
 import { Plus, Edit2, ChevronDown, ChevronRight, IndianRupee, Trash2, Copy, Save, X } from 'lucide-react';
 import PackageModal from './PackageModal';
@@ -33,7 +33,7 @@ export default function BillingSetupFormNew({ branchId, onClose, branches = [] }
     const [bulkCharges, setBulkCharges] = useState({ patient_charge: '', b2b_charge: '', special_charge: '' });
     const [showPackageModal, setShowPackageModal] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
-    const [editingRows, setEditingRows] = useState<Map<number, { patient_charge: string; b2b_charge: string; special_charge: string }>>(new Map());
+    const [editingRows, setEditingRows] = useState<Map<number, { patient_charge: string; b2b_charge: string; special_charge: string; package_items?: any[] }>>(new Map());
 
     useEffect(() => {
         if (branchId) {
@@ -288,8 +288,8 @@ export default function BillingSetupFormNew({ branchId, onClose, branches = [] }
                                     const editData = editingRows.get(idx);
 
                                     return (
-                                        <>
-                                            <tr key={idx} className={`border-b hover:bg-gray-50 ${service.is_package ? 'bg-blue-50' : ''} ${isEditing ? 'bg-yellow-50' : ''}`}>
+                                        <Fragment key={idx}>
+                                            <tr className={`border-b hover:bg-gray-50 ${service.is_package ? 'bg-blue-50' : ''} ${isEditing ? 'bg-yellow-50' : ''}`}>
                                                 <td className="p-3">
                                                     <input
                                                         type="checkbox"
@@ -419,7 +419,7 @@ export default function BillingSetupFormNew({ branchId, onClose, branches = [] }
                                                     </tr>
                                                 ))
                                             )}
-                                        </>
+                                        </Fragment>
                                     );
                                 })
                             )}
