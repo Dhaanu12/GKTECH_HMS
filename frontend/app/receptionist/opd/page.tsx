@@ -93,7 +93,6 @@ export default function OpdEntryPage() {
 
 
 
-
     const [opdForm, setOpdForm] = useState({
         first_name: '',
         last_name: '',
@@ -138,7 +137,6 @@ export default function OpdEntryPage() {
     useEffect(() => {
         fetchDoctors();
         // fetchOpdEntries(); // Triggered by dateRange effect
-
         fetchDashboardStats();
     }, []);
 
@@ -244,7 +242,6 @@ export default function OpdEntryPage() {
     };
 
 
-
     const fetchDashboardStats = async () => {
         try {
             const token = localStorage.getItem('token');
@@ -273,7 +270,6 @@ export default function OpdEntryPage() {
             console.error('Error fetching dashboard stats:', error);
         }
     };
-
 
 
     const handleSearch = async () => {
@@ -864,7 +860,6 @@ export default function OpdEntryPage() {
             </div>
 
             {/* Follow-up Queue Widget (Smart Follow-up Scheduling) */}
-
 
             {/* Main Content Area */}
             <div className="glass-panel rounded-3xl overflow-hidden p-1">

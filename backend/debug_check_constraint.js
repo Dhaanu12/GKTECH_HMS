@@ -16,7 +16,7 @@ async function checkConstraint() {
         const query = `
             SELECT constraint_name, check_clause
             FROM information_schema.check_constraints
-            WHERE constraint_name = 'appointments_appointment_status_check';
+            WHERE constraint_name IN ('patients_gender_check', 'appointments_gender_check');
         `;
 
         const res = await client.query(query);

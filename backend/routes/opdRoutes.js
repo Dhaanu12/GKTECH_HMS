@@ -10,7 +10,7 @@ router.use(authenticate);
 router.get('/stats/analytics', authorize('RECEPTIONIST', 'CLIENT_ADMIN', 'ADMIN', 'DOCTOR'), opdController.getAnalytics);
 
 // GET /api/opd - Get OPD entries for branch
-router.get('/', authorize('RECEPTIONIST', 'DOCTOR', 'CLIENT_ADMIN'), opdController.getOpdEntries);
+router.get('/', authorize('RECEPTIONIST', 'DOCTOR', 'CLIENT_ADMIN', 'NURSE'), opdController.getOpdEntries);
 
 // GET /api/opd/stats - Get dashboard stats (Receptionist only)
 router.get('/stats', authorize('RECEPTIONIST'), opdController.getDashboardStats);
@@ -26,6 +26,9 @@ router.post('/', authorize('RECEPTIONIST'), opdController.createOpdEntry);
 
 // PATCH /api/opd/:id/payment - Update payment status (Receptionist only)
 router.patch('/:id/payment', authorize('RECEPTIONIST'), opdController.updatePaymentStatus);
+
+// PATCH /api/opd/:id/vitals - Update vitals only (Nurse, Doctor, Receptionist)
+router.patch('/:id/vitals', authorize('NURSE', 'DOCTOR', 'RECEPTIONIST', 'CLIENT_ADMIN'), opdController.updateVitals);
 
 // PATCH /api/opd/:id - Update OPD entry (Receptionist only)
 router.patch('/:id', authorize('RECEPTIONIST'), opdController.updateOpdEntry);

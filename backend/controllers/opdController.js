@@ -627,6 +627,45 @@ class OpdController {
         }
     }
     /**
+     * Update Vitals for an OPD Entry
+     * PATCH /api/opd/:id/vitals
+     * Accessible by Nurse, Doctor, Receptionist
+     */
+    static async updateVitals(req, res, next) {
+        try {
+            const { id } = req.params;
+            const { vital_signs, notes } = req.body;
+
+            if (!vital_signs || typeof vital_signs !== 'object') {
+                return next(new AppError('vital_signs object is required', 400));
+            }
+
+            // Update the vital_signs JSONB field
+            const result = await query(`
+                UPDATE opd_entries 
+                SET vital_signs = $1,
+                    notes = CASE WHEN $2 IS NOT NULL THEN COALESCE(notes, '') || E'\n' || $2 ELSE notes END,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE opd_id = $3
+                RETURNING opd_id, opd_number, patient_id, vital_signs, notes, updated_at
+            `, [JSON.stringify(vital_signs), notes || null, id]);
+
+            if (result.rows.length === 0) {
+                return next(new AppError('OPD entry not found', 404));
+            }
+
+            res.status(200).json({
+                status: 'success',
+                message: 'Vitals updated successfully',
+                data: { opdEntry: result.rows[0] }
+            });
+        } catch (error) {
+            console.error('Update vitals error:', error);
+            next(new AppError('Failed to update vitals', 500));
+        }
+    }
+
+    /**
      * Update OPD Entry
      * PATCH /api/opd/:id
      */

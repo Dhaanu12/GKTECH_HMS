@@ -45,6 +45,10 @@ router.get('/', (req, res) => {
             appointments: '/api/appointments',
             opd: '/api/opd',
             shifts: '/api/shifts',
+            labOrders: '/api/lab-orders',
+            patientDocuments: '/api/patient-documents',
+            vitals: '/api/vitals',
+            clinicalNotes: '/api/clinical-notes',
         },
     });
 });
@@ -80,5 +84,10 @@ router.use('/feedback', require('./feedbackRoutes'));
 // ... other routes
 router.use('/templates', require('./templateRoutes'));
 router.use('/doctor-schedules', require('./doctorScheduleRoutes')); // Added new route
+router.use('/feedback', require('./feedbackRoutes'));
+router.use('/lab-orders', require('./labOrderRoutes'));
+router.use('/patient-documents', require('./patientDocumentRoutes'));
+router.use('/vitals', require('./vitalsRoutes'));
+router.use('/clinical-notes', require('./clinicalNotesRoutes'));
 
 module.exports = router;
