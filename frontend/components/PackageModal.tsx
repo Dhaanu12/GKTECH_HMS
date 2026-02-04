@@ -5,7 +5,7 @@ import { Plus, Trash2, X } from 'lucide-react';
 const API_URL = 'http://localhost:5000/api';
 
 interface PackageDetail {
-    type: 'Lab Test' | 'Scan' | 'Procedure';
+    type: 'Lab Test' | 'Scan' | 'Procedure' | 'Other Service';
     service_name: string;
     patient_charge: string;
     b2b_charge: string;
@@ -65,7 +65,8 @@ export default function PackageModal({ branchId, onClose, onSuccess }: PackageMo
             const categoryMap: Record<string, string> = {
                 'Lab Test': 'lab_test',
                 'Scan': 'scan',
-                'Procedure': 'procedure'
+                'Procedure': 'procedure',
+                'Other Service': 'General'
             };
             const mappedCategory = categoryMap[rowType] || 'lab_test';
 
@@ -220,6 +221,7 @@ export default function PackageModal({ branchId, onClose, onSuccess }: PackageMo
                                                     <option value="Lab Test">Lab Test</option>
                                                     <option value="Scan">Scan</option>
                                                     <option value="Procedure">Procedure</option>
+                                                    <option value="Other Service">Other Service</option>
                                                 </select>
                                             </div>
                                             <div className="col-span-2 relative">

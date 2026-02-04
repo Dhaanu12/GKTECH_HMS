@@ -28,7 +28,18 @@ class BillingSetupController {
                     AND bms.is_active = true
                     AND ms.service_name ILIKE $2
                     ${category ? 'AND ms.category ILIKE $3' : ''}
-                    ORDER BY ms.service_name ASC
+                    
+                    UNION ALL
+                    
+                    SELECT s.service_id, s.service_name, s.service_category as category
+                    FROM branch_services bs
+                    JOIN services s ON bs.service_id = s.service_id
+                    WHERE bs.branch_id = $1 
+                    AND bs.is_active = true
+                    AND s.service_name ILIKE $2
+                    ${category ? 'AND s.service_category ILIKE $3' : ''}
+                    
+                    ORDER BY service_name ASC
                 `;
 
                 const params = category
@@ -394,6 +405,27 @@ class BillingSetupController {
                     AND bs.service_name = ms.service_name
                     AND bs.type_of_service = ms.category
                 WHERE bms.branch_id = $1 AND bms.is_active = true
+                
+                UNION ALL
+                
+                SELECT 
+                    s.service_id,
+                    s.service_name,
+                    s.service_category as category,
+                    s.service_category as type_of_service,
+                    bs.billing_setup_id,
+                    bs.uuid,
+                    COALESCE(bs.patient_charge, '0.00') as patient_charge,
+                    COALESCE(bs.b2b_charge, '0.00') as b2b_charge,
+                    COALESCE(bs.special_charge, '0.00') as special_charge,
+                    false as is_package
+                FROM branch_services bs_tbl
+                JOIN services s ON bs_tbl.service_id = s.service_id
+                LEFT JOIN billing_setup_master bs ON 
+                    bs.branch_id = bs_tbl.branch_id 
+                    AND bs.service_name = s.service_name
+                    AND bs.type_of_service = s.service_category
+                WHERE bs_tbl.branch_id = $1 AND bs_tbl.is_active = true
                 
                 UNION ALL
                 
