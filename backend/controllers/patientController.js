@@ -143,31 +143,66 @@ class PatientController {
                 return PatientController.getAllPatients(req, res, next);
             }
 
-            let sql = 'SELECT * FROM patients WHERE is_active = true';
+            // Enhanced query with last visit info via LEFT JOIN LATERAL
+            let sql = `
+                SELECT 
+                    p.*,
+                    lv.visit_date as last_visit_date,
+                    lv.doctor_id as last_doctor_id,
+                    lv.visit_type as last_visit_type,
+                    lv.consultation_fee as last_consultation_fee,
+                    d.first_name as last_doctor_first_name,
+                    d.last_name as last_doctor_last_name,
+                    d.specialization as last_doctor_specialization
+                FROM patients p
+                LEFT JOIN LATERAL (
+                    SELECT visit_date, doctor_id, visit_type, consultation_fee
+                    FROM opd_entries
+                    WHERE patient_id = p.patient_id
+                    ORDER BY visit_date DESC, created_at DESC
+                    LIMIT 1
+                ) lv ON true
+                LEFT JOIN doctors d ON lv.doctor_id = d.doctor_id
+                WHERE p.is_active = true
+            `;
             let params = [];
 
             if (type === 'phone') {
-                sql += ' AND contact_number LIKE $1';
+                sql += ' AND p.contact_number LIKE $1';
                 params.push(`%${q}%`);
             } else if (type === 'mrn') {
-                sql += ' AND mrn_number ILIKE $1';
+                sql += ' AND p.mrn_number ILIKE $1';
                 params.push(`%${q}%`);
             } else if (type === 'code') {
-                sql += ' AND patient_code ILIKE $1';
+                sql += ' AND p.patient_code ILIKE $1';
                 params.push(`%${q}%`);
             } else {
-                // General search
-                sql += ' AND (first_name ILIKE $1 OR last_name ILIKE $1 OR contact_number LIKE $1 OR mrn_number ILIKE $1 OR patient_code ILIKE $1)';
+                // General search: name, phone, mrn, code
+                sql += ' AND (p.first_name ILIKE $1 OR p.last_name ILIKE $1 OR p.contact_number LIKE $1 OR p.mrn_number ILIKE $1 OR p.patient_code ILIKE $1)';
                 params.push(`%${q}%`);
             }
 
-            sql += ' ORDER BY created_at DESC LIMIT 20';
+            sql += ' ORDER BY p.created_at DESC LIMIT 10';
 
             const result = await query(sql, params);
 
+            // Calculate days since last visit for follow-up detection
+            const patients = result.rows.map(patient => {
+                const lastVisitDate = patient.last_visit_date ? new Date(patient.last_visit_date) : null;
+                const daysSinceLastVisit = lastVisitDate
+                    ? Math.floor((new Date() - lastVisitDate) / (1000 * 60 * 60 * 24))
+                    : null;
+
+                return {
+                    ...patient,
+                    days_since_last_visit: daysSinceLastVisit,
+                    is_follow_up_candidate: daysSinceLastVisit !== null && daysSinceLastVisit <= 30
+                };
+            });
+
             res.status(200).json({
                 status: 'success',
-                data: { patients: result.rows }
+                data: { patients }
             });
         } catch (error) {
             console.error('Search patients error:', error);

@@ -59,7 +59,7 @@ class DoctorController {
                 userId, first_name, last_name, doctorCode, specialization,
                 registration_number, qualification, experienceYears, consultationFee,
                 address, bank_name, account_number, ifsc_code, doctor_type || 'In-house', signature_url,
-                gender, dateOfBirth
+                gender, date_of_birth
             ];
             const doctorResult = await client.query(doctorQuery, doctorValues);
             const newDoctor = doctorResult.rows[0];
@@ -287,7 +287,7 @@ class DoctorController {
                 SELECT c.outcome_id, c.opd_id, c.patient_id, c.created_at,
                        p.first_name || ' ' || p.last_name as patient_name,
                        p.age, p.gender, p.mrn_number,
-                       o.visit_time, o.chief_complaint,
+                       o.visit_time, o.chief_complaint, o.consultation_fee,
                        c.diagnosis,
                        'Completed' as source
                 FROM consultation_outcomes c

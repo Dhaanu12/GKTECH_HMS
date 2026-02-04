@@ -126,7 +126,7 @@ export default function PatientsPage() {
                                     </td>
                                     <td className="px-8 py-5">
                                         <p className="text-sm font-medium text-slate-700">{patient.contact_number}</p>
-                                        {patient.city && <p className="text-xs text-slate-500 mt-0.5">{patient.city}</p>}
+                                        <p className="text-xs text-slate-500 mt-0.5">{patient.city}</p>
                                     </td>
                                     <td className="px-8 py-5">
                                         <div className="flex flex-col gap-1 items-start">

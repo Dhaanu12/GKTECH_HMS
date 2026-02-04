@@ -97,7 +97,8 @@ class BranchController {
                 'branch_name', 'branch_code', 'address_line1',
                 'city', 'state', 'pincode', 'contact_number',
                 'emergency_available', 'mlc_fee', 'is_active',
-                'enabled_modules'
+                'enabled_modules',
+                'consultation_rooms', 'daycare_available', 'daycare_beds', 'clinic_schedule'
             ];
 
             allowedFields.forEach(field => {

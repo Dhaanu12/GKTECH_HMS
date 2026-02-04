@@ -4,7 +4,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 import Link from 'next/link';
-import { LayoutDashboard, Users, LogOut, HeartPulse, MessageSquare } from 'lucide-react';
+import { LayoutDashboard, Users, LogOut, HeartPulse, MessageSquare, Beaker } from 'lucide-react';
 
 export default function NurseLayout({ children }: { children: React.ReactNode }) {
     const { isAuthenticated, loading, user, logout } = useAuth();
@@ -34,6 +34,7 @@ export default function NurseLayout({ children }: { children: React.ReactNode })
 
     const navItems = [
         { name: 'Dashboard', path: '/nurse/dashboard', icon: LayoutDashboard },
+        { name: 'Lab Schedule', path: '/nurse/lab-schedule', icon: Beaker },
         { name: 'Patients', path: '/nurse/patients', icon: Users },
         { name: 'Feedbacks', path: '/nurse/feedbacks', icon: MessageSquare },
     ];

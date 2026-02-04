@@ -335,8 +335,9 @@ export default function DoctorPrescriptions() {
                             {/* Section 2: Clinical Notes with AI Scribe */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label className="block text-sm font-semibold text-slate-700 mb-2">Diagnosis</label>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-2">Diagnosis <span className="text-red-500">*</span></label>
                                     <textarea
+                                        required
                                         value={details.diagnosis}
                                         onChange={(e) => setDetails({ ...details, diagnosis: e.target.value })}
                                         className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-none h-32"
@@ -414,8 +415,9 @@ export default function DoctorPrescriptions() {
                                                     type="text"
                                                     value={med.dosage}
                                                     onChange={(e) => updateMedication(index, 'dosage', e.target.value)}
-                                                    placeholder="Dose (500mg)"
+                                                    placeholder="Dose (500mg) *"
                                                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white transition-colors"
+                                                    required
                                                 />
                                             </div>
                                             <div className="w-full md:w-28">
@@ -423,8 +425,9 @@ export default function DoctorPrescriptions() {
                                                     type="text"
                                                     value={med.frequency}
                                                     onChange={(e) => updateMedication(index, 'frequency', e.target.value)}
-                                                    placeholder="Freq (1-0-1)"
+                                                    placeholder="Freq (1-0-1) *"
                                                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white transition-colors"
+                                                    required
                                                 />
                                             </div>
                                             <div className="w-full md:w-28">
