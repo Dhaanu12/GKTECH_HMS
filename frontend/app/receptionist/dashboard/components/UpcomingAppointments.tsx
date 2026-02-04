@@ -12,7 +12,14 @@ interface UpcomingAppointmentsProps {
     refreshTrigger?: number;
 }
 
-export default function UpcomingAppointments({ doctors, onConvertToOPD, refreshTrigger = 0 }: UpcomingAppointmentsProps) {
+interface UpcomingAppointmentsProps {
+    doctors: any[];
+    onConvertToOPD: (patient: any) => void;
+    refreshTrigger?: number;
+    onAppointmentUpdate?: () => void;
+}
+
+export default function UpcomingAppointments({ doctors, onConvertToOPD, refreshTrigger = 0, onAppointmentUpdate }: UpcomingAppointmentsProps) {
     const [activeTab, setActiveTab] = useState<'Upcoming' | 'Missed'>('Upcoming');
     const [appointments, setAppointments] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
@@ -36,9 +43,11 @@ export default function UpcomingAppointments({ doctors, onConvertToOPD, refreshT
         doctor_id: '',
         reason: ''
     });
+    const [doctorSchedules, setDoctorSchedules] = useState<any[]>([]);
 
     useEffect(() => {
         fetchAppointments();
+        fetchDoctorSchedules();
         // Removed localStorage logic
     }, [selectedDate, refreshTrigger]);
 
@@ -93,6 +102,18 @@ export default function UpcomingAppointments({ doctors, onConvertToOPD, refreshT
             console.error('Error fetching appointments:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchDoctorSchedules = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.get('http://localhost:5000/api/doctor-schedules', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setDoctorSchedules(response.data.data.schedules || []);
+        } catch (error) {
+            console.error('Error fetching doctor schedules:', error);
         }
     };
 
@@ -223,26 +244,89 @@ export default function UpcomingAppointments({ doctors, onConvertToOPD, refreshT
 
     // --- Reschedule & Cancel Logic ---
 
-    const generateTimeSlots = (category: 'Morning' | 'Afternoon' | 'Evening') => {
-        const slots = [];
-        let startHour, endHour;
-
-        if (category === 'Morning') {
-            startHour = 9; // 9:00 AM
-            endHour = 11;  // 11:30 AM (Last slot)
-        } else if (category === 'Afternoon') {
-            startHour = 12; // 12:00 PM
-            endHour = 15;   // 3:30 PM
-        } else {
-            startHour = 16; // 4:00 PM
-            endHour = 19;   // 7:30 PM
+    const generateTimeSlotsFromSchedule = (doctorId: string, selectedDate: string) => {
+        if (!doctorId || !selectedDate) {
+            return [];
         }
 
-        for (let h = startHour; h <= endHour; h++) {
-            slots.push(`${h.toString().padStart(2, '0')}:00`);
-            slots.push(`${h.toString().padStart(2, '0')}:30`);
+        const date = new Date(selectedDate);
+        const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
+
+        const doctorDaySchedules = doctorSchedules.filter(
+            (schedule: any) =>
+                schedule.doctor_id === parseInt(doctorId) &&
+                schedule.day_of_week === dayOfWeek
+        );
+
+        if (doctorDaySchedules.length === 0) {
+            return [];
         }
-        return slots;
+
+        const slots: string[] = [];
+        doctorDaySchedules.forEach((schedule: any) => {
+            const startTime = schedule.start_time;
+            const endTime = schedule.end_time;
+            const consultationTime = schedule.avg_consultation_time || 30;
+
+            const parseTime = (timeStr: string) => {
+                const [hours, minutes] = timeStr.split(':').map(Number);
+                const d = new Date();
+                d.setHours(hours, minutes, 0, 0);
+                return d;
+            };
+
+            let current = parseTime(startTime);
+            const end = parseTime(endTime);
+
+            // Create cutoff time for today
+            const now = new Date();
+            const isToday = new Date(selectedDate).toDateString() === now.toDateString();
+            // 15 minute buffer
+            const cutoffTime = new Date(now.getTime() + 15 * 60000);
+
+            while (current < end) {
+                // If it is today, ensure the slot is after the cutoff time
+                if (isToday) {
+                    const slotTime = new Date(now);
+                    slotTime.setHours(current.getHours(), current.getMinutes(), 0, 0);
+                    // Filter out past slots + 15 min buffer
+                    if (slotTime > cutoffTime) {
+                        const timeStr = current.toTimeString().slice(0, 5);
+                        slots.push(timeStr);
+                    }
+                } else {
+                    const timeStr = current.toTimeString().slice(0, 5);
+                    slots.push(timeStr);
+                }
+                current = new Date(current.getTime() + consultationTime * 60000);
+            }
+        });
+
+        const uniqueSlots = Array.from(new Set(slots)).sort();
+
+        // Map slots to status
+        return uniqueSlots.map(time => {
+            const isBooked = appointments.some((appt: any) => {
+                let aptDate = '';
+                if (appt.appointment_date) {
+                    const d = new Date(appt.appointment_date);
+                    aptDate = format(d, 'yyyy-MM-dd');
+                }
+                const aptTime = appt.appointment_time ? appt.appointment_time.slice(0, 5) : '';
+
+                return (
+                    appt.doctor_id?.toString() === doctorId?.toString() &&
+                    aptDate === selectedDate &&
+                    aptTime === time &&
+                    ['Scheduled', 'Confirmed'].includes(appt.appointment_status)
+                );
+            });
+
+            return {
+                time,
+                status: isBooked ? 'booked' : 'available'
+            } as { time: string, status: 'available' | 'booked' };
+        });
     };
 
     const doctorOptions = doctors.map((doc: any) => ({
@@ -271,6 +355,7 @@ export default function UpcomingAppointments({ doctors, onConvertToOPD, refreshT
 
             alert('Appointment cancelled successfully!');
             fetchAppointments();
+            if (onAppointmentUpdate) onAppointmentUpdate(); // Notify parent
             setShowCancelModal(false);
             setAppointmentToCancel(null);
         } catch (error: any) {
@@ -283,8 +368,14 @@ export default function UpcomingAppointments({ doctors, onConvertToOPD, refreshT
 
     const openRescheduleModal = (appointment: any) => {
         setAppointmentToReschedule(appointment);
+        const today = new Date().toISOString().split('T')[0];
+        const currentApptDate = appointment.appointment_date.split('T')[0];
+
+        // Default to today if current appointment date is in the past, otherwise keep current date
+        const defaultDate = currentApptDate < today ? today : currentApptDate;
+
         setRescheduleForm({
-            appointment_date: appointment.appointment_date.split('T')[0],
+            appointment_date: defaultDate,
             appointment_time: appointment.appointment_time,
             doctor_id: appointment.doctor_id,
             reason: ''
@@ -315,6 +406,7 @@ export default function UpcomingAppointments({ doctors, onConvertToOPD, refreshT
 
             alert('Appointment rescheduled successfully!');
             fetchAppointments();
+            if (onAppointmentUpdate) onAppointmentUpdate(); // Notify parent
             setShowRescheduleModal(false);
             setAppointmentToReschedule(null);
         } catch (error: any) {
@@ -687,7 +779,14 @@ export default function UpcomingAppointments({ doctors, onConvertToOPD, refreshT
 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">New Date *</label>
-                                    <input type="date" required value={rescheduleForm.appointment_date} onChange={(e) => setRescheduleForm({ ...rescheduleForm, appointment_date: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500" />
+                                    <input
+                                        type="date"
+                                        required
+                                        value={rescheduleForm.appointment_date}
+                                        onChange={(e) => setRescheduleForm({ ...rescheduleForm, appointment_date: e.target.value })}
+                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                                        min={new Date().toISOString().split('T')[0]}
+                                    />
                                 </div>
 
                                 <div>
@@ -715,20 +814,51 @@ export default function UpcomingAppointments({ doctors, onConvertToOPD, refreshT
                                     </div>
 
                                     {/* Time Grid */}
-                                    <div className="grid grid-cols-4 gap-2 mb-2">
-                                        {generateTimeSlots(timeSlotCategory).map((time) => (
-                                            <button
-                                                key={time}
-                                                type="button"
-                                                onClick={() => setRescheduleForm({ ...rescheduleForm, appointment_time: time })}
-                                                className={`py-2 px-1 text-sm rounded-lg border transition-all ${rescheduleForm.appointment_time === time
-                                                    ? 'bg-amber-500 border-amber-500 text-white font-bold ring-2 ring-amber-200'
-                                                    : 'border-gray-200 text-gray-600 hover:border-amber-300 hover:bg-amber-50'
-                                                    }`}
-                                            >
-                                                {time}
-                                            </button>
-                                        ))}
+                                    <div className="grid grid-cols-4 md:grid-cols-6 gap-2 mb-2 max-h-60 overflow-y-auto">
+                                        {(() => {
+                                            const slots = generateTimeSlotsFromSchedule(rescheduleForm.doctor_id, rescheduleForm.appointment_date);
+                                            const filteredSlots = slots.filter(slot => {
+                                                const hour = parseInt(slot.time.split(':')[0]);
+                                                if (timeSlotCategory === 'Morning') return hour >= 6 && hour < 12;
+                                                if (timeSlotCategory === 'Afternoon') return hour >= 12 && hour < 17;
+                                                if (timeSlotCategory === 'Evening') return hour >= 17 && hour < 22;
+                                                return false;
+                                            });
+
+                                            if (filteredSlots.length === 0) {
+                                                return (
+                                                    <div className="col-span-full text-center py-4 text-xs font-bold text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                                                        No {timeSlotCategory.toLowerCase()} slots available.
+                                                    </div>
+                                                );
+                                            }
+
+                                            return filteredSlots.map((slot) => {
+                                                const isBooked = slot.status === 'booked';
+                                                const isSelected = rescheduleForm.appointment_time === slot.time;
+                                                return (
+                                                    <button
+                                                        key={slot.time}
+                                                        type="button"
+                                                        disabled={isBooked}
+                                                        onClick={() => !isBooked && setRescheduleForm({ ...rescheduleForm, appointment_time: slot.time })}
+                                                        className={`py-2 px-1 text-xs font-bold rounded-lg border transition-all relative ${isBooked
+                                                            ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed opacity-60'
+                                                            : isSelected
+                                                                ? 'bg-amber-500 border-amber-500 text-white font-bold ring-2 ring-amber-200 shadow-md transform scale-105'
+                                                                : 'bg-white border-slate-200 text-slate-600 hover:border-amber-300 hover:bg-amber-50'
+                                                            }`}
+                                                    >
+                                                        {slot.time}
+                                                        {isBooked && (
+                                                            <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5 items-center justify-center bg-red-100 rounded-full border border-red-200">
+                                                                <span className="block h-1.5 w-1.5 rounded-full bg-red-500"></span>
+                                                            </span>
+                                                        )}
+                                                    </button>
+                                                )
+                                            });
+                                        })()}
                                     </div>
                                 </div>
 

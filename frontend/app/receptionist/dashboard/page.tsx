@@ -9,6 +9,8 @@ import SearchableSelect from '../../../components/ui/SearchableSelect';
 import { Plus, Search, FileText, X, Save, User, Printer, Clock, AlertCircle, AlertTriangle, Calendar, Phone, ArrowRight, Bell, Sparkles, Activity, Users, ChevronLeft, Check, Sun, CloudSun, Moon } from 'lucide-react';
 import UpcomingAppointments from './components/UpcomingAppointments';
 
+import { format } from 'date-fns';
+
 export default function ReceptionistDashboard() {
     const { user } = useAuth();
     const router = useRouter();
@@ -61,6 +63,8 @@ export default function ReceptionistDashboard() {
 
     // Refresh trigger for appointments list
     const [appointmentsRefreshKey, setAppointmentsRefreshKey] = useState(0);
+    const [allAppointments, setAllAppointments] = useState<any[]>([]); // New state for filtering slots
+    const [todayOpdEntries, setTodayOpdEntries] = useState<any[]>([]); // Today's OPD entries for busy hour calculation
 
     // Chief Complaint Auto-Suggest
     const [showComplaintSuggestions, setShowComplaintSuggestions] = useState(false);
@@ -82,9 +86,6 @@ export default function ReceptionistDashboard() {
             bp_systolic: '', bp_diastolic: '', pulse: '', temperature: '',
             weight: '', height: '', spo2: '', grbs: ''
         },
-        consultation_fee: '', payment_status: 'Pending', payment_method: 'Cash',
-        is_mlc: false, mlc_remarks: '', attender_name: '', attender_contact_number: '',
-        adhaar_number: '', referral_hospital: '', referral_doctor_name: '',
         consultation_fee: '', payment_status: 'Pending', payment_method: 'Cash',
         is_mlc: false, mlc_remarks: '', attender_name: '', attender_contact_number: '',
         adhaar_number: '', referral_hospital: '', referral_doctor_name: '',
@@ -126,7 +127,7 @@ export default function ReceptionistDashboard() {
     // const [departments, setDepartments] = useState<any[]>([]); // Already added? No, failed.
     const [departments, setDepartments] = useState<any[]>([]);
     const [doctorSchedules, setDoctorSchedules] = useState<any[]>([]);
-    const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([]);
+    const [availableTimeSlots, setAvailableTimeSlots] = useState<{ time: string, status: 'available' | 'booked' }[]>([]);
     const [timeSlotCategory, setTimeSlotCategory] = useState<'Morning' | 'Afternoon' | 'Evening'>('Morning');
 
     const [appointmentStep, setAppointmentStep] = useState(1);
@@ -152,6 +153,7 @@ export default function ReceptionistDashboard() {
         if (user?.branch_id) {
             fetchBranchDetails();
             fetchDoctors();
+            fetchTodayOpdEntries();
         }
     }, [user?.branch_id]);
 
@@ -443,6 +445,32 @@ export default function ReceptionistDashboard() {
         }
     };
 
+    const fetchAppointments = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.get('http://localhost:5000/api/appointments', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setAllAppointments(response.data.data.appointments || []);
+        } catch (error) {
+            console.error('Error fetching appointments:', error);
+        }
+    };
+
+    const fetchTodayOpdEntries = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const today = new Date().toISOString().split('T')[0];
+            const response = await axios.get('http://localhost:5000/api/opd', {
+                params: { startDate: today, endDate: today },
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setTodayOpdEntries(response.data.data.opdEntries || []);
+        } catch (error) {
+            console.error('Error fetching today OPD entries:', error);
+        }
+    };
+
     const fetchDoctorSchedules = async () => {
         try {
             const token = localStorage.getItem('token');
@@ -489,15 +517,60 @@ export default function ReceptionistDashboard() {
             let current = parseTime(startTime);
             const end = parseTime(endTime);
 
+            // Create cutoff time for today
+            const now = new Date();
+            const isToday = new Date(selectedDate).toDateString() === now.toDateString();
+            // 15 minute buffer
+            const cutoffTime = new Date(now.getTime() + 15 * 60000);
+
             while (current < end) {
-                const timeStr = current.toTimeString().slice(0, 5);
-                slots.push(timeStr);
+                // If it is today, ensure the slot is after the cutoff time
+                if (isToday) {
+                    // Create a specific date object for this slot on "today" to compare time accurately
+                    const slotTime = new Date(now);
+                    slotTime.setHours(current.getHours(), current.getMinutes(), 0, 0);
+
+                    if (slotTime > cutoffTime) {
+                        const timeStr = current.toTimeString().slice(0, 5);
+                        slots.push(timeStr);
+                    }
+                } else {
+                    const timeStr = current.toTimeString().slice(0, 5);
+                    slots.push(timeStr);
+                }
+
                 current = new Date(current.getTime() + consultationTime * 60000);
             }
         });
 
         const uniqueSlots = Array.from(new Set(slots)).sort();
-        return uniqueSlots;
+
+        // Map slots to status
+        const slotsWithStatus = uniqueSlots.map(time => {
+            const isBooked = allAppointments.some((appt: any) => {
+                // Parse apt Date safely
+                let aptDate = '';
+                if (appt.appointment_date) {
+                    const d = new Date(appt.appointment_date);
+                    aptDate = format(d, 'yyyy-MM-dd');
+                }
+                const aptTime = appt.appointment_time ? appt.appointment_time.slice(0, 5) : '';
+
+                return (
+                    appt.doctor_id === parseInt(doctorId) &&
+                    aptDate === selectedDate &&
+                    aptTime === time &&
+                    ['Scheduled', 'Confirmed'].includes(appt.appointment_status)
+                );
+            });
+
+            return {
+                time,
+                status: isBooked ? 'booked' : 'available'
+            };
+        });
+
+        return slotsWithStatus as { time: string, status: 'available' | 'booked' }[];
     };
 
     const formatTime12Hour = (time24: string) => {
@@ -614,6 +687,7 @@ export default function ReceptionistDashboard() {
         }
     };
 
+
     const handlePrintBill = async (opdId: number) => {
         try {
             const token = localStorage.getItem('token');
@@ -661,7 +735,12 @@ export default function ReceptionistDashboard() {
         fetchFollowUps();
         fetchDepartments();
         fetchDoctorSchedules();
+        fetchAppointments();
     }, []);
+
+    useEffect(() => {
+        fetchAppointments();
+    }, [appointmentsRefreshKey]);
 
     // Effect to update time slots when appointment doctor/date changes
     useEffect(() => {
@@ -670,21 +749,28 @@ export default function ReceptionistDashboard() {
             setAvailableTimeSlots(slots || []); // Ensure we update the state here!
 
             if (slots && slots.length > 0) {
-                const hasMorning = slots.some((t: string) => { const h = parseInt(t.split(':')[0]); return h >= 6 && h < 12 });
-                const hasAfternoon = slots.some((t: string) => { const h = parseInt(t.split(':')[0]); return h >= 12 && h < 17 });
-                const hasEvening = slots.some((t: string) => { const h = parseInt(t.split(':')[0]); return h >= 17 && h < 22 });
+                const hasMorning = slots.some((slot) => { const h = parseInt(slot.time.split(':')[0]); return h >= 6 && h < 12 });
+                const hasAfternoon = slots.some((slot) => { const h = parseInt(slot.time.split(':')[0]); return h >= 12 && h < 17 });
+                const hasEvening = slots.some((slot) => { const h = parseInt(slot.time.split(':')[0]); return h >= 17 && h < 22 });
 
                 if (hasMorning) setTimeSlotCategory('Morning');
                 else if (hasAfternoon) setTimeSlotCategory('Afternoon');
                 else if (hasEvening) setTimeSlotCategory('Evening');
             }
         }
-    }, [appointmentForm.doctor_id, appointmentForm.appointment_date, doctorSchedules]);
+    }, [appointmentForm.doctor_id, appointmentForm.appointment_date, doctorSchedules, allAppointments]);
 
     const doctorOptions = doctors.map((doc: any) => ({
         value: doc.doctor_id,
         label: `Dr. ${doc.first_name} ${doc.last_name} (${doc.specialization})`
     }));
+
+    const handleAppointmentUpdate = () => {
+        fetchAppointments();
+        fetchStats();
+        // Trigger generic refresh
+        setAppointmentsRefreshKey(prev => prev + 1);
+    }
 
     return (
         <div className="flex flex-col h-[calc(100vh-156px)] w-full space-y-4 overflow-hidden pb-0">
@@ -692,9 +778,41 @@ export default function ReceptionistDashboard() {
             <div className="flex justify-between items-end">
                 <div>
                     <h2 className="text-2xl font-bold text-slate-800 font-heading">Welcome back, {user?.first_name || user?.username}</h2>
-                    <div className="mt-2 flex items-center gap-2 text-sm font-medium text-slate-600 bg-indigo-50/50 px-3 py-1.5 rounded-lg border border-indigo-100 max-w-fit animate-in fade-in slide-in-from-bottom-2 duration-700 delay-150">
-                        <Sparkles className="w-4 h-4 text-indigo-500 animate-pulse" />
-                        <span>Live Update: <span className="text-indigo-700 font-bold">{dashboardStats.todayVisits} Registrations</span> processed today.</span>
+                    <div className="mt-2 flex items-center gap-2 text-sm font-medium text-slate-600 bg-amber-50/50 px-3 py-1.5 rounded-lg border border-amber-100 max-w-fit animate-in fade-in slide-in-from-bottom-2 duration-700 delay-150">
+                        <Clock className="w-4 h-4 text-amber-500" />
+                        <span>Expected Busy Hour: <span className="text-amber-700 font-bold">
+                            {(() => {
+                                const today = new Date().toISOString().split('T')[0];
+                                // Combine appointments and OPD entries
+                                const todayAppointments = allAppointments.filter((a: any) => {
+                                    const apptDate = new Date(a.appointment_date).toISOString().split('T')[0];
+                                    return apptDate === today && ['Scheduled', 'Confirmed'].includes(a.appointment_status);
+                                });
+                                const hourCounts: Record<number, number> = {};
+                                // Count from appointments
+                                todayAppointments.forEach((a: any) => {
+                                    if (a.appointment_time) {
+                                        const hour = parseInt(a.appointment_time.split(':')[0]);
+                                        hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+                                    }
+                                });
+                                // Count from OPD entries
+                                todayOpdEntries.forEach((e: any) => {
+                                    if (e.visit_time) {
+                                        const hour = parseInt(e.visit_time.split(':')[0]);
+                                        hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+                                    }
+                                });
+                                const total = todayAppointments.length + todayOpdEntries.length;
+                                if (total === 0) return 'No data yet';
+                                const peakHour = Object.entries(hourCounts).sort((a, b) => b[1] - a[1])[0];
+                                if (!peakHour) return 'No data yet';
+                                const h = parseInt(peakHour[0]);
+                                const ampm = h >= 12 ? 'PM' : 'AM';
+                                const displayHour = h % 12 || 12;
+                                return `${displayHour} ${ampm} (${peakHour[1]} visits)`;
+                            })()}
+                        </span></span>
                     </div>
                 </div>
                 <div className="text-sm font-medium text-slate-400 bg-white/50 px-4 py-2 rounded-full border border-slate-200/50 backdrop-blur-sm">
@@ -782,7 +900,12 @@ export default function ReceptionistDashboard() {
 
                     {/* Left Column: Upcoming Appointments (Replaces Patient Queue) */}
                     <div className="lg:col-span-2 h-full min-h-0">
-                        <UpcomingAppointments doctors={doctors} onConvertToOPD={selectPatient} refreshTrigger={appointmentsRefreshKey} />
+                        <UpcomingAppointments
+                            doctors={doctors}
+                            onConvertToOPD={selectPatient}
+                            refreshTrigger={appointmentsRefreshKey}
+                            onAppointmentUpdate={handleAppointmentUpdate}
+                        />
                     </div>
 
                     {/* Right Column: Quick Actions + Follow-ups */}
@@ -1446,8 +1569,7 @@ export default function ReceptionistDashboard() {
                                                     <option value="">Select</option>
                                                     <option value="Male">Male</option>
                                                     <option value="Female">Female</option>
-                                                    <option value="Pediatric">Pediatric</option>
-                                                    <option value="Other">Other</option>
+                                                    <option value="Others">Others</option>
                                                 </select>
                                             </div>
                                         </div>
@@ -1459,27 +1581,29 @@ export default function ReceptionistDashboard() {
                                     <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Visit Information</h3>
                                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                         {/* MLC Toggle - Highlighted */}
-                                        <div className="md:col-span-4 bg-red-50/50 p-4 rounded-xl border border-red-100 flex items-center gap-3 mb-2">
-                                            <input
-                                                id="mlc-toggle"
-                                                type="checkbox"
-                                                checked={opdForm.is_mlc}
-                                                onChange={(e) => {
-                                                    const isChecked = e.target.checked;
-                                                    setOpdForm({
-                                                        ...opdForm,
-                                                        is_mlc: isChecked,
-                                                        visit_type: isChecked ? 'Emergency' : opdForm.visit_type,
-                                                        visit_date: isChecked ? new Date().toISOString().split('T')[0] : opdForm.visit_date,
-                                                        visit_time: isChecked ? new Date().toTimeString().slice(0, 5) : opdForm.visit_time
-                                                    });
-                                                }}
-                                                className="w-5 h-5 text-red-600 border-gray-300 rounded focus:ring-red-500 transition-all cursor-pointer"
-                                            />
-                                            <label htmlFor="mlc-toggle" className="font-bold text-red-800 cursor-pointer select-none">
-                                                Mark as Medical Legal Case (MLC)
-                                            </label>
-                                        </div>
+                                        {!isFromConvertToOPD && (
+                                            <div className="md:col-span-4 flex items-center gap-3 bg-red-50 p-4 rounded-xl border border-red-100 animate-in fade-in slide-in-from-top-2">
+                                                <input
+                                                    id="mlc-toggle"
+                                                    type="checkbox"
+                                                    checked={opdForm.is_mlc}
+                                                    onChange={(e) => {
+                                                        const checked = e.target.checked;
+                                                        setOpdForm({
+                                                            ...opdForm,
+                                                            is_mlc: checked,
+                                                            visit_type: checked ? 'Emergency' : 'Walk-in',
+                                                            visit_date: new Date().toISOString().split('T')[0],
+                                                            visit_time: new Date().toTimeString().slice(0, 5)
+                                                        });
+                                                    }}
+                                                    className="w-5 h-5 text-red-600 border-gray-300 rounded focus:ring-red-500 transition-all cursor-pointer"
+                                                />
+                                                <label htmlFor="mlc-toggle" className="font-bold text-red-800 cursor-pointer select-none">
+                                                    Mark as Medical Legal Case (MLC)
+                                                </label>
+                                            </div>
+                                        )}
 
                                         <div>
                                             <label className="block text-xs font-semibold text-slate-700 mb-1.5">Visit Type <span className="text-red-500">*</span></label>
@@ -2075,8 +2199,7 @@ export default function ReceptionistDashboard() {
                                                     <option value="">Select</option>
                                                     <option value="Male">Male</option>
                                                     <option value="Female">Female</option>
-                                                    <option value="Pediatric">Pediatric</option>
-                                                    <option value="Other">Other</option>
+                                                    <option value="Others">Others</option>
                                                 </select>
                                             </div>
                                         </div>
@@ -2107,53 +2230,81 @@ export default function ReceptionistDashboard() {
 
                                             <div className="md:col-span-2">
                                                 <label className="block text-xs font-bold text-slate-500 mb-2 ml-1">Select Time Slot *</label>
-
                                                 {/* Category Tabs */}
                                                 <div className="flex gap-2 mb-3 bg-slate-100/50 p-1 rounded-xl">
                                                     {[
                                                         { id: 'Morning', icon: Sun, label: 'Morning' },
                                                         { id: 'Afternoon', icon: CloudSun, label: 'Afternoon' },
                                                         { id: 'Evening', icon: Moon, label: 'Evening' }
-                                                    ].map((cat) => (
-                                                        <button
-                                                            key={cat.id}
-                                                            type="button"
-                                                            onClick={() => setTimeSlotCategory(cat.id as any)}
-                                                            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all ${timeSlotCategory === cat.id
-                                                                ? 'bg-white text-purple-700 shadow-sm'
-                                                                : 'text-slate-400 hover:text-slate-600'
-                                                                }`}
-                                                        >
-                                                            <cat.icon className="w-3.5 h-3.5" />
-                                                            {cat.label}
-                                                        </button>
-                                                    ))}
+                                                    ]
+                                                        .filter(cat => {
+                                                            // Only show category if it has slots
+                                                            return availableTimeSlots.some((slot: any) => {
+                                                                const timeVal = typeof slot === 'string' ? slot : slot.time;
+                                                                if (!timeVal) return false;
+                                                                const hour = parseInt(timeVal.split(':')[0]);
+                                                                if (cat.id === 'Morning') return hour >= 6 && hour < 12;
+                                                                if (cat.id === 'Afternoon') return hour >= 12 && hour < 17;
+                                                                if (cat.id === 'Evening') return hour >= 17 && hour < 22;
+                                                                return false;
+                                                            });
+                                                        })
+                                                        .map((cat) => (
+                                                            <button
+                                                                key={cat.id}
+                                                                type="button"
+                                                                onClick={() => setTimeSlotCategory(cat.id as any)}
+                                                                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all ${timeSlotCategory === cat.id
+                                                                    ? 'bg-white text-purple-700 shadow-sm'
+                                                                    : 'text-slate-400 hover:text-slate-600'
+                                                                    }`}
+                                                            >
+                                                                <cat.icon className="w-3.5 h-3.5" />
+                                                                {cat.label}
+                                                            </button>
+                                                        ))}
                                                 </div>
 
                                                 {/* Time Grid - Dynamic based on doctor schedule */}
                                                 <div className="grid grid-cols-4 md:grid-cols-6 gap-2 mb-2">
                                                     {availableTimeSlots.length > 0 ? (
                                                         availableTimeSlots
-                                                            .filter((time) => {
-                                                                const hour = parseInt(time.split(':')[0]);
+                                                            .filter((slot: any) => {
+                                                                const timeVal = typeof slot === 'string' ? slot : slot.time;
+                                                                if (!timeVal) return false;
+                                                                const hour = parseInt(timeVal.split(':')[0]);
                                                                 if (timeSlotCategory === 'Morning') return hour >= 6 && hour < 12;
                                                                 if (timeSlotCategory === 'Afternoon') return hour >= 12 && hour < 17;
                                                                 if (timeSlotCategory === 'Evening') return hour >= 17 && hour < 22;
                                                                 return false;
                                                             })
-                                                            .map((time) => (
-                                                                <button
-                                                                    key={time}
-                                                                    type="button"
-                                                                    onClick={() => setAppointmentForm({ ...appointmentForm, appointment_time: time })}
-                                                                    className={`py-2 px-1 text-xs font-bold rounded-lg border transition-all ${appointmentForm.appointment_time === time
-                                                                        ? 'bg-purple-600 border-purple-600 text-white ring-2 ring-purple-200'
-                                                                        : 'border-slate-200 text-slate-600 hover:border-purple-300 hover:bg-purple-50'
-                                                                        }`}
-                                                                >
-                                                                    {time}
-                                                                </button>
-                                                            ))
+                                                            .map((slot: any) => {
+                                                                const timeVal = typeof slot === 'string' ? slot : slot.time;
+                                                                const isBooked = typeof slot === 'string' ? false : slot.status === 'booked';
+
+                                                                return (
+                                                                    <button
+                                                                        key={timeVal}
+                                                                        type="button"
+                                                                        disabled={isBooked}
+                                                                        onClick={() => setAppointmentForm({ ...appointmentForm, appointment_time: timeVal })}
+                                                                        className={`py-2 px-1 text-xs font-bold rounded-lg border transition-all relative ${isBooked
+                                                                            ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed opacity-70'
+                                                                            : appointmentForm.appointment_time === timeVal
+                                                                                ? 'bg-purple-600 border-purple-600 text-white ring-2 ring-purple-200'
+                                                                                : 'border-slate-200 text-slate-600 hover:border-purple-300 hover:bg-purple-50'
+                                                                            }`}
+                                                                    >
+                                                                        {timeVal}
+                                                                        {isBooked && (
+                                                                            <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                                                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                                                                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                                                                            </span>
+                                                                        )}
+                                                                    </button>
+                                                                );
+                                                            })
                                                     ) : (
                                                         <div className="col-span-full text-center py-4 text-xs font-bold text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
                                                             No {timeSlotCategory.toLowerCase()} slots available.
@@ -2161,16 +2312,19 @@ export default function ReceptionistDashboard() {
                                                     )}
                                                 </div>
                                             </div>
-                                            <div className="md:col-span-2">
-                                                <label className="block text-xs font-bold text-slate-500 mb-1 ml-1">Reason for Visit</label>
-                                                <input type="text" value={appointmentForm.reason_for_visit} onChange={(e) => setAppointmentForm({ ...appointmentForm, reason_for_visit: e.target.value })} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 font-medium text-slate-700" placeholder="e.g., Routine checkup" />
-                                            </div>
-                                            <div className="md:col-span-2">
-                                                <label className="block text-xs font-bold text-slate-500 mb-1 ml-1">Notes</label>
-                                                <textarea rows={2} value={appointmentForm.notes} onChange={(e) => setAppointmentForm({ ...appointmentForm, notes: e.target.value })} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 font-medium text-slate-700" placeholder="Any additional notes..." />
-                                            </div>
+
+
+                                        </div>
+                                        <div className="md:col-span-2">
+                                            <label className="block text-xs font-bold text-slate-500 mb-1 ml-1">Reason for Visit</label>
+                                            <input type="text" value={appointmentForm.reason_for_visit} onChange={(e) => setAppointmentForm({ ...appointmentForm, reason_for_visit: e.target.value })} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 font-medium text-slate-700" placeholder="e.g., Routine checkup" />
+                                        </div>
+                                        <div className="md:col-span-2">
+                                            <label className="block text-xs font-bold text-slate-500 mb-1 ml-1">Notes</label>
+                                            <textarea rows={2} value={appointmentForm.notes} onChange={(e) => setAppointmentForm({ ...appointmentForm, notes: e.target.value })} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 font-medium text-slate-700" placeholder="Any additional notes..." />
                                         </div>
                                     </div>
+
 
                                     {/* Submit */}
                                     <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
@@ -2187,7 +2341,8 @@ export default function ReceptionistDashboard() {
                         </div>
                     </div>
                 </div>
-            )}
+            )
+            }
 
             <style jsx global>{`
                 @media print {
@@ -2207,6 +2362,6 @@ export default function ReceptionistDashboard() {
                     .print\\:shadow-none { box-shadow: none !important; }
                 }
             `}</style>
-        </div>
+        </div >
     );
 }

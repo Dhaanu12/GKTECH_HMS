@@ -750,75 +750,115 @@ export default function OpdEntryPage() {
             </div>
 
             <div className="px-6 space-y-8">
-                {/* Actionable Day Metrics */}
+                {/* OPD-Specific Actionable Metrics */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                    {/* Today's Queue - Patients waiting right now */}
-                    <div className="bg-gradient-to-br from-amber-50 to-orange-50 p-6 rounded-3xl border border-amber-100 shadow-sm hover:shadow-md transition-shadow group cursor-pointer"
-                        onClick={() => setSearchQuery('')}
-                    >
-                        <div className="flex items-center justify-between mb-3">
-                            <div className="w-12 h-12 bg-amber-500 rounded-2xl flex items-center justify-center text-white group-hover:scale-110 transition-transform shadow-lg shadow-amber-500/30">
-                                <Clock className="w-6 h-6" />
+                    {/* New Patients Today - First-time visits */}
+                    <div className="bg-gradient-to-br from-emerald-50 to-teal-50 p-6 rounded-3xl border border-emerald-100 shadow-sm hover:shadow-md transition-shadow group min-h-[180px] flex flex-col">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-white group-hover:scale-110 transition-transform shadow-lg shadow-emerald-500/30">
+                                <User className="w-6 h-6" />
                             </div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 bg-amber-100 px-2 py-1 rounded-full">RIGHT NOW</span>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-100 px-2 py-1 rounded-full">NEW</span>
                         </div>
-                        <p className="text-4xl font-bold text-amber-700">{dashboardStats.queueCount}</p>
-                        <p className="text-sm font-medium text-amber-600 mt-1">Patients in Queue</p>
-                        {dashboardStats.queueCount > 0 && (
-                            <p className="text-xs text-amber-500 mt-2 flex items-center gap-1">
-                                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-                                {dashboardStats.queueCount} waiting for doctor
+                        <div className="flex-1 flex flex-col justify-center">
+                            <p className="text-3xl font-bold text-emerald-700">
+                                {opdEntries.filter((e: any) => e.visit_type === 'Walk-in').length}
                             </p>
-                        )}
+                            <p className="text-sm font-semibold text-emerald-600 mt-1">New Patients Today</p>
+                        </div>
+                        <p className="text-xs text-emerald-500 mt-auto pt-2">Walk-in registrations</p>
                     </div>
 
-                    {/* Today's Appointments - Scheduled for today */}
-                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-3xl border border-blue-100 shadow-sm hover:shadow-md transition-shadow group cursor-pointer">
-                        <div className="flex items-center justify-between mb-3">
+                    {/* Peak Hour Today - Busiest hour */}
+                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-3xl border border-blue-100 shadow-sm hover:shadow-md transition-shadow group min-h-[180px] flex flex-col">
+                        <div className="flex items-center justify-between mb-4">
                             <div className="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center text-white group-hover:scale-110 transition-transform shadow-lg shadow-blue-500/30">
-                                <Calendar className="w-6 h-6" />
+                                <Clock className="w-6 h-6" />
                             </div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-100 px-2 py-1 rounded-full">TODAY</span>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-100 px-2 py-1 rounded-full">INSIGHT</span>
                         </div>
-                        <p className="text-4xl font-bold text-blue-700">{dashboardStats.todayVisits}</p>
-                        <p className="text-sm font-medium text-blue-600 mt-1">Today's Visits</p>
-                        <p className="text-xs text-blue-500 mt-2">
-                            {/* We can rely on 'collectedCount' as proxy for 'completed' if paid=completed? Or just hide completed count if not available */}
-                            {/* Actually, user didn't ask for completed count specifically to be fixed, just live values. */}
-                            Live Updates
+                        <div className="flex-1 flex flex-col justify-center">
+                            <p className="text-3xl font-bold text-blue-700">
+                                {(() => {
+                                    if (opdEntries.length === 0) return '--';
+                                    const hourCounts: Record<number, number> = {};
+                                    opdEntries.forEach((e: any) => {
+                                        if (e.visit_time) {
+                                            const hour = parseInt(e.visit_time.split(':')[0]);
+                                            hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+                                        }
+                                    });
+                                    const peakHour = Object.entries(hourCounts).sort((a, b) => b[1] - a[1])[0];
+                                    if (!peakHour) return '--';
+                                    const h = parseInt(peakHour[0]);
+                                    const ampm = h >= 12 ? 'PM' : 'AM';
+                                    const displayHour = h % 12 || 12;
+                                    return `${displayHour} ${ampm}`;
+                                })()}
+                            </p>
+                            <p className="text-sm font-semibold text-blue-600 mt-1">Peak Hour Today</p>
+                        </div>
+                        <p className="text-xs text-blue-500 mt-auto pt-2">Busiest registration hour</p>
+                    </div>
+
+                    {/* Top Doctor - Workload leader */}
+                    <div className="bg-gradient-to-br from-violet-50 to-purple-50 p-6 rounded-3xl border border-violet-100 shadow-sm hover:shadow-md transition-shadow group min-h-[180px] flex flex-col">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="w-12 h-12 bg-violet-500 rounded-2xl flex items-center justify-center text-white group-hover:scale-110 transition-transform shadow-lg shadow-violet-500/30">
+                                <User className="w-6 h-6" />
+                            </div>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-violet-600 bg-violet-100 px-2 py-1 rounded-full">WORKLOAD</span>
+                        </div>
+                        <div className="flex-1 flex flex-col justify-center">
+                            <p className="text-lg font-bold text-violet-700 truncate leading-tight">
+                                {(() => {
+                                    if (opdEntries.length === 0) return '--';
+                                    const doctorCounts: Record<string, { count: number, name: string }> = {};
+                                    opdEntries.forEach((e: any) => {
+                                        if (e.doctor_id) {
+                                            const key = e.doctor_id.toString();
+                                            const name = `Dr. ${e.doctor_first_name || ''} ${e.doctor_last_name || ''}`.trim();
+                                            if (!doctorCounts[key]) doctorCounts[key] = { count: 0, name };
+                                            doctorCounts[key].count++;
+                                        }
+                                    });
+                                    const topDoc = Object.values(doctorCounts).sort((a, b) => b.count - a.count)[0];
+                                    return topDoc ? topDoc.name : '--';
+                                })()}
+                            </p>
+                            <p className="text-sm font-semibold text-violet-600 mt-1">Top Doctor</p>
+                        </div>
+                        <p className="text-xs text-violet-500 mt-auto pt-2">
+                            {(() => {
+                                if (opdEntries.length === 0) return 'No visits yet';
+                                const doctorCounts: Record<string, number> = {};
+                                opdEntries.forEach((e: any) => {
+                                    if (e.doctor_id) {
+                                        const key = e.doctor_id.toString();
+                                        doctorCounts[key] = (doctorCounts[key] || 0) + 1;
+                                    }
+                                });
+                                const topCount = Math.max(...Object.values(doctorCounts), 0);
+                                return `${topCount} patients seen`;
+                            })()}
                         </p>
                     </div>
 
-                    {/* Pending Payments - Action needed */}
-                    <div className="bg-gradient-to-br from-red-50 to-rose-50 p-6 rounded-3xl border border-red-100 shadow-sm hover:shadow-md transition-shadow group cursor-pointer">
-                        <div className="flex items-center justify-between mb-3">
+                    {/* MLC Cases - Legal compliance */}
+                    <div className="bg-gradient-to-br from-red-50 to-rose-50 p-6 rounded-3xl border border-red-100 shadow-sm hover:shadow-md transition-shadow group min-h-[180px] flex flex-col">
+                        <div className="flex items-center justify-between mb-4">
                             <div className="w-12 h-12 bg-red-500 rounded-2xl flex items-center justify-center text-white group-hover:scale-110 transition-transform shadow-lg shadow-red-500/30">
                                 <AlertCircle className="w-6 h-6" />
                             </div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-red-600 bg-red-100 px-2 py-1 rounded-full">ACTION</span>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-red-600 bg-red-100 px-2 py-1 rounded-full">LEGAL</span>
                         </div>
-                        <p className="text-4xl font-bold text-red-700">{dashboardStats.pendingCount}</p>
-                        <p className="text-sm font-medium text-red-600 mt-1">Pending Payments</p>
-                        <p className="text-xs text-red-500 mt-2">
-                            ₹{dashboardStats.pendingAmount.toLocaleString()} to collect
-                        </p>
-                    </div>
-
-                    {/* Today's Revenue - Collected today */}
-                    <div className="bg-gradient-to-br from-emerald-50 to-teal-50 p-6 rounded-3xl border border-emerald-100 shadow-sm hover:shadow-md transition-shadow group">
-                        <div className="flex items-center justify-between mb-3">
-                            <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-white group-hover:scale-110 transition-transform shadow-lg shadow-emerald-500/30">
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            </div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-100 px-2 py-1 rounded-full">REVENUE</span>
+                        <div className="flex-1 flex flex-col justify-center">
+                            <p className="text-3xl font-bold text-red-700">
+                                {opdEntries.filter((e: any) => e.is_mlc === true).length}
+                            </p>
+                            <p className="text-sm font-semibold text-red-600 mt-1">MLC Cases</p>
                         </div>
-                        <p className="text-4xl font-bold text-emerald-700">
-                            ₹{dashboardStats.collectedAmount.toLocaleString()}
-                        </p>
-                        <p className="text-sm font-medium text-emerald-600 mt-1">Collected Today</p>
-                        <p className="text-xs text-emerald-500 mt-2">
-                            {dashboardStats.collectedCount} payments received
-                        </p>
+                        <p className="text-xs text-red-500 mt-auto pt-2">Medical Legal Cases today</p>
                     </div>
                 </div>
             </div>
