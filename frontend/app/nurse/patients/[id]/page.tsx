@@ -163,18 +163,31 @@ export default function NursePatientDetails() {
         if (filterStartDate) filterParams.append('startDate', filterStartDate);
         if (filterEndDate) filterParams.append('endDate', filterEndDate);
 
+        // For lab orders and documents, only opdId filter applies
+        const opdFilterParams = new URLSearchParams();
+        if (selectedOpdId) opdFilterParams.append('opdId', selectedOpdId);
+        opdFilterParams.append('includeCompleted', 'true');
+
         try {
-            const [vitalsRes, notesRes] = await Promise.all([
+            const [vitalsRes, notesRes, labsRes, docsRes] = await Promise.all([
                 axios.get(`${API_URL}/vitals/patient/${params.id}?${filterParams.toString()}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 }).catch(() => ({ data: { data: { vitals: [] } } })),
                 axios.get(`${API_URL}/clinical-notes/patient/${params.id}?${filterParams.toString()}`, {
                     headers: { Authorization: `Bearer ${token}` }
-                }).catch(() => ({ data: { data: { notes: [] } } }))
+                }).catch(() => ({ data: { data: { notes: [] } } })),
+                axios.get(`${API_URL}/lab-orders/patient/${params.id}?${opdFilterParams.toString()}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                }).catch(() => ({ data: { data: { orders: [] } } })),
+                axios.get(`${API_URL}/patient-documents/patient/${params.id}?${opdFilterParams.toString()}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                }).catch(() => ({ data: { data: { documents: [] } } }))
             ]);
 
             setVitalsHistory(vitalsRes.data.data.vitals || []);
             setClinicalNotes(notesRes.data.data.notes || []);
+            setLabOrders(labsRes.data.data.orders || []);
+            setDocuments(docsRes.data.data.documents || []);
         } catch (error) {
             console.error('Error fetching filtered data:', error);
         }
@@ -215,6 +228,231 @@ export default function NursePatientDetails() {
             console.error('Error downloading document:', error);
             alert('Failed to download document');
         }
+    };
+
+    // Download consultation as text file
+    // Print consultation as formatted PDF (opens print dialog)
+    const handlePrintConsultation = (consult: any) => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            alert('Please allow popups to print the consultation');
+            return;
+        }
+
+        // Parse medications
+        let medications: any[] = [];
+        if (consult.prescription_medications) {
+            if (typeof consult.prescription_medications === 'string') {
+                try { medications = JSON.parse(consult.prescription_medications); } catch (e) { }
+            } else if (Array.isArray(consult.prescription_medications)) {
+                medications = consult.prescription_medications;
+            }
+        }
+
+        // Parse labs
+        let labs: any[] = [];
+        if (consult.labs && Array.isArray(consult.labs)) {
+            labs = consult.labs;
+        } else if (consult.labs_ordered) {
+            if (typeof consult.labs_ordered === 'string') {
+                labs = [{ test_name: consult.labs_ordered }];
+            } else if (Array.isArray(consult.labs_ordered)) {
+                labs = consult.labs_ordered;
+            }
+        }
+
+        // Parse vitals
+        let vitals: any = {};
+        if (consult.vital_signs) {
+            vitals = typeof consult.vital_signs === 'string' 
+                ? JSON.parse(consult.vital_signs) 
+                : consult.vital_signs;
+        }
+
+        const visitDate = new Date(consult.visit_date || consult.consultation_date || consult.created_at);
+
+        const htmlContent = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Consultation - ${patient?.first_name} ${patient?.last_name}</title>
+                <style>
+                    body { font-family: 'Arial', sans-serif; padding: 40px; color: #333; line-height: 1.6; }
+                    .header { text-align: center; border-bottom: 2px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px; }
+                    .header h1 { margin: 0; color: #2563eb; font-size: 1.5em; }
+                    .header p { margin: 5px 0 0; color: #666; font-size: 0.9em; }
+                    
+                    .doc-info { margin-bottom: 30px; display: flex; justify-content: space-between; }
+                    .doc-info div { flex: 1; }
+                    .doc-name { font-weight: bold; font-size: 1.1em; }
+                    
+                    .patient-info { background: #f9fafb; padding: 20px; border-radius: 8px; margin-bottom: 30px; display: flex; flex-wrap: wrap; gap: 20px; }
+                    .info-group { flex: 1; min-width: 150px; }
+                    .label { font-size: 0.8em; color: #666; text-transform: uppercase; font-weight: bold; }
+                    .value { font-weight: 500; }
+                    
+                    .section { margin-bottom: 25px; }
+                    .section-title { font-weight: bold; color: #2563eb; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px; margin-bottom: 15px; font-size: 1.1em; }
+                    
+                    table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+                    th { text-align: left; padding: 10px; background: #f3f4f6; font-size: 0.9em; color: #374151; }
+                    td { padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 0.95em; }
+                    
+                    .footer { margin-top: 50px; text-align: right; padding-top: 20px; border-top: 1px dashed #ccc; }
+                    .signature { display: inline-block; text-align: center; }
+                    .sig-line { width: 200px; border-top: 1px solid #000; margin-bottom: 5px; }
+                    
+                    .vitals-grid { display: flex; gap: 20px; flex-wrap: wrap; }
+                    .vital-item { background: #f0f9ff; padding: 10px 15px; border-radius: 6px; }
+                    
+                    @media print {
+                        body { padding: 20px; }
+                        button { display: none !important; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>${consult.hospital_name || 'Hospital Management System'}</h1>
+                    <p>${consult.headquarters_address || ''}</p>
+                    ${consult.hospital_contact || consult.hospital_email ? `<p>Phone: ${consult.hospital_contact || 'N/A'} | Email: ${consult.hospital_email || 'N/A'}</p>` : ''}
+                </div>
+                
+                <div class="doc-info">
+                    <div>
+                        <div class="doc-name">Dr. ${consult.doctor_first_name || ''} ${consult.doctor_last_name || ''}</div>
+                        <div>${consult.specialization || ''}</div>
+                        ${consult.doctor_registration_number ? `<div>Reg. No: ${consult.doctor_registration_number}</div>` : ''}
+                    </div>
+                    <div style="text-align: right;">
+                        <div class="label">Date</div>
+                        <div class="value">${visitDate.toLocaleDateString()}</div>
+                        <div class="label" style="margin-top: 5px;">Time</div>
+                        <div class="value">${visitDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                    </div>
+                </div>
+                
+                <div class="patient-info">
+                    <div class="info-group">
+                        <div class="label">Patient Name</div>
+                        <div class="value">${patient?.first_name || ''} ${patient?.last_name || ''}</div>
+                    </div>
+                    <div class="info-group">
+                        <div class="label">Age / Gender</div>
+                        <div class="value">${patient?.age || 'N/A'} Yrs / ${patient?.gender || 'N/A'}</div>
+                    </div>
+                    <div class="info-group">
+                        <div class="label">MRN</div>
+                        <div class="value">${patient?.mrn_number || 'N/A'}</div>
+                    </div>
+                    <div class="info-group">
+                        <div class="label">Contact</div>
+                        <div class="value">${patient?.contact_number || 'N/A'}</div>
+                    </div>
+                </div>
+                
+                ${Object.keys(vitals).length > 0 ? `
+                <div class="section">
+                    <div class="section-title">Vitals</div>
+                    <div class="vitals-grid">
+                        ${Object.entries(vitals).map(([key, value]) => `
+                            <div class="vital-item">
+                                <span class="label" style="display:block;">${key.replace(/_/g, ' ')}</span>
+                                <span class="value">${value}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>` : ''}
+
+                ${consult.chief_complaint || consult.reason_for_visit ? `
+                <div class="section">
+                    <div class="section-title">Chief Complaint</div>
+                    <p>${consult.chief_complaint || consult.reason_for_visit}</p>
+                </div>` : ''}
+
+                ${consult.notes || consult.consultation_notes ? `
+                <div class="section">
+                    <div class="section-title">Clinical Notes</div>
+                    <p>${consult.notes || consult.consultation_notes}</p>
+                </div>` : ''}
+                
+                ${consult.diagnosis ? `
+                <div class="section">
+                    <div class="section-title">Diagnosis</div>
+                    <p><strong>${consult.diagnosis}</strong></p>
+                </div>` : ''}
+
+                ${labs.length > 0 ? `
+                <div class="section">
+                    <div class="section-title">Lab Orders</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Test Name</th>
+                                <th>Lab</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${labs.map((lab: any) => `
+                                <tr>
+                                    <td>${typeof lab === 'string' ? lab : lab.test_name || lab.name || ''}</td>
+                                    <td>${typeof lab === 'string' ? '-' : lab.lab_name || '-'}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>` : ''}
+
+                ${medications.length > 0 ? `
+                <div class="section">
+                    <div class="section-title">Prescription</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Medicine</th>
+                                <th>Dosage</th>
+                                <th>Frequency</th>
+                                <th>Instruction</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${medications.map((med: any) => `
+                                <tr>
+                                    <td><strong>${med.name || med.medication_name || med}</strong></td>
+                                    <td>${med.dosage || '-'}</td>
+                                    <td>${med.frequency || [med.morning && 'Mor', med.noon && 'Noon', med.night && 'Night'].filter(Boolean).join('-') || '-'}</td>
+                                    <td>${med.food_timing || med.instructions || '-'}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>` : ''}
+                
+                ${consult.follow_up_date || consult.next_visit_date ? `
+                <div class="section">
+                    <div class="section-title">Follow-up</div>
+                    <p>
+                        ${consult.next_visit_status ? `<strong>Status:</strong> ${consult.next_visit_status} | ` : ''}
+                        <strong>Date:</strong> ${new Date(consult.follow_up_date || consult.next_visit_date).toLocaleDateString()}
+                    </p>
+                </div>` : ''}
+                
+                <div class="footer">
+                    <div class="signature">
+                        <div class="sig-line"></div>
+                        <div>Doctor's Signature</div>
+                    </div>
+                </div>
+                
+                <script>
+                    window.onload = function() { window.print(); }
+                </script>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
     };
 
     const handleUploadDocument = async (file: File, docType: string, description: string) => {
@@ -408,23 +646,23 @@ export default function NursePatientDetails() {
                         {/* Avatar */}
                         <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-2xl font-bold shadow-lg shadow-blue-500/30">
                             {patient.first_name?.[0]}{patient.last_name?.[0]}
-                        </div>
+                            </div>
 
                         {/* Basic Info */}
                         <div className="flex-1">
                             <div className="flex flex-wrap items-center gap-3 mb-2">
                                 <h2 className="text-2xl font-bold text-slate-800">
-                                    {patient.first_name} {patient.last_name}
-                                </h2>
+                                {patient.first_name} {patient.last_name}
+                            </h2>
                                 <span className="px-3 py-1 bg-white/80 text-blue-700 rounded-lg text-sm font-bold border border-blue-200">
                                     {patient.mrn_number}
-                                </span>
+                            </span>
                                 {patient.blood_group && (
                                     <span className="px-2 py-1 bg-red-100 text-red-700 rounded-lg text-sm font-bold">
                                         {patient.blood_group}
                                     </span>
                                 )}
-                            </div>
+                        </div>
 
                             <div className="flex flex-wrap gap-4 text-sm text-slate-600">
                                 <span className="flex items-center gap-1">
@@ -450,9 +688,9 @@ export default function NursePatientDetails() {
                                 <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded-lg inline-flex items-center gap-2">
                                     <AlertCircle className="w-4 h-4 text-red-500" />
                                     <span className="text-sm font-medium text-red-700">Allergies: {patient.allergies}</span>
-                                </div>
+                            </div>
                             )}
-                        </div>
+                            </div>
 
                         {/* Quick Actions */}
                         <div className="flex flex-col sm:flex-row gap-2">
@@ -479,23 +717,23 @@ export default function NursePatientDetails() {
                     <div className="p-4 text-center">
                         <p className="text-2xl font-bold text-slate-800">{opdHistory.length}</p>
                         <p className="text-xs text-slate-500 font-medium">Visits</p>
-                    </div>
+                                </div>
                     <div className="p-4 text-center">
                         <p className="text-2xl font-bold text-slate-800">{vitalsHistory.length}</p>
                         <p className="text-xs text-slate-500 font-medium">Vitals Records</p>
-                    </div>
+                            </div>
                     <div className="p-4 text-center">
                         <p className="text-2xl font-bold text-slate-800">{clinicalNotes.length}</p>
                         <p className="text-xs text-slate-500 font-medium">Clinical Notes</p>
-                    </div>
+                                </div>
                     <div className="p-4 text-center">
                         <p className="text-2xl font-bold text-slate-800">{labOrders.length}</p>
                         <p className="text-xs text-slate-500 font-medium">Lab Orders</p>
-                    </div>
+                            </div>
                     <div className="p-4 text-center">
                         <p className="text-2xl font-bold text-slate-800">{documents.length}</p>
                         <p className="text-xs text-slate-500 font-medium">Documents</p>
-                    </div>
+                        </div>
                 </div >
             </div >
 
@@ -720,7 +958,7 @@ export default function NursePatientDetails() {
                             </div>
 
                             {vitalsHistory.length > 0 ? (
-                                <div className="space-y-3">
+                        <div className="space-y-3">
                                     {vitalsHistory.map((vital: any) => (
                                         <div key={vital.vital_id} className="bg-slate-50 rounded-xl p-4 border border-slate-100">
                                             <div className="flex items-start justify-between mb-3">
@@ -805,7 +1043,7 @@ export default function NursePatientDetails() {
                                             className="mt-4 text-blue-600 text-sm font-medium hover:underline"
                                         >
                                             Record the first vitals
-                                        </button>
+                            </button>
                                     )}
                                 </div>
                             )}
@@ -844,9 +1082,9 @@ export default function NursePatientDetails() {
                                     >
                                         <Plus className="w-4 h-4" />
                                         Add Note
-                                    </button>
-                                </div>
-                            </div>
+                            </button>
+                        </div>
+                    </div>
 
                             {/* Filter Bar */}
                             <div className="flex flex-wrap items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
@@ -885,7 +1123,7 @@ export default function NursePatientDetails() {
                                         Clear Filters
                                     </button>
                                 )}
-                            </div>
+                </div>
 
                             {filteredNotes.length > 0 ? (
                                 <div className="space-y-3">
@@ -921,13 +1159,39 @@ export default function NursePatientDetails() {
                     {activeTab === 'labs' && (
                         <div className="space-y-4">
                             <h3 className="text-lg font-bold text-slate-800">Lab Orders</h3>
+
+                            {/* Filter Bar */}
+                            <div className="flex flex-wrap items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                <Filter className="w-4 h-4 text-slate-400" />
+                                <select
+                                    value={selectedOpdId}
+                                    onChange={(e) => setSelectedOpdId(e.target.value)}
+                                    className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none bg-white"
+                                >
+                                    <option value="">All OPD Sessions</option>
+                                    {opdHistory.map((opd: any) => (
+                                        <option key={opd.opd_id} value={opd.opd_id}>
+                                            {opd.opd_number} - {new Date(opd.visit_date).toLocaleDateString()}
+                                        </option>
+                                    ))}
+                                </select>
+                                {selectedOpdId && (
+                                    <button
+                                        onClick={clearFilters}
+                                        className="px-3 py-1.5 text-sm text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                    >
+                                        Clear Filter
+                                    </button>
+                                )}
+                            </div>
+
                             {labOrders.length > 0 ? (
                                 <div className="space-y-3">
                                     {labOrders.map(order => (
                                         <div key={order.order_id} className="bg-slate-50 rounded-xl p-4 border border-slate-100">
                                             <div className="flex items-start justify-between">
                                                 <div>
-                                                    <div className="flex items-center gap-2 mb-1">
+                                                    <div className="flex flex-wrap items-center gap-2 mb-1">
                                                         <span className="font-bold text-slate-800">{order.test_name}</span>
                                                         <span className={`px-2 py-0.5 rounded text-xs font-bold ${order.status === 'Completed' ? 'bg-emerald-100 text-emerald-700' :
                                                             order.status === 'In-Progress' ? 'bg-amber-100 text-amber-700' :
@@ -940,7 +1204,12 @@ export default function NursePatientDetails() {
                                                                 STAT
                                                             </span>
                                                         )}
-                                                    </div>
+                                                        {order.opd_number && (
+                                                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                                                                {order.opd_number}
+                                                            </span>
+                                )}
+                            </div>
                                                     <p className="text-sm text-slate-500">
                                                         {order.order_number} • Ordered {new Date(order.ordered_at).toLocaleDateString()}
                                                     </p>
@@ -964,7 +1233,9 @@ export default function NursePatientDetails() {
                             ) : (
                                 <div className="text-center py-12">
                                     <Beaker className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                                    <p className="text-slate-400 font-medium">No lab orders for this patient</p>
+                                    <p className="text-slate-400 font-medium">
+                                        {selectedOpdId ? 'No lab orders for this OPD session' : 'No lab orders for this patient'}
+                                    </p>
                                 </div>
                             )}
                         </div>
@@ -984,6 +1255,31 @@ export default function NursePatientDetails() {
                                 </button>
                             </div>
 
+                            {/* Filter Bar */}
+                            <div className="flex flex-wrap items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                <Filter className="w-4 h-4 text-slate-400" />
+                                <select
+                                    value={selectedOpdId}
+                                    onChange={(e) => setSelectedOpdId(e.target.value)}
+                                    className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none bg-white"
+                                >
+                                    <option value="">All OPD Sessions</option>
+                                    {opdHistory.map((opd: any) => (
+                                        <option key={opd.opd_id} value={opd.opd_id}>
+                                            {opd.opd_number} - {new Date(opd.visit_date).toLocaleDateString()}
+                                        </option>
+                                    ))}
+                                </select>
+                                {selectedOpdId && (
+                                    <button
+                                        onClick={clearFilters}
+                                        className="px-3 py-1.5 text-sm text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                    >
+                                        Clear Filter
+                                    </button>
+                                )}
+                            </div>
+
                             {documents.length > 0 ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                     {documents.map(doc => (
@@ -999,6 +1295,11 @@ export default function NursePatientDetails() {
                                                 <div className="flex-1 min-w-0">
                                                     <p className="font-medium text-slate-800 truncate">{doc.file_name}</p>
                                                     <p className="text-xs text-slate-500">{doc.document_type}</p>
+                                                    {doc.opd_number && (
+                                                        <span className="inline-block mt-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                                                            {doc.opd_number}
+                                                        </span>
+                                                    )}
                                                     <p className="text-xs text-slate-400 mt-1">
                                                         {new Date(doc.created_at).toLocaleDateString()}
                                                     </p>
@@ -1016,13 +1317,17 @@ export default function NursePatientDetails() {
                             ) : (
                                 <div className="text-center py-12">
                                     <File className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                                    <p className="text-slate-400 font-medium">No documents uploaded</p>
-                                    <button
-                                        onClick={() => setShowUploadModal(true)}
-                                        className="mt-4 text-blue-600 text-sm font-medium hover:underline"
-                                    >
-                                        Upload the first document
-                                    </button>
+                                    <p className="text-slate-400 font-medium">
+                                        {selectedOpdId ? 'No documents for this OPD session' : 'No documents uploaded'}
+                                    </p>
+                                    {!selectedOpdId && (
+                                        <button
+                                            onClick={() => setShowUploadModal(true)}
+                                            className="mt-4 text-blue-600 text-sm font-medium hover:underline"
+                                        >
+                                            Upload the first document
+                                        </button>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -1039,7 +1344,7 @@ export default function NursePatientDetails() {
                                         <div key={consult.consultation_id || consult.opd_id || index} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
                                             <div className="p-4 bg-gradient-to-r from-indigo-50 to-blue-50 border-b border-slate-100">
                                                 <div className="flex flex-wrap items-start justify-between gap-3">
-                                                    <div>
+                    <div>
                                                         <div className="flex items-center gap-2 mb-1">
                                                             <Stethoscope className="w-5 h-5 text-indigo-600" />
                                                             <span className="font-bold text-slate-800">
@@ -1072,6 +1377,13 @@ export default function NursePatientDetails() {
                                                         }`}>
                                                             {consult.status || consult.outcome_status || 'Recorded'}
                                                         </span>
+                                                        <button
+                                                            onClick={() => handlePrintConsultation(consult)}
+                                                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                            title="Print Consultation"
+                                                        >
+                                                            <Download className="w-4 h-4" />
+                                                        </button>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1079,10 +1391,10 @@ export default function NursePatientDetails() {
                                             <div className="p-4 space-y-4">
                                                 {/* Chief Complaint / Reason */}
                                                 {(consult.chief_complaint || consult.reason_for_visit) && (
-                                                    <div>
+                                    <div>
                                                         <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Chief Complaint</h4>
                                                         <p className="text-sm text-slate-700">{consult.chief_complaint || consult.reason_for_visit}</p>
-                                                    </div>
+                                    </div>
                                                 )}
 
                                                 {/* Diagnosis */}
@@ -1090,7 +1402,7 @@ export default function NursePatientDetails() {
                                                     <div>
                                                         <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Diagnosis</h4>
                                                         <p className="text-sm text-slate-700 font-medium">{consult.diagnosis}</p>
-                                                    </div>
+                                    </div>
                                                 )}
 
                                                 {/* Notes */}
@@ -1101,28 +1413,59 @@ export default function NursePatientDetails() {
                                                     </div>
                                                 )}
 
-                                                {/* Medications */}
-                                                {consult.medications && (
+                                                {/* Prescription Medications (from prescription table) */}
+                                                {consult.prescription_medications && (
                                                     <div>
+                                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+                                                            <Pill className="w-3 h-3" /> Prescription
+                                                        </h4>
+                                                        <div className="bg-purple-50 rounded-lg p-3 border border-purple-100">
+                                                            {(() => {
+                                                                const meds = typeof consult.prescription_medications === 'string' 
+                                                                    ? JSON.parse(consult.prescription_medications) 
+                                                                    : consult.prescription_medications;
+                                                                if (Array.isArray(meds)) {
+                                                                    return (
+                                                                        <div className="space-y-2">
+                                                                            {meds.map((med: any, idx: number) => (
+                                                                                <div key={idx} className="text-sm text-purple-800">
+                                                                                    <span className="font-medium">{med.name || med.medication_name || med}</span>
+                                                                                    {med.dosage && <span className="ml-2">- {med.dosage}</span>}
+                                                                                    {med.frequency && <span className="ml-2">({med.frequency})</span>}
+                                                                                    {med.duration && <span className="ml-2">for {med.duration}</span>}
+                                </div>
+                            ))}
+                        </div>
+                                                                    );
+                                                                }
+                                                                return <p className="text-sm text-purple-800">{JSON.stringify(meds)}</p>;
+                                                            })()}
+                    </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Medications (fallback field) */}
+                                                {consult.medications && !consult.prescription_medications && (
+                    <div>
                                                         <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
                                                             <Pill className="w-3 h-3" /> Medications
                                                         </h4>
                                                         <div className="bg-purple-50 rounded-lg p-3 border border-purple-100">
                                                             <p className="text-sm text-purple-800">{typeof consult.medications === 'string' ? consult.medications : JSON.stringify(consult.medications)}</p>
-                                                        </div>
-                                                    </div>
+                        </div>
+                                                </div>
                                                 )}
 
                                                 {/* Labs Ordered */}
-                                                {consult.labs_ordered && (
-                                                    <div>
+                                                {(consult.labs_ordered || consult.labs) && (
+                                                <div>
                                                         <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
                                                             <Beaker className="w-3 h-3" /> Labs Ordered
-                                                        </h4>
+                                                    </h4>
                                                         <div className="bg-cyan-50 rounded-lg p-3 border border-cyan-100">
-                                                            <p className="text-sm text-cyan-800">{typeof consult.labs_ordered === 'string' ? consult.labs_ordered : JSON.stringify(consult.labs_ordered)}</p>
-                                                        </div>
-                                                    </div>
+                                                            <p className="text-sm text-cyan-800">{typeof (consult.labs_ordered || consult.labs) === 'string' ? (consult.labs_ordered || consult.labs) : JSON.stringify(consult.labs_ordered || consult.labs)}</p>
+                                                </div>
+                                            </div>
                                                 )}
 
                                                 {/* Follow-up */}
@@ -1133,13 +1476,13 @@ export default function NursePatientDetails() {
                                                             Follow-up: {new Date(consult.follow_up_date).toLocaleDateString('en-US', {
                                                                 weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
                                                             })}
-                                                        </span>
-                                                    </div>
+                                            </span>
+                                        </div>
                                                 )}
                                             </div>
                                         </div>
                                     ))}
-                                </div>
+                                    </div>
                             ) : (
                                 <div className="text-center py-12">
                                     <Stethoscope className="w-12 h-12 text-slate-300 mx-auto mb-3" />
@@ -1148,7 +1491,7 @@ export default function NursePatientDetails() {
                             )}
                         </div>
                     )}
-                </div>
+                    </div>
             </div >
 
             {/* Record Vitals Modal */}
@@ -1208,11 +1551,11 @@ export default function NursePatientDetails() {
                                         <p className="text-sm text-slate-500 mt-1">
                                             {viewingLabOrder.test_name} • {viewingLabOrder.order_number}
                                         </p>
-                                    </div>
+                </div>
                                     <button onClick={() => setViewingLabOrder(null)} className="p-2 hover:bg-slate-100 rounded-lg">
                                         <X className="w-5 h-5 text-slate-500" />
                                     </button>
-                                </div>
+            </div>
                             </div>
                             <div className="p-6 overflow-y-auto flex-1">
                                 {loadingLabDocs ? (
