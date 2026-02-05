@@ -93,7 +93,7 @@ export default function NursePatientDetails() {
     });
 
     // UI state
-    const [activeTab, setActiveTab] = useState<'overview' | 'vitals' | 'notes' | 'labs' | 'documents'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'vitals' | 'notes' | 'labs' | 'documents' | 'consultations'>('overview');
     const [latestOpdId, setLatestOpdId] = useState<number | null>(null);
 
     // Modal states
@@ -108,17 +108,26 @@ export default function NursePatientDetails() {
     const [noteTypeFilter, setNoteTypeFilter] = useState<string>('');
     const [noteSearchQuery, setNoteSearchQuery] = useState('');
 
+    // OPD Session and Date Range filters
+    const [selectedOpdId, setSelectedOpdId] = useState<string>('');
+    const [filterStartDate, setFilterStartDate] = useState<string>('');
+    const [filterEndDate, setFilterEndDate] = useState<string>('');
+
+    // Consultation history
+    const [consultationHistory, setConsultationHistory] = useState<any[]>([]);
+
     // Fetch all patient data
     const fetchPatientDetails = useCallback(async () => {
         try {
             const token = localStorage.getItem('token');
-            const [patientRes, opdRes, docsRes, labsRes, vitalsRes, notesRes] = await Promise.all([
+            const [patientRes, opdRes, docsRes, labsRes, vitalsRes, notesRes, consultRes] = await Promise.all([
                 axios.get(`${API_URL}/patients/${params.id}`, { headers: { Authorization: `Bearer ${token}` } }),
                 axios.get(`${API_URL}/opd/patient/${params.id}`, { headers: { Authorization: `Bearer ${token}` } }),
                 axios.get(`${API_URL}/patient-documents/patient/${params.id}`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { data: { documents: [] } } })),
                 axios.get(`${API_URL}/lab-orders/patient/${params.id}?includeCompleted=true`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { data: { orders: [] } } })),
                 axios.get(`${API_URL}/vitals/patient/${params.id}`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { data: { vitals: [] } } })),
-                axios.get(`${API_URL}/clinical-notes/patient/${params.id}`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { data: { notes: [] } } }))
+                axios.get(`${API_URL}/clinical-notes/patient/${params.id}`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { data: { notes: [] } } })),
+                axios.get(`${API_URL}/consultations/patient/${params.id}`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { data: { consultations: [] } } }))
             ]);
 
             setPatient(patientRes.data.data.patient);
@@ -128,6 +137,7 @@ export default function NursePatientDetails() {
             setLabOrders(labsRes.data.data.orders || []);
             setVitalsHistory(vitalsRes.data.data.vitals || []);
             setClinicalNotes(notesRes.data.data.notes || []);
+            setConsultationHistory(consultRes.data.data.consultations || consultRes.data.data || []);
 
             if (opdHistoryData.length > 0) {
                 setLatestOpdId(opdHistoryData[0].opd_id);
@@ -144,6 +154,46 @@ export default function NursePatientDetails() {
             fetchPatientDetails();
         }
     }, [params.id, fetchPatientDetails]);
+
+    // Fetch filtered vitals and notes when filters change
+    const fetchFilteredData = useCallback(async () => {
+        const token = localStorage.getItem('token');
+        const filterParams = new URLSearchParams();
+        if (selectedOpdId) filterParams.append('opdId', selectedOpdId);
+        if (filterStartDate) filterParams.append('startDate', filterStartDate);
+        if (filterEndDate) filterParams.append('endDate', filterEndDate);
+
+        try {
+            const [vitalsRes, notesRes] = await Promise.all([
+                axios.get(`${API_URL}/vitals/patient/${params.id}?${filterParams.toString()}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                }).catch(() => ({ data: { data: { vitals: [] } } })),
+                axios.get(`${API_URL}/clinical-notes/patient/${params.id}?${filterParams.toString()}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                }).catch(() => ({ data: { data: { notes: [] } } }))
+            ]);
+
+            setVitalsHistory(vitalsRes.data.data.vitals || []);
+            setClinicalNotes(notesRes.data.data.notes || []);
+        } catch (error) {
+            console.error('Error fetching filtered data:', error);
+        }
+    }, [params.id, selectedOpdId, filterStartDate, filterEndDate]);
+
+    // Re-fetch when filters change
+    useEffect(() => {
+        if (params.id && (selectedOpdId || filterStartDate || filterEndDate)) {
+            fetchFilteredData();
+        }
+    }, [params.id, selectedOpdId, filterStartDate, filterEndDate, fetchFilteredData]);
+
+    // Clear filters and refetch all data
+    const clearFilters = () => {
+        setSelectedOpdId('');
+        setFilterStartDate('');
+        setFilterEndDate('');
+        fetchPatientDetails();
+    };
 
     // Document handlers
     const handleDownload = async (docId: number, fileName: string) => {
@@ -535,6 +585,7 @@ export default function NursePatientDetails() {
                 <div className="flex border-b border-slate-100 overflow-x-auto">
                     {[
                         { id: 'overview', label: 'Overview', icon: History },
+                        { id: 'consultations', label: 'Consultations', icon: Stethoscope, count: consultationHistory.length },
                         { id: 'vitals', label: 'Vitals History', icon: HeartPulse, count: vitalsHistory.length },
                         { id: 'notes', label: 'Clinical Notes', icon: FileText, count: clinicalNotes.length },
                         { id: 'labs', label: 'Lab Orders', icon: Beaker, count: labOrders.length },
@@ -618,7 +669,7 @@ export default function NursePatientDetails() {
                     {/* Vitals History Tab */}
                     {activeTab === 'vitals' && (
                         <div className="space-y-4">
-                            <div className="flex justify-between items-center">
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                                 <h3 className="text-lg font-bold text-slate-800">Vitals History</h3>
                                 <button
                                     onClick={() => setShowVitalsModal(true)}
@@ -629,12 +680,51 @@ export default function NursePatientDetails() {
                                 </button>
                             </div>
 
+                            {/* Filter Bar */}
+                            <div className="flex flex-wrap items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                <Filter className="w-4 h-4 text-slate-400" />
+                                <select
+                                    value={selectedOpdId}
+                                    onChange={(e) => setSelectedOpdId(e.target.value)}
+                                    className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none bg-white"
+                                >
+                                    <option value="">All OPD Sessions</option>
+                                    {opdHistory.map((opd: any) => (
+                                        <option key={opd.opd_id} value={opd.opd_id}>
+                                            {opd.opd_number} - {new Date(opd.visit_date).toLocaleDateString()}
+                                        </option>
+                                    ))}
+                                </select>
+                                <input
+                                    type="date"
+                                    value={filterStartDate}
+                                    onChange={(e) => setFilterStartDate(e.target.value)}
+                                    className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none bg-white"
+                                    placeholder="From"
+                                />
+                                <input
+                                    type="date"
+                                    value={filterEndDate}
+                                    onChange={(e) => setFilterEndDate(e.target.value)}
+                                    className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none bg-white"
+                                    placeholder="To"
+                                />
+                                {(selectedOpdId || filterStartDate || filterEndDate) && (
+                                    <button
+                                        onClick={clearFilters}
+                                        className="px-3 py-1.5 text-sm text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                    >
+                                        Clear Filters
+                                    </button>
+                                )}
+                            </div>
+
                             {vitalsHistory.length > 0 ? (
                                 <div className="space-y-3">
                                     {vitalsHistory.map((vital: any) => (
                                         <div key={vital.vital_id} className="bg-slate-50 rounded-xl p-4 border border-slate-100">
                                             <div className="flex items-start justify-between mb-3">
-                                                <div className="flex items-center gap-2">
+                                                <div className="flex flex-wrap items-center gap-2">
                                                     <HeartPulse className="w-5 h-5 text-red-500" />
                                                     <span className="text-sm font-medium text-slate-600">
                                                         {new Date(vital.recorded_at).toLocaleDateString('en-US', {
@@ -645,8 +735,13 @@ export default function NursePatientDetails() {
                                                             hour: '2-digit', minute: '2-digit'
                                                         })}
                                                     </span>
+                                                    {vital.opd_number && (
+                                                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                                                            {vital.opd_number}
+                                                        </span>
+                                                    )}
                                                 </div>
-                                                <span className="text-xs text-slate-400">by {vital.recorded_by_name || 'Staff'}</span>
+                                                <span className="text-xs text-slate-400">by {vital.recorded_by_full_name || vital.recorded_by_name || 'Staff'}</span>
                                             </div>
 
                                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -701,13 +796,17 @@ export default function NursePatientDetails() {
                             ) : (
                                 <div className="text-center py-12">
                                     <HeartPulse className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                                    <p className="text-slate-400 font-medium">No vitals recorded yet</p>
-                                    <button
-                                        onClick={() => setShowVitalsModal(true)}
-                                        className="mt-4 text-blue-600 text-sm font-medium hover:underline"
-                                    >
-                                        Record the first vitals
-                                    </button>
+                                    <p className="text-slate-400 font-medium">
+                                        {(selectedOpdId || filterStartDate || filterEndDate) ? 'No vitals match the filters' : 'No vitals recorded yet'}
+                                    </p>
+                                    {!(selectedOpdId || filterStartDate || filterEndDate) && (
+                                        <button
+                                            onClick={() => setShowVitalsModal(true)}
+                                            className="mt-4 text-blue-600 text-sm font-medium hover:underline"
+                                        >
+                                            Record the first vitals
+                                        </button>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -749,6 +848,45 @@ export default function NursePatientDetails() {
                                 </div>
                             </div>
 
+                            {/* Filter Bar */}
+                            <div className="flex flex-wrap items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                <Filter className="w-4 h-4 text-slate-400" />
+                                <select
+                                    value={selectedOpdId}
+                                    onChange={(e) => setSelectedOpdId(e.target.value)}
+                                    className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none bg-white"
+                                >
+                                    <option value="">All OPD Sessions</option>
+                                    {opdHistory.map((opd: any) => (
+                                        <option key={opd.opd_id} value={opd.opd_id}>
+                                            {opd.opd_number} - {new Date(opd.visit_date).toLocaleDateString()}
+                                        </option>
+                                    ))}
+                                </select>
+                                <input
+                                    type="date"
+                                    value={filterStartDate}
+                                    onChange={(e) => setFilterStartDate(e.target.value)}
+                                    className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none bg-white"
+                                    placeholder="From"
+                                />
+                                <input
+                                    type="date"
+                                    value={filterEndDate}
+                                    onChange={(e) => setFilterEndDate(e.target.value)}
+                                    className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none bg-white"
+                                    placeholder="To"
+                                />
+                                {(selectedOpdId || filterStartDate || filterEndDate) && (
+                                    <button
+                                        onClick={clearFilters}
+                                        className="px-3 py-1.5 text-sm text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                    >
+                                        Clear Filters
+                                    </button>
+                                )}
+                            </div>
+
                             {filteredNotes.length > 0 ? (
                                 <div className="space-y-3">
                                     {filteredNotes.map(note => (
@@ -766,12 +904,14 @@ export default function NursePatientDetails() {
                                     <p className="text-slate-400 font-medium">
                                         {clinicalNotes.length === 0 ? 'No clinical notes yet' : 'No matching notes found'}
                                     </p>
-                                    <button
-                                        onClick={() => setShowNotesModal(true)}
-                                        className="mt-4 text-blue-600 text-sm font-medium hover:underline"
-                                    >
-                                        Add the first note
-                                    </button>
+                                    {!(selectedOpdId || filterStartDate || filterEndDate) && (
+                                        <button
+                                            onClick={() => setShowNotesModal(true)}
+                                            className="mt-4 text-blue-600 text-sm font-medium hover:underline"
+                                        >
+                                            Add the first note
+                                        </button>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -887,6 +1027,127 @@ export default function NursePatientDetails() {
                             )}
                         </div>
                     )}
+
+                    {/* Consultation History Tab */}
+                    {activeTab === 'consultations' && (
+                        <div className="space-y-4">
+                            <h3 className="text-lg font-bold text-slate-800">Consultation History</h3>
+
+                            {consultationHistory.length > 0 ? (
+                                <div className="space-y-4">
+                                    {consultationHistory.map((consult: any, index: number) => (
+                                        <div key={consult.consultation_id || consult.opd_id || index} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                                            <div className="p-4 bg-gradient-to-r from-indigo-50 to-blue-50 border-b border-slate-100">
+                                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                                    <div>
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <Stethoscope className="w-5 h-5 text-indigo-600" />
+                                                            <span className="font-bold text-slate-800">
+                                                                {consult.doctor_name || consult.doctor_first_name 
+                                                                    ? `Dr. ${consult.doctor_name || `${consult.doctor_first_name} ${consult.doctor_last_name || ''}`}`
+                                                                    : 'Consultation'}
+                                                            </span>
+                                                            {consult.specialization && (
+                                                                <span className="text-sm text-slate-500">({consult.specialization})</span>
+                                                            )}
+                                                        </div>
+                                                        <p className="text-sm text-slate-600">
+                                                            {new Date(consult.visit_date || consult.consultation_date || consult.created_at).toLocaleDateString('en-US', {
+                                                                weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
+                                                            })}
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        {consult.opd_number && (
+                                                            <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs font-bold">
+                                                                {consult.opd_number}
+                                                            </span>
+                                                        )}
+                                                        <span className={`px-2 py-1 rounded-lg text-xs font-bold ${
+                                                            consult.status === 'Completed' || consult.outcome_status === 'Completed'
+                                                                ? 'bg-emerald-100 text-emerald-700'
+                                                                : consult.status === 'In-Progress' || consult.outcome_status === 'In-Progress'
+                                                                    ? 'bg-amber-100 text-amber-700'
+                                                                    : 'bg-slate-100 text-slate-600'
+                                                        }`}>
+                                                            {consult.status || consult.outcome_status || 'Recorded'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="p-4 space-y-4">
+                                                {/* Chief Complaint / Reason */}
+                                                {(consult.chief_complaint || consult.reason_for_visit) && (
+                                                    <div>
+                                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Chief Complaint</h4>
+                                                        <p className="text-sm text-slate-700">{consult.chief_complaint || consult.reason_for_visit}</p>
+                                                    </div>
+                                                )}
+
+                                                {/* Diagnosis */}
+                                                {consult.diagnosis && (
+                                                    <div>
+                                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Diagnosis</h4>
+                                                        <p className="text-sm text-slate-700 font-medium">{consult.diagnosis}</p>
+                                                    </div>
+                                                )}
+
+                                                {/* Notes */}
+                                                {(consult.notes || consult.consultation_notes) && (
+                                                    <div>
+                                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Notes</h4>
+                                                        <p className="text-sm text-slate-600">{consult.notes || consult.consultation_notes}</p>
+                                                    </div>
+                                                )}
+
+                                                {/* Medications */}
+                                                {consult.medications && (
+                                                    <div>
+                                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+                                                            <Pill className="w-3 h-3" /> Medications
+                                                        </h4>
+                                                        <div className="bg-purple-50 rounded-lg p-3 border border-purple-100">
+                                                            <p className="text-sm text-purple-800">{typeof consult.medications === 'string' ? consult.medications : JSON.stringify(consult.medications)}</p>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Labs Ordered */}
+                                                {consult.labs_ordered && (
+                                                    <div>
+                                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+                                                            <Beaker className="w-3 h-3" /> Labs Ordered
+                                                        </h4>
+                                                        <div className="bg-cyan-50 rounded-lg p-3 border border-cyan-100">
+                                                            <p className="text-sm text-cyan-800">{typeof consult.labs_ordered === 'string' ? consult.labs_ordered : JSON.stringify(consult.labs_ordered)}</p>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Follow-up */}
+                                                {consult.follow_up_date && (
+                                                    <div className="flex items-center gap-2 p-3 bg-amber-50 rounded-lg border border-amber-100">
+                                                        <Calendar className="w-4 h-4 text-amber-600" />
+                                                        <span className="text-sm font-medium text-amber-800">
+                                                            Follow-up: {new Date(consult.follow_up_date).toLocaleDateString('en-US', {
+                                                                weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
+                                                            })}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-center py-12">
+                                    <Stethoscope className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                                    <p className="text-slate-400 font-medium">No consultation history available</p>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div >
 
@@ -895,7 +1156,8 @@ export default function NursePatientDetails() {
                 showVitalsModal && patient && (
                     <RecordVitalsModal
                         patientId={patient.patient_id}
-                        opdId={latestOpdId}
+                        opdHistory={opdHistory}
+                        defaultOpdId={latestOpdId}
                         patientName={`${patient?.first_name} ${patient?.last_name}`}
                         onClose={() => setShowVitalsModal(false)}
                         onSuccess={() => {
@@ -911,7 +1173,8 @@ export default function NursePatientDetails() {
                 showNotesModal && patient && (
                     <AddNoteModal
                         patientId={patient.patient_id}
-                        opdId={latestOpdId}
+                        opdHistory={opdHistory}
+                        defaultOpdId={latestOpdId}
                         patientName={`${patient?.first_name} ${patient?.last_name}`}
                         onClose={() => setShowNotesModal(false)}
                         onSuccess={() => {
@@ -1052,7 +1315,7 @@ function NoteCard({ note, compact = false, onTogglePin, onDelete }: {
                     <Icon className="w-4 h-4" />
                 </div>
                 <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
                         <span className={`text-xs font-bold px-2 py-0.5 rounded ${config.bg} ${config.color}`}>
                             {note.note_type}
                         </span>
@@ -1061,6 +1324,11 @@ function NoteCard({ note, compact = false, onTogglePin, onDelete }: {
                         )}
                         {note.is_confidential && (
                             <AlertCircle className="w-3 h-3 text-red-500" />
+                        )}
+                        {note.opd_number && (
+                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                                {note.opd_number}
+                            </span>
                         )}
                         <span className="text-xs text-slate-400 ml-auto">
                             {new Date(note.created_at).toLocaleDateString('en-US', {
@@ -1111,17 +1379,20 @@ function NoteCard({ note, compact = false, onTogglePin, onDelete }: {
 // Record Vitals Modal Component
 function RecordVitalsModal({
     patientId,
-    opdId,
+    opdHistory,
+    defaultOpdId,
     patientName,
     onClose,
     onSuccess
 }: {
     patientId: number;
-    opdId: number | null;
+    opdHistory: any[];
+    defaultOpdId: number | null;
     patientName: string;
     onClose: () => void;
     onSuccess: () => void;
 }) {
+    const [selectedOpdId, setSelectedOpdId] = useState<string>(defaultOpdId ? String(defaultOpdId) : '');
     const [vitals, setVitals] = useState({
         blood_pressure_systolic: '',
         blood_pressure_diastolic: '',
@@ -1146,7 +1417,7 @@ function RecordVitalsModal({
 
             const vitalsData: Record<string, any> = {
                 patient_id: patientId,
-                opd_id: opdId || undefined,
+                opd_id: selectedOpdId ? parseInt(selectedOpdId) : undefined,
                 notes: notes || undefined
             };
 
@@ -1190,6 +1461,25 @@ function RecordVitalsModal({
                             {error}
                         </div>
                     )}
+
+                    {/* OPD Session Selector */}
+                    <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
+                        <label className="block text-sm font-medium text-blue-700 mb-2">
+                            Link to OPD Session (Optional)
+                        </label>
+                        <select
+                            value={selectedOpdId}
+                            onChange={(e) => setSelectedOpdId(e.target.value)}
+                            className="w-full px-4 py-2 border border-blue-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+                        >
+                            <option value="">No OPD Session (General)</option>
+                            {opdHistory.map((opd: any) => (
+                                <option key={opd.opd_id} value={opd.opd_id}>
+                                    {opd.opd_number} - {new Date(opd.visit_date).toLocaleDateString()} ({opd.visit_type || 'Visit'})
+                                </option>
+                            ))}
+                        </select>
+                    </div>
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
@@ -1335,17 +1625,20 @@ function RecordVitalsModal({
 // Add Clinical Note Modal Component
 function AddNoteModal({
     patientId,
-    opdId,
+    opdHistory,
+    defaultOpdId,
     patientName,
     onClose,
     onSuccess
 }: {
     patientId: number;
-    opdId: number | null;
+    opdHistory: any[];
+    defaultOpdId: number | null;
     patientName: string;
     onClose: () => void;
     onSuccess: () => void;
 }) {
+    const [selectedOpdId, setSelectedOpdId] = useState<string>(defaultOpdId ? String(defaultOpdId) : '');
     const [noteType, setNoteType] = useState('Nursing');
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
@@ -1366,7 +1659,7 @@ function AddNoteModal({
 
             await axios.post(`${API_URL}/clinical-notes`, {
                 patient_id: patientId,
-                opd_id: opdId || undefined,
+                opd_id: selectedOpdId ? parseInt(selectedOpdId) : undefined,
                 note_type: noteType,
                 title: title || undefined,
                 content,
@@ -1398,6 +1691,25 @@ function AddNoteModal({
                             {error}
                         </div>
                     )}
+
+                    {/* OPD Session Selector */}
+                    <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
+                        <label className="block text-sm font-medium text-blue-700 mb-2">
+                            Link to OPD Session (Optional)
+                        </label>
+                        <select
+                            value={selectedOpdId}
+                            onChange={(e) => setSelectedOpdId(e.target.value)}
+                            className="w-full px-4 py-2 border border-blue-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+                        >
+                            <option value="">No OPD Session (General)</option>
+                            {opdHistory.map((opd: any) => (
+                                <option key={opd.opd_id} value={opd.opd_id}>
+                                    {opd.opd_number} - {new Date(opd.visit_date).toLocaleDateString()} ({opd.visit_type || 'Visit'})
+                                </option>
+                            ))}
+                        </select>
+                    </div>
 
                     <div>
                         <label className="block text-sm font-medium text-slate-700 mb-2">Note Type</label>

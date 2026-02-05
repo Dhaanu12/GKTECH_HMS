@@ -18,6 +18,6 @@ router.post('/draft', authorize('DOCTOR'), ConsultationController.saveDraft);
 router.get('/draft/:opdId', authorize('DOCTOR'), ConsultationController.getDraft);
 
 // Get patient consultation history
-router.get('/patient/:patientId', authorize('DOCTOR', 'RECEPTIONIST', 'CLIENT_ADMIN'), ConsultationController.getPatientConsultations);
+router.get('/patient/:patientId', authorize('DOCTOR', 'NURSE', 'RECEPTIONIST', 'CLIENT_ADMIN'), ConsultationController.getPatientConsultations);
 
 module.exports = router;

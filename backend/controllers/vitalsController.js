@@ -148,18 +148,20 @@ class VitalsController {
     /**
      * Get vitals history for a patient
      * GET /api/vitals/patient/:patientId
+     * Query params: limit, offset, startDate, endDate, opdId
      * Roles: NURSE, DOCTOR, RECEPTIONIST, CLIENT_ADMIN
      */
     static async getPatientVitals(req, res, next) {
         try {
             const { patientId } = req.params;
-            const { limit, offset, startDate, endDate } = req.query;
+            const { limit, offset, startDate, endDate, opdId } = req.query;
 
             const vitals = await PatientVitals.getPatientVitals(patientId, {
                 limit: limit ? parseInt(limit) : 50,
                 offset: offset ? parseInt(offset) : 0,
                 startDate,
-                endDate
+                endDate,
+                opdId: opdId ? parseInt(opdId) : null
             });
 
             const count = await PatientVitals.getVitalsCount(patientId);

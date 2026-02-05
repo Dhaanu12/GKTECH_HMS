@@ -55,11 +55,11 @@ class ClinicalNotes extends BaseModel {
     /**
      * Get notes for a patient with full details
      * @param {number} patientId 
-     * @param {Object} options - { limit, offset, noteType, includeDeleted }
+     * @param {Object} options - { limit, offset, noteType, includeDeleted, opdId, startDate, endDate }
      * @returns {Promise<Array>}
      */
     async getPatientNotes(patientId, options = {}) {
-        const { limit = 50, offset = 0, noteType, includeDeleted = false } = options;
+        const { limit = 50, offset = 0, noteType, includeDeleted = false, opdId, startDate, endDate } = options;
         const values = [patientId];
         let paramCount = 2;
 
@@ -67,12 +67,18 @@ class ClinicalNotes extends BaseModel {
             SELECT cn.*,
                    u.username as created_by_name,
                    COALESCE(n.first_name || ' ' || n.last_name, d.first_name || ' ' || d.last_name, u.username) as author_name,
-                   uu.username as updated_by_name
+                   uu.username as updated_by_name,
+                   o.opd_number,
+                   o.visit_date as opd_visit_date,
+                   o.visit_type as opd_visit_type,
+                   od.first_name || ' ' || od.last_name as opd_doctor_name
             FROM clinical_notes cn
             LEFT JOIN users u ON cn.created_by = u.user_id
             LEFT JOIN nurses n ON u.user_id = n.user_id
             LEFT JOIN doctors d ON u.user_id = d.user_id
             LEFT JOIN users uu ON cn.updated_by = uu.user_id
+            LEFT JOIN opd_entries o ON cn.opd_id = o.opd_id
+            LEFT JOIN doctors od ON o.doctor_id = od.doctor_id
             WHERE cn.patient_id = $1
         `;
 
@@ -83,6 +89,21 @@ class ClinicalNotes extends BaseModel {
         if (noteType) {
             query += ` AND cn.note_type = $${paramCount++}`;
             values.push(noteType);
+        }
+
+        if (opdId) {
+            query += ` AND cn.opd_id = $${paramCount++}`;
+            values.push(opdId);
+        }
+
+        if (startDate) {
+            query += ` AND cn.created_at >= $${paramCount++}`;
+            values.push(startDate);
+        }
+
+        if (endDate) {
+            query += ` AND cn.created_at <= $${paramCount++}`;
+            values.push(endDate);
         }
 
         // Pinned notes first, then by date
@@ -113,11 +134,17 @@ class ClinicalNotes extends BaseModel {
         const query = `
             SELECT cn.*,
                    u.username as created_by_name,
-                   COALESCE(n.first_name || ' ' || n.last_name, d.first_name || ' ' || d.last_name, u.username) as author_name
+                   COALESCE(n.first_name || ' ' || n.last_name, d.first_name || ' ' || d.last_name, u.username) as author_name,
+                   o.opd_number,
+                   o.visit_date as opd_visit_date,
+                   o.visit_type as opd_visit_type,
+                   od.first_name || ' ' || od.last_name as opd_doctor_name
             FROM clinical_notes cn
             LEFT JOIN users u ON cn.created_by = u.user_id
             LEFT JOIN nurses n ON u.user_id = n.user_id
             LEFT JOIN doctors d ON u.user_id = d.user_id
+            LEFT JOIN opd_entries o ON cn.opd_id = o.opd_id
+            LEFT JOIN doctors od ON o.doctor_id = od.doctor_id
             WHERE cn.note_id = $1 AND cn.is_deleted = false
         `;
 

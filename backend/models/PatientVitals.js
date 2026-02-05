@@ -58,23 +58,37 @@ class PatientVitals extends BaseModel {
     /**
      * Get vitals history for a patient
      * @param {number} patientId 
-     * @param {Object} options - { limit, offset, startDate, endDate }
+     * @param {Object} options - { limit, offset, startDate, endDate, opdId }
      * @returns {Promise<Array>}
      */
     async getPatientVitals(patientId, options = {}) {
-        const { limit = 50, offset = 0, startDate, endDate } = options;
+        const { limit = 50, offset = 0, startDate, endDate, opdId } = options;
         const values = [patientId];
         let paramCount = 2;
 
         let query = `
             SELECT pv.*,
                    u.username as recorded_by_name,
-                   p.first_name || ' ' || p.last_name as patient_name
+                   COALESCE(n.first_name || ' ' || n.last_name, doc.first_name || ' ' || doc.last_name, u.username) as recorded_by_full_name,
+                   p.first_name || ' ' || p.last_name as patient_name,
+                   o.opd_number,
+                   o.visit_date as opd_visit_date,
+                   o.visit_type as opd_visit_type,
+                   od.first_name || ' ' || od.last_name as opd_doctor_name
             FROM patient_vitals pv
             LEFT JOIN users u ON pv.recorded_by = u.user_id
+            LEFT JOIN nurses n ON u.user_id = n.user_id
+            LEFT JOIN doctors doc ON u.user_id = doc.user_id
             LEFT JOIN patients p ON pv.patient_id = p.patient_id
+            LEFT JOIN opd_entries o ON pv.opd_id = o.opd_id
+            LEFT JOIN doctors od ON o.doctor_id = od.doctor_id
             WHERE pv.patient_id = $1
         `;
+
+        if (opdId) {
+            query += ` AND pv.opd_id = $${paramCount++}`;
+            values.push(opdId);
+        }
 
         if (startDate) {
             query += ` AND pv.recorded_at >= $${paramCount++}`;
@@ -101,9 +115,18 @@ class PatientVitals extends BaseModel {
     async getLatestVitals(patientId) {
         const query = `
             SELECT pv.*,
-                   u.username as recorded_by_name
+                   u.username as recorded_by_name,
+                   COALESCE(n.first_name || ' ' || n.last_name, doc.first_name || ' ' || doc.last_name, u.username) as recorded_by_full_name,
+                   o.opd_number,
+                   o.visit_date as opd_visit_date,
+                   o.visit_type as opd_visit_type,
+                   od.first_name || ' ' || od.last_name as opd_doctor_name
             FROM patient_vitals pv
             LEFT JOIN users u ON pv.recorded_by = u.user_id
+            LEFT JOIN nurses n ON u.user_id = n.user_id
+            LEFT JOIN doctors doc ON u.user_id = doc.user_id
+            LEFT JOIN opd_entries o ON pv.opd_id = o.opd_id
+            LEFT JOIN doctors od ON o.doctor_id = od.doctor_id
             WHERE pv.patient_id = $1
             ORDER BY pv.recorded_at DESC
             LIMIT 1
