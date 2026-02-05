@@ -12,32 +12,43 @@ class LabOrder extends BaseModel {
     /**
      * Find orders by patient ID
      * @param {number} patientId 
-     * @param {Object} options - { includeCompleted: boolean }
+     * @param {Object} options - { includeCompleted: boolean, opdId: number }
      * @returns {Promise<Array>}
      */
     async findByPatient(patientId, options = {}) {
+        const values = [patientId];
+        let paramCount = 2;
+
         let query = `
             SELECT lo.*, 
                    p.first_name || ' ' || p.last_name as patient_name,
                    p.mrn_number,
                    d.first_name || ' ' || d.last_name as doctor_name,
                    n.first_name || ' ' || n.last_name as nurse_name,
-                   b.branch_name
+                   b.branch_name,
+                   o.opd_number,
+                   o.visit_date as opd_visit_date
             FROM lab_orders lo
             LEFT JOIN patients p ON lo.patient_id = p.patient_id
             LEFT JOIN doctors d ON lo.doctor_id = d.doctor_id
             LEFT JOIN nurses n ON lo.assigned_nurse_id = n.nurse_id
             LEFT JOIN branches b ON lo.branch_id = b.branch_id
+            LEFT JOIN opd_entries o ON lo.opd_id = o.opd_id
             WHERE lo.patient_id = $1
         `;
         
         if (!options.includeCompleted) {
             query += ` AND lo.status NOT IN ('Completed', 'Cancelled')`;
         }
+
+        if (options.opdId) {
+            query += ` AND lo.opd_id = $${paramCount++}`;
+            values.push(options.opdId);
+        }
         
         query += ` ORDER BY lo.ordered_at DESC`;
         
-        const result = await this.executeQuery(query, [patientId]);
+        const result = await this.executeQuery(query, values);
         return result.rows;
     }
 

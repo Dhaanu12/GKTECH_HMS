@@ -97,11 +97,12 @@ class PatientDocumentController {
     static async getPatientDocuments(req, res, next) {
         try {
             const { patientId } = req.params;
-            const { documentType, includeDeleted } = req.query;
+            const { documentType, includeDeleted, opdId } = req.query;
 
             const documents = await PatientDocument.findByPatient(patientId, {
                 documentType: documentType || null,
-                includeDeleted: includeDeleted === 'true'
+                includeDeleted: includeDeleted === 'true',
+                opdId: opdId ? parseInt(opdId) : null
             });
 
             const typeCounts = await PatientDocument.getTypeCounts(patientId);

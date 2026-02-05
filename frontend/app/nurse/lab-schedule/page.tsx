@@ -30,7 +30,8 @@ import {
     Edit3,
     Trash2,
     ExternalLink,
-    Image
+    Image,
+    History
 } from 'lucide-react';
 
 interface LabOrderDocument {
@@ -75,6 +76,18 @@ interface StatusCounts {
     Cancelled: number;
 }
 
+interface StatusHistoryEntry {
+    history_id: number;
+    order_id: number;
+    previous_status: string | null;
+    new_status: string;
+    changed_by: number;
+    changed_by_username: string;
+    changed_by_email: string;
+    notes: string | null;
+    changed_at: string;
+}
+
 const categoryIcons: Record<string, React.ComponentType<{ className?: string }>> = {
     'Lab': Beaker,
     'Imaging': Scan,
@@ -110,6 +123,7 @@ export default function LabSchedulePage() {
     const [showUploadModal, setShowUploadModal] = useState<LabOrder | null>(null);
     const [showViewResultsModal, setShowViewResultsModal] = useState<LabOrder | null>(null);
     const [showAddMoreModal, setShowAddMoreModal] = useState<LabOrder | null>(null);
+    const [showHistoryModal, setShowHistoryModal] = useState<LabOrder | null>(null);
 
     const fetchOrders = useCallback(async () => {
         try {
@@ -508,6 +522,14 @@ export default function LabSchedulePage() {
                                                     </button>
                                                 </div>
                                             )}
+                                            {/* View History button - available for all statuses */}
+                                            <button
+                                                onClick={() => setShowHistoryModal(order)}
+                                                className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all"
+                                                title="View Status History"
+                                            >
+                                                <History className="w-4 h-4" />
+                                            </button>
                                         </div>
                                     </div>
 
@@ -555,6 +577,14 @@ export default function LabSchedulePage() {
                         setShowAddMoreModal(null);
                         fetchOrders();
                     }}
+                />
+            )}
+
+            {/* View Status History Modal */}
+            {showHistoryModal && (
+                <ViewHistoryModal 
+                    order={showHistoryModal} 
+                    onClose={() => setShowHistoryModal(null)}
                 />
             )}
         </div>
@@ -1233,6 +1263,181 @@ function AddMoreModal({
                                 Save Changes
                             </>
                         )}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// View Status History Modal Component
+function ViewHistoryModal({ 
+    order, 
+    onClose 
+}: { 
+    order: LabOrder;
+    onClose: () => void;
+}) {
+    const [history, setHistory] = useState<StatusHistoryEntry[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        const fetchHistory = async () => {
+            try {
+                setLoading(true);
+                setError(null);
+                const token = localStorage.getItem('token');
+                
+                const response = await axios.get(`http://localhost:5000/api/lab-orders/${order.order_id}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                
+                setHistory(response.data.data.statusHistory || []);
+            } catch (err) {
+                console.error('Error fetching status history:', err);
+                setError('Failed to load status history');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchHistory();
+    }, [order.order_id]);
+
+    const getStatusColor = (status: string) => {
+        switch (status) {
+            case 'Ordered': return 'bg-blue-500';
+            case 'In-Progress': return 'bg-amber-500';
+            case 'Completed': return 'bg-emerald-500';
+            case 'Cancelled': return 'bg-slate-400';
+            default: return 'bg-slate-400';
+        }
+    };
+
+    const getStatusIcon = (status: string) => {
+        switch (status) {
+            case 'Ordered': return Clock;
+            case 'In-Progress': return Play;
+            case 'Completed': return CheckCircle2;
+            case 'Cancelled': return XCircle;
+            default: return Clock;
+        }
+    };
+
+    const formatDateTime = (dateStr: string) => {
+        const date = new Date(dateStr);
+        return {
+            date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+            time: date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+        };
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl w-full max-w-lg max-h-[80vh] overflow-hidden shadow-xl">
+                {/* Header */}
+                <div className="p-6 border-b border-slate-100">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-purple-100 rounded-xl">
+                                <History className="w-5 h-5 text-purple-600" />
+                            </div>
+                            <div>
+                                <h2 className="text-lg font-bold text-slate-800">Status History</h2>
+                                <p className="text-sm text-slate-500">{order.order_number} - {order.test_name}</p>
+                            </div>
+                        </div>
+                        <button 
+                            onClick={onClose}
+                            className="p-2 hover:bg-slate-100 rounded-lg transition-all"
+                        >
+                            <XCircle className="w-5 h-5 text-slate-400" />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Content */}
+                <div className="p-6 overflow-y-auto max-h-[60vh]">
+                    {loading ? (
+                        <div className="flex items-center justify-center py-12">
+                            <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+                        </div>
+                    ) : error ? (
+                        <div className="text-center py-12">
+                            <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto mb-3" />
+                            <p className="text-slate-600">{error}</p>
+                        </div>
+                    ) : history.length === 0 ? (
+                        <div className="text-center py-12">
+                            <History className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                            <p className="text-slate-500">No status history available</p>
+                        </div>
+                    ) : (
+                        <div className="relative">
+                            {/* Timeline line */}
+                            <div className="absolute left-[18px] top-6 bottom-6 w-0.5 bg-slate-200" />
+                            
+                            {/* Timeline entries */}
+                            <div className="space-y-6">
+                                {history.map((entry, index) => {
+                                    const StatusIcon = getStatusIcon(entry.new_status);
+                                    const { date, time } = formatDateTime(entry.changed_at);
+                                    
+                                    return (
+                                        <div key={entry.history_id} className="relative flex gap-4">
+                                            {/* Timeline dot */}
+                                            <div className={`relative z-10 w-9 h-9 rounded-full ${getStatusColor(entry.new_status)} flex items-center justify-center shadow-md`}>
+                                                <StatusIcon className="w-4 h-4 text-white" />
+                                            </div>
+                                            
+                                            {/* Content */}
+                                            <div className="flex-1 pb-2">
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <div>
+                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                            {entry.previous_status ? (
+                                                                <>
+                                                                    <span className="text-sm text-slate-500">{entry.previous_status}</span>
+                                                                    <span className="text-slate-400">→</span>
+                                                                    <span className="text-sm font-semibold text-slate-800">{entry.new_status}</span>
+                                                                </>
+                                                            ) : (
+                                                                <span className="text-sm font-semibold text-slate-800">
+                                                                    Created as {entry.new_status}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <p className="text-xs text-slate-400 mt-0.5">
+                                                            by {entry.changed_by_username || 'System'}
+                                                        </p>
+                                                    </div>
+                                                    <div className="text-right text-xs text-slate-400 whitespace-nowrap">
+                                                        <p>{date}</p>
+                                                        <p>{time}</p>
+                                                    </div>
+                                                </div>
+                                                {entry.notes && (
+                                                    <div className="mt-2 p-2 bg-slate-50 rounded-lg">
+                                                        <p className="text-xs text-slate-600">{entry.notes}</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Footer */}
+                <div className="p-4 border-t border-slate-100">
+                    <button
+                        onClick={onClose}
+                        className="w-full px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-200 transition-all"
+                    >
+                        Close
                     </button>
                 </div>
             </div>
