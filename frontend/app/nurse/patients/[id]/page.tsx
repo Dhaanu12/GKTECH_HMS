@@ -691,12 +691,14 @@ export default function NursePatientDetails() {
                             </span>
                         </div>
                         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-9 gap-2">
-                            {latestVitals.blood_pressure_systolic && (
+                            {(latestVitals.blood_pressure_systolic || latestVitals.blood_pressure_diastolic) && (
                                 <VitalCard
-                                    label="Blood Pressure"
-                                    value={`${latestVitals.blood_pressure_systolic}/${latestVitals.blood_pressure_diastolic}`}
+                                    label={latestVitals.blood_pressure_systolic && latestVitals.blood_pressure_diastolic ? "Blood Pressure" : latestVitals.blood_pressure_systolic ? "Systolic BP" : "Diastolic BP"}
+                                    value={latestVitals.blood_pressure_systolic && latestVitals.blood_pressure_diastolic 
+                                        ? `${latestVitals.blood_pressure_systolic}/${latestVitals.blood_pressure_diastolic}`
+                                        : latestVitals.blood_pressure_systolic || latestVitals.blood_pressure_diastolic}
                                     unit="mmHg"
-                                    trend={getVitalsTrend(latestVitals.blood_pressure_systolic, previousVitals?.blood_pressure_systolic)}
+                                    trend={getVitalsTrend(latestVitals.blood_pressure_systolic || latestVitals.blood_pressure_diastolic, previousVitals?.blood_pressure_systolic || previousVitals?.blood_pressure_diastolic)}
                                     icon={<Activity className="w-4 h-4" />}
                                     color="blue"
                                     onClick={() => setSelectedVitalForGraph('blood_pressure_systolic')}
@@ -960,11 +962,15 @@ export default function NursePatientDetails() {
                                             </div>
 
                                             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-9 gap-2">
-                                                {vital.blood_pressure_systolic && vital.blood_pressure_diastolic && (
+                                                {(vital.blood_pressure_systolic || vital.blood_pressure_diastolic) && (
                                                     <div className="bg-white rounded-md p-2 border border-slate-100">
-                                                        <p className="text-xs font-medium text-slate-600 mb-0.5">BP</p>
+                                                        <p className="text-xs font-medium text-slate-600 mb-0.5">
+                                                            {vital.blood_pressure_systolic && vital.blood_pressure_diastolic ? 'BP' : vital.blood_pressure_systolic ? 'Sys. BP' : 'Dia. BP'}
+                                                        </p>
                                                         <p className="text-sm font-bold text-slate-800">
-                                                            {vital.blood_pressure_systolic}/{vital.blood_pressure_diastolic}
+                                                            {vital.blood_pressure_systolic && vital.blood_pressure_diastolic 
+                                                                ? `${vital.blood_pressure_systolic}/${vital.blood_pressure_diastolic}`
+                                                                : vital.blood_pressure_systolic || vital.blood_pressure_diastolic}
                                                             <span className="text-xs font-normal text-slate-500 ml-0.5">mmHg</span>
                                                         </p>
                                                     </div>
