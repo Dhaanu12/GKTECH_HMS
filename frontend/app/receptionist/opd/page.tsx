@@ -998,22 +998,15 @@ export default function OpdEntryPage() {
 
 
     // --- Cancel Modal Functions (matches UpcomingAppointments) ---
+    // --- Cancel Modal Functions (matches UpcomingAppointments) ---
     const openCancelModal = (entry: any) => {
-        // Find the appointment for this patient (if exists)
-        const patientAppointment = allAppointments.find((apt: any) =>
-            apt.patient_id === entry.patient_id && ['Scheduled', 'Confirmed'].includes(apt.appointment_status)
-        );
-        if (patientAppointment) {
-            setAppointmentToCancel(patientAppointment);
-        } else {
-            // Create a pseudo-appointment from OPD data for cancellation
-            setAppointmentToCancel({
-                appointment_id: null,
-                opd_id: entry.opd_id,
-                patient_name: `${entry.patient_first_name} ${entry.patient_last_name}`,
-                isOpdCancel: true
-            });
-        }
+        // Strictly cancel the OPD Entry from this page
+        setAppointmentToCancel({
+            appointment_id: null,
+            opd_id: entry.opd_id,
+            patient_name: `${entry.patient_first_name} ${entry.patient_last_name}`,
+            isOpdCancel: true
+        });
         setCancelReason('Patient Request');
         setShowCancelModal(true);
     };
@@ -1126,6 +1119,7 @@ export default function OpdEntryPage() {
 
     // --- Reschedule Modal Functions (matches UpcomingAppointments) ---
     const openRescheduleModal = (entry: any) => {
+        const today = new Date().toISOString().split('T')[0];
         // Fix: Only link to an existing appointment if this SPECIFIC entry is that appointment
         // Otherwise we risk overwriting an existing future appointment when we just meant to create a new one
         if (entry.visit_status === 'Scheduled' && entry.appointment_id) {
@@ -1157,6 +1151,7 @@ export default function OpdEntryPage() {
             // Create new appointment from OPD data
             setAppointmentToReschedule({
                 appointment_id: null,
+                opd_id: entry.opd_id, // Capture OPD ID for status update
                 patient_id: entry.patient_id,
                 patient_name: `${entry.patient_first_name} ${entry.patient_last_name}`,
                 phone_number: entry.contact_number,
@@ -1218,10 +1213,21 @@ export default function OpdEntryPage() {
                 await axios.post(`${API_URL}/appointments`, appointmentData, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
+
+                // Update original OPD entry status to 'Rescheduled'
+                if (appointmentToReschedule.opd_id) {
+                    await axios.patch(`${API_URL}/opd/${appointmentToReschedule.opd_id}/status`, {
+                        visit_status: 'Rescheduled'
+                    }, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                }
+
                 alert('Appointment scheduled successfully!');
             }
 
             fetchAppointments();
+            fetchOpdEntries(); // Refresh OPD list to hide rescheduled entry
             setShowRescheduleModal(false);
             setAppointmentToReschedule(null);
         } catch (error: any) {
@@ -1504,138 +1510,167 @@ export default function OpdEntryPage() {
 
                                 return doctorMatch && searchMatch;
                             })
-                            .map((entry: any) => (
-                                <div
-                                    key={entry.opd_id}
-                                    className="group bg-white rounded-2xl p-4 border border-slate-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all duration-300 flex flex-col md:flex-row items-center relative overflow-hidden"
-                                >
-                                    {/* Left Accent Bar */}
-                                    <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${entry.visit_status === 'Completed' ? 'bg-emerald-500' :
-                                        entry.visit_status === 'In-consultation' ? 'bg-amber-500' :
-                                            'bg-blue-500'
-                                        }`}></div>
+                            .map((entry: any) => {
+                                // Theme Logic: Female -> Pink, Male MLC -> Red, Male Default -> Blue
+                                const isFemale = entry.gender === 'Female';
+                                const isMLC = entry.is_mlc;
 
-                                    {/* Token & ID - Scaled Up */}
-                                    <div className="w-full md:w-[15%] pl-4 flex flex-row items-center gap-3 flex-shrink-0">
-                                        <div className="bg-blue-50 hover:bg-blue-100 transition-colors rounded-xl border border-blue-100 h-12 w-12 flex items-center justify-center shadow-sm group-hover:scale-105 duration-300 flex-shrink-0">
-                                            <span className="font-black text-blue-600 text-lg">
-                                                {entry.token_number}
-                                            </span>
-                                        </div>
-                                        <button
-                                            onClick={() => handleEditOpd(entry)}
-                                            className="text-xs font-mono font-bold text-slate-500 hover:text-blue-600 hover:underline whitespace-nowrap"
-                                        >
-                                            #{entry.opd_number}
-                                        </button>
-                                    </div>
+                                let theme = 'blue';
+                                if (isFemale) theme = 'pink';
+                                else if (isMLC) theme = 'red';
 
-                                    {/* Patient Info - Scaled Up */}
-                                    <div className="w-full md:w-[15%] flex items-center gap-3 flex-shrink-0 pl-2">
-                                        <div className={`w-11 h-11 rounded-full flex-shrink-0 flex items-center justify-center text-lg font-bold shadow-sm ${entry.gender === 'Female' ? 'bg-pink-50 text-pink-600' : 'bg-blue-50 text-blue-600'
-                                            }`}>
-                                            {entry.patient_first_name[0]}
-                                        </div>
-                                        <div className="min-w-0">
-                                            <Link href={`/receptionist/patients/${entry.patient_id}`} className="block font-bold text-slate-800 text-lg truncate hover:text-blue-600 transition" title={`${entry.patient_first_name} ${entry.patient_last_name}`}>
-                                                {entry.patient_first_name} {entry.patient_last_name}
-                                            </Link>
-                                            <p className="text-xs text-slate-500 font-medium truncate">{entry.gender}, {entry.age} yrs</p>
-                                        </div>
-                                    </div>
+                                const themeColors: any = {
+                                    blue: {
+                                        bg: 'bg-blue-50', border: 'border-blue-100', text: 'text-blue-600',
+                                        bar: 'bg-blue-500', hoverBorder: 'hover:border-blue-100',
+                                        lightGroupHover: 'group-hover:bg-blue-100', textDate: 'text-blue-600'
+                                    },
+                                    pink: {
+                                        bg: 'bg-pink-50', border: 'border-pink-100', text: 'text-pink-600',
+                                        bar: 'bg-pink-500', hoverBorder: 'hover:border-pink-100',
+                                        lightGroupHover: 'group-hover:bg-pink-100', textDate: 'text-pink-600'
+                                    },
+                                    red: {
+                                        bg: 'bg-red-50', border: 'border-red-100', text: 'text-red-600',
+                                        bar: 'bg-red-500', hoverBorder: 'hover:border-red-100',
+                                        lightGroupHover: 'group-hover:bg-red-100', textDate: 'text-red-600'
+                                    }
+                                };
+                                const colors = themeColors[theme];
 
-                                    {/* Doctor Info - Scaled Up */}
-                                    <div className="w-full md:w-[15%] flex-shrink-0">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-sm">
-                                                {entry.doctor_first_name ? entry.doctor_first_name[0].toUpperCase() : 'D'}
+                                return (
+                                    <div
+                                        key={entry.opd_id}
+                                        className={`group bg-white rounded-2xl p-4 border border-slate-100 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col md:flex-row items-center relative overflow-hidden ${colors.hoverBorder}`}
+                                    >
+                                        {/* Left Accent Bar */}
+                                        <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${entry.visit_status === 'Completed' ? 'bg-emerald-500' :
+                                            entry.visit_status === 'In-consultation' ? 'bg-amber-500' :
+                                                colors.bar
+                                            }`}></div>
+
+                                        {/* Token & ID - Scaled Up */}
+                                        <div className="w-full md:w-[15%] pl-4 flex flex-row items-center gap-3 flex-shrink-0">
+                                            <div className={`${colors.bg} ${colors.lightGroupHover} transition-colors rounded-xl border ${colors.border} h-12 w-12 flex items-center justify-center shadow-sm group-hover:scale-105 duration-300 flex-shrink-0`}>
+                                                <span className={`font-black ${colors.text} text-lg`}>
+                                                    {entry.token_number}
+                                                </span>
                                             </div>
-                                            <div className="min-w-0">
-                                                <p className="text-base font-bold text-slate-700 leading-tight capitalize truncate">
-                                                    Dr. {entry.doctor_first_name} {entry.doctor_last_name}
-                                                </p>
-                                                <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider truncate mt-0.5">
-                                                    {entry.specialization || 'General'}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Timings - Scaled Up */}
-                                    <div className="w-full md:w-[10%] flex-shrink-0">
-                                        <div className="flex flex-col">
-                                            <p className="text-base font-bold text-slate-700">{entry.visit_time.slice(0, 5)}</p>
-                                            <p className="text-[11px] text-slate-400 font-medium">{new Date(entry.visit_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</p>
-                                        </div>
-                                    </div>
-
-                                    {/* Status Pills - Scaled Up */}
-                                    <div className="w-full md:w-[10%] flex flex-col gap-1.5 flex-shrink-0 items-start">
-                                        <span className={`inline-flex px-2.5 py-1 text-[11px] font-bold rounded-lg border ${entry.visit_type === 'Emergency' ? 'bg-red-50 text-red-600 border-red-100' :
-                                            entry.visit_type === 'Follow-up' ? 'bg-blue-50 text-blue-600 border-blue-100' :
-                                                'bg-slate-50 text-slate-600 border-slate-100'
-                                            }`}>
-                                            {entry.visit_type}
-                                        </span>
-                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold rounded-lg border ${entry.visit_status === 'Completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
-                                            entry.visit_status === 'In-consultation' ? 'bg-amber-50 text-amber-700 border-amber-100' :
-                                                'bg-white text-slate-500 border-slate-200'
-                                            }`}>
-                                            <span className={`w-1.5 h-1.5 rounded-full ${entry.visit_status === 'Completed' ? 'bg-emerald-500' :
-                                                entry.visit_status === 'In-consultation' ? 'bg-amber-500' :
-                                                    'bg-slate-300'
-                                                }`}></span>
-                                            {entry.visit_status}
-                                        </span>
-                                    </div>
-
-                                    {/* Payment - Scaled Up */}
-                                    <div className="w-full md:w-[10%] text-right flex-shrink-0">
-                                        <p className="font-mono text-base font-bold text-slate-800">₹{entry.consultation_fee || '0'}</p>
-                                        <p className={`text-[11px] font-bold uppercase tracking-wider ${entry.payment_status === 'Paid' ? 'text-emerald-500' : 'text-red-500'
-                                            }`}>
-                                            {entry.payment_status}
-                                        </p>
-                                    </div>
-
-                                    {/* Action Buttons - 25% Width - Spacious Layout */}
-                                    <div className="w-full md:w-[25%] flex flex-col gap-1.5 pl-6 flex-shrink-0">
-                                        {/* Row 1: Edit & Cancel (Side by Side) */}
-                                        <div className="flex items-center gap-1.5 w-full">
-                                            {/* Edit Button */}
                                             <button
                                                 onClick={() => handleEditOpd(entry)}
-                                                className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-800 rounded-lg transition-all font-bold text-xs"
-                                                title="Edit OPD Entry"
+                                                className={`text-xs font-mono font-bold text-slate-500 hover:${colors.text} hover:underline whitespace-nowrap`}
                                             >
-                                                Edit
+                                                #{entry.opd_number}
                                             </button>
-
-                                            {/* Cancel Button */}
-                                            {entry.visit_status === 'Registered' ? (
-                                                <button
-                                                    onClick={() => openCancelModal(entry)}
-                                                    className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-all font-bold text-xs border border-red-100"
-                                                    title="Cancel Visit"
-                                                >
-                                                    Cancel
-                                                </button>
-                                            ) : (
-                                                <div className="flex-1"></div>
-                                            )}
                                         </div>
 
-                                        {/* Row 2: Re-Appoint (Full Width) */}
-                                        <button
-                                            onClick={() => openRescheduleModal(entry)}
-                                            className="w-full flex items-center justify-center gap-2 px-2 py-1.5 bg-slate-900 text-white hover:bg-slate-800 rounded-lg transition-all font-bold text-xs shadow-sm active:scale-95"
-                                            title="Re-Appoint Patient"
-                                        >
-                                            Re-Appoint
-                                        </button>
+                                        {/* Patient Info - Scaled Up */}
+                                        <div className="w-full md:w-[15%] flex items-center gap-3 flex-shrink-0 pl-2">
+                                            <div className={`w-11 h-11 rounded-full flex-shrink-0 flex items-center justify-center text-lg font-bold shadow-sm ${colors.bg} ${colors.text}`}>
+                                                {entry.patient_first_name[0]}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <Link href={`/receptionist/patients/${entry.patient_id}`} className={`block font-bold text-slate-800 text-lg truncate hover:${colors.text} transition`} title={`${entry.patient_first_name} ${entry.patient_last_name}`}>
+                                                    {entry.patient_first_name} {entry.patient_last_name}
+                                                </Link>
+                                                <p className="text-xs text-slate-500 font-medium truncate">{entry.gender}, {entry.age} yrs</p>
+                                            </div>
+                                        </div>
+
+                                        {/* Doctor Info - Scaled Up */}
+                                        <div className="w-full md:w-[15%] flex-shrink-0">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-sm">
+                                                    {entry.doctor_first_name ? entry.doctor_first_name[0].toUpperCase() : 'D'}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="text-base font-bold text-slate-700 leading-tight capitalize truncate">
+                                                        Dr. {entry.doctor_first_name} {entry.doctor_last_name}
+                                                    </p>
+                                                    <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider truncate mt-0.5">
+                                                        {entry.specialization || 'General'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Timings - Scaled Up */}
+                                        <div className="w-full md:w-[10%] flex-shrink-0">
+                                            <div className="flex flex-col">
+                                                <p className="text-base font-bold text-slate-700">{entry.visit_time.slice(0, 5)}</p>
+                                                <p className="text-[11px] text-slate-400 font-medium">{new Date(entry.visit_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</p>
+                                            </div>
+                                        </div>
+
+                                        {/* Status Pills - Scaled Up */}
+                                        <div className="w-full md:w-[10%] flex flex-col gap-1.5 flex-shrink-0 items-start">
+                                            <span className={`inline-flex px-2.5 py-1 text-[11px] font-bold rounded-lg border ${entry.visit_type === 'Emergency' ? 'bg-red-50 text-red-600 border-red-100' :
+                                                entry.visit_type === 'Follow-up' ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                                                    'bg-slate-50 text-slate-600 border-slate-100'
+                                                }`}>
+                                                {entry.visit_type}
+                                            </span>
+                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold rounded-lg border ${entry.visit_status === 'Completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                                                entry.visit_status === 'In-consultation' ? 'bg-amber-50 text-amber-700 border-amber-100' :
+                                                    'bg-white text-slate-500 border-slate-200'
+                                                }`}>
+                                                <span className={`w-1.5 h-1.5 rounded-full ${entry.visit_status === 'Completed' ? 'bg-emerald-500' :
+                                                    entry.visit_status === 'In-consultation' ? 'bg-amber-500' :
+                                                        'bg-slate-300'
+                                                    }`}></span>
+                                                {entry.visit_status}
+                                            </span>
+                                        </div>
+
+                                        {/* Payment - Scaled Up */}
+                                        <div className="w-full md:w-[10%] text-right flex-shrink-0">
+                                            <p className="font-mono text-base font-bold text-slate-800">₹{entry.consultation_fee || '0'}</p>
+                                            <p className={`text-[11px] font-bold uppercase tracking-wider ${entry.payment_status === 'Paid' ? 'text-emerald-500' : 'text-red-500'
+                                                }`}>
+                                                {entry.payment_status}
+                                            </p>
+                                        </div>
+
+                                        {/* Action Buttons - 25% Width - Spacious Layout */}
+                                        <div className="w-full md:w-[25%] flex flex-col gap-1.5 pl-6 flex-shrink-0">
+                                            {/* Row 1: Edit & Cancel (Side by Side) */}
+                                            <div className="flex items-center gap-1.5 w-full">
+                                                {/* Edit Button */}
+                                                <button
+                                                    onClick={() => handleEditOpd(entry)}
+                                                    className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-800 rounded-lg transition-all font-bold text-xs"
+                                                    title="Edit OPD Entry"
+                                                >
+                                                    Edit
+                                                </button>
+
+                                                {/* Cancel Button */}
+                                                {entry.visit_status === 'Registered' ? (
+                                                    <button
+                                                        onClick={() => openCancelModal(entry)}
+                                                        className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-all font-bold text-xs border border-red-100"
+                                                        title="Cancel Visit"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                ) : (
+                                                    <div className="flex-1"></div>
+                                                )}
+                                            </div>
+
+                                            {/* Row 2: Re-Appoint (Full Width) */}
+                                            <button
+                                                onClick={() => openRescheduleModal(entry)}
+                                                className="w-full flex items-center justify-center gap-2 px-2 py-1.5 bg-slate-900 text-white hover:bg-slate-800 rounded-lg transition-all font-bold text-xs shadow-sm active:scale-95"
+                                                title="Re-Appoint Patient"
+                                            >
+                                                Re-Appoint
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
-                            )))}
+                                );
+                            }))
+                    }
                 </div>
             </div>
 
