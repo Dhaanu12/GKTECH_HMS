@@ -213,6 +213,25 @@ class OpdController {
                 }
             }
 
+
+
+            // CHECK DUPLICATE: Check if patient already has an OPD with this doctor today
+            if (finalPatientId && doctor_id) {
+                const duplicateCheck = await query(
+                    `SELECT opd_id FROM opd_entries 
+                     WHERE patient_id = $1 AND doctor_id = $2 AND visit_date = $3 
+                     AND visit_status != 'Cancelled'`,
+                    [finalPatientId, doctor_id, visit_date]
+                );
+
+                if (duplicateCheck.rows.length > 0) {
+                    return res.status(409).json({
+                        error: 'Duplicate Entry',
+                        message: 'This patient is already registered with this doctor for today.'
+                    });
+                }
+            }
+
             // 2. Generate OPD Numbers
             const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
             const randomSuffix = Math.floor(1000 + Math.random() * 9000);
@@ -279,14 +298,24 @@ class OpdController {
                     WHERE appointment_id = $1
                 `, [appointment_id, finalPatientId]);
             } else {
-                await query(`
+                // Try to find matching appointment by Patient ID OR Phone Number
+                let matchQuery = `
                     UPDATE appointments 
-                    SET appointment_status = 'In OPD', patient_id = $2, updated_at = CURRENT_TIMESTAMP
-                    WHERE patient_id = $1 
-                    AND doctor_id = $2 
+                    SET appointment_status = 'In OPD', patient_id = $1, updated_at = CURRENT_TIMESTAMP
+                    WHERE doctor_id = $2 
                     AND appointment_date = $3
                     AND appointment_status IN ('Scheduled', 'Confirmed')
-                `, [finalPatientId, doctor_id, visit_date]);
+                    AND (
+                        (patient_id IS NOT NULL AND patient_id = $1)
+                        OR 
+                        (patient_id IS NULL AND phone_number = $4)
+                    )
+                `;
+
+                // Ensure we have a phone number to check against
+                const checkPhone = contact_number || '';
+
+                await query(matchQuery, [finalPatientId, doctor_id, visit_date, checkPhone]);
             }
 
             res.status(201).json({
@@ -823,6 +852,43 @@ class OpdController {
         } catch (error) {
             console.error('Delete OPD entry error:', error);
             next(new AppError('Failed to delete OPD entry', 500));
+        }
+    }
+
+    /**
+     * GET /api/opd/check-duplicate
+     * Check if patient already has an OPD entry with this doctor on this date
+     */
+    static async checkDuplicate(req, res, next) {
+        try {
+            const { patient_id, doctor_id, visit_date } = req.query;
+
+            if (!patient_id || !doctor_id || !visit_date) {
+                return res.status(400).json({ status: 'fail', message: 'Missing parameters' });
+            }
+
+            const duplicateCheck = await query(
+                `SELECT opd_id FROM opd_entries 
+                 WHERE patient_id = $1 AND doctor_id = $2 AND visit_date = $3 
+                 AND visit_status != 'Cancelled'`,
+                [patient_id, doctor_id, visit_date]
+            );
+
+            if (duplicateCheck.rows.length > 0) {
+                return res.status(200).json({
+                    status: 'success',
+                    exists: true,
+                    message: 'Patient already registered with this doctor for today.'
+                });
+            }
+
+            return res.status(200).json({
+                status: 'success',
+                exists: false
+            });
+        } catch (error) {
+            console.error('Check duplicate error:', error);
+            next(new AppError('Server Error', 500));
         }
     }
 }

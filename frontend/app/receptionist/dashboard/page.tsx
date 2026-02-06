@@ -8,8 +8,11 @@ import { useRouter } from 'next/navigation';
 import SearchableSelect from '../../../components/ui/SearchableSelect';
 import { Plus, Search, FileText, X, Save, User, Printer, Clock, AlertCircle, AlertTriangle, Calendar, Phone, ArrowRight, Bell, Sparkles, Activity, Users, ChevronLeft, Check, Sun, CloudSun, Moon } from 'lucide-react';
 import UpcomingAppointments from './components/UpcomingAppointments';
+import MultiInputTags from './components/MultiInputTags';
 
 import { format } from 'date-fns';
+
+const API_URL = 'http://localhost:5000/api';
 
 export default function ReceptionistDashboard() {
     const { user } = useAuth();
@@ -56,6 +59,11 @@ export default function ReceptionistDashboard() {
     const [isFromConvertToOPD, setIsFromConvertToOPD] = useState(false); // Tracks if modal opened from Convert to OPD
     const [pendingPatientData, setPendingPatientData] = useState<any>(null); // Stores appointment patient data for auto-fill
 
+    // Duplicate Check State
+    const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
+
+
+
     // Progressive Form state
     type FormStep = 'search' | 'newPatient' | 'visitDetails' | 'payment';
     const [currentStep, setCurrentStep] = useState<FormStep>('search');
@@ -93,6 +101,39 @@ export default function ReceptionistDashboard() {
         appointment_id: '' // Linked Appointment ID
     });
 
+    // Duplicate Check Logic
+    useEffect(() => {
+        const checkDuplicate = async () => {
+            // Need patient_id (from selectedPatient) and doctor_id + date
+            if (!editingOpdId && selectedPatient?.patient_id && opdForm.doctor_id) {
+                try {
+                    const token = localStorage.getItem('token');
+                    const response = await axios.get(`${API_URL}/opd/check-duplicate`, {
+                        params: {
+                            patient_id: selectedPatient.patient_id,
+                            doctor_id: opdForm.doctor_id,
+                            visit_date: opdForm.visit_date
+                        },
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+
+                    if (response.data.exists) {
+                        setDuplicateWarning(response.data.message);
+                    } else {
+                        setDuplicateWarning(null);
+                    }
+                } catch (error) {
+                    console.error("Error checking duplicate:", error);
+                }
+            } else {
+                setDuplicateWarning(null);
+            }
+        };
+
+        const timeoutId = setTimeout(checkDuplicate, 500); // Debounce
+        return () => clearTimeout(timeoutId);
+    }, [selectedPatient, opdForm.doctor_id, opdForm.visit_date, editingOpdId]);
+
     const resetForm = () => {
         setOpdForm({
             first_name: '', last_name: '', age: '', gender: '', blood_group: '',
@@ -116,6 +157,7 @@ export default function ReceptionistDashboard() {
         setHasAppointment(false);
         setAppointmentDoctorName('');
         setEditingOpdId(null);
+        setDuplicateWarning(null); // Clear any duplicate warning
         setIsFromConvertToOPD(false); // Reset Convert to OPD mode
         setPendingPatientData(null); // Clear pending patient data
         setCurrentStep('search');
@@ -124,6 +166,7 @@ export default function ReceptionistDashboard() {
 
     // --- Appointment Modal State & Logic ---
     const [showApptModal, setShowApptModal] = useState(false);
+    const [duplicateApptWarning, setDuplicateApptWarning] = useState<string | null>(null); // New state
     // const [departments, setDepartments] = useState<any[]>([]); // Already added? No, failed.
     const [departments, setDepartments] = useState<any[]>([]);
     const [doctorSchedules, setDoctorSchedules] = useState<any[]>([]);
@@ -132,6 +175,8 @@ export default function ReceptionistDashboard() {
 
     const [appointmentStep, setAppointmentStep] = useState(1);
     const [bookingDepartment, setBookingDepartment] = useState('');
+
+
     const [suggestedDoctorId, setSuggestedDoctorId] = useState<string | null>(null);
     const [doctorSearchQuery, setDoctorSearchQuery] = useState('');
 
@@ -153,6 +198,70 @@ export default function ReceptionistDashboard() {
     const [apptPhoneSearchResults, setApptPhoneSearchResults] = useState<any[]>([]);
     const [isApptSearching, setIsApptSearching] = useState(false);
     const [selectedApptPatient, setSelectedApptPatient] = useState<any>(null);
+    // Flag to track when user explicitly clicks "Add New Patient (Family)"
+    // When true, skip duplicate check since user confirmed it's a new person
+    const [isAddingNewFamilyMember, setIsAddingNewFamilyMember] = useState(false);
+
+    // Check for Duplicate Appointment
+    // Handles three scenarios:
+    // 1. Existing patient (patient_id set) → Check by patient_id + doctor + date
+    // 2. Family member (isAddingNewFamilyMember true) → Skip check (user confirmed new person)
+    // 3. New phone number (no patient_id, no family flag) → Check by phone + doctor + date
+    useEffect(() => {
+        const checkDuplicateAppt = async () => {
+            // Required: doctor_id and appointment_date
+            if (!appointmentForm.doctor_id || !appointmentForm.appointment_date) {
+                setDuplicateApptWarning(null);
+                return;
+            }
+
+            // Scenario 2: User explicitly clicked "Add New Patient (Family)" - skip check
+            if (isAddingNewFamilyMember) {
+                setDuplicateApptWarning(null);
+                return;
+            }
+
+            // Build params based on whether we have patient_id or not
+            const params: any = {
+                doctor_id: appointmentForm.doctor_id,
+                appointment_date: appointmentForm.appointment_date
+            };
+
+            if (appointmentForm.patient_id) {
+                // Scenario 1: Existing patient - check by patient_id
+                params.patient_id = appointmentForm.patient_id;
+            } else if (appointmentForm.phone_number) {
+                // Scenario 3: New phone number - check by phone only (no name check)
+                params.phone_number = appointmentForm.phone_number;
+            } else {
+                // Not enough info to check - clear warning
+                setDuplicateApptWarning(null);
+                return;
+            }
+
+            try {
+                const token = localStorage.getItem('token');
+                const response = await axios.get(`${API_URL}/appointments/check-duplicate`, {
+                    params,
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+
+                if (response.data.exists) {
+                    setDuplicateApptWarning(response.data.message);
+                } else {
+                    setDuplicateApptWarning(null);
+                }
+            } catch (error) {
+                console.error("Error checking duplicate appointment:", error);
+                setDuplicateApptWarning(null);
+            }
+        };
+
+        const timeoutId = setTimeout(checkDuplicateAppt, 500);
+        return () => clearTimeout(timeoutId);
+    }, [appointmentForm.patient_id, appointmentForm.doctor_id, appointmentForm.appointment_date, appointmentForm.phone_number, isAddingNewFamilyMember]);
+
+
 
     // Phone search useEffect - triggers when phone number has 8+ digits
     useEffect(() => {
@@ -319,7 +428,9 @@ export default function ReceptionistDashboard() {
                     visit_type: 'Appointment',
                     consultation_fee: consultationFee,
                     appointment_id: patient.appointment_id || '',
-                    chief_complaint: patient.reason_for_visit || ''
+                    chief_complaint: patient.reason_for_visit || '',
+                    visit_date: format(new Date(), 'yyyy-MM-dd'),
+                    visit_time: format(new Date(), 'HH:mm')
                 });
 
                 if (patient.doctor_name) {
@@ -369,7 +480,9 @@ export default function ReceptionistDashboard() {
                     visit_type: 'Appointment',
                     consultation_fee: consultationFee,
                     appointment_id: patient.appointment_id || '',
-                    chief_complaint: patient.reason_for_visit || ''
+                    chief_complaint: patient.reason_for_visit || '',
+                    visit_date: format(new Date(), 'yyyy-MM-dd'),
+                    visit_time: format(new Date(), 'HH:mm')
                 });
 
                 if (patient.doctor_name) {
@@ -500,15 +613,20 @@ export default function ReceptionistDashboard() {
     const saveEntry = async (formData: any = opdForm) => {
         try {
             const token = localStorage.getItem('token');
+            // Calculate Total Fee (Doctor + MLC)
+            // handleEditOpd now loads BASE fee (subtracts MLC), so we always add MLC here
             let totalFee = parseFloat(formData.consultation_fee || '0');
+            let mlcFeeAmount = 0;
             if (formData.is_mlc && branchDetails?.mlc_fee) {
-                totalFee += parseFloat(branchDetails.mlc_fee);
+                mlcFeeAmount = parseFloat(branchDetails.mlc_fee);
+                totalFee += mlcFeeAmount;
             }
             const payload = {
                 ...formData,
                 patient_id: selectedPatient?.patient_id,
                 vital_signs: JSON.stringify(formData.vital_signs),
                 consultation_fee: totalFee.toString(),
+                mlc_fee: mlcFeeAmount.toString(), // Send separate MLC fee component
                 // Map frontend field names to backend expected names
                 address_line_1: formData.address_line1,
                 address_line_2: formData.address_line2,
@@ -538,6 +656,8 @@ export default function ReceptionistDashboard() {
     const fetchStats = async () => {
         try {
             const token = localStorage.getItem('token');
+            if (!token) return;
+
             const response = await axios.get('http://localhost:5000/api/opd/stats', {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -551,14 +671,19 @@ export default function ReceptionistDashboard() {
                 collectedAmount: stats.collectedAmount || 0,
                 collectedCount: stats.collectedCount || 0
             });
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error fetching dashboard stats:', error);
+            if (axios.isAxiosError(error) && error.response?.status === 401) {
+                router.push('/login');
+            }
         }
     };
 
     const fetchFollowUps = async () => {
         try {
             const token = localStorage.getItem('token');
+            if (!token) return;
+
             const response = await axios.get('http://localhost:5000/api/follow-ups/due', {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -568,8 +693,11 @@ export default function ReceptionistDashboard() {
                 upcoming: [],
                 summary: { overdue_count: 0, due_today_count: 0, upcoming_count: 0, total: 0 }
             });
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error fetching follow-ups:', error);
+            if (axios.isAxiosError(error) && error.response?.status === 401) {
+                router.push('/login');
+            }
         }
     };
 
@@ -767,7 +895,10 @@ export default function ReceptionistDashboard() {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            await axios.post('http://localhost:5000/api/appointments', appointmentForm, {
+            await axios.post('http://localhost:5000/api/appointments', {
+                ...appointmentForm,
+                is_family_member: isAddingNewFamilyMember
+            }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
@@ -776,6 +907,7 @@ export default function ReceptionistDashboard() {
             resetAppointmentForm();
             // Refresh dashboard?
             fetchStats();
+            setAppointmentsRefreshKey(prev => prev + 1); // Trigger appointments list refresh
         } catch (error: any) {
             console.error('Error creating appointment:', error);
             alert(error.response?.data?.message || 'Failed to create appointment');
@@ -783,6 +915,17 @@ export default function ReceptionistDashboard() {
             setLoading(false);
         }
     };
+
+    // Auto-refresh dashboard data every 15 minutes
+    useEffect(() => {
+        const intervalId = setInterval(() => {
+            fetchStats();
+            fetchFollowUps();
+            setAppointmentsRefreshKey(prev => prev + 1); // Refresh appointments list to show missed status updates
+        }, 15 * 60 * 1000); // 15 minutes in milliseconds
+
+        return () => clearInterval(intervalId);
+    }, []);
 
     const resetAppointmentForm = () => {
         setAppointmentForm({
@@ -818,6 +961,7 @@ export default function ReceptionistDashboard() {
             gender: patient.gender || ''
         });
         setApptPhoneSearchResults([]); // Close dropdown after selection
+        setIsAddingNewFamilyMember(false); // Reset flag since we selected an existing patient
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -947,6 +1091,7 @@ export default function ReceptionistDashboard() {
                                     const apptDate = new Date(a.appointment_date).toISOString().split('T')[0];
                                     return apptDate === today && ['Scheduled', 'Confirmed'].includes(a.appointment_status);
                                 });
+
                                 const hourCounts: Record<number, number> = {};
                                 // Count from appointments
                                 todayAppointments.forEach((a: any) => {
@@ -962,6 +1107,7 @@ export default function ReceptionistDashboard() {
                                         hourCounts[hour] = (hourCounts[hour] || 0) + 1;
                                     }
                                 });
+
                                 const total = todayAppointments.length + todayOpdEntries.length;
                                 if (total === 0) return 'No data yet';
                                 const peakHour = Object.entries(hourCounts).sort((a, b) => b[1] - a[1])[0];
@@ -1557,7 +1703,7 @@ export default function ReceptionistDashboard() {
                                                                 <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center">
                                                                     <Plus className="w-4 h-4" />
                                                                 </div>
-                                                                <span className="font-semibold text-blue-600">Add New Patient</span>
+                                                                <span className="font-semibold text-blue-600 whitespace-nowrap text-sm">Add New Patient (Friends / Family)</span>
                                                             </div>
                                                         )}
                                                     </div>
@@ -1774,12 +1920,38 @@ export default function ReceptionistDashboard() {
                                             </select>
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Date {opdForm.is_mlc && <span className="text-xs text-green-600">(Auto)</span>}</label>
-                                            <input type="date" value={opdForm.visit_date} onChange={(e) => setOpdForm({ ...opdForm, visit_date: e.target.value })} disabled={opdForm.is_mlc} className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${opdForm.is_mlc ? 'bg-slate-100 cursor-not-allowed' : ''}`} />
+                                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Date <span className="text-xs text-green-600">(Today)</span></label>
+                                            <input type="date" value={new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })} disabled className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl font-medium text-slate-600 cursor-not-allowed" />
                                         </div>
                                         <div>
                                             <label className="block text-xs font-semibold text-slate-700 mb-1.5">Time {opdForm.is_mlc && <span className="text-xs text-green-600">(Auto)</span>}</label>
                                             <input type="time" value={opdForm.visit_time} onChange={(e) => setOpdForm({ ...opdForm, visit_time: e.target.value })} disabled={opdForm.is_mlc} className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${opdForm.is_mlc ? 'bg-slate-100 cursor-not-allowed' : ''}`} />
+
+                                            {/* Clinical Hours Warning */}
+                                            {(() => {
+                                                if (!branchDetails?.clinic_schedule || !opdForm.visit_time || opdForm.is_mlc) return null;
+
+                                                let schedule = branchDetails.clinic_schedule;
+                                                if (typeof schedule === 'string') {
+                                                    try { schedule = JSON.parse(schedule); } catch (e) { return null; }
+                                                }
+
+                                                if (schedule?.startTime && schedule?.endTime) {
+                                                    const visitTime = opdForm.visit_time;
+                                                    const startTime = schedule.startTime;
+                                                    const endTime = schedule.endTime;
+
+                                                    if (visitTime < startTime || visitTime > endTime) {
+                                                        return (
+                                                            <div className="mt-1 flex items-start gap-1 text-amber-600 text-xs font-medium">
+                                                                <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                                                                <span>Outside Clinical Hours ({startTime} - {endTime})</span>
+                                                            </div>
+                                                        );
+                                                    }
+                                                }
+                                                return null;
+                                            })()}
                                         </div>
                                         <div>
                                             {hasAppointment ? (
@@ -1806,9 +1978,22 @@ export default function ReceptionistDashboard() {
                                                         className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
                                                     >
                                                         <option value="">Select Doctor</option>
-                                                        {doctors.map((doc: any) => (
-                                                            <option key={doc.doctor_id} value={doc.doctor_id}>Dr. {doc.first_name} {doc.last_name} ({doc.specialization})</option>
-                                                        ))}
+                                                        {doctors.map((doc: any) => {
+                                                            const todayIST = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+                                                            const availableSlots = getDoctorAvailabilityCount(doc.doctor_id, todayIST);
+                                                            const isAvailable = availableSlots > 0;
+
+                                                            return (
+                                                                <option
+                                                                    key={doc.doctor_id}
+                                                                    value={doc.doctor_id}
+                                                                    disabled={!isAvailable}
+                                                                    className={!isAvailable ? 'text-gray-400' : ''}
+                                                                >
+                                                                    Dr. {doc.first_name} {doc.last_name} ({doc.specialization}) {!isAvailable ? '* Unavailable' : ''}
+                                                                </option>
+                                                            );
+                                                        })}
                                                     </select>
                                                 </div>
                                             )}
@@ -1836,8 +2021,13 @@ export default function ReceptionistDashboard() {
                                                     <input type="text" value={opdForm.attender_name} onChange={(e) => setOpdForm({ ...opdForm, attender_name: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-red-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500" />
                                                 </div>
                                                 <div>
-                                                    <label className="block text-xs font-semibold text-red-800 mb-1.5">Attender Contact</label>
-                                                    <input type="tel" value={opdForm.attender_contact_number} onChange={(e) => setOpdForm({ ...opdForm, attender_contact_number: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-red-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500" />
+                                                    <label className="block text-xs font-semibold text-red-800 mb-1.5">Attender Contact (Type & Enter)</label>
+                                                    <MultiInputTags
+                                                        value={opdForm.attender_contact_number}
+                                                        onChange={(val) => setOpdForm({ ...opdForm, attender_contact_number: val })}
+                                                        placeholder="e.g. 9876543210"
+                                                        maxLength={15}
+                                                    />
                                                 </div>
                                                 <div className="md:col-span-2">
                                                     <label className="block text-xs font-semibold text-red-800 mb-1.5">MLC Remarks</label>
@@ -2040,6 +2230,20 @@ export default function ReceptionistDashboard() {
                                                     />
                                                 </div>
                                             </div>
+                                            {opdForm.is_mlc && (
+                                                <div className="animate-in fade-in slide-in-from-left-2">
+                                                    <label className="block text-xs font-semibold text-red-600 mb-1">MLC Fee</label>
+                                                    <div className="relative">
+                                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold">₹</span>
+                                                        <input
+                                                            type="text"
+                                                            value={branchDetails?.mlc_fee || '0'}
+                                                            disabled
+                                                            className="w-24 pl-7 pr-3 py-2 bg-red-50 border border-red-100 rounded-lg text-sm font-bold text-red-700 cursor-not-allowed"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            )}
                                             <div>
                                                 <label className="block text-xs font-semibold text-slate-500 mb-1">Payment Status <span className="text-red-500">*</span></label>
                                                 <select required value={opdForm.payment_status} onChange={(e) => setOpdForm({ ...opdForm, payment_status: e.target.value })} className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium">
@@ -2072,21 +2276,34 @@ export default function ReceptionistDashboard() {
                                 </div>
 
                                 {/* Action Buttons */}
-                                <div className="pt-4 border-t border-slate-100 flex justify-end gap-4 sticky bottom-[-20px] bg-white/95 backdrop-blur pb-2 z-[9999]">
-                                    <button
-                                        type="button"
-                                        onClick={() => { setShowModal(false); resetForm(); }}
-                                        className="px-6 py-3 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition font-bold"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        disabled={loading || ((opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient)}
-                                        className="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg hover:shadow-blue-500/30 transition-all font-bold flex items-center gap-2 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
-                                    >
-                                        {loading ? 'Saving...' : 'Register Visit'}
-                                    </button>
+                                <div className="pt-4 border-t border-slate-100 flex items-center justify-between sticky bottom-[-20px] bg-white/95 backdrop-blur pb-2 z-[9999]">
+
+                                    {/* Duplicate Warning Message */}
+                                    <div className="flex-1 mr-4">
+                                        {duplicateWarning && (
+                                            <div className="flex items-center gap-2 px-3 py-2 bg-red-50 text-red-700 text-xs font-bold rounded-lg border border-red-100 animate-in fade-in slide-in-from-left-2">
+                                                <AlertCircle size={14} />
+                                                {duplicateWarning}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="flex gap-4">
+                                        <button
+                                            type="button"
+                                            onClick={() => { setShowModal(false); resetForm(); }}
+                                            className="px-6 py-3 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition font-bold"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            disabled={loading || ((opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient) || !!duplicateWarning}
+                                            className={`px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg hover:shadow-blue-500/30 transition-all font-bold flex items-center gap-2 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed ${duplicateWarning ? 'from-slate-400 to-slate-500 hover:shadow-none' : ''}`}
+                                        >
+                                            {loading ? 'Saving...' : 'Register Visit'}
+                                        </button>
+                                    </div>
                                 </div>
                             </form>
                         </div>
@@ -2306,7 +2523,7 @@ export default function ReceptionistDashboard() {
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             {/* Phone Number - First Field with Search */}
                                             <div className="relative">
-                                                <label className="block text-xs font-bold text-slate-500 mb-1 ml-1">Phone Number *</label>
+                                                <label className="block text-xs font-bold text-slate-500 mb-1 ml-1">Phone Number <span className="text-red-500">*</span></label>
                                                 <input
                                                     type="tel"
                                                     required
@@ -2316,6 +2533,7 @@ export default function ReceptionistDashboard() {
                                                         if (value.length <= 10) {
                                                             setAppointmentForm({ ...appointmentForm, phone_number: value, patient_id: null });
                                                             setSelectedApptPatient(null);
+                                                            setIsAddingNewFamilyMember(false); // Reset family member flag on phone change
                                                         }
                                                     }}
                                                     className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-slate-700"
@@ -2353,12 +2571,18 @@ export default function ReceptionistDashboard() {
                                                         </div>
                                                         <div
                                                             className="px-4 py-3 bg-slate-50 border-t border-slate-100 flex items-center gap-2 cursor-pointer hover:bg-purple-50 transition"
-                                                            onClick={() => setApptPhoneSearchResults([])}
+                                                            onClick={() => {
+                                                                setApptPhoneSearchResults([]);
+                                                                setAppointmentForm({ ...appointmentForm, patient_id: null, patient_name: '' });
+                                                                setSelectedApptPatient(null);
+                                                                setDuplicateApptWarning(null);
+                                                                setIsAddingNewFamilyMember(true); // Skip duplicate check for family members
+                                                            }}
                                                         >
                                                             <div className="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center">
                                                                 <Plus className="w-4 h-4" />
                                                             </div>
-                                                            <span className="font-semibold text-purple-600">Add New Patient</span>
+                                                            <span className="font-semibold text-purple-600 whitespace-nowrap text-sm">Add New Patient (Friends / Family)</span>
                                                         </div>
                                                     </div>
                                                 )}
@@ -2374,7 +2598,7 @@ export default function ReceptionistDashboard() {
                                             {/* Patient Name */}
                                             <div className="md:col-span-2">
                                                 <div className="flex justify-between items-center mb-1 ml-1">
-                                                    <label className="block text-xs font-bold text-slate-500">Patient Name *</label>
+                                                    <label className="block text-xs font-bold text-slate-500">Patient Name <span className="text-red-500">*</span></label>
                                                     {selectedApptPatient && (
                                                         <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1">
                                                             <User className="w-3 h-3" /> Selected
@@ -2469,7 +2693,7 @@ export default function ReceptionistDashboard() {
                                             </div>
 
                                             <div className="md:col-span-2">
-                                                <label className="block text-xs font-bold text-slate-500 mb-2 ml-1">Select Time Slot *</label>
+                                                <label className="block text-xs font-bold text-slate-500 mb-2 ml-1">Select Time Slot <span className="text-red-500">*</span></label>
                                                 {/* Category Tabs */}
                                                 <div className="flex gap-2 mb-3 bg-slate-100/50 p-1 rounded-xl">
                                                     {[
@@ -2567,14 +2791,29 @@ export default function ReceptionistDashboard() {
 
 
                                     {/* Submit */}
-                                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                                        <button type="button" onClick={() => { setShowApptModal(false); resetAppointmentForm(); }} className="px-6 py-2.5 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition font-bold text-sm">
-                                            Cancel
-                                        </button>
-                                        <button type="submit" disabled={loading} className="flex items-center gap-2 px-8 py-2.5 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-xl hover:from-purple-700 hover:to-purple-800 transition font-bold text-sm shadow-lg shadow-purple-500/30">
-                                            <Save className="w-4 h-4" />
-                                            {loading ? 'Creating...' : 'Create Appointment'}
-                                        </button>
+                                    <div className="flex flex-col gap-3 pt-4 border-t border-slate-100">
+
+                                        {/* Duplicate Warning */}
+                                        {duplicateApptWarning && (
+                                            <div className="flex items-center gap-2 px-3 py-2 bg-red-50 text-red-700 text-xs font-bold rounded-lg border border-red-100 animate-in fade-in slide-in-from-left-2">
+                                                <AlertCircle size={14} />
+                                                {duplicateApptWarning}
+                                            </div>
+                                        )}
+
+                                        <div className="flex justify-end gap-3">
+                                            <button type="button" onClick={() => { setShowApptModal(false); resetAppointmentForm(); }} className="px-6 py-2.5 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition font-bold text-sm">
+                                                Cancel
+                                            </button>
+                                            <button
+                                                type="submit"
+                                                disabled={loading || !!duplicateApptWarning || !appointmentForm.phone_number || !appointmentForm.patient_name || !appointmentForm.appointment_time}
+                                                className={`flex items-center gap-2 px-8 py-2.5 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-xl hover:from-purple-700 hover:to-purple-800 transition font-bold text-sm shadow-lg shadow-purple-500/30 ${loading || !!duplicateApptWarning || !appointmentForm.phone_number || !appointmentForm.patient_name || !appointmentForm.appointment_time ? 'opacity-50 cursor-not-allowed from-slate-400 to-slate-500 hover:shadow-none' : ''}`}
+                                            >
+                                                <Save className="w-4 h-4" />
+                                                {loading ? 'Creating...' : 'Create Appointment'}
+                                            </button>
+                                        </div>
                                     </div>
                                 </form>
                             )}
