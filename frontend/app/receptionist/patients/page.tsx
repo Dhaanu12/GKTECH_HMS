@@ -19,7 +19,7 @@ import Link from 'next/link';
 
 const API_URL = 'http://localhost:5000/api';
 
-export default function NursePatients() {
+export default function ReceptionistPatients() {
     const [patients, setPatients] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -105,7 +105,7 @@ export default function NursePatients() {
                     <div className="grid grid-cols-1 gap-4">
                         {patients.map((patient, idx) => (
                             <Link
-                                href={`/nurse/patients/${patient.patient_id}`}
+                                href={`/receptionist/patients/${patient.patient_id}`}
                                 key={patient.patient_id}
                                 className="group block"
                             >
