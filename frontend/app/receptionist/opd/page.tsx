@@ -17,7 +17,9 @@ export default function OpdEntryPage() {
     const [searchResults, setSearchResults] = useState([]);
     const [selectedPatient, setSelectedPatient] = useState<any>(null);
     const [doctors, setDoctors] = useState<any[]>([]);
+
     const [doctorSchedules, setDoctorSchedules] = useState<any[]>([]); // Added schedule state
+    const [showMlcList, setShowMlcList] = useState(false); // Added MLC filter state
     const [dateRange, setDateRange] = useState({
         from: new Date().toLocaleDateString('en-CA'), // YYYY-MM-DD in local time
         to: new Date().toLocaleDateString('en-CA')
@@ -298,14 +300,14 @@ export default function OpdEntryPage() {
         }
     };
 
-    const fetchOpdEntries = async (query = '') => {
+    const fetchOpdEntries = async (query = '', startDate = dateRange.from, endDate = dateRange.to) => {
         try {
             const token = localStorage.getItem('token');
             const response = await axios.get(`${API_URL}/opd`, {
                 params: {
                     search: query,
-                    startDate: dateRange.from,
-                    endDate: dateRange.to
+                    startDate: startDate,
+                    endDate: endDate
                 },
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -314,6 +316,12 @@ export default function OpdEntryPage() {
             console.error('Error fetching OPD entries:', error);
         }
     };
+
+    // Auto-fetch when date range changes (e.g. from Refresh button or Date Picker)
+    useEffect(() => {
+        // Debounce or just fetch? Since date picker might fire rapidly, simple fetch is fine for now.
+        fetchOpdEntries(searchQuery);
+    }, [dateRange.from, dateRange.to]);
 
     const fetchAppointments = async () => {
         try {
@@ -442,6 +450,7 @@ export default function OpdEntryPage() {
                     headers: { Authorization: `Bearer ${token}` }
                 }),
                 fetchOpdEntries(searchQuery)
+
             ]);
 
             setSearchResults(patientRes.data.data.patients || []);
@@ -1364,7 +1373,7 @@ export default function OpdEntryPage() {
                     </div>
 
                     {/* MLC Cases - Legal compliance */}
-                    <div className="bg-gradient-to-br from-red-50 to-rose-50 p-6 rounded-3xl border border-red-100 shadow-sm hover:shadow-md transition-shadow group min-h-[180px] flex flex-col">
+                    <div className="bg-gradient-to-br from-red-50 to-rose-50 p-6 rounded-3xl border border-red-100 shadow-sm hover:shadow-md transition-shadow group min-h-[180px] flex flex-col relative">
                         <div className="flex items-center justify-between mb-4">
                             <div className="w-12 h-12 bg-red-500 rounded-2xl flex items-center justify-center text-white group-hover:scale-110 transition-transform shadow-lg shadow-red-500/30">
                                 <AlertCircle className="w-6 h-6" />
@@ -1378,6 +1387,12 @@ export default function OpdEntryPage() {
                             <p className="text-sm font-semibold text-red-600 mt-1">MLC Cases</p>
                         </div>
                         <p className="text-xs text-red-500 mt-auto pt-2">Medical Legal Cases today</p>
+                        <button
+                            onClick={() => setShowMlcList(!showMlcList)}
+                            className="absolute bottom-6 right-6 text-xs font-bold text-red-600 hover:text-red-800 underline transition-colors"
+                        >
+                            {showMlcList ? 'Show All' : 'View'}
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1472,6 +1487,29 @@ export default function OpdEntryPage() {
                     >
                         {loading ? 'Searching...' : 'Search'}
                     </button>
+
+                    <button
+                        onClick={() => {
+                            const today = new Date().toLocaleDateString('en-CA');
+
+                            // 1. Reset all state to defaults
+                            setDateRange({ from: today, to: today });
+                            setSearchQuery('');
+                            setSelectedDoctorFilter('');
+                            setShowMlcList(false);
+
+                            // 2. Force immediate refetch with 'today' values
+                            // Pass explicit dates to bypass async state update lag
+                            fetchOpdEntries('', today, today);
+                            fetchDashboardStats();
+                            fetchDoctors();
+                            fetchDoctorSchedules();
+                        }}
+                        className="p-3 bg-white border border-slate-200 text-slate-500 rounded-xl hover:bg-slate-50 hover:text-blue-600 transition-colors shadow-sm active:scale-95"
+                        title="Reset to Today"
+                    >
+                        <RefreshCw className="w-5 h-5" />
+                    </button>
                 </div>
 
                 {/* Neat & Intuitive Entry List */}
@@ -1497,6 +1535,9 @@ export default function OpdEntryPage() {
                     ) : (
                         opdEntries
                             .filter((entry: any) => {
+                                // MLC Filter
+                                if (showMlcList && !entry.is_mlc) return false;
+
                                 // Doctor filter
                                 const doctorMatch = !selectedDoctorFilter || entry.doctor_id === parseInt(selectedDoctorFilter);
 
@@ -1526,9 +1567,9 @@ export default function OpdEntryPage() {
                                         lightGroupHover: 'group-hover:bg-blue-100', textDate: 'text-blue-600'
                                     },
                                     pink: {
-                                        bg: 'bg-pink-50', border: 'border-pink-100', text: 'text-pink-600',
-                                        bar: 'bg-pink-500', hoverBorder: 'hover:border-pink-100',
-                                        lightGroupHover: 'group-hover:bg-pink-100', textDate: 'text-pink-600'
+                                        bg: 'bg-purple-50', border: 'border-purple-100', text: 'text-purple-600',
+                                        bar: 'bg-purple-500', hoverBorder: 'hover:border-purple-200',
+                                        lightGroupHover: 'group-hover:bg-purple-100', textDate: 'text-purple-600'
                                     },
                                     red: {
                                         bg: 'bg-red-50', border: 'border-red-100', text: 'text-red-600',
@@ -2131,6 +2172,7 @@ export default function OpdEntryPage() {
                                             <label className="block text-xs font-semibold text-slate-700 mb-1.5">Visit Type <span className="text-red-500">*</span></label>
                                             <select required value={opdForm.visit_type} onChange={(e) => setOpdForm({ ...opdForm, visit_type: e.target.value })} disabled={opdForm.is_mlc} className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${opdForm.is_mlc ? 'bg-slate-100 cursor-not-allowed' : ''}`}>
                                                 <option value="Walk-in">Walk-in</option>
+                                                <option value="Appointment">Appointment</option>
                                                 <option value="Follow-up">Follow-up</option>
                                                 <option value="Emergency">Emergency</option>
                                                 <option value="Referral">Referral</option>
