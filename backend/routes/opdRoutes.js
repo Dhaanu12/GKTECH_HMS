@@ -33,6 +33,9 @@ router.patch('/:id/payment', authorize('RECEPTIONIST'), opdController.updatePaym
 // PATCH /api/opd/:id/vitals - Update vitals only (Nurse, Doctor, Receptionist)
 router.patch('/:id/vitals', authorize('NURSE', 'DOCTOR', 'RECEPTIONIST', 'CLIENT_ADMIN'), opdController.updateVitals);
 
+// PATCH /api/opd/:id/status - Update OPD status (Receptionist only)
+router.patch('/:id/status', authorize('RECEPTIONIST'), opdController.updateOpdStatus);
+
 // PATCH /api/opd/:id - Update OPD entry (Receptionist only)
 router.patch('/:id', authorize('RECEPTIONIST', 'NURSE'), opdController.updateOpdEntry);
 
