@@ -82,6 +82,7 @@ export default function PatientDetails() {
     const [isPatientDeceased, setIsPatientDeceased] = useState(false);
     const [isReferralExpanded, setIsReferralExpanded] = useState(false);
     const [isAiListening, setIsAiListening] = useState(false);
+    const [isReviewMode, setIsReviewMode] = useState(false);
 
     // Template Selector State
 
@@ -143,8 +144,17 @@ export default function PatientDetails() {
     }, [params.id]);
 
     const fetchPatientDetails = async () => {
+        setIsReviewMode(false);
         try {
             const token = localStorage.getItem('token');
+            if (!token) {
+                router.push('/login');
+                return;
+            }
+
+            // Verify params.id exists before making requests
+            if (!params.id) return;
+
             const [patientRes, opdRes, consultRes] = await Promise.all([
                 axios.get(`${API_URL}/patients/${params.id}`, { headers: { Authorization: `Bearer ${token}` } }),
                 axios.get(`${API_URL}/opd/patient/${params.id}`, { headers: { Authorization: `Bearer ${token}` } }),
@@ -154,6 +164,22 @@ export default function PatientDetails() {
             setPatient(patientRes.data.data.patient);
             setOpdHistory(opdRes.data.data.opdHistory || []);
             setConsultationHistory(consultRes.data.data.consultations || []);
+
+            // Check for completed visit to hide placeholder
+            const history = opdRes.data.data.opdHistory || [];
+            const activeVisit = history.find((opd: any) => ['Registered', 'In-consultation'].includes(opd.visit_status));
+
+            if (!activeVisit) {
+                const today = new Date().toDateString();
+                const todaysCompleted = history.find((opd: any) =>
+                    opd.visit_status === 'Completed' && new Date(opd.visit_date).toDateString() === today
+                );
+                if (todaysCompleted) {
+                    setIsReviewMode(true);
+                }
+            }
+
+
 
             const p = patientRes.data.data.patient;
             if (p && p.is_deceased) {
@@ -173,8 +199,11 @@ export default function PatientDetails() {
                     relatives_notified_at: p.relatives_notified_at ? new Date(p.relatives_notified_at).toISOString().slice(0, 16) : ''
                 });
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error fetching patient details:', error);
+            if (axios.isAxiosError(error) && error.response?.status === 401) {
+                router.push('/login');
+            }
         } finally {
             setLoading(false);
         }
@@ -183,20 +212,27 @@ export default function PatientDetails() {
     const fetchReferralData = async () => {
         try {
             const token = localStorage.getItem('token');
+            if (!token) return;
+
             const [hospitalsRes, doctorsRes] = await Promise.all([
                 axios.get(`${API_URL}/referrals/hospitals?mapped_only=true`, { headers: { Authorization: `Bearer ${token}` } }),
                 axios.get(`${API_URL}/referrals/doctors`, { headers: { Authorization: `Bearer ${token}` } })
             ]);
             setReferralHospitals(hospitalsRes.data.data.referralHospitals || []);
             setReferralDoctors(doctorsRes.data.data.referralDoctors || []);
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error fetching referral data:', error);
+            if (axios.isAxiosError(error) && error.response?.status === 401) {
+                router.push('/login');
+            }
         }
     };
 
     const loadDraft = async (opdId: number) => {
         try {
             const token = localStorage.getItem('token');
+            if (!token) return;
+
             const response = await axios.get(`${API_URL}/consultations/draft/${opdId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -214,8 +250,11 @@ export default function PatientDetails() {
                     referral_notes: draft.referral_notes || ''
                 });
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error loading draft:', error);
+            if (axios.isAxiosError(error) && error.response?.status === 401) {
+                router.push('/login');
+            }
         }
     };
 
@@ -885,18 +924,29 @@ export default function PatientDetails() {
     };
 
     const selectLabService = (service: any) => {
-        setNewLab({ ...newLab, test_name: service.service_name });
+        setConsultationData(prev => ({
+            ...prev,
+            labs: [...prev.labs, { ...newLab, test_name: service.service_name }]
+        }));
+        setNewLab({ test_name: '', lab_name: '' });
         setShowLabDropdown(false);
         setLabSearchResults([]);
     };
 
     const handleAddLab = () => {
-        if (newLab.test_name.trim()) {
-            setConsultationData({
-                ...consultationData,
-                labs: [...consultationData.labs, { ...newLab }]
-            });
+        if (!newLab.test_name.trim()) return;
+
+        if (labSearchResults.length > 0) {
+            const service = labSearchResults[0];
+            setConsultationData(prev => ({
+                ...prev,
+                labs: [...prev.labs, { ...newLab, test_name: service.service_name }]
+            }));
             setNewLab({ test_name: '', lab_name: '' });
+            setShowLabDropdown(false);
+            setLabSearchResults([]);
+        } else {
+            showCustomAlert('info', 'No Result Found', 'Please select a valid test from the list.');
         }
     };
 
@@ -1622,13 +1672,16 @@ export default function PatientDetails() {
                                 if (pastVisits.length > 0) {
                                     // Since opdHistory is sorted DESC, the first one remaining is the last visit
                                     const lastVisit = pastVisits[0];
+                                    const consult = consultationHistory.find((c: any) => c.opd_id === lastVisit.opd_id);
+                                    const diagnosis = consult?.diagnosis || lastVisit.diagnosis || lastVisit.chief_complaint || 'No diagnosis';
+
                                     return (
                                         <>
                                             <p className="text-sm font-semibold text-slate-800">
                                                 {new Date(lastVisit.visit_date).toLocaleDateString()}
                                             </p>
-                                            <p className="text-xs text-slate-500 truncate">
-                                                {lastVisit.diagnosis || lastVisit.chief_complaint || 'No diagnosis'}
+                                            <p className="text-xs text-slate-500 truncate" title={diagnosis}>
+                                                {diagnosis}
                                             </p>
                                         </>
                                     );
@@ -1687,13 +1740,17 @@ export default function PatientDetails() {
                         </h3>
                         <div className="space-y-4 relative">
                             <div className="absolute left-2 top-2 bottom-2 w-0.5 bg-slate-200"></div>
-                            {opdHistory.slice(0, 3).map((visit, idx) => (
-                                <div key={idx} className="relative pl-6">
-                                    <div className="absolute left-0 top-1.5 w-4 h-4 rounded-full border-2 border-white bg-slate-300"></div>
-                                    <p className="text-xs text-slate-400 font-medium">{new Date(visit.visit_date).toLocaleDateString()}</p>
-                                    <p className="text-sm font-semibold text-slate-700 truncate">{visit.diagnosis || 'No Diagnosis'}</p>
-                                </div>
-                            ))}
+                            {opdHistory.slice(0, 3).map((visit, idx) => {
+                                const consult = consultationHistory.find((c: any) => c.opd_id === visit.opd_id);
+                                const diagnosis = consult?.diagnosis || visit.diagnosis || 'No Diagnosis';
+                                return (
+                                    <div key={idx} className="relative pl-6">
+                                        <div className="absolute left-0 top-1.5 w-4 h-4 rounded-full border-2 border-white bg-slate-300"></div>
+                                        <p className="text-xs text-slate-400 font-medium">{new Date(visit.visit_date).toLocaleDateString()}</p>
+                                        <p className="text-sm font-semibold text-slate-700 truncate" title={diagnosis}>{diagnosis}</p>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
                 </div>
@@ -1705,16 +1762,27 @@ export default function PatientDetails() {
 
                             {/* AI Scribe Header */}
                             <div className="p-4 bg-gradient-to-r from-slate-900 to-slate-800 rounded-t-3xl text-white flex justify-between items-center shadow-lg relative overflow-hidden">
-                                <div className="absolute inset-0 bg-blue-500/10 animate-pulse"></div>
-                                <div className="relative z-10 flex items-center gap-3">
-                                    <div>
-                                        <h3 className="font-bold leading-tight">Clinical Scribe</h3>
-                                        <p className="text-xs text-slate-400">Ready to listen</p>
+                                {isReviewMode ? (
+                                    <div className="relative z-10 flex items-center gap-3">
+                                        <div>
+                                            <h3 className="font-bold leading-tight">Consultation Details</h3>
+                                            <p className="text-xs text-slate-400">View Only</p>
+                                        </div>
                                     </div>
-                                </div>
+                                ) : (
+                                    <>
+                                        <div className="absolute inset-0 bg-blue-500/10 animate-pulse"></div>
+                                        <div className="relative z-10 flex items-center gap-3">
+                                            <div>
+                                                <h3 className="font-bold leading-tight">Clinical Scribe</h3>
+                                                <p className="text-xs text-slate-400">Ready to listen</p>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
                             </div>
 
-                            <div className="p-6 space-y-8 min-h-[500px]">
+                            <div className={`p-6 space-y-8 min-h-[500px] ${isReviewMode ? 'pointer-events-none opacity-90' : ''}`}>
                                 {/* 1. Clinical Notes (Paper-on-Glass) */}
                                 <div className="relative group">
                                     <div className="absolute -left-3 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-400 to-purple-400 rounded-full opacity-50 group-hover:opacity-100 transition"></div>
@@ -1758,6 +1826,12 @@ export default function PatientDetails() {
                                                         onChange={(e) => handleLabSearch(e.target.value)}
                                                         onFocus={() => { if (newLab.test_name.length >= 2) setShowLabDropdown(true); }}
                                                         onBlur={() => setTimeout(() => setShowLabDropdown(false), 200)} // Delay to allow click
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') {
+                                                                e.preventDefault();
+                                                                handleAddLab();
+                                                            }
+                                                        }}
                                                     />
                                                     <button onClick={handleAddLab} className="p-2 bg-slate-200 hover:bg-slate-300 rounded-lg text-slate-600 transition">
                                                         <Plus className="w-4 h-4" />
@@ -2162,33 +2236,37 @@ export default function PatientDetails() {
                                     onClick={() => setShowConsultationForm(false)}
                                     className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
                                 >
-                                    Cancel
+                                    {isReviewMode ? 'Close' : 'Cancel'}
                                 </button>
                                 <button
                                     onClick={handlePrintDraft}
                                     className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium flex items-center gap-2"
                                 >
                                     <FileText className="w-4 h-4" />
-                                    Print Draft
+                                    Print {isReviewMode ? 'Record' : 'Draft'}
                                 </button>
-                                <button
-                                    onClick={handleSaveDraft}
-                                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center gap-2"
-                                >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-                                    </svg>
-                                    Save Draft
-                                </button>
-                                <button
-                                    onClick={handleCompleteConsultation}
-                                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center gap-2"
-                                >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                    </svg>
-                                    Complete Consultation
-                                </button>
+                                {!isReviewMode && (
+                                    <>
+                                        <button
+                                            onClick={handleSaveDraft}
+                                            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center gap-2"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                                            </svg>
+                                            Save Draft
+                                        </button>
+                                        <button
+                                            onClick={handleCompleteConsultation}
+                                            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center gap-2"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                            </svg>
+                                            Complete Consultation
+                                        </button>
+                                    </>
+                                )}
                             </div>
 
 
@@ -2224,7 +2302,7 @@ export default function PatientDetails() {
                                 </div>
                             </div>
                         </div>
-                    ) : (
+                    ) : isReviewMode ? null : (
                         <div className="glass-panel p-12 rounded-3xl border border-white/60 text-center flex flex-col items-center justify-center h-full min-h-[400px]">
                             <div className="w-24 h-24 bg-blue-50 rounded-full flex items-center justify-center mb-6 animate-pulse">
                                 <Stethoscope className="w-10 h-10 text-blue-400" />
@@ -2275,12 +2353,16 @@ export default function PatientDetails() {
                                         <p className="text-sm text-slate-600 leading-snug">{visit.symptoms}</p>
                                     </div>
 
-                                    {visit.diagnosis && (
-                                        <div className="bg-slate-50 rounded-xl p-3 mb-3">
-                                            <p className="text-xs text-slate-400 font-bold uppercase mb-1">Diagnosis</p>
-                                            <p className="text-sm font-semibold text-slate-700">{visit.diagnosis}</p>
-                                        </div>
-                                    )}
+                                    {(() => {
+                                        const consult = consultationHistory.find((c: any) => c.opd_id === visit.opd_id);
+                                        const diag = consult?.diagnosis || visit.diagnosis;
+                                        return diag ? (
+                                            <div className="bg-slate-50 rounded-xl p-3 mb-3">
+                                                <p className="text-xs text-slate-400 font-bold uppercase mb-1">Diagnosis</p>
+                                                <p className="text-sm font-semibold text-slate-700">{diag}</p>
+                                            </div>
+                                        ) : null;
+                                    })()}
 
 
                                     {/* Vitals Display */}
