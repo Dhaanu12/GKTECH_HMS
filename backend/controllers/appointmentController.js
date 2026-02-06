@@ -46,6 +46,38 @@ class AppointmentController {
             const sanitizedTime = appointment_time === '' || !appointment_time ? null : appointment_time;
             const sanitizedEmail = email === '' || !email ? null : email;
 
+            // Check for duplicate appointment (Backend Robust Check)
+            // Skip check if explicitly adding family member (user verified)
+            if (!req.body.is_family_member) {
+                const activeStatuses = ['Scheduled', 'Confirmed'];
+                let duplicateCheck;
+
+                if (patient_id) {
+                    // Existing patient - check by patient_id
+                    duplicateCheck = await query(
+                        `SELECT appointment_id FROM appointments 
+                     WHERE patient_id = $1 AND doctor_id = $2 AND appointment_date::date = $3::date 
+                     AND appointment_status = ANY($4)`,
+                        [patient_id, doctor_id, appointment_date, activeStatuses]
+                    );
+                } else {
+                    // New patient - check by phone_number only (no name matching)
+                    // This blocks same phone booking twice with same doctor on same date
+                    duplicateCheck = await query(
+                        `SELECT appointment_id FROM appointments 
+                     WHERE phone_number = $1 
+                     AND doctor_id = $2 
+                     AND appointment_date::date = $3::date 
+                     AND appointment_status = ANY($4)`,
+                        [phone_number, doctor_id, appointment_date, activeStatuses]
+                    );
+                }
+
+                if (duplicateCheck.rows.length > 0) {
+                    return next(new AppError('Duplicate Appointment: Patient already has an appointment with this doctor on this date.', 409));
+                }
+            }
+
             const result = await query(`
                 INSERT INTO appointments (
                     appointment_number, patient_id, patient_name, phone_number,
@@ -264,6 +296,41 @@ class AppointmentController {
             const { id } = req.params;
             const { appointment_date, appointment_time, doctor_id, reason } = req.body;
 
+            // 1. Get current details to know patient_id / phone
+            const currentApptReq = await query('SELECT patient_id, phone_number FROM appointments WHERE appointment_id = $1', [id]);
+            if (currentApptReq.rows.length === 0) return next(new AppError('Appointment not found', 404));
+            const { patient_id, phone_number } = currentApptReq.rows[0];
+
+            // 2. Perform duplicate check (Excluding current appointment itself)
+            const activeStatuses = ['Scheduled', 'Confirmed'];
+            let duplicateCheck;
+
+            if (patient_id) {
+                // Scenario 1: Existing patient - check by patient_id
+                duplicateCheck = await query(
+                    `SELECT appointment_id FROM appointments 
+                     WHERE patient_id = $1 AND doctor_id = $2 AND appointment_date::date = $3::date 
+                     AND appointment_status = ANY($4)
+                     AND appointment_id != $5`,
+                    [patient_id, doctor_id, appointment_date, activeStatuses, id]
+                );
+            } else {
+                // Scenario 2: New patient - check by phone_number
+                duplicateCheck = await query(
+                    `SELECT appointment_id FROM appointments 
+                     WHERE phone_number = $1 
+                     AND doctor_id = $2 
+                     AND appointment_date::date = $3::date 
+                     AND appointment_status = ANY($4)
+                     AND appointment_id != $5`,
+                    [phone_number, doctor_id, appointment_date, activeStatuses, id]
+                );
+            }
+
+            if (duplicateCheck.rows.length > 0) {
+                return next(new AppError('Duplicate Appointment: Patient already has an appointment with this doctor on this date.', 409));
+            }
+
             // Optional: Check if slot is available (skipping complex check for now as per requirement speed)
 
             let sql = `
@@ -334,6 +401,81 @@ class AppointmentController {
         } catch (error) {
             console.error('Reschedule appointment error:', error);
             next(new AppError('Failed to reschedule appointment', 500));
+        }
+    }
+    /**
+     * Check for duplicate appointment
+     * GET /api/appointments/check-duplicate
+     * 
+     * Handles two scenarios:
+     * 1. Existing patient (patient_id provided) → Check by patient_id + doctor + date
+     * 2. New patient (no patient_id) → Check by phone_number + patient_name + doctor + date
+     */
+    static async checkDuplicate(req, res, next) {
+        try {
+            const { patient_id, doctor_id, appointment_date, phone_number, patient_name, exclude_appointment_id } = req.query;
+
+            // Validate required params
+            if (!doctor_id || !appointment_date) {
+                return res.status(400).json({ status: 'fail', message: 'Missing doctor_id or appointment_date' });
+            }
+
+            let duplicateCheck;
+            const activeStatuses = ['Scheduled', 'Confirmed']; // Only check against active appointments
+
+            if (patient_id) {
+                // Scenario 1: Existing patient - check by patient_id
+                let sql = `SELECT appointment_id FROM appointments 
+                     WHERE patient_id = $1 AND doctor_id = $2 AND appointment_date::date = $3::date 
+                     AND appointment_status = ANY($4)`;
+                const params = [patient_id, doctor_id, appointment_date, activeStatuses];
+
+                if (exclude_appointment_id) {
+                    sql += ` AND appointment_id != $5`;
+                    params.push(exclude_appointment_id);
+                }
+
+                duplicateCheck = await query(sql, params);
+            } else if (phone_number) {
+                // Scenario 3: New phone number - check by phone_number only (ignore name)
+                // This catches same phone booking twice with same doctor on same date
+                let sql = `SELECT appointment_id FROM appointments 
+                     WHERE phone_number = $1 
+                     AND doctor_id = $2 
+                     AND appointment_date::date = $3::date 
+                     AND appointment_status = ANY($4)`;
+                const params = [phone_number, doctor_id, appointment_date, activeStatuses];
+
+                if (exclude_appointment_id) {
+                    sql += ` AND appointment_id != $5`;
+                    params.push(exclude_appointment_id);
+                }
+
+                duplicateCheck = await query(sql, params);
+            } else {
+                // No valid identifier provided - cannot check
+                return res.status(200).json({
+                    status: 'success',
+                    exists: false,
+                    message: 'No identifier provided for duplicate check'
+                });
+            }
+
+            if (duplicateCheck.rows.length > 0) {
+                return res.status(200).json({
+                    status: 'success',
+                    exists: true,
+                    message: 'Patient already has an appointment with this doctor on this date.'
+                });
+            }
+
+            return res.status(200).json({
+                status: 'success',
+                exists: false
+            });
+        } catch (error) {
+            console.error('Check duplicate appointment error:', error);
+            next(new AppError('Server Error', 500));
         }
     }
 }

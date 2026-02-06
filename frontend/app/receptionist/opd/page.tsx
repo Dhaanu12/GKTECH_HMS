@@ -6,6 +6,7 @@ import { Plus, Search, FileText, X, Save, User, Printer, Clock, AlertCircle, Cal
 import Link from 'next/link';
 import { useAuth } from '../../../lib/AuthContext';
 import SearchableSelect from '../../../components/ui/SearchableSelect';
+import MultiInputTags from '../dashboard/components/MultiInputTags';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -16,6 +17,7 @@ export default function OpdEntryPage() {
     const [searchResults, setSearchResults] = useState([]);
     const [selectedPatient, setSelectedPatient] = useState<any>(null);
     const [doctors, setDoctors] = useState<any[]>([]);
+    const [doctorSchedules, setDoctorSchedules] = useState<any[]>([]); // Added schedule state
     const [dateRange, setDateRange] = useState({
         from: new Date().toLocaleDateString('en-CA'), // YYYY-MM-DD in local time
         to: new Date().toLocaleDateString('en-CA')
@@ -36,6 +38,9 @@ export default function OpdEntryPage() {
         collectedCount: 0,
         newPatients: 0 // Added field
     });
+
+    // Duplicate Check State
+    const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
 
     const checkPhoneMatches = async (phone: string) => {
         if (phone.length === 10) {
@@ -68,6 +73,7 @@ export default function OpdEntryPage() {
     const [showBillModal, setShowBillModal] = useState(false);
     const [billData, setBillData] = useState<any>(null);
     const [branchDetails, setBranchDetails] = useState<any>(null);
+    const [allAppointments, setAllAppointments] = useState([]); // For availability check
 
     // Smart Patient Search state (UX Solution 1)
     const [modalSearchQuery, setModalSearchQuery] = useState('');
@@ -140,7 +146,9 @@ export default function OpdEntryPage() {
 
     useEffect(() => {
         fetchDoctors();
-        // fetchOpdEntries(); // Triggered by dateRange effect
+        fetchDoctorSchedules();
+        fetchAppointments(); // Fetch appointments for availability
+        fetchBranchDetails();
         fetchDashboardStats();
     }, []);
 
@@ -180,6 +188,39 @@ export default function OpdEntryPage() {
 
         return () => clearTimeout(debounceTimer);
     }, [modalSearchQuery]);
+
+    // Check for Duplicate Entries
+    useEffect(() => {
+        const checkDuplicate = async () => {
+            // Skip duplicate check if editing an existing entry
+            if (!editingOpdId && selectedPatient?.patient_id && opdForm.doctor_id) {
+                try {
+                    const token = localStorage.getItem('token');
+                    const response = await axios.get(`${API_URL}/opd/check-duplicate`, {
+                        params: {
+                            patient_id: selectedPatient.patient_id,
+                            doctor_id: opdForm.doctor_id,
+                            visit_date: opdForm.visit_date
+                        },
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+
+                    if (response.data.exists) {
+                        setDuplicateWarning(response.data.message);
+                    } else {
+                        setDuplicateWarning(null);
+                    }
+                } catch (error) {
+                    console.error("Error checking duplicate:", error);
+                }
+            } else {
+                setDuplicateWarning(null);
+            }
+        };
+
+        const timeoutId = setTimeout(checkDuplicate, 500);
+        return () => clearTimeout(timeoutId);
+    }, [selectedPatient, opdForm.doctor_id, opdForm.visit_date, editingOpdId]);
 
     const fetchBranchDetails = async () => {
         try {
@@ -228,6 +269,18 @@ export default function OpdEntryPage() {
         }
     };
 
+    const fetchDoctorSchedules = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.get(`${API_URL}/doctor-schedules`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setDoctorSchedules(response.data.data.schedules || []);
+        } catch (error) {
+            console.error('Error fetching doctor schedules:', error);
+        }
+    };
+
     const fetchOpdEntries = async (query = '') => {
         try {
             const token = localStorage.getItem('token');
@@ -244,6 +297,19 @@ export default function OpdEntryPage() {
             console.error('Error fetching OPD entries:', error);
         }
     };
+
+    const fetchAppointments = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.get(`${API_URL}/appointments`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setAllAppointments(response.data.data.appointments || []);
+        } catch (error) {
+            console.error('Error fetching appointments:', error);
+        }
+    };
+
 
 
     const fetchDashboardStats = async () => {
@@ -276,6 +342,73 @@ export default function OpdEntryPage() {
         }
     };
 
+
+    // Generate time slots from doctor schedule (same logic as dashboard)
+    const generateTimeSlotsFromSchedule = (doctorId: string, selectedDate: string) => {
+        if (!doctorId || !selectedDate) {
+            return [];
+        }
+
+        const date = new Date(selectedDate);
+        const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
+
+        const doctorDaySchedules = doctorSchedules.filter(
+            (schedule: any) =>
+                schedule.doctor_id === parseInt(doctorId) &&
+                schedule.day_of_week === dayOfWeek
+        );
+
+        if (doctorDaySchedules.length === 0) {
+            return [];
+        }
+
+        const slots: string[] = [];
+        doctorDaySchedules.forEach((schedule: any) => {
+            const startTime = schedule.start_time;
+            const endTime = schedule.end_time;
+            const consultationTime = schedule.avg_consultation_time || 30;
+
+            const parseTime = (timeStr: string) => {
+                const [hours, minutes] = timeStr.split(':').map(Number);
+                const d = new Date();
+                d.setHours(hours, minutes, 0, 0);
+                return d;
+            };
+
+            let current = parseTime(startTime);
+            const end = parseTime(endTime);
+
+            // Create cutoff time for today
+            const now = new Date();
+            const isToday = new Date(selectedDate).toDateString() === now.toDateString();
+            // 15 minute buffer
+            const cutoffTime = new Date(now.getTime() + 15 * 60000);
+
+            while (current < end) {
+                if (isToday) {
+                    const slotTime = new Date(now);
+                    slotTime.setHours(current.getHours(), current.getMinutes(), 0, 0);
+
+                    if (slotTime > cutoffTime) {
+                        const timeStr = current.toTimeString().slice(0, 5);
+                        slots.push(timeStr);
+                    }
+                } else {
+                    const timeStr = current.toTimeString().slice(0, 5);
+                    slots.push(timeStr);
+                }
+
+                current = new Date(current.getTime() + consultationTime * 60000);
+            }
+        });
+
+        return Array.from(new Set(slots)).sort();
+    };
+
+    const getDoctorAvailabilityCount = (doctorId: number, dateStr: string) => {
+        const slots = generateTimeSlotsFromSchedule(doctorId.toString(), dateStr);
+        return slots ? slots.length : 0;
+    };
 
     const handleSearch = async () => {
         if (!searchQuery) {
@@ -571,9 +704,29 @@ export default function OpdEntryPage() {
         try {
             const token = localStorage.getItem('token');
             // Calculate Total Fee (Doctor + MLC)
+            // handleEditOpd now loads BASE fee (subtracts MLC), so we always add MLC here
             let totalFee = parseFloat(formData.consultation_fee || '0');
+            let mlcFeeAmount = 0;
             if (formData.is_mlc && branchDetails?.mlc_fee) {
-                totalFee += parseFloat(branchDetails.mlc_fee);
+                mlcFeeAmount = parseFloat(branchDetails.mlc_fee);
+                totalFee += mlcFeeAmount;
+            }
+
+            // Clinical Hours Validation
+            if (branchDetails?.clinic_schedule && !formData.is_mlc) {
+                let schedule = branchDetails.clinic_schedule;
+                if (typeof schedule === 'string') {
+                    try { schedule = JSON.parse(schedule); } catch (e) { }
+                }
+                if (schedule?.startTime && schedule?.endTime && formData.visit_time) {
+                    const visitTime = formData.visit_time;
+                    const startTime = schedule.startTime;
+                    const endTime = schedule.endTime;
+                    if (visitTime < startTime || visitTime > endTime) {
+                        alert(`Cannot register OPD outside clinical hours (${startTime} - ${endTime}). Mark as MLC for emergency.`);
+                        return; // Stop save
+                    }
+                }
             }
 
             const payload = {
@@ -583,6 +736,7 @@ export default function OpdEntryPage() {
                 patient_id: selectedPatient?.patient_id,
                 vital_signs: JSON.stringify(formData.vital_signs),
                 consultation_fee: totalFee.toString(), // Send Total Fee to backend
+                mlc_fee: mlcFeeAmount.toString(), // Send separate MLC fee component
                 // Map frontend field names to backend expected names
                 address_line_1: formData.address_line1,
                 address_line_2: formData.address_line2,
@@ -730,6 +884,7 @@ export default function OpdEntryPage() {
 
     const handleEditOpd = (entry: any) => {
         setEditingOpdId(entry.opd_id);
+        setDuplicateWarning(null); // Clear any duplicate warning when editing
 
         let vitals = { bp_systolic: '', bp_diastolic: '', pulse: '', temperature: '', weight: '', height: '', spo2: '', grbs: '' };
         try {
@@ -738,6 +893,24 @@ export default function OpdEntryPage() {
                 vitals = { ...vitals, ...parsed };
             }
         } catch (e) { }
+
+        // Calculate base consultation fee for MLC entries
+        // DB stores total (consultation + MLC), so we need to subtract MLC for display
+        let baseConsultationFee = entry.consultation_fee || '';
+        const doc = doctors.find((d: any) => d.doctor_id === entry.doctor_id);
+
+        if (entry.is_mlc && entry.consultation_fee) {
+            const total = parseFloat(entry.consultation_fee);
+            const mlcFee = branchDetails?.mlc_fee ? parseFloat(branchDetails.mlc_fee) : 0;
+
+            // If we have MLC fee, subtract it
+            if (mlcFee > 0) {
+                baseConsultationFee = (total - mlcFee).toString();
+            } else if (doc?.consultation_fee) {
+                // Fallback: If we don't know MLC fee but know doctor fee, assume doctor fee is the base
+                baseConsultationFee = doc.consultation_fee.toString();
+            }
+        }
 
         setOpdForm({
             first_name: entry.patient_first_name || '',
@@ -759,7 +932,7 @@ export default function OpdEntryPage() {
             chief_complaint: entry.chief_complaint || '',
             symptoms: entry.symptoms || '',
             vital_signs: vitals,
-            consultation_fee: entry.consultation_fee || '',
+            consultation_fee: baseConsultationFee,
             payment_status: entry.payment_status || 'Pending',
             payment_method: entry.payment_method || 'Cash',
             is_mlc: entry.is_mlc || false,
@@ -1390,7 +1563,7 @@ export default function OpdEntryPage() {
                                                                 <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center">
                                                                     <Plus className="w-4 h-4" />
                                                                 </div>
-                                                                <span className="font-semibold text-blue-600">Add New Patient</span>
+                                                                <span className="font-semibold text-blue-600 whitespace-nowrap text-sm">Add New Patient (Friends / Family)</span>
                                                             </div>
                                                         )}
                                                     </div>
@@ -1632,12 +1805,23 @@ export default function OpdEntryPage() {
                                                 checked={opdForm.is_mlc}
                                                 onChange={(e) => {
                                                     const isChecked = e.target.checked;
+
+                                                    // Reset fee to doctor's default when unchecking MLC
+                                                    let newFee = opdForm.consultation_fee;
+                                                    if (!isChecked && opdForm.doctor_id) {
+                                                        const doc = doctors.find((d: any) => d.doctor_id == opdForm.doctor_id); // Loose comparison for string/number
+                                                        if (doc) {
+                                                            newFee = doc.consultation_fee?.toString() || '';
+                                                        }
+                                                    }
+
                                                     setOpdForm({
                                                         ...opdForm,
                                                         is_mlc: isChecked,
                                                         visit_type: isChecked ? 'Emergency' : 'Walk-in',
                                                         visit_date: isChecked ? new Date().toISOString().split('T')[0] : opdForm.visit_date,
-                                                        visit_time: isChecked ? new Date().toTimeString().slice(0, 5) : opdForm.visit_time
+                                                        visit_time: isChecked ? new Date().toTimeString().slice(0, 5) : opdForm.visit_time,
+                                                        consultation_fee: newFee
                                                     });
                                                 }}
                                                 className="w-5 h-5 text-red-600 border-gray-300 rounded focus:ring-red-500 transition-all cursor-pointer"
@@ -1657,12 +1841,38 @@ export default function OpdEntryPage() {
                                             </select>
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Date {opdForm.is_mlc && <span className="text-xs text-green-600">(Auto)</span>}</label>
-                                            <input type="date" value={opdForm.visit_date} onChange={(e) => setOpdForm({ ...opdForm, visit_date: e.target.value })} disabled={opdForm.is_mlc} className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${opdForm.is_mlc ? 'bg-slate-100 cursor-not-allowed' : ''}`} />
+                                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Date <span className="text-xs text-green-600">(Today)</span></label>
+                                            <input type="date" value={new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })} disabled className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl font-medium text-slate-600 cursor-not-allowed" />
                                         </div>
                                         <div>
                                             <label className="block text-xs font-semibold text-slate-700 mb-1.5">Time {opdForm.is_mlc && <span className="text-xs text-green-600">(Auto)</span>}</label>
                                             <input type="time" value={opdForm.visit_time} onChange={(e) => setOpdForm({ ...opdForm, visit_time: e.target.value })} disabled={opdForm.is_mlc} className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${opdForm.is_mlc ? 'bg-slate-100 cursor-not-allowed' : ''}`} />
+
+                                            {/* Clinical Hours Warning */}
+                                            {(() => {
+                                                if (!branchDetails?.clinic_schedule || !opdForm.visit_time || opdForm.is_mlc) return null;
+
+                                                let schedule = branchDetails.clinic_schedule;
+                                                if (typeof schedule === 'string') {
+                                                    try { schedule = JSON.parse(schedule); } catch (e) { return null; }
+                                                }
+
+                                                if (schedule?.startTime && schedule?.endTime) {
+                                                    const visitTime = opdForm.visit_time; // HH:MM
+                                                    const startTime = schedule.startTime; // HH:MM
+                                                    const endTime = schedule.endTime; // HH:MM
+
+                                                    if (visitTime < startTime || visitTime > endTime) {
+                                                        return (
+                                                            <div className="mt-1 flex items-start gap-1 text-amber-600 text-xs font-medium">
+                                                                <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                                                                <span>Outside Clinical Hours ({startTime} - {endTime})</span>
+                                                            </div>
+                                                        );
+                                                    }
+                                                }
+                                                return null;
+                                            })()}
                                         </div>
                                         <div>
                                             {hasAppointment ? (
@@ -1689,9 +1899,22 @@ export default function OpdEntryPage() {
                                                         className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
                                                     >
                                                         <option value="">Select Doctor</option>
-                                                        {doctors.map((doc: any) => (
-                                                            <option key={doc.doctor_id} value={doc.doctor_id}>Dr. {doc.first_name} {doc.last_name} ({doc.specialization})</option>
-                                                        ))}
+                                                        {doctors.map((doc: any) => {
+                                                            const todayIST = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+                                                            const availableSlots = getDoctorAvailabilityCount(doc.doctor_id, todayIST);
+                                                            const isAvailable = availableSlots > 0;
+
+                                                            return (
+                                                                <option
+                                                                    key={doc.doctor_id}
+                                                                    value={doc.doctor_id}
+                                                                    disabled={!isAvailable}
+                                                                    className={!isAvailable ? 'text-gray-400' : ''}
+                                                                >
+                                                                    Dr. {doc.first_name} {doc.last_name} ({doc.specialization}) {!isAvailable ? '* Unavailable' : ''}
+                                                                </option>
+                                                            );
+                                                        })}
                                                     </select>
                                                 </div>
                                             )}
@@ -1719,8 +1942,13 @@ export default function OpdEntryPage() {
                                                     <input type="text" value={opdForm.attender_name} onChange={(e) => setOpdForm({ ...opdForm, attender_name: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-red-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500" />
                                                 </div>
                                                 <div>
-                                                    <label className="block text-xs font-semibold text-red-800 mb-1.5">Attender Contact</label>
-                                                    <input type="tel" value={opdForm.attender_contact_number} onChange={(e) => setOpdForm({ ...opdForm, attender_contact_number: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-red-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500" />
+                                                    <label className="block text-xs font-semibold text-red-800 mb-1.5">Attender Contact (Type & Enter)</label>
+                                                    <MultiInputTags
+                                                        value={opdForm.attender_contact_number}
+                                                        onChange={(val) => setOpdForm({ ...opdForm, attender_contact_number: val })}
+                                                        placeholder="e.g. 9876543210"
+                                                        maxLength={15}
+                                                    />
                                                 </div>
                                                 <div className="md:col-span-2">
                                                     <label className="block text-xs font-semibold text-red-800 mb-1.5">MLC Remarks</label>
@@ -1923,6 +2151,20 @@ export default function OpdEntryPage() {
                                                     />
                                                 </div>
                                             </div>
+                                            {opdForm.is_mlc && (
+                                                <div className="animate-in fade-in slide-in-from-left-2">
+                                                    <label className="block text-xs font-semibold text-red-600 mb-1">MLC Fee</label>
+                                                    <div className="relative">
+                                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold">₹</span>
+                                                        <input
+                                                            type="text"
+                                                            value={branchDetails?.mlc_fee || '0'}
+                                                            disabled
+                                                            className="w-24 pl-7 pr-3 py-2 bg-red-50 border border-red-100 rounded-lg text-sm font-bold text-red-700 cursor-not-allowed"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            )}
                                             <div>
                                                 <label className="block text-xs font-semibold text-slate-500 mb-1">Payment Status <span className="text-red-500">*</span></label>
                                                 <select required value={opdForm.payment_status} onChange={(e) => setOpdForm({ ...opdForm, payment_status: e.target.value })} className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium">
@@ -1955,21 +2197,34 @@ export default function OpdEntryPage() {
                                 </div>
 
                                 {/* Action Buttons */}
-                                <div className="pt-4 border-t border-slate-100 flex justify-end gap-4 sticky bottom-[-20px] bg-white/95 backdrop-blur pb-2 z-[9999]">
-                                    <button
-                                        type="button"
-                                        onClick={() => { setShowModal(false); resetForm(); }}
-                                        className="px-6 py-3 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition font-bold"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        disabled={loading}
-                                        className="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg hover:shadow-blue-500/30 transition-all font-bold flex items-center gap-2 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
-                                    >
-                                        {loading ? 'Saving...' : (editingOpdId ? 'Update Visit' : 'Register Visit')}
-                                    </button>
+                                <div className="pt-4 border-t border-slate-100 flex items-center justify-between sticky bottom-[-20px] bg-white/95 backdrop-blur pb-2 z-[9999]">
+
+                                    {/* Duplicate Warning Message */}
+                                    <div className="flex-1 mr-4">
+                                        {duplicateWarning && (
+                                            <div className="flex items-center gap-2 px-3 py-2 bg-red-50 text-red-700 text-xs font-bold rounded-lg border border-red-100 animate-in fade-in slide-in-from-left-2">
+                                                <AlertCircle size={14} />
+                                                {duplicateWarning}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="flex gap-4">
+                                        <button
+                                            type="button"
+                                            onClick={() => { setShowModal(false); resetForm(); }}
+                                            className="px-6 py-3 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition font-bold"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            disabled={loading || !!duplicateWarning}
+                                            className={`px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg hover:shadow-blue-500/30 transition-all font-bold flex items-center gap-2 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed ${duplicateWarning ? 'from-slate-400 to-slate-500 hover:shadow-none' : ''}`}
+                                        >
+                                            {loading ? 'Saving...' : (editingOpdId ? 'Update Visit' : 'Register Visit')}
+                                        </button>
+                                    </div>
                                 </div>
                             </form>
                         </div>
