@@ -6,7 +6,7 @@ class BranchService extends BaseModel {
     }
 
     /**
-     * Get all services in a branch
+     * Get all regular services in a branch
      * @param {Number} branchId
      * @returns {Promise<Array>}
      */
@@ -16,8 +16,25 @@ class BranchService extends BaseModel {
       FROM branch_services bs
       JOIN services s ON bs.service_id = s.service_id
       WHERE bs.branch_id = $1 AND bs.is_active = true
+      ORDER BY s.service_name ASC
+    `;
+        const result = await this.executeQuery(query, [branchId]);
+        return result.rows;
+    }
+
+    /**
+     * Get all services (regular + medical) in a branch
+     * @param {Number} branchId
+     * @returns {Promise<Array>}
+     */
+    async findUnionedByBranch(branchId) {
+        const query = `
+      SELECT bs.branch_id, bs.service_id, bs.is_active, s.service_name, s.service_code, s.description, 'regular' as type
+      FROM branch_services bs
+      JOIN services s ON bs.service_id = s.service_id
+      WHERE bs.branch_id = $1 AND bs.is_active = true
       UNION ALL
-      SELECT bms.branch_id, bms.service_id, bms.is_active, ms.service_name, ms.service_code, ms.category as description
+      SELECT bms.branch_id, bms.service_id, bms.is_active, ms.service_name, ms.service_code, ms.category as description, 'medical' as type
       FROM branch_medical_services bms
       JOIN medical_services ms ON bms.service_id = ms.service_id
       WHERE bms.branch_id = $1 AND bms.is_active = true

@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Plus, Search, FileText, X, Save, User, Printer, Clock, AlertCircle, Calendar, Phone, ArrowRight, Bell } from 'lucide-react';
+import { Plus, Search, FileText, X, Save, User, Printer, Clock, AlertCircle, Calendar, Phone, ArrowRight, Bell, CalendarClock, Sun, CloudSun, Moon, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '../../../lib/AuthContext';
 import SearchableSelect from '../../../components/ui/SearchableSelect';
+import MultiInputTags from '../dashboard/components/MultiInputTags';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -16,6 +17,7 @@ export default function OpdEntryPage() {
     const [searchResults, setSearchResults] = useState([]);
     const [selectedPatient, setSelectedPatient] = useState<any>(null);
     const [doctors, setDoctors] = useState<any[]>([]);
+    const [doctorSchedules, setDoctorSchedules] = useState<any[]>([]); // Added schedule state
     const [dateRange, setDateRange] = useState({
         from: new Date().toLocaleDateString('en-CA'), // YYYY-MM-DD in local time
         to: new Date().toLocaleDateString('en-CA')
@@ -36,6 +38,9 @@ export default function OpdEntryPage() {
         collectedCount: 0,
         newPatients: 0 // Added field
     });
+
+    // Duplicate Check State
+    const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
 
     const checkPhoneMatches = async (phone: string) => {
         if (phone.length === 10) {
@@ -68,6 +73,7 @@ export default function OpdEntryPage() {
     const [showBillModal, setShowBillModal] = useState(false);
     const [billData, setBillData] = useState<any>(null);
     const [branchDetails, setBranchDetails] = useState<any>(null);
+    const [allAppointments, setAllAppointments] = useState([]); // For availability check
 
     // Smart Patient Search state (UX Solution 1)
     const [modalSearchQuery, setModalSearchQuery] = useState('');
@@ -94,6 +100,22 @@ export default function OpdEntryPage() {
         'Blood Pressure Check', 'Diabetes Follow-up', 'General Checkup'
     ];
 
+    // Cancel Modal State
+    const [showCancelModal, setShowCancelModal] = useState(false);
+    const [appointmentToCancel, setAppointmentToCancel] = useState<any>(null);
+    const [cancelReason, setCancelReason] = useState('Patient Request');
+
+    // Reschedule Modal State
+    const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+    const [appointmentToReschedule, setAppointmentToReschedule] = useState<any>(null);
+    const [timeSlotCategory, setTimeSlotCategory] = useState<'Morning' | 'Afternoon' | 'Evening'>('Morning');
+    const [rescheduleError, setRescheduleError] = useState<string | null>(null);
+    const [rescheduleForm, setRescheduleForm] = useState({
+        appointment_date: '',
+        appointment_time: '',
+        doctor_id: '',
+        reason: ''
+    });
 
 
     const [opdForm, setOpdForm] = useState({
@@ -140,7 +162,9 @@ export default function OpdEntryPage() {
 
     useEffect(() => {
         fetchDoctors();
-        // fetchOpdEntries(); // Triggered by dateRange effect
+        fetchDoctorSchedules();
+        fetchAppointments(); // Fetch appointments for availability
+        fetchBranchDetails();
         fetchDashboardStats();
     }, []);
 
@@ -180,6 +204,39 @@ export default function OpdEntryPage() {
 
         return () => clearTimeout(debounceTimer);
     }, [modalSearchQuery]);
+
+    // Check for Duplicate Entries
+    useEffect(() => {
+        const checkDuplicate = async () => {
+            // Skip duplicate check if editing an existing entry
+            if (!editingOpdId && selectedPatient?.patient_id && opdForm.doctor_id) {
+                try {
+                    const token = localStorage.getItem('token');
+                    const response = await axios.get(`${API_URL}/opd/check-duplicate`, {
+                        params: {
+                            patient_id: selectedPatient.patient_id,
+                            doctor_id: opdForm.doctor_id,
+                            visit_date: opdForm.visit_date
+                        },
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+
+                    if (response.data.exists) {
+                        setDuplicateWarning(response.data.message);
+                    } else {
+                        setDuplicateWarning(null);
+                    }
+                } catch (error) {
+                    console.error("Error checking duplicate:", error);
+                }
+            } else {
+                setDuplicateWarning(null);
+            }
+        };
+
+        const timeoutId = setTimeout(checkDuplicate, 500);
+        return () => clearTimeout(timeoutId);
+    }, [selectedPatient, opdForm.doctor_id, opdForm.visit_date, editingOpdId]);
 
     const fetchBranchDetails = async () => {
         try {
@@ -228,6 +285,18 @@ export default function OpdEntryPage() {
         }
     };
 
+    const fetchDoctorSchedules = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.get(`${API_URL}/doctor-schedules`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setDoctorSchedules(response.data.data.schedules || []);
+        } catch (error) {
+            console.error('Error fetching doctor schedules:', error);
+        }
+    };
+
     const fetchOpdEntries = async (query = '') => {
         try {
             const token = localStorage.getItem('token');
@@ -244,6 +313,19 @@ export default function OpdEntryPage() {
             console.error('Error fetching OPD entries:', error);
         }
     };
+
+    const fetchAppointments = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.get(`${API_URL}/appointments`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setAllAppointments(response.data.data.appointments || []);
+        } catch (error) {
+            console.error('Error fetching appointments:', error);
+        }
+    };
+
 
 
     const fetchDashboardStats = async () => {
@@ -276,6 +358,73 @@ export default function OpdEntryPage() {
         }
     };
 
+
+    // Generate time slots from doctor schedule (same logic as dashboard)
+    const generateTimeSlotsFromSchedule = (doctorId: string, selectedDate: string) => {
+        if (!doctorId || !selectedDate) {
+            return [];
+        }
+
+        const date = new Date(selectedDate);
+        const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
+
+        const doctorDaySchedules = doctorSchedules.filter(
+            (schedule: any) =>
+                schedule.doctor_id === parseInt(doctorId) &&
+                schedule.day_of_week === dayOfWeek
+        );
+
+        if (doctorDaySchedules.length === 0) {
+            return [];
+        }
+
+        const slots: string[] = [];
+        doctorDaySchedules.forEach((schedule: any) => {
+            const startTime = schedule.start_time;
+            const endTime = schedule.end_time;
+            const consultationTime = schedule.avg_consultation_time || 30;
+
+            const parseTime = (timeStr: string) => {
+                const [hours, minutes] = timeStr.split(':').map(Number);
+                const d = new Date();
+                d.setHours(hours, minutes, 0, 0);
+                return d;
+            };
+
+            let current = parseTime(startTime);
+            const end = parseTime(endTime);
+
+            // Create cutoff time for today
+            const now = new Date();
+            const isToday = new Date(selectedDate).toDateString() === now.toDateString();
+            // 15 minute buffer
+            const cutoffTime = new Date(now.getTime() + 15 * 60000);
+
+            while (current < end) {
+                if (isToday) {
+                    const slotTime = new Date(now);
+                    slotTime.setHours(current.getHours(), current.getMinutes(), 0, 0);
+
+                    if (slotTime > cutoffTime) {
+                        const timeStr = current.toTimeString().slice(0, 5);
+                        slots.push(timeStr);
+                    }
+                } else {
+                    const timeStr = current.toTimeString().slice(0, 5);
+                    slots.push(timeStr);
+                }
+
+                current = new Date(current.getTime() + consultationTime * 60000);
+            }
+        });
+
+        return Array.from(new Set(slots)).sort();
+    };
+
+    const getDoctorAvailabilityCount = (doctorId: number, dateStr: string) => {
+        const slots = generateTimeSlotsFromSchedule(doctorId.toString(), dateStr);
+        return slots ? slots.length : 0;
+    };
 
     const handleSearch = async () => {
         if (!searchQuery) {
@@ -571,9 +720,29 @@ export default function OpdEntryPage() {
         try {
             const token = localStorage.getItem('token');
             // Calculate Total Fee (Doctor + MLC)
+            // handleEditOpd now loads BASE fee (subtracts MLC), so we always add MLC here
             let totalFee = parseFloat(formData.consultation_fee || '0');
+            let mlcFeeAmount = 0;
             if (formData.is_mlc && branchDetails?.mlc_fee) {
-                totalFee += parseFloat(branchDetails.mlc_fee);
+                mlcFeeAmount = parseFloat(branchDetails.mlc_fee);
+                totalFee += mlcFeeAmount;
+            }
+
+            // Clinical Hours Validation
+            if (branchDetails?.clinic_schedule && !formData.is_mlc) {
+                let schedule = branchDetails.clinic_schedule;
+                if (typeof schedule === 'string') {
+                    try { schedule = JSON.parse(schedule); } catch (e) { }
+                }
+                if (schedule?.startTime && schedule?.endTime && formData.visit_time) {
+                    const visitTime = formData.visit_time;
+                    const startTime = schedule.startTime;
+                    const endTime = schedule.endTime;
+                    if (visitTime < startTime || visitTime > endTime) {
+                        alert(`Cannot register OPD outside clinical hours (${startTime} - ${endTime}). Mark as MLC for emergency.`);
+                        return; // Stop save
+                    }
+                }
             }
 
             const payload = {
@@ -583,6 +752,7 @@ export default function OpdEntryPage() {
                 patient_id: selectedPatient?.patient_id,
                 vital_signs: JSON.stringify(formData.vital_signs),
                 consultation_fee: totalFee.toString(), // Send Total Fee to backend
+                mlc_fee: mlcFeeAmount.toString(), // Send separate MLC fee component
                 // Map frontend field names to backend expected names
                 address_line_1: formData.address_line1,
                 address_line_2: formData.address_line2,
@@ -730,6 +900,7 @@ export default function OpdEntryPage() {
 
     const handleEditOpd = (entry: any) => {
         setEditingOpdId(entry.opd_id);
+        setDuplicateWarning(null); // Clear any duplicate warning when editing
 
         let vitals = { bp_systolic: '', bp_diastolic: '', pulse: '', temperature: '', weight: '', height: '', spo2: '', grbs: '' };
         try {
@@ -738,6 +909,24 @@ export default function OpdEntryPage() {
                 vitals = { ...vitals, ...parsed };
             }
         } catch (e) { }
+
+        // Calculate base consultation fee for MLC entries
+        // DB stores total (consultation + MLC), so we need to subtract MLC for display
+        let baseConsultationFee = entry.consultation_fee || '';
+        const doc = doctors.find((d: any) => d.doctor_id === entry.doctor_id);
+
+        if (entry.is_mlc && entry.consultation_fee) {
+            const total = parseFloat(entry.consultation_fee);
+            const mlcFee = branchDetails?.mlc_fee ? parseFloat(branchDetails.mlc_fee) : 0;
+
+            // If we have MLC fee, subtract it
+            if (mlcFee > 0) {
+                baseConsultationFee = (total - mlcFee).toString();
+            } else if (doc?.consultation_fee) {
+                // Fallback: If we don't know MLC fee but know doctor fee, assume doctor fee is the base
+                baseConsultationFee = doc.consultation_fee.toString();
+            }
+        }
 
         setOpdForm({
             first_name: entry.patient_first_name || '',
@@ -759,7 +948,7 @@ export default function OpdEntryPage() {
             chief_complaint: entry.chief_complaint || '',
             symptoms: entry.symptoms || '',
             vital_signs: vitals,
-            consultation_fee: entry.consultation_fee || '',
+            consultation_fee: baseConsultationFee,
             payment_status: entry.payment_status || 'Pending',
             payment_method: entry.payment_method || 'Cash',
             is_mlc: entry.is_mlc || false,
@@ -806,6 +995,173 @@ export default function OpdEntryPage() {
     };
 
 
+
+    // --- Cancel Modal Functions (matches UpcomingAppointments) ---
+    const openCancelModal = (entry: any) => {
+        // Find the appointment for this patient (if exists)
+        const patientAppointment = allAppointments.find((apt: any) =>
+            apt.patient_id === entry.patient_id && ['Scheduled', 'Confirmed'].includes(apt.appointment_status)
+        );
+        if (patientAppointment) {
+            setAppointmentToCancel(patientAppointment);
+        } else {
+            // Create a pseudo-appointment from OPD data for cancellation
+            setAppointmentToCancel({
+                appointment_id: null,
+                opd_id: entry.opd_id,
+                patient_name: `${entry.patient_first_name} ${entry.patient_last_name}`,
+                isOpdCancel: true
+            });
+        }
+        setCancelReason('Patient Request');
+        setShowCancelModal(true);
+    };
+
+    const confirmCancel = async () => {
+        if (!appointmentToCancel) return;
+
+        setLoading(true);
+        try {
+            const token = localStorage.getItem('token');
+
+            if (appointmentToCancel.appointment_id) {
+                // Cancel actual appointment
+                await axios.patch(`${API_URL}/appointments/${appointmentToCancel.appointment_id}/status`, {
+                    status: 'Cancelled',
+                    cancellation_reason: cancelReason
+                }, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                alert('Appointment cancelled successfully!');
+            } else if (appointmentToCancel.opd_id) {
+                // Cancel OPD entry
+                await axios.patch(`${API_URL}/opd/${appointmentToCancel.opd_id}/status`, {
+                    visit_status: 'Cancelled'
+                }, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                alert('OPD entry cancelled successfully!');
+            }
+
+            fetchOpdEntries();
+            fetchAppointments();
+            setShowCancelModal(false);
+            setAppointmentToCancel(null);
+        } catch (error: any) {
+            console.error('Error cancelling:', error);
+            alert(error.response?.data?.message || 'Failed to cancel');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // --- Reschedule Modal Functions (matches UpcomingAppointments) ---
+    const openRescheduleModal = (entry: any) => {
+        // Find existing appointment for this patient
+        const patientAppointment = allAppointments.find((apt: any) =>
+            apt.patient_id === entry.patient_id && ['Scheduled', 'Confirmed'].includes(apt.appointment_status)
+        );
+
+        const today = new Date().toISOString().split('T')[0];
+
+        if (patientAppointment) {
+            setAppointmentToReschedule(patientAppointment);
+            const currentApptDate = patientAppointment.appointment_date?.split('T')[0] || today;
+            const defaultDate = currentApptDate < today ? today : currentApptDate;
+
+            setRescheduleForm({
+                appointment_date: defaultDate,
+                appointment_time: patientAppointment.appointment_time || '',
+                doctor_id: patientAppointment.doctor_id?.toString() || entry.doctor_id?.toString() || '',
+                reason: ''
+            });
+
+            const hour = parseInt(patientAppointment.appointment_time?.split(':')[0] || '9');
+            if (hour < 12) setTimeSlotCategory('Morning');
+            else if (hour < 16) setTimeSlotCategory('Afternoon');
+            else setTimeSlotCategory('Evening');
+        } else {
+            // Create new appointment from OPD data
+            setAppointmentToReschedule({
+                appointment_id: null,
+                patient_id: entry.patient_id,
+                patient_name: `${entry.patient_first_name} ${entry.patient_last_name}`,
+                phone_number: entry.contact_number,
+                age: entry.age,
+                gender: entry.gender,
+                reason_for_visit: entry.chief_complaint,
+                isNewAppointment: true
+            });
+
+            setRescheduleForm({
+                appointment_date: today,
+                appointment_time: '',
+                doctor_id: entry.doctor_id?.toString() || '',
+                reason: `Re-appointment from OPD #${entry.opd_number || entry.opd_id}`
+            });
+
+            setTimeSlotCategory('Morning');
+        }
+
+        setRescheduleError(null);
+        setShowRescheduleModal(true);
+    };
+
+    const handleReschedule = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        try {
+            const token = localStorage.getItem('token');
+
+            if (appointmentToReschedule?.appointment_id) {
+                // Reschedule existing appointment
+                await axios.patch(`${API_URL}/appointments/${appointmentToReschedule.appointment_id}/reschedule`, {
+                    appointment_date: rescheduleForm.appointment_date,
+                    appointment_time: rescheduleForm.appointment_time,
+                    doctor_id: rescheduleForm.doctor_id,
+                    reason: rescheduleForm.reason
+                }, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                alert('Appointment rescheduled successfully!');
+            } else {
+                // Create new appointment
+                const appointmentData = {
+                    patient_id: appointmentToReschedule.patient_id || null,
+                    patient_name: appointmentToReschedule.patient_name || '',
+                    first_name: appointmentToReschedule.patient_name?.split(' ')[0] || '',
+                    last_name: appointmentToReschedule.patient_name?.split(' ').slice(1).join(' ') || '',
+                    contact_number: appointmentToReschedule.phone_number,
+                    age: appointmentToReschedule.age,
+                    gender: appointmentToReschedule.gender,
+                    doctor_id: rescheduleForm.doctor_id,
+                    appointment_date: rescheduleForm.appointment_date,
+                    appointment_time: rescheduleForm.appointment_time,
+                    reason_for_visit: appointmentToReschedule.reason_for_visit || '',
+                    notes: rescheduleForm.reason,
+                    status: 'Scheduled'
+                };
+
+                await axios.post(`${API_URL}/appointments`, appointmentData, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                alert('Appointment scheduled successfully!');
+            }
+
+            fetchAppointments();
+            setShowRescheduleModal(false);
+            setAppointmentToReschedule(null);
+        } catch (error: any) {
+            console.error('Error rescheduling:', error);
+            if (error.response?.status === 409) {
+                setRescheduleError(error.response.data.message);
+            } else {
+                alert(error.response?.data?.message || 'Failed to schedule appointment');
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const doctorOptions = doctors.map((doc: any) => ({
         value: doc.doctor_id,
@@ -1183,6 +1539,27 @@ export default function OpdEntryPage() {
                                             </svg>
                                             Edit
                                         </button>
+
+                                        {/* Reschedule Button - text style like appointments */}
+                                        <button
+                                            onClick={() => openRescheduleModal(entry)}
+                                            className="px-3 py-2 text-xs font-bold text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                                            title="Re-Appoint Patient"
+                                        >
+                                            Re-Appoint
+                                        </button>
+
+                                        {/* Cancel Button - text style, only for Registered status */}
+                                        {entry.visit_status === 'Registered' && (
+                                            <button
+                                                onClick={() => openCancelModal(entry)}
+                                                className="px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                title="Cancel"
+                                            >
+                                                Cancel
+                                            </button>
+                                        )}
+
                                         {/* Quick Follow-Up Button - Only show if visit is completed and within 30 days */}
                                         {entry.visit_status === 'Completed' && (() => {
                                             const visitDate = new Date(entry.visit_date);
@@ -1390,7 +1767,7 @@ export default function OpdEntryPage() {
                                                                 <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center">
                                                                     <Plus className="w-4 h-4" />
                                                                 </div>
-                                                                <span className="font-semibold text-blue-600">Add New Patient</span>
+                                                                <span className="font-semibold text-blue-600 whitespace-nowrap text-sm">Add New Patient (Friends / Family)</span>
                                                             </div>
                                                         )}
                                                     </div>
@@ -1632,12 +2009,23 @@ export default function OpdEntryPage() {
                                                 checked={opdForm.is_mlc}
                                                 onChange={(e) => {
                                                     const isChecked = e.target.checked;
+
+                                                    // Reset fee to doctor's default when unchecking MLC
+                                                    let newFee = opdForm.consultation_fee;
+                                                    if (!isChecked && opdForm.doctor_id) {
+                                                        const doc = doctors.find((d: any) => d.doctor_id == opdForm.doctor_id); // Loose comparison for string/number
+                                                        if (doc) {
+                                                            newFee = doc.consultation_fee?.toString() || '';
+                                                        }
+                                                    }
+
                                                     setOpdForm({
                                                         ...opdForm,
                                                         is_mlc: isChecked,
                                                         visit_type: isChecked ? 'Emergency' : 'Walk-in',
                                                         visit_date: isChecked ? new Date().toISOString().split('T')[0] : opdForm.visit_date,
-                                                        visit_time: isChecked ? new Date().toTimeString().slice(0, 5) : opdForm.visit_time
+                                                        visit_time: isChecked ? new Date().toTimeString().slice(0, 5) : opdForm.visit_time,
+                                                        consultation_fee: newFee
                                                     });
                                                 }}
                                                 className="w-5 h-5 text-red-600 border-gray-300 rounded focus:ring-red-500 transition-all cursor-pointer"
@@ -1657,12 +2045,38 @@ export default function OpdEntryPage() {
                                             </select>
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Date {opdForm.is_mlc && <span className="text-xs text-green-600">(Auto)</span>}</label>
-                                            <input type="date" value={opdForm.visit_date} onChange={(e) => setOpdForm({ ...opdForm, visit_date: e.target.value })} disabled={opdForm.is_mlc} className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${opdForm.is_mlc ? 'bg-slate-100 cursor-not-allowed' : ''}`} />
+                                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Date <span className="text-xs text-green-600">(Today)</span></label>
+                                            <input type="date" value={new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })} disabled className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl font-medium text-slate-600 cursor-not-allowed" />
                                         </div>
                                         <div>
                                             <label className="block text-xs font-semibold text-slate-700 mb-1.5">Time {opdForm.is_mlc && <span className="text-xs text-green-600">(Auto)</span>}</label>
                                             <input type="time" value={opdForm.visit_time} onChange={(e) => setOpdForm({ ...opdForm, visit_time: e.target.value })} disabled={opdForm.is_mlc} className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${opdForm.is_mlc ? 'bg-slate-100 cursor-not-allowed' : ''}`} />
+
+                                            {/* Clinical Hours Warning */}
+                                            {(() => {
+                                                if (!branchDetails?.clinic_schedule || !opdForm.visit_time || opdForm.is_mlc) return null;
+
+                                                let schedule = branchDetails.clinic_schedule;
+                                                if (typeof schedule === 'string') {
+                                                    try { schedule = JSON.parse(schedule); } catch (e) { return null; }
+                                                }
+
+                                                if (schedule?.startTime && schedule?.endTime) {
+                                                    const visitTime = opdForm.visit_time; // HH:MM
+                                                    const startTime = schedule.startTime; // HH:MM
+                                                    const endTime = schedule.endTime; // HH:MM
+
+                                                    if (visitTime < startTime || visitTime > endTime) {
+                                                        return (
+                                                            <div className="mt-1 flex items-start gap-1 text-amber-600 text-xs font-medium">
+                                                                <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                                                                <span>Outside Clinical Hours ({startTime} - {endTime})</span>
+                                                            </div>
+                                                        );
+                                                    }
+                                                }
+                                                return null;
+                                            })()}
                                         </div>
                                         <div>
                                             {hasAppointment ? (
@@ -1689,9 +2103,22 @@ export default function OpdEntryPage() {
                                                         className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
                                                     >
                                                         <option value="">Select Doctor</option>
-                                                        {doctors.map((doc: any) => (
-                                                            <option key={doc.doctor_id} value={doc.doctor_id}>Dr. {doc.first_name} {doc.last_name} ({doc.specialization})</option>
-                                                        ))}
+                                                        {doctors.map((doc: any) => {
+                                                            const todayIST = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+                                                            const availableSlots = getDoctorAvailabilityCount(doc.doctor_id, todayIST);
+                                                            const isAvailable = availableSlots > 0;
+
+                                                            return (
+                                                                <option
+                                                                    key={doc.doctor_id}
+                                                                    value={doc.doctor_id}
+                                                                    disabled={!isAvailable}
+                                                                    className={!isAvailable ? 'text-gray-400' : ''}
+                                                                >
+                                                                    Dr. {doc.first_name} {doc.last_name} ({doc.specialization}) {!isAvailable ? '* Unavailable' : ''}
+                                                                </option>
+                                                            );
+                                                        })}
                                                     </select>
                                                 </div>
                                             )}
@@ -1719,8 +2146,13 @@ export default function OpdEntryPage() {
                                                     <input type="text" value={opdForm.attender_name} onChange={(e) => setOpdForm({ ...opdForm, attender_name: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-red-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500" />
                                                 </div>
                                                 <div>
-                                                    <label className="block text-xs font-semibold text-red-800 mb-1.5">Attender Contact</label>
-                                                    <input type="tel" value={opdForm.attender_contact_number} onChange={(e) => setOpdForm({ ...opdForm, attender_contact_number: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-red-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500" />
+                                                    <label className="block text-xs font-semibold text-red-800 mb-1.5">Attender Contact (Type & Enter)</label>
+                                                    <MultiInputTags
+                                                        value={opdForm.attender_contact_number}
+                                                        onChange={(val) => setOpdForm({ ...opdForm, attender_contact_number: val })}
+                                                        placeholder="e.g. 9876543210"
+                                                        maxLength={15}
+                                                    />
                                                 </div>
                                                 <div className="md:col-span-2">
                                                     <label className="block text-xs font-semibold text-red-800 mb-1.5">MLC Remarks</label>
@@ -1923,6 +2355,20 @@ export default function OpdEntryPage() {
                                                     />
                                                 </div>
                                             </div>
+                                            {opdForm.is_mlc && (
+                                                <div className="animate-in fade-in slide-in-from-left-2">
+                                                    <label className="block text-xs font-semibold text-red-600 mb-1">MLC Fee</label>
+                                                    <div className="relative">
+                                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold">₹</span>
+                                                        <input
+                                                            type="text"
+                                                            value={branchDetails?.mlc_fee || '0'}
+                                                            disabled
+                                                            className="w-24 pl-7 pr-3 py-2 bg-red-50 border border-red-100 rounded-lg text-sm font-bold text-red-700 cursor-not-allowed"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            )}
                                             <div>
                                                 <label className="block text-xs font-semibold text-slate-500 mb-1">Payment Status <span className="text-red-500">*</span></label>
                                                 <select required value={opdForm.payment_status} onChange={(e) => setOpdForm({ ...opdForm, payment_status: e.target.value })} className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium">
@@ -1955,21 +2401,34 @@ export default function OpdEntryPage() {
                                 </div>
 
                                 {/* Action Buttons */}
-                                <div className="pt-4 border-t border-slate-100 flex justify-end gap-4 sticky bottom-[-20px] bg-white/95 backdrop-blur pb-2 z-[9999]">
-                                    <button
-                                        type="button"
-                                        onClick={() => { setShowModal(false); resetForm(); }}
-                                        className="px-6 py-3 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition font-bold"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        disabled={loading}
-                                        className="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg hover:shadow-blue-500/30 transition-all font-bold flex items-center gap-2 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
-                                    >
-                                        {loading ? 'Saving...' : (editingOpdId ? 'Update Visit' : 'Register Visit')}
-                                    </button>
+                                <div className="pt-4 border-t border-slate-100 flex items-center justify-between sticky bottom-[-20px] bg-white/95 backdrop-blur pb-2 z-[9999]">
+
+                                    {/* Duplicate Warning Message */}
+                                    <div className="flex-1 mr-4">
+                                        {duplicateWarning && (
+                                            <div className="flex items-center gap-2 px-3 py-2 bg-red-50 text-red-700 text-xs font-bold rounded-lg border border-red-100 animate-in fade-in slide-in-from-left-2">
+                                                <AlertCircle size={14} />
+                                                {duplicateWarning}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="flex gap-4">
+                                        <button
+                                            type="button"
+                                            onClick={() => { setShowModal(false); resetForm(); }}
+                                            className="px-6 py-3 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition font-bold"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            disabled={loading || !!duplicateWarning}
+                                            className={`px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg hover:shadow-blue-500/30 transition-all font-bold flex items-center gap-2 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed ${duplicateWarning ? 'from-slate-400 to-slate-500 hover:shadow-none' : ''}`}
+                                        >
+                                            {loading ? 'Saving...' : (editingOpdId ? 'Update Visit' : 'Register Visit')}
+                                        </button>
+                                    </div>
                                 </div>
                             </form>
                         </div>
@@ -2125,6 +2584,207 @@ export default function OpdEntryPage() {
                     </div>
                 )
             }
+
+            {/* Cancel Confirmation Modal */}
+            {showCancelModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full border border-slate-100 p-6 animate-in zoom-in-95 duration-200">
+                        <div className="flex flex-col items-center text-center">
+                            <div className="w-12 h-12 bg-red-50 text-red-500 rounded-full flex items-center justify-center mb-4">
+                                <X className="w-6 h-6" />
+                            </div>
+                            <h3 className="text-lg font-bold text-slate-800 mb-1">Cancel {appointmentToCancel?.isOpdCancel ? 'OPD Entry' : 'Appointment'}?</h3>
+                            <p className="text-sm text-slate-500 mb-6">
+                                Are you sure you want to cancel for <br />
+                                <span className="font-bold text-slate-800">{appointmentToCancel?.patient_name}</span>?
+                            </p>
+
+                            <div className="w-full mb-6 text-left">
+                                <label className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Reason</label>
+                                <select
+                                    value={cancelReason}
+                                    onChange={(e) => setCancelReason(e.target.value)}
+                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none"
+                                >
+                                    <option value="Patient Request">Patient Request</option>
+                                    <option value="Doctor Unavailable">Doctor Unavailable</option>
+                                    <option value="Scheduling Conflict">Scheduling Conflict</option>
+                                    <option value="No Show">No Show (Pre-emptive)</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+
+                            <div className="flex gap-3 w-full">
+                                <button
+                                    onClick={() => setShowCancelModal(false)}
+                                    className="flex-1 px-4 py-2 border border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-50 transition"
+                                >
+                                    Keep It
+                                </button>
+                                <button
+                                    onClick={confirmCancel}
+                                    disabled={loading}
+                                    className="flex-1 px-4 py-2 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 shadow-lg shadow-red-500/30 transition"
+                                >
+                                    {loading ? '...' : 'Yes, Cancel'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Reschedule Modal */}
+            {showRescheduleModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto border border-white/20">
+                        <div className="sticky top-0 bg-gradient-to-r from-amber-500 to-orange-600 text-white px-6 py-4 flex justify-between items-center rounded-t-2xl">
+                            <h2 className="text-xl font-bold flex items-center gap-2">
+                                <CalendarClock className="w-6 h-6" />
+                                {appointmentToReschedule?.isNewAppointment ? 'Re-Appoint Patient' : 'Reschedule Appointment'}
+                            </h2>
+                            <button onClick={() => setShowRescheduleModal(false)} className="text-white hover:bg-white/20 p-2 rounded-lg transition">
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleReschedule} className="p-6 space-y-6">
+                            <div className="bg-amber-50 rounded-lg p-4 mb-4 border border-amber-100">
+                                <p className="text-sm text-amber-800 flex items-center gap-2">
+                                    <User className="w-4 h-4" />
+                                    {appointmentToReschedule?.isNewAppointment ? 'Booking for:' : 'Rescheduling for:'} <span className="font-bold">{appointmentToReschedule?.patient_name}</span>
+                                </p>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Doctor</label>
+                                <SearchableSelect
+                                    label=""
+                                    options={doctorOptions}
+                                    value={rescheduleForm.doctor_id}
+                                    onChange={(val) => { setRescheduleForm({ ...rescheduleForm, doctor_id: val }); setRescheduleError(null); }}
+                                    placeholder="Select Doctor"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
+                                <input
+                                    type="date"
+                                    required
+                                    value={rescheduleForm.appointment_date}
+                                    onChange={(e) => { setRescheduleForm({ ...rescheduleForm, appointment_date: e.target.value }); setRescheduleError(null); }}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                                    min={new Date().toISOString().split('T')[0]}
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Time Slot *</label>
+                                {/* Category Tabs */}
+                                <div className="flex gap-2 mb-3 bg-gray-100 p-1 rounded-xl">
+                                    {[
+                                        { id: 'Morning', icon: Sun, label: 'Morning' },
+                                        { id: 'Afternoon', icon: CloudSun, label: 'Afternoon' },
+                                        { id: 'Evening', icon: Moon, label: 'Evening' }
+                                    ].map((cat) => (
+                                        <button
+                                            key={cat.id}
+                                            type="button"
+                                            onClick={() => setTimeSlotCategory(cat.id as any)}
+                                            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all ${timeSlotCategory === cat.id
+                                                ? 'bg-white text-amber-600 shadow-sm'
+                                                : 'text-gray-500 hover:text-gray-700'
+                                                }`}
+                                        >
+                                            <cat.icon className="w-4 h-4" />
+                                            {cat.label}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Time Grid */}
+                                <div className="grid grid-cols-4 md:grid-cols-6 gap-2 mb-2 max-h-60 overflow-y-auto">
+                                    {(() => {
+                                        const slots = generateTimeSlotsFromSchedule(rescheduleForm.doctor_id, rescheduleForm.appointment_date);
+                                        const filteredSlots = slots.filter((slot: any) => {
+                                            const time = typeof slot === 'string' ? slot : slot.time;
+                                            const hour = parseInt(time?.split(':')[0] || '0');
+                                            if (timeSlotCategory === 'Morning') return hour >= 6 && hour < 12;
+                                            if (timeSlotCategory === 'Afternoon') return hour >= 12 && hour < 17;
+                                            if (timeSlotCategory === 'Evening') return hour >= 17 && hour < 22;
+                                            return false;
+                                        });
+
+                                        if (filteredSlots.length === 0) {
+                                            return (
+                                                <div className="col-span-full text-center py-4 text-xs font-bold text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                                                    No {timeSlotCategory.toLowerCase()} slots available.
+                                                </div>
+                                            );
+                                        }
+
+                                        return filteredSlots.map((slot: any) => {
+                                            const time = typeof slot === 'string' ? slot : slot.time;
+                                            const isBooked = typeof slot === 'object' && slot.status === 'booked';
+                                            const isSelected = rescheduleForm.appointment_time === time;
+                                            return (
+                                                <button
+                                                    key={time}
+                                                    type="button"
+                                                    disabled={isBooked}
+                                                    onClick={() => { !isBooked && setRescheduleForm({ ...rescheduleForm, appointment_time: time }); setRescheduleError(null); }}
+                                                    className={`py-2 px-1 text-xs font-bold rounded-lg border transition-all relative ${isBooked
+                                                        ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed opacity-60'
+                                                        : isSelected
+                                                            ? 'bg-amber-500 border-amber-500 text-white font-bold ring-2 ring-amber-200 shadow-md transform scale-105'
+                                                            : 'bg-white border-slate-200 text-slate-600 hover:border-amber-300 hover:bg-amber-50'
+                                                        }`}
+                                                >
+                                                    {time}
+                                                    {isBooked && (
+                                                        <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5 items-center justify-center bg-red-100 rounded-full border border-red-200">
+                                                            <span className="block h-1.5 w-1.5 rounded-full bg-red-500"></span>
+                                                        </span>
+                                                    )}
+                                                </button>
+                                            )
+                                        });
+                                    })()}
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Reason</label>
+                                <textarea
+                                    rows={2}
+                                    value={rescheduleForm.reason}
+                                    onChange={(e) => setRescheduleForm({ ...rescheduleForm, reason: e.target.value })}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                                    placeholder="e.g., Patient requested change"
+                                />
+                            </div>
+
+                            {rescheduleError && (
+                                <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg flex items-center gap-2">
+                                    <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                                    <p className="text-sm font-medium">{rescheduleError}</p>
+                                </div>
+                            )}
+
+                            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+                                <button type="button" onClick={() => setShowRescheduleModal(false)} className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium">
+                                    Cancel
+                                </button>
+                                <button type="submit" disabled={loading || !!rescheduleError || !rescheduleForm.appointment_time} className={`flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-lg hover:from-amber-600 hover:to-orange-700 transition font-medium shadow-lg shadow-amber-500/30 ${loading || !!rescheduleError || !rescheduleForm.appointment_time ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                    <CalendarClock className="w-5 h-5" />
+                                    {loading ? 'Updating...' : (appointmentToReschedule?.isNewAppointment ? 'Schedule' : 'Confirm New Time')}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
 
             <style jsx global>{`
                 @media print {

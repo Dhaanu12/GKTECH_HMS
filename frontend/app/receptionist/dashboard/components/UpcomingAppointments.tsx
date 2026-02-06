@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import { Search, Calendar, Clock, User, Stethoscope, ArrowRight, X, CalendarClock, Phone, Sun, CloudSun, Moon } from 'lucide-react';
+import { Search, Calendar, Clock, User, Stethoscope, ArrowRight, X, CalendarClock, Phone, Sun, CloudSun, Moon, AlertCircle, RefreshCw } from 'lucide-react';
 import SearchableSelect from '../../../../components/ui/SearchableSelect';
 import { format } from 'date-fns';
 
@@ -37,6 +37,7 @@ export default function UpcomingAppointments({ doctors, onConvertToOPD, refreshT
     const [showRescheduleModal, setShowRescheduleModal] = useState(false);
     const [appointmentToReschedule, setAppointmentToReschedule] = useState<any>(null);
     const [timeSlotCategory, setTimeSlotCategory] = useState<'Morning' | 'Afternoon' | 'Evening'>('Morning');
+    const [rescheduleError, setRescheduleError] = useState<string | null>(null);
     const [rescheduleForm, setRescheduleForm] = useState({
         appointment_date: '',
         appointment_time: '',
@@ -115,6 +116,13 @@ export default function UpcomingAppointments({ doctors, onConvertToOPD, refreshT
         } catch (error) {
             console.error('Error fetching doctor schedules:', error);
         }
+    };
+
+    const handleRefresh = () => {
+        setSelectedDate(format(new Date(), 'yyyy-MM-dd'));
+        setSearchQuery('');
+        setSelectedDoctorId('');
+        fetchAppointments();
     };
 
     const handleFollowUpStatusChange = async (apptId: string, newStatus: string) => {
@@ -387,6 +395,7 @@ export default function UpcomingAppointments({ doctors, onConvertToOPD, refreshT
         else if (hour < 16) setTimeSlotCategory('Afternoon');
         else setTimeSlotCategory('Evening');
 
+        setRescheduleError(null); // Clear previous errors
         setShowRescheduleModal(true);
     };
 
@@ -411,11 +420,57 @@ export default function UpcomingAppointments({ doctors, onConvertToOPD, refreshT
             setAppointmentToReschedule(null);
         } catch (error: any) {
             console.error('Error rescheduling appointment:', error);
-            alert(error.response?.data?.message || 'Failed to reschedule appointment');
+            if (error.response?.status === 409) {
+                setRescheduleError(error.response.data.message);
+            } else {
+                alert(error.response?.data?.message || 'Failed to reschedule appointment');
+            }
         } finally {
             setLoading(false);
         }
     };
+
+    // Real-time duplicate check for Reschedule
+    useEffect(() => {
+        if (!showRescheduleModal || !appointmentToReschedule || !rescheduleForm.appointment_date || !rescheduleForm.doctor_id) return;
+
+        const checkDuplicate = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                const params: any = {
+                    doctor_id: rescheduleForm.doctor_id,
+                    appointment_date: rescheduleForm.appointment_date,
+                    exclude_appointment_id: appointmentToReschedule.appointment_id
+                };
+
+                // Use same logic as backend: patient_id if exists, else phone_number
+                if (appointmentToReschedule.patient_id) {
+                    params.patient_id = appointmentToReschedule.patient_id;
+                } else {
+                    params.phone_number = appointmentToReschedule.phone_number;
+                }
+
+                const response = await axios.get('http://localhost:5000/api/appointments/check-duplicate', {
+                    params,
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+
+                if (response.data.exists) {
+                    setRescheduleError(response.data.message);
+                } else {
+                    setRescheduleError(null);
+                }
+            } catch (err) {
+                console.error('Check duplicate error', err);
+            }
+        };
+
+        const timer = setTimeout(() => {
+            checkDuplicate();
+        }, 500); // 500ms debounce
+
+        return () => clearTimeout(timer);
+    }, [rescheduleForm.appointment_date, rescheduleForm.doctor_id, showRescheduleModal, appointmentToReschedule]);
 
     // Helper to get status badge props
     const getStatusBadge = (apt: any) => {
@@ -469,31 +524,42 @@ export default function UpcomingAppointments({ doctors, onConvertToOPD, refreshT
                         <Calendar className="w-5 h-5 text-indigo-600" />
                         Appointments
                     </h3>
-                    <div className="flex bg-slate-100 p-1 rounded-xl">
+
+                    <div className="flex items-center gap-2">
                         <button
-                            onClick={() => setActiveTab('Upcoming')}
-                            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'Upcoming'
-                                ? 'bg-white text-indigo-600 shadow-sm'
-                                : 'text-slate-500 hover:text-slate-700'
-                                }`}
+                            onClick={handleRefresh}
+                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                            title="Reset to Today"
                         >
-                            Upcoming
-                            <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === 'Upcoming' ? 'bg-indigo-100' : 'bg-slate-200'}`}>
-                                {upcomingList.length}
-                            </span>
+                            <RefreshCw className="w-4 h-4" />
                         </button>
-                        <button
-                            onClick={() => setActiveTab('Missed')}
-                            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'Missed'
-                                ? 'bg-white text-red-600 shadow-sm'
-                                : 'text-slate-500 hover:text-slate-700'
-                                }`}
-                        >
-                            Missed
-                            <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === 'Missed' ? 'bg-red-100' : 'bg-slate-200'}`}>
-                                {missedList.length}
-                            </span>
-                        </button>
+
+                        <div className="flex bg-slate-100 p-1 rounded-xl">
+                            <button
+                                onClick={() => setActiveTab('Upcoming')}
+                                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'Upcoming'
+                                    ? 'bg-white text-indigo-600 shadow-sm'
+                                    : 'text-slate-500 hover:text-slate-700'
+                                    }`}
+                            >
+                                Upcoming
+                                <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === 'Upcoming' ? 'bg-indigo-100' : 'bg-slate-200'}`}>
+                                    {upcomingList.length}
+                                </span>
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('Missed')}
+                                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'Missed'
+                                    ? 'bg-white text-red-600 shadow-sm'
+                                    : 'text-slate-500 hover:text-slate-700'
+                                    }`}
+                            >
+                                Missed
+                                <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === 'Missed' ? 'bg-red-100' : 'bg-slate-200'}`}>
+                                    {missedList.length}
+                                </span>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -772,7 +838,7 @@ export default function UpcomingAppointments({ doctors, onConvertToOPD, refreshT
                                         label=""
                                         options={doctorOptions}
                                         value={rescheduleForm.doctor_id}
-                                        onChange={(val) => setRescheduleForm({ ...rescheduleForm, doctor_id: val })}
+                                        onChange={(val) => { setRescheduleForm({ ...rescheduleForm, doctor_id: val }); setRescheduleError(null); }}
                                         placeholder="Select Doctor"
                                     />
                                 </div>
@@ -783,7 +849,7 @@ export default function UpcomingAppointments({ doctors, onConvertToOPD, refreshT
                                         type="date"
                                         required
                                         value={rescheduleForm.appointment_date}
-                                        onChange={(e) => setRescheduleForm({ ...rescheduleForm, appointment_date: e.target.value })}
+                                        onChange={(e) => { setRescheduleForm({ ...rescheduleForm, appointment_date: e.target.value }); setRescheduleError(null); }}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500"
                                         min={new Date().toISOString().split('T')[0]}
                                     />
@@ -841,7 +907,7 @@ export default function UpcomingAppointments({ doctors, onConvertToOPD, refreshT
                                                         key={slot.time}
                                                         type="button"
                                                         disabled={isBooked}
-                                                        onClick={() => !isBooked && setRescheduleForm({ ...rescheduleForm, appointment_time: slot.time })}
+                                                        onClick={() => { !isBooked && setRescheduleForm({ ...rescheduleForm, appointment_time: slot.time }); setRescheduleError(null); }}
                                                         className={`py-2 px-1 text-xs font-bold rounded-lg border transition-all relative ${isBooked
                                                             ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed opacity-60'
                                                             : isSelected
@@ -873,11 +939,18 @@ export default function UpcomingAppointments({ doctors, onConvertToOPD, refreshT
                                     />
                                 </div>
 
+                                {rescheduleError && (
+                                    <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg flex items-center gap-2">
+                                        <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                                        <p className="text-sm font-medium">{rescheduleError}</p>
+                                    </div>
+                                )}
+
                                 <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
                                     <button type="button" onClick={() => setShowRescheduleModal(false)} className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium">
                                         Cancel
                                     </button>
-                                    <button type="submit" disabled={loading} className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-lg hover:from-amber-600 hover:to-orange-700 transition font-medium shadow-lg shadow-amber-500/30">
+                                    <button type="submit" disabled={loading || !!rescheduleError} className={`flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-lg hover:from-amber-600 hover:to-orange-700 transition font-medium shadow-lg shadow-amber-500/30 ${loading || !!rescheduleError ? 'opacity-50 cursor-not-allowed' : ''}`}>
                                         <CalendarClock className="w-5 h-5" />
                                         {loading ? 'Updating...' : 'Confirm New Time'}
                                     </button>

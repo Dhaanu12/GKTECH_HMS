@@ -65,16 +65,20 @@ class ClinicalNotesController {
     /**
      * Get notes for a patient
      * GET /api/clinical-notes/patient/:patientId
+     * Query params: limit, offset, noteType, opdId, startDate, endDate
      */
     static async getPatientNotes(req, res, next) {
         try {
             const { patientId } = req.params;
-            const { limit, offset, noteType } = req.query;
+            const { limit, offset, noteType, opdId, startDate, endDate } = req.query;
 
             const notes = await ClinicalNotes.getPatientNotes(patientId, {
                 limit: limit ? parseInt(limit) : 50,
                 offset: offset ? parseInt(offset) : 0,
-                noteType
+                noteType,
+                opdId: opdId ? parseInt(opdId) : null,
+                startDate,
+                endDate
             });
 
             const count = await ClinicalNotes.getNotesCount(patientId);

@@ -9,6 +9,9 @@ router.post('/', authenticate, authorize('RECEPTIONIST', 'CLIENT_ADMIN'), Appoin
 // Get appointments
 router.get('/', authenticate, authorize('RECEPTIONIST', 'DOCTOR', 'CLIENT_ADMIN'), AppointmentController.getAppointments);
 
+// Check duplicate appointment (MUST be before /:id to avoid route conflict)
+router.get('/check-duplicate', authenticate, authorize('RECEPTIONIST', 'DOCTOR', 'CLIENT_ADMIN'), AppointmentController.checkDuplicate);
+
 // Get appointment by ID
 router.get('/:id', authenticate, authorize('RECEPTIONIST', 'DOCTOR', 'CLIENT_ADMIN'), AppointmentController.getAppointmentById);
 
@@ -19,3 +22,4 @@ router.patch('/:id/status', authenticate, authorize('RECEPTIONIST', 'CLIENT_ADMI
 router.patch('/:id/reschedule', authenticate, authorize('RECEPTIONIST', 'CLIENT_ADMIN'), AppointmentController.rescheduleAppointment);
 
 module.exports = router;
+

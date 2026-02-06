@@ -152,10 +152,11 @@ class LabOrderController {
     static async getOrdersByPatient(req, res, next) {
         try {
             const { patientId } = req.params;
-            const { includeCompleted } = req.query;
+            const { includeCompleted, opdId } = req.query;
 
             const orders = await LabOrder.findByPatient(patientId, {
-                includeCompleted: includeCompleted === 'true'
+                includeCompleted: includeCompleted === 'true',
+                opdId: opdId ? parseInt(opdId) : null
             });
 
             res.status(200).json({

@@ -12,7 +12,7 @@ class PatientDocument extends BaseModel {
     /**
      * Find documents by patient ID (excludes deleted by default)
      * @param {number} patientId 
-     * @param {Object} options - { includeDeleted: boolean, documentType: string }
+     * @param {Object} options - { includeDeleted: boolean, documentType: string, opdId: number }
      * @returns {Promise<Array>}
      */
     async findByPatient(patientId, options = {}) {
@@ -37,10 +37,14 @@ class PatientDocument extends BaseModel {
                 pd.created_at,
                 u.username as uploaded_by_username,
                 lo.order_number as lab_order_number,
-                lo.test_name as lab_order_test_name
+                lo.test_name as lab_order_test_name,
+                lo.opd_id,
+                o.opd_number,
+                o.visit_date as opd_visit_date
             FROM patient_documents pd
             LEFT JOIN users u ON pd.uploaded_by = u.user_id
             LEFT JOIN lab_orders lo ON pd.lab_order_id = lo.order_id
+            LEFT JOIN opd_entries o ON lo.opd_id = o.opd_id
             WHERE pd.patient_id = $1
         `;
         
@@ -51,6 +55,11 @@ class PatientDocument extends BaseModel {
         if (options.documentType) {
             query += ` AND pd.document_type = $${paramCount++}`;
             values.push(options.documentType);
+        }
+
+        if (options.opdId) {
+            query += ` AND lo.opd_id = $${paramCount++}`;
+            values.push(options.opdId);
         }
         
         query += ` ORDER BY pd.created_at DESC`;
