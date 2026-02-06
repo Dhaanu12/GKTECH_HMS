@@ -2309,7 +2309,7 @@ export default function PatientDetails() {
                             </div>
                             <h2 className="text-2xl font-bold text-slate-800 mb-2">Ready for Consultation</h2>
                             <p className="text-slate-500 max-w-md">
-                                Please select "Start Consultation" from the header to begin the session. The AI Scribe will be ready to assist you.
+                                Please select "Start Consultation" from the header to begin the session. The Clinical Scribe will be ready to assist you.
                             </p>
                         </div>
                     )}
