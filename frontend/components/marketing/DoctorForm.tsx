@@ -9,9 +9,11 @@ interface DoctorFormProps {
     doctor?: ReferralDoctor;
     onSuccess: () => void;
     onCancel: () => void;
+    requireLocation?: boolean;
+    variant?: 'default' | 'modal';
 }
 
-const DoctorForm: React.FC<DoctorFormProps> = ({ doctor, onSuccess, onCancel }) => {
+const DoctorForm: React.FC<DoctorFormProps> = ({ doctor, onSuccess, onCancel, requireLocation = false, variant = 'default' }) => {
     const isEdit = !!doctor;
     const [loading, setLoading] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
@@ -54,7 +56,7 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ doctor, onSuccess, onCancel }) 
 
     // Auto-capture location on mount
     useEffect(() => {
-        if (!doctor?.geo_latitude && navigator.geolocation) {
+        if (requireLocation && !doctor?.geo_latitude && navigator.geolocation) {
             navigator.geolocation.getCurrentPosition((position) => {
                 setFormData(prev => ({
                     ...prev,
@@ -77,7 +79,7 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ doctor, onSuccess, onCancel }) 
                 }
             });
         }
-    }, [doctor]);
+    }, [doctor, requireLocation]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
@@ -99,13 +101,10 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ doctor, onSuccess, onCancel }) 
         e.preventDefault();
 
         // Validate location is captured
-        // Validate location is captured
-        // Validate location is captured - MADE OPTIONAL FOR DEV/TESTING
-        if (!formData.geo_latitude || !formData.geo_longitude) {
-            console.warn('Location validation skipped: ' + (locationError || 'Location not captured'));
-            // setErrorMessage(locationError || 'Location is required. Please enable location permissions and refresh the page to capture your location.');
-            // window.scrollTo({ top: 0, behavior: 'smooth' });
-            // return;
+        if (requireLocation && (!formData.geo_latitude || !formData.geo_longitude)) {
+            setErrorMessage(locationError || 'Location is required. Please enable location permissions and refresh the page to capture your location.');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            return;
         }
 
         setLoading(true);
@@ -156,11 +155,13 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ doctor, onSuccess, onCancel }) 
 
 
     return (
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="p-6 bg-gradient-to-r from-blue-50 to-blue-100 border-b border-gray-100 mb-6">
-                <h2 className="text-xl font-bold text-gray-800">{isEdit ? 'Edit Doctor Details' : 'Onboard New Referral Doctor'}</h2>
-                <p className="text-sm text-gray-500 mt-1">Please fill in all the required details to register the doctor.</p>
-            </div>
+        <form onSubmit={handleSubmit} className={variant === 'default' ? "bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden" : "bg-white"}>
+            {variant === 'default' && (
+                <div className="p-6 bg-gradient-to-r from-blue-50 to-blue-100 border-b border-gray-100 mb-6">
+                    <h2 className="text-xl font-bold text-gray-800">{isEdit ? 'Edit Doctor Details' : 'Onboard New Referral Doctor'}</h2>
+                    <p className="text-sm text-gray-500 mt-1">Please fill in all the required details to register the doctor.</p>
+                </div>
+            )}
 
             {/* Success Message */}
             {successMessage && (
@@ -200,10 +201,10 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ doctor, onSuccess, onCancel }) 
                 </div>
             )}
 
-            <div className="p-6 space-y-8">
+            <div className={`p-6 space-y-8 ${variant === 'modal' ? 'pt-6' : ''}`}>
                 {/* 1. Personal & Professional Details */}
                 <section>
-                    <SectionHeader title="Professional Information" icon={User} id="personal" />
+                    {variant === 'default' && <SectionHeader title="Professional Information" icon={User} id="personal" />}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Doctor Name *</label>

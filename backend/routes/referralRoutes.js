@@ -13,6 +13,13 @@ router.get('/hospitals', ReferralController.getReferralHospitals);
 router.patch('/hospitals/:id', ReferralController.updateReferralHospital);
 router.delete('/hospitals/:id', ReferralController.deleteReferralHospital);
 
+// Referral Diagnostics
+const ReferralDiagnosticController = require('../controllers/referralDiagnosticController');
+router.post('/diagnostics', ReferralDiagnosticController.createReferralDiagnostic);
+router.get('/diagnostics', ReferralDiagnosticController.getReferralDiagnostics);
+router.patch('/diagnostics/:id', ReferralDiagnosticController.updateReferralDiagnostic);
+router.delete('/diagnostics/:id', ReferralDiagnosticController.deleteReferralDiagnostic);
+
 // Referral Doctors
 router.post('/doctors', ReferralController.createReferralDoctor);
 router.get('/doctors', ReferralController.getReferralDoctors);
