@@ -105,8 +105,8 @@ exports.uploadReferralData = async (req, res) => {
 
         // 1. Create Batch Header
         const created_by = req.user ? (req.user.username || req.user.user_id.toString()) : 'unknown';
-        const hospital_id = req.user.hospital_id;
-        const branch_id = req.user.branch_id;
+        const hospital_id = req.user.hospital_id || null;
+        const branch_id = req.user.branch_id || null;
 
         const batchResult = await client.query(
             `INSERT INTO referral_payment_upload_batch 
@@ -142,13 +142,13 @@ exports.uploadReferralData = async (req, res) => {
 
         // Loop through Excel Rows
         for (const row of data) {
-            const patientName = row['PATIENT NAME'];
-            const ipNumber = row['IP NUMBER'];
-            const admissionType = row['ADMISSION TYPE'];
-            const department = row['DEPARTMENT'];
-            const doctorName = row['DOCTOR NAME'];
-            const mciId = row['MEDICAL COUNCIL ID'];
-            const paymentMode = row['PAYMENT MODE'];
+            const patientName = row['PATIENT NAME'] || null;
+            const ipNumber = row['IP NUMBER'] || null;
+            const admissionType = row['ADMISSION TYPE'] || null;
+            const department = row['DEPARTMENT'] || null;
+            const doctorName = row['DOCTOR NAME'] || null;
+            const mciId = row['MEDICAL COUNCIL ID'] || null;
+            const paymentMode = row['PAYMENT MODE'] || null;
 
             if (!patientName || !doctorName) continue; // Skip empty rows
 
@@ -157,8 +157,22 @@ exports.uploadReferralData = async (req, res) => {
             // If IP Number is missing, we proceed as new (or skip? Let's proceed as new to allow old format fallback if necessary, but ideally IP is required).
             // Assuming IP provided:
 
+            // Find Doctor ID by MCI
+            const doctorQuery = await client.query(
+                "SELECT id, doctor_name, referral_pay FROM referral_doctor_module WHERE medical_council_membership_number = $1",
+                [mciId]
+            );
+
+            let doctorId = null;
+            let resolvedDoctorName = doctorName; // Default to Excel name
+
             let headerId = null;
             let isUpdate = false;
+
+            if (doctorQuery.rows.length > 0) {
+                doctorId = doctorQuery.rows[0].id;
+                resolvedDoctorName = doctorQuery.rows[0].doctor_name; // Use DB name to ensure correct assignment
+            }
 
             if (ipNumber && mciId) {
                 const existingHeader = await client.query(
@@ -169,12 +183,12 @@ exports.uploadReferralData = async (req, res) => {
                 if (existingHeader.rows.length > 0) {
                     headerId = existingHeader.rows[0].id;
                     isUpdate = true;
-                    // Update header info with latest from Excel
+                    // Update header info with latest from Excel (but use resolved Doc Name)
                     await client.query(
                         `UPDATE referral_payment_header 
                          SET patient_name = $1, admission_type = $2, department = $3, doctor_name = $4, payment_mode = $5, updated_by = $6, updated_at = NOW()
                          WHERE id = $7`,
-                        [patientName, admissionType, department, doctorName, paymentMode, created_by, headerId]
+                        [patientName, admissionType, department, resolvedDoctorName, paymentMode, created_by, headerId]
                     );
                 }
             }
@@ -185,20 +199,9 @@ exports.uploadReferralData = async (req, res) => {
                     `INSERT INTO referral_payment_header 
                     (batch_id, ip_number, patient_name, admission_type, department, doctor_name, medical_council_id, payment_mode, created_by, updated_by)
                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9) RETURNING id`,
-                    [batchId, ipNumber, patientName, admissionType, department, doctorName, mciId, paymentMode, created_by]
+                    [batchId, ipNumber, patientName, admissionType, department, resolvedDoctorName, mciId, paymentMode, created_by]
                 );
                 headerId = headerResult.rows[0].id;
-            }
-
-            // Find Doctor ID by MCI
-            const doctorQuery = await client.query(
-                "SELECT id, referral_pay FROM referral_doctor_module WHERE medical_council_membership_number = $1",
-                [mciId]
-            );
-
-            let doctorId = null;
-            if (doctorQuery.rows.length > 0) {
-                doctorId = doctorQuery.rows[0].id;
             }
 
             // Fetch specific percentages for this doctor

@@ -242,7 +242,7 @@ export default function ClaimsPage() {
             formData.append('file', uploadFile);
             formData.append('branch_id', uploadBranch);
 
-            const response = await axios.post('/api/accountant/upload', formData, {
+            const response = await axios.post('/api/accountant/upload-claims', formData, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                     'Content-Type': 'multipart/form-data'

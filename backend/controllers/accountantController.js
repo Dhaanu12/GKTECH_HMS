@@ -17,7 +17,7 @@ exports.uploadClaims = async (req, res, next) => {
             });
         }
 
-        const { branch_id, hospital_id } = req.body;
+        let { branch_id, hospital_id } = req.body;
 
         console.log('uploadClaims - User:', {
             userId: req.user.user_id,
@@ -53,15 +53,19 @@ exports.uploadClaims = async (req, res, next) => {
                     });
                 }
 
-                const allowedHospitalIds = accessResult.rows.map(row => row.hospital_id);
+                // Find the branch in the user's allowed list
+                const allowedBranch = accessResult.rows.find(row => row.branch_id === parseInt(branch_id));
 
-                // Validate hospital_id is in allowed hospitals
-                if (!allowedHospitalIds.includes(parseInt(hospital_id))) {
+                if (!allowedBranch) {
                     return res.status(403).json({
                         status: 'fail',
-                        message: 'Access denied: You can only upload claims for your assigned hospital'
+                        message: 'Access denied: You do not have permission for this branch'
                     });
                 }
+
+                // Auto-set hospital_id from the verified branch relationship
+                hospital_id = allowedBranch.hospital_id;
+                req.body.hospital_id = hospital_id; // Update req.body for consistency if needed later matches accessResult logic
             } finally {
                 client.release();
             }

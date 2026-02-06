@@ -3,6 +3,9 @@ const db = require('../../config/db');
 /**
  * Bulk insert service percentages for multiple doctors
  */
+// ============================================
+// Bulk Insert Service Percentages
+// ============================================
 exports.bulkInsertServicePercentages = async (req, res) => {
     let client;
     try {
@@ -69,6 +72,14 @@ exports.bulkInsertServicePercentages = async (req, res) => {
 
                 insertedRecords.push(result.rows[0]);
             }
+        }
+
+        // Activate all affected doctors
+        if (doctor_ids.length > 0) {
+            await client.query(
+                "UPDATE referral_doctor_module SET status = 'Active', updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata') WHERE id = ANY($1) AND status != 'Active'",
+                [doctor_ids]
+            );
         }
 
         await client.query('COMMIT');
@@ -168,6 +179,14 @@ exports.copyServicePercentages = async (req, res) => {
             }
         }
 
+        // Activate all target doctors
+        if (target_doctor_ids.length > 0) {
+            await client.query(
+                "UPDATE referral_doctor_module SET status = 'Active', updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata') WHERE id = ANY($1) AND status != 'Active'",
+                [target_doctor_ids]
+            );
+        }
+
         await client.query('COMMIT');
 
         res.status(201).json({
@@ -183,11 +202,11 @@ exports.copyServicePercentages = async (req, res) => {
         });
 
     } catch (error) {
-        await client.query('ROLLBACK');
+        if (client) await client.query('ROLLBACK');
         console.error('Copy service percentages error:', error);
         res.status(500).json({ success: false, message: error.message });
     } finally {
-        client.release();
+        if (client) client.release();
     }
 };
 
@@ -274,6 +293,7 @@ exports.importCSV = async (req, res) => {
 
         const insertedRecords = [];
         const errors = [];
+        const affectedDoctorIds = new Set();
 
         for (let i = 0; i < csv_data.length; i++) {
             const row = csv_data[i];
@@ -325,11 +345,21 @@ exports.importCSV = async (req, res) => {
 
                 console.log(`✅ Row ${i + 1} inserted successfully:`, result.rows[0].percentage_id);
                 insertedRecords.push(result.rows[0]);
+                affectedDoctorIds.add(row.doctor_id);
 
             } catch (rowError) {
                 console.error(`❌ Row ${i + 1} error:`, rowError.message);
                 errors.push({ row: i + 1, error: rowError.message });
             }
+        }
+
+        // Activate all affected doctors
+        if (affectedDoctorIds.size > 0) {
+            const doctorIds = Array.from(affectedDoctorIds);
+            await client.query(
+                "UPDATE referral_doctor_module SET status = 'Active', updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata') WHERE id = ANY($1) AND status != 'Active'",
+                [doctorIds]
+            );
         }
 
         await client.query('COMMIT');

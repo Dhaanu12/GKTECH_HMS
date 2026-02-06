@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import {
     Users, FileSpreadsheet, Search, Save, X, Plus, Check, ArrowRight,
     Download, Upload, Percent, ChevronDown, ChevronRight, Loader2,
-    Settings2, CheckCircle2, AlertCircle, Info, Hospital, Phone
+    Settings2, CheckCircle2, AlertCircle, Info, Hospital, Phone,
+    User, ArrowUpNarrowWide, ArrowDownWideNarrow
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import {
@@ -154,6 +155,10 @@ function IndividualSetup({ doctors, services, onUpdate }: { doctors: ReferralDoc
     const [filterStatus, setFilterStatus] = useState<string>('all');
     const [expandedDoctorId, setExpandedDoctorId] = useState<number | null>(null);
 
+    // Sorting State
+    const [sortType, setSortType] = useState<'alphabetical' | 'recent' | 'services'>('recent');
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
     const filteredDoctors = doctors.filter(doctor => {
         const term = searchTerm.toLowerCase();
         const matchesSearch = (doctor.doctor_name || '').toLowerCase().includes(term) ||
@@ -162,12 +167,33 @@ function IndividualSetup({ doctors, services, onUpdate }: { doctors: ReferralDoc
             (doctor.clinic_name || '').toLowerCase().includes(term);
         const matchesFilter = filterStatus === 'all' || doctor.status === filterStatus;
         return matchesSearch && matchesFilter;
+    }).sort((a, b) => {
+        let comparison = 0;
+        switch (sortType) {
+            case 'alphabetical':
+                comparison = a.doctor_name.localeCompare(b.doctor_name);
+                break;
+            case 'recent':
+                // Fallback to 0 if created_at is missing (though it should be there)
+                const dateA = new Date(a.created_at || 0).getTime();
+                const dateB = new Date(b.created_at || 0).getTime();
+                comparison = dateA - dateB;
+                break;
+            case 'services':
+                const lenA = Array.isArray(a.percentages) ? a.percentages.length : 0;
+                const lenB = Array.isArray(b.percentages) ? b.percentages.length : 0;
+                comparison = lenA - lenB;
+                break;
+        }
+        return sortOrder === 'asc' ? comparison : -comparison;
     });
+
+    const toggleSortOrder = () => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
 
     return (
         <div className="space-y-4">
-            {/* Search and Filter */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            {/* Search, Filter, and Sort */}
+            <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
                 <div className="relative flex-1 max-w-md">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <input
@@ -178,19 +204,48 @@ function IndividualSetup({ doctors, services, onUpdate }: { doctors: ReferralDoc
                         className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-gray-50 focus:bg-white transition-all"
                     />
                 </div>
-                <div className="flex items-center gap-3">
-                    <select
-                        value={filterStatus}
-                        onChange={(e) => setFilterStatus(e.target.value)}
-                        className="px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-gray-50"
-                    >
-                        <option value="all">All Doctors</option>
-                        <option value="Active">Active Only</option>
-                        <option value="Inactive">Inactive Only</option>
-                    </select>
-                    <div className="text-xs text-gray-500 flex items-center gap-1">
-                        <Info className="w-3.5 h-3.5" />
-                        {filteredDoctors.length} doctors
+
+                <div className="flex flex-wrap items-center gap-3">
+                    {/* Status Filter */}
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-gray-500 hidden sm:inline">Status:</span>
+                        <select
+                            value={filterStatus}
+                            onChange={(e) => setFilterStatus(e.target.value)}
+                            className="px-3 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-gray-50"
+                        >
+                            <option value="all">All Statuses</option>
+                            <option value="Active">Active</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Inactive">Inactive</option>
+                        </select>
+                    </div>
+
+                    {/* Sort Controls */}
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-gray-500 hidden sm:inline">Sort by:</span>
+                        <select
+                            value={sortType}
+                            onChange={(e) => setSortType(e.target.value as any)}
+                            className="px-3 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-gray-50"
+                        >
+                            <option value="recent">Recently Added</option>
+                            <option value="alphabetical">Alphabetical (A-Z)</option>
+                            <option value="services">No. of Services</option>
+                        </select>
+
+                        <button
+                            onClick={toggleSortOrder}
+                            className="p-2.5 border border-gray-200 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-600 transition-colors"
+                            title={sortOrder === 'asc' ? "Ascending" : "Descending"}
+                        >
+                            {sortOrder === 'asc' ? <ArrowUpNarrowWide className="w-5 h-5" /> : <ArrowDownWideNarrow className="w-5 h-5" />}
+                        </button>
+                    </div>
+
+                    <div className="text-xs text-gray-500 flex items-center gap-1 font-medium bg-gray-100 px-3 py-2.5 rounded-xl whitespace-nowrap">
+                        <User className="w-3.5 h-3.5" />
+                        {filteredDoctors.length}
                     </div>
                 </div>
             </div>
@@ -275,12 +330,20 @@ function IndividualSetup({ doctors, services, onUpdate }: { doctors: ReferralDoc
 // ============================================
 // Inline Doctor Config Component
 // ============================================
+// ============================================
+// Inline Doctor Config Component
+// ============================================
 function DoctorInlineConfig({ doctor, allServices, onSave }: { doctor: ReferralDoctor, allServices: HospitalService[], onSave: () => void }) {
     const [editingConfigs, setEditingConfigs] = useState<Record<string, Partial<ServicePercentage>>>({});
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedServices, setSelectedServices] = useState<string[]>([]);
+
+    // Upload Confirmation State
+    const [showUploadConfirm, setShowUploadConfirm] = useState(false);
+    const [pendingConfigs, setPendingConfigs] = useState<Record<string, Partial<ServicePercentage>>>({});
+    const [uploadStats, setUploadStats] = useState({ total: 0, enabled: 0 });
 
     // Initialize editing configs
     useEffect(() => {
@@ -383,6 +446,9 @@ function DoctorInlineConfig({ doctor, allServices, onSave }: { doctor: ReferralD
         const file = e.target.files?.[0];
         if (!file) return;
 
+        // Reset input so same file can be selected again if needed
+        e.target.value = '';
+
         const reader = new FileReader();
         reader.onload = (event) => {
             try {
@@ -392,20 +458,29 @@ function DoctorInlineConfig({ doctor, allServices, onSave }: { doctor: ReferralD
                 const ws = wb.Sheets[wsname];
                 const data = XLSX.utils.sheet_to_json(ws);
 
-                const newConfigs = { ...editingConfigs };
+                const newConfigs: Record<string, Partial<ServicePercentage>> = { ...editingConfigs };
+                let enabledCount = 0;
+                let touchedCount = 0;
+
                 data.forEach((row: any) => {
                     const serviceName = row['Service Name'];
                     if (serviceName) {
+                        const payout = (row['Referral Payout (Y/N)'] || 'N').toString().toUpperCase() === 'Y' ? 'Y' : 'N';
+
                         newConfigs[serviceName] = {
-                            referral_pay: (row['Referral Payout (Y/N)'] || 'N').toString().toUpperCase() === 'Y' ? 'Y' : 'N',
+                            referral_pay: payout,
                             cash_percentage: parseFloat(row['Cash Percentage (%)'] || 0),
                             inpatient_percentage: parseFloat(row['Insurance Percentage (%)'] || 0)
                         };
+                        touchedCount++;
+                        if (payout === 'Y') enabledCount++;
                     }
                 });
 
-                setEditingConfigs(newConfigs);
-                setMessage({ type: 'success', text: 'Excel data applied successfully! Click Save to persist changes.' });
+                setPendingConfigs(newConfigs);
+                setUploadStats({ total: touchedCount, enabled: enabledCount });
+                setShowUploadConfirm(true);
+
             } catch (err) {
                 console.error(err);
                 setMessage({ type: 'error', text: 'Failed to parse Excel file. Please use the correct template.' });
@@ -414,8 +489,46 @@ function DoctorInlineConfig({ doctor, allServices, onSave }: { doctor: ReferralD
         reader.readAsBinaryString(file);
     };
 
+    const confirmUpload = () => {
+        setEditingConfigs(pendingConfigs);
+        setShowUploadConfirm(false);
+        setMessage({ type: 'success', text: `Applied config from Excel. ${uploadStats.enabled} services enabled for payout. Click Save to persist.` });
+    };
+
     return (
-        <div className="bg-gradient-to-b from-blue-50/50 to-white border-t border-blue-100 p-6 animate-in slide-in-from-top-2">
+        <div className="bg-gradient-to-b from-blue-50/50 to-white border-t border-blue-100 p-6 animate-in slide-in-from-top-2 relative">
+
+            {/* Confirmation Modal */}
+            {showUploadConfirm && (
+                <div className="absolute inset-0 z-50 bg-white/80 backdrop-blur-sm flex items-center justify-center p-4 rounded-xl">
+                    <div className="bg-white rounded-xl shadow-2xl border border-blue-100 p-6 max-w-sm w-full animate-in zoom-in-95">
+                        <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <Upload className="w-6 h-6" />
+                        </div>
+                        <h4 className="text-xl font-bold text-gray-900 text-center mb-2">Confirm Upload</h4>
+                        <p className="text-sm text-gray-500 text-center mb-6">
+                            You are about to update configurations for <span className="font-bold text-gray-800">{uploadStats.total}</span> services.
+                            <br />
+                            <span className="text-blue-600 font-semibold">{uploadStats.enabled} services</span> will have Payout enabled.
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowUploadConfirm(false)}
+                                className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmUpload}
+                                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition"
+                            >
+                                Apply Changes
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Header with actions */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                 <div>
@@ -596,7 +709,6 @@ function DoctorInlineConfig({ doctor, allServices, onSave }: { doctor: ReferralD
         </div>
     );
 }
-
 // ============================================
 // Bulk Setup Wizard Component
 // ============================================
