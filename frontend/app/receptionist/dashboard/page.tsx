@@ -656,6 +656,8 @@ export default function ReceptionistDashboard() {
     const fetchStats = async () => {
         try {
             const token = localStorage.getItem('token');
+            if (!token) return;
+
             const response = await axios.get('http://localhost:5000/api/opd/stats', {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -669,14 +671,19 @@ export default function ReceptionistDashboard() {
                 collectedAmount: stats.collectedAmount || 0,
                 collectedCount: stats.collectedCount || 0
             });
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error fetching dashboard stats:', error);
+            if (axios.isAxiosError(error) && error.response?.status === 401) {
+                router.push('/login');
+            }
         }
     };
 
     const fetchFollowUps = async () => {
         try {
             const token = localStorage.getItem('token');
+            if (!token) return;
+
             const response = await axios.get('http://localhost:5000/api/follow-ups/due', {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -686,8 +693,11 @@ export default function ReceptionistDashboard() {
                 upcoming: [],
                 summary: { overdue_count: 0, due_today_count: 0, upcoming_count: 0, total: 0 }
             });
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error fetching follow-ups:', error);
+            if (axios.isAxiosError(error) && error.response?.status === 401) {
+                router.push('/login');
+            }
         }
     };
 
