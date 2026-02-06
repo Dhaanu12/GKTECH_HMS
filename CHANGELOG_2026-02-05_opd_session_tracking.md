@@ -181,6 +181,34 @@ GET /api/vitals/patient/5?opdId=42&startDate=2025-01-01&endDate=2025-03-31
 
 ---
 
+## Lab Order Status History UI
+
+### New Feature: View History Modal (`frontend/app/nurse/lab-schedule/page.tsx`)
+
+Added a new "View History" button and modal to display the complete status history timeline for lab orders.
+
+#### Features:
+- **History button** (clock icon) on every lab order card
+- **Timeline modal** showing all status changes:
+  - Visual timeline with colored status dots
+  - Previous → New status transitions
+  - Timestamp (date and time)
+  - Who made the change (username)
+  - Optional notes for each change
+- **Status-specific icons and colors**:
+  - Ordered: Blue (Clock icon)
+  - In-Progress: Amber (Play icon)
+  - Completed: Green (Checkmark icon)
+  - Cancelled: Gray (X icon)
+
+#### Implementation:
+- Added `StatusHistoryEntry` interface
+- Added `showHistoryModal` state
+- Created `ViewHistoryModal` component that fetches from `GET /api/lab-orders/:id`
+- Added `History` icon to imports
+
+---
+
 ## Files Changed
 
 | File | Change Type |
@@ -195,4 +223,5 @@ GET /api/vitals/patient/5?opdId=42&startDate=2025-01-01&endDate=2025-03-31
 | `backend/controllers/patientDocumentController.js` | Modified |
 | `backend/routes/consultationRoutes.js` | Modified |
 | `frontend/app/nurse/patients/[id]/page.tsx` | Modified |
+| `frontend/app/nurse/lab-schedule/page.tsx` | Modified |
 | `backend/database/NURSE_MODULE_README.md` | Modified |

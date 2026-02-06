@@ -337,15 +337,18 @@ function DoctorInlineConfig({ doctor, allServices, onSave }: { doctor: ReferralD
 
         try {
             const entries = Object.entries(editingConfigs);
+            console.log('Saving configs:', entries);
             const promises = entries.map(([serviceName, config]) => {
-                return upsertServicePercentage({
+                const payload = {
                     referral_doctor_id: doctor.id,
                     service_type: serviceName,
                     referral_pay: config.referral_pay || 'N',
                     cash_percentage: config.cash_percentage || 0,
                     inpatient_percentage: config.inpatient_percentage || 0,
                     status: 'Active'
-                });
+                };
+                console.log('Payload for service:', serviceName, payload);
+                return upsertServicePercentage(payload);
             });
 
             await Promise.all(promises);

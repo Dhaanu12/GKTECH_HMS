@@ -339,6 +339,8 @@ exports.upsertServicePercentage = async (req, res) => {
     const updated_by = req.user ? (req.user.username || req.user.user_id.toString()) : 'unknown';
 
     try {
+        console.log('Upserting percentage:', { referral_doctor_id, service_type, referral_pay, cash_percentage, inpatient_percentage, status });
+
         // Check if exists
         const check = await pool.query('SELECT * FROM referral_doctor_service_percentage_module WHERE referral_doctor_id = $1 AND service_type = $2', [referral_doctor_id, service_type]);
 

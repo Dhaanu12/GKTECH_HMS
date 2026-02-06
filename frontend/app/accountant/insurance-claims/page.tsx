@@ -115,7 +115,7 @@ export default function ClaimsPage() {
     const fetchBranches = async () => {
         try {
             const token = localStorage.getItem('token');
-            const response = await axios.get('/api/accountant/branches', {
+            const response = await axios.get('/api/accountant/assigned-branches', {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setBranches(response.data.data?.branches || []);
