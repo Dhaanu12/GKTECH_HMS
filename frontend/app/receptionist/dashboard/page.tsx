@@ -14,6 +14,48 @@ import { format } from 'date-fns';
 
 const API_URL = 'http://localhost:5000/api';
 
+interface OpdFormState {
+    first_name: string;
+    last_name: string;
+    age: string;
+    gender: string;
+    blood_group: string;
+    contact_number: string;
+    doctor_id: string;
+    visit_type: string;
+    visit_date: string;
+    visit_time: string;
+    chief_complaint: string;
+    symptoms: string;
+    vital_signs: {
+        bp_systolic: string;
+        bp_diastolic: string;
+        pulse: string;
+        temperature: string;
+        weight: string;
+        height: string;
+        spo2: string;
+        grbs: string;
+    };
+    consultation_fee: string;
+    payment_status: string;
+    payment_method: string;
+    is_mlc: boolean;
+    mlc_remarks: string;
+    attender_name: string;
+    attender_contact_number: string;
+    adhaar_number: string;
+    referral_hospital: string;
+    referral_doctor_name: string;
+    address_line1: string;
+    address_line2: string;
+    city: string;
+    state: string;
+    pincode: string;
+    appointment_id: string;
+    patient_id?: number | null;
+}
+
 export default function ReceptionistDashboard() {
     const { user } = useAuth();
     const router = useRouter();
@@ -84,7 +126,7 @@ export default function ReceptionistDashboard() {
         'Blood Pressure Check', 'Diabetes Follow-up', 'General Checkup'
     ];
 
-    const [opdForm, setOpdForm] = useState({
+    const [opdForm, setOpdForm] = useState<OpdFormState>({
         first_name: '', last_name: '', age: '', gender: '', blood_group: '',
         contact_number: '', doctor_id: '', visit_type: 'Walk-in',
         visit_date: new Date().toLocaleDateString('en-CA'),
@@ -98,6 +140,7 @@ export default function ReceptionistDashboard() {
         is_mlc: false, mlc_remarks: '', attender_name: '', attender_contact_number: '',
         adhaar_number: '', referral_hospital: '', referral_doctor_name: '',
         address_line1: '', address_line2: '', city: '', state: '', pincode: '',
+        patient_id: null,
         appointment_id: '' // Linked Appointment ID
     });
 
