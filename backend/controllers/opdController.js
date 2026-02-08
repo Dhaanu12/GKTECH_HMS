@@ -381,6 +381,8 @@ class OpdController {
                 queryParams.push(searchLower);
             }
 
+            queryText += ` AND o.visit_status NOT IN ('Cancelled', 'Rescheduled')`;
+
             queryText += ` ORDER BY o.visit_date DESC, o.visit_time DESC LIMIT 50`;
 
             const result = await query(queryText, queryParams);
@@ -392,6 +394,42 @@ class OpdController {
         } catch (error) {
             console.error('Get OPD entries error:', error);
             next(new AppError('Failed to fetch OPD entries', 500));
+        }
+    }
+
+    /**
+     * Update OPD status
+     * PATCH /api/opd/:id/status
+     */
+    static async updateOpdStatus(req, res, next) {
+        try {
+            const { id } = req.params;
+            const { visit_status } = req.body;
+            const branch_id = req.user.branch_id;
+
+            if (!visit_status) {
+                return next(new AppError('Visit status is required', 400));
+            }
+
+            const result = await query(`
+                UPDATE opd_entries 
+                SET visit_status = $1, updated_at = CURRENT_TIMESTAMP
+                WHERE opd_id = $2 AND branch_id = $3
+                RETURNING *
+            `, [visit_status, id, branch_id]);
+
+            if (result.rows.length === 0) {
+                return next(new AppError('OPD entry not found or unauthorized', 404));
+            }
+
+            res.status(200).json({
+                status: 'success',
+                message: 'OPD status updated successfully',
+                data: { opdEntry: result.rows[0] }
+            });
+        } catch (error) {
+            console.error('Update OPD status error:', error);
+            next(new AppError('Failed to update OPD status', 500));
         }
     }
 

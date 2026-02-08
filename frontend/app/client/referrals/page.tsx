@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Building2, UserPlus, X, Save, Plus, Trash2, Link as LinkIcon } from 'lucide-react';
+import DoctorForm from '@/components/marketing/DoctorForm';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -22,27 +23,23 @@ export default function ReferralsPage() {
         phone_number: '',
         email: '',
         hospital_type: 'Private',
-        specialties: [] as string[]
+        specialties: [] as string[],
+        type: 'Hospital'
     });
 
     // Referral Doctors State
     const [referralDoctors, setReferralDoctors] = useState<any[]>([]);
     const [showDoctorModal, setShowDoctorModal] = useState(false);
     const [editingDoctor, setEditingDoctor] = useState<any>(null);
-    const [doctorForm, setDoctorForm] = useState({
-        referral_hospital_id: '',
-        doctor_name: '',
-        specialization: '',
-        department: '',
-        phone_number: '',
-        email: '',
-        qualifications: ''
-    });
 
     const [newSpecialty, setNewSpecialty] = useState('');
 
+    // Referral Diagnostics State
+    const [referralDiagnostics, setReferralDiagnostics] = useState<any[]>([]);
+
     useEffect(() => {
         fetchReferralHospitals();
+        fetchReferralDiagnostics();
         fetchReferralDoctors();
     }, []);
 
@@ -58,13 +55,25 @@ export default function ReferralsPage() {
         }
     };
 
+    const fetchReferralDiagnostics = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.get(`${API_URL}/referrals/diagnostics`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setReferralDiagnostics(response.data.data.referralDiagnostics || []);
+        } catch (error) {
+            console.error('Error fetching referral diagnostics:', error);
+        }
+    };
+
     const fetchReferralDoctors = async () => {
         try {
             const token = localStorage.getItem('token');
-            const response = await axios.get(`${API_URL}/referrals/doctors`, {
+            const response = await axios.get(`${API_URL}/marketing/referral-doctors`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setReferralDoctors(response.data.data.referralDoctors || []);
+            setReferralDoctors(response.data.data || []);
         } catch (error) {
             console.error('Error fetching referral doctors:', error);
         }
@@ -75,53 +84,66 @@ export default function ReferralsPage() {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
+
+            // Check if it's a diagnostic or hospital
+            const isDiagnostic = hospitalForm.type === 'Diagnostic';
+
+            // Prepare data based on type
+            const data = isDiagnostic ? {
+                diagnostic_name: hospitalForm.hospital_name,
+                diagnostic_address: hospitalForm.hospital_address,
+                city: hospitalForm.city,
+                state: hospitalForm.state,
+                phone_number: hospitalForm.phone_number,
+                email: hospitalForm.email,
+                diagnostic_type: hospitalForm.hospital_type,
+                services: hospitalForm.specialties
+            } : {
+                hospital_name: hospitalForm.hospital_name,
+                hospital_address: hospitalForm.hospital_address,
+                city: hospitalForm.city,
+                state: hospitalForm.state,
+                phone_number: hospitalForm.phone_number,
+                email: hospitalForm.email,
+                hospital_type: hospitalForm.hospital_type,
+                specialties: hospitalForm.specialties
+            };
+
             if (editingHospital) {
-                await axios.patch(`${API_URL}/referrals/hospitals/${editingHospital.referral_hospital_id}`, hospitalForm, {
+                const endpoint = isDiagnostic
+                    ? `/referrals/diagnostics/${editingHospital.referral_diagnostic_id}`
+                    : `/referrals/hospitals/${editingHospital.referral_hospital_id}`;
+                await axios.patch(`${API_URL}${endpoint}`, data, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
-                alert('Referral hospital updated successfully!');
+                alert(isDiagnostic ? 'Referral diagnostic updated successfully!' : 'Referral hospital updated successfully!');
             } else {
-                await axios.post(`${API_URL}/referrals/hospitals`, hospitalForm, {
+                const endpoint = isDiagnostic ? '/referrals/diagnostics' : '/referrals/hospitals';
+                await axios.post(`${API_URL}${endpoint}`, data, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
-                alert('Referral hospital created successfully!');
+                alert(isDiagnostic ? 'Referral diagnostic created successfully!' : 'Referral hospital created successfully!');
             }
             setShowHospitalModal(false);
             resetHospitalForm();
             fetchReferralHospitals();
         } catch (error: any) {
-            console.error('Error saving hospital:', error);
-            alert(error.response?.data?.message || 'Failed to save hospital');
+            console.error('Error saving:', error);
+            alert(error.response?.data?.message || 'Failed to save');
         } finally {
             setLoading(false);
         }
     };
 
-    const handleCreateDoctor = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoading(true);
-        try {
-            const token = localStorage.getItem('token');
-            if (editingDoctor) {
-                await axios.patch(`${API_URL}/referrals/doctors/${editingDoctor.referral_doctor_id}`, doctorForm, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                alert('Referral doctor updated successfully!');
-            } else {
-                await axios.post(`${API_URL}/referrals/doctors`, doctorForm, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                alert('Referral doctor created successfully!');
-            }
-            setShowDoctorModal(false);
-            resetDoctorForm();
-            fetchReferralDoctors();
-        } catch (error: any) {
-            console.error('Error saving doctor:', error);
-            alert(error.response?.data?.message || 'Failed to save doctor');
-        } finally {
-            setLoading(false);
-        }
+    const handleDoctorSuccess = () => {
+        setShowDoctorModal(false);
+        setEditingDoctor(null);
+        fetchReferralDoctors();
+    };
+
+    const handleDoctorCancel = () => {
+        setShowDoctorModal(false);
+        setEditingDoctor(null);
     };
 
     const handleToggleMapping = async (hospitalId: number, isMapped: boolean) => {
@@ -149,6 +171,22 @@ export default function ReferralsPage() {
         }
     };
 
+    const handleDeleteDiagnostic = async (id: number) => {
+        if (!confirm('Are you sure you want to delete this referral diagnostic?')) return;
+
+        try {
+            const token = localStorage.getItem('token');
+            await axios.delete(`${API_URL}/referrals/diagnostics/${id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            alert('Diagnostic deleted successfully!');
+            fetchReferralDiagnostics();
+        } catch (error) {
+            console.error('Error deleting diagnostic:', error);
+            alert('Failed to delete diagnostic');
+        }
+    };
+
     const handleDeleteHospital = async (id: number) => {
         if (!confirm('Are you sure you want to delete this referral hospital?')) return;
 
@@ -170,7 +208,7 @@ export default function ReferralsPage() {
 
         try {
             const token = localStorage.getItem('token');
-            await axios.delete(`${API_URL}/referrals/doctors/${id}`, {
+            await axios.delete(`${API_URL}/marketing/referral-doctors/${id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             alert('Doctor deleted successfully!');
@@ -190,23 +228,13 @@ export default function ReferralsPage() {
             phone_number: '',
             email: '',
             hospital_type: 'Private',
-            specialties: []
+            specialties: [],
+            type: 'Hospital'
         });
         setEditingHospital(null);
     };
 
-    const resetDoctorForm = () => {
-        setDoctorForm({
-            referral_hospital_id: '',
-            doctor_name: '',
-            specialization: '',
-            department: '',
-            phone_number: '',
-            email: '',
-            qualifications: ''
-        });
-        setEditingDoctor(null);
-    };
+
 
     const editHospital = (hospital: any) => {
         setEditingHospital(hospital);
@@ -218,22 +246,14 @@ export default function ReferralsPage() {
             phone_number: hospital.phone_number || '',
             email: hospital.email || '',
             hospital_type: hospital.hospital_type || 'Private',
-            specialties: hospital.specialties || []
+            specialties: hospital.specialties || [],
+            type: hospital.type || 'Hospital'
         });
         setShowHospitalModal(true);
     };
 
     const editDoctor = (doctor: any) => {
         setEditingDoctor(doctor);
-        setDoctorForm({
-            referral_hospital_id: doctor.referral_hospital_id,
-            doctor_name: doctor.doctor_name,
-            specialization: doctor.specialization,
-            department: doctor.department || '',
-            phone_number: doctor.phone_number || '',
-            email: doctor.email || '',
-            qualifications: doctor.qualifications || ''
-        });
         setShowDoctorModal(true);
     };
 
@@ -274,6 +294,16 @@ export default function ReferralsPage() {
                     Referral Hospitals
                 </button>
                 <button
+                    onClick={() => setActiveTab('diagnostics')}
+                    className={`px-4 py-2 font-medium transition ${activeTab === 'diagnostics'
+                        ? 'text-blue-600 border-b-2 border-blue-600'
+                        : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                >
+                    <Building2 className="w-4 h-4 inline mr-2" />
+                    Referral Diagnostics
+                </button>
+                <button
                     onClick={() => setActiveTab('doctors')}
                     className={`px-4 py-2 font-medium transition ${activeTab === 'doctors'
                         ? 'text-blue-600 border-b-2 border-blue-600'
@@ -294,7 +324,7 @@ export default function ReferralsPage() {
                             className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
                         >
                             <Plus className="w-5 h-5" />
-                            Add Referral Hospital
+                            Add Hospital
                         </button>
                     </div>
 
@@ -350,12 +380,65 @@ export default function ReferralsPage() {
                 </div>
             )}
 
+            {/* Diagnostics Tab */}
+            {activeTab === 'diagnostics' && (
+                <div>
+                    <div className="flex justify-end mb-4">
+                        <button
+                            onClick={() => { resetHospitalForm(); setShowHospitalModal(true); setHospitalForm(prev => ({ ...prev, type: 'Diagnostic' })); }}
+                            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
+                        >
+                            <Plus className="w-5 h-5" />
+                            Add Diagnostic
+                        </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {referralDiagnostics.map((diagnostic) => (
+                            <div key={diagnostic.referral_diagnostic_id} className="bg-white p-5 rounded-lg border border-gray-200 shadow-sm">
+                                <div className="flex justify-between items-start mb-3">
+                                    <h3 className="font-bold text-gray-900">{diagnostic.diagnostic_name}</h3>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => editHospital(diagnostic)}
+                                            className="px-2 py-1 text-xs bg-blue-50 text-blue-700 rounded hover:bg-blue-100"
+                                        >
+                                            Edit
+                                        </button>
+                                        <button
+                                            onClick={() => handleDeleteDiagnostic(diagnostic.referral_diagnostic_id)}
+                                            className="p-1.5 bg-red-50 text-red-700 rounded hover:bg-red-100"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="text-sm text-gray-600 space-y-1">
+                                    <p><span className="font-medium">Type:</span> {diagnostic.diagnostic_type}</p>
+                                    {diagnostic.city && <p><span className="font-medium">City:</span> {diagnostic.city}</p>}
+                                    {diagnostic.phone_number && <p><span className="font-medium">Phone:</span> {diagnostic.phone_number}</p>}
+                                    {diagnostic.services && diagnostic.services.length > 0 && (
+                                        <div className="flex flex-wrap gap-1 mt-2">
+                                            {diagnostic.services.map((service: string, idx: number) => (
+                                                <span key={idx} className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">
+                                                    {service}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {/* Doctors Tab */}
             {activeTab === 'doctors' && (
                 <div>
                     <div className="flex justify-end mb-4">
                         <button
-                            onClick={() => { resetDoctorForm(); setShowDoctorModal(true); }}
+                            onClick={() => setShowDoctorModal(true)}
                             className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
                         >
                             <Plus className="w-5 h-5" />
@@ -421,13 +504,55 @@ export default function ReferralsPage() {
                         <form onSubmit={handleCreateHospital} className="p-6 space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="md:col-span-2">
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Hospital Name *</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Referral Type *</label>
+                                    <div className="flex gap-4">
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                name="type"
+                                                value="Hospital"
+                                                checked={hospitalForm.type === 'Hospital'}
+                                                onChange={(e) => setHospitalForm({
+                                                    ...hospitalForm,
+                                                    type: e.target.value
+                                                })}
+                                                className="w-4 h-4 text-blue-600"
+                                            />
+                                            <span className="text-sm font-medium">Hospital</span>
+                                        </label>
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                name="type"
+                                                value="Diagnostic"
+                                                checked={hospitalForm.type === 'Diagnostic'}
+                                                onChange={(e) => setHospitalForm({
+                                                    ...hospitalForm,
+                                                    type: e.target.value
+                                                })}
+                                                className="w-4 h-4 text-blue-600"
+                                            />
+                                            <span className="text-sm font-medium">Diagnostic</span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div className="md:col-span-2">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        {hospitalForm.type === 'Hospital' ? 'Hospital Name *' : 'Diagnostic Center Name *'}
+                                    </label>
                                     <input
                                         type="text"
                                         required
                                         value={hospitalForm.hospital_name}
-                                        onChange={(e) => setHospitalForm({ ...hospitalForm, hospital_name: e.target.value })}
+                                        onChange={(e) => {
+                                            const newValue = e.target.value;
+                                            setHospitalForm({
+                                                ...hospitalForm,
+                                                hospital_name: newValue
+                                            });
+                                        }}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                        placeholder={hospitalForm.type === 'Hospital' ? 'Enter hospital name' : 'Enter diagnostic center name'}
                                     />
                                 </div>
                                 <div className="md:col-span-2">
@@ -555,117 +680,27 @@ export default function ReferralsPage() {
 
             {/* Doctor Modal */}
             {showDoctorModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                        <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex justify-between items-center rounded-t-2xl">
-                            <h2 className="text-xl font-bold">{editingDoctor ? 'Edit' : 'Add'} Referral Doctor</h2>
-                            <button onClick={() => { setShowDoctorModal(false); resetDoctorForm(); }} className="text-white hover:bg-white/20 p-2 rounded-lg">
-                                <X className="w-6 h-6" />
-                            </button>
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 overflow-y-auto">
+                    <div className="flex min-h-full items-center justify-center p-4">
+                        <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full my-8 relative">
+                            <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex justify-between items-center rounded-t-2xl z-10">
+                                <h2 className="text-xl font-bold">{editingDoctor ? 'Edit' : 'Add'} Referral Doctor</h2>
+                                <button
+                                    onClick={handleDoctorCancel}
+                                    className="text-white hover:bg-white/20 p-2 rounded-lg transition"
+                                >
+                                    <X className="w-6 h-6" />
+                                </button>
+                            </div>
+
+                            <DoctorForm
+                                doctor={editingDoctor}
+                                onSuccess={handleDoctorSuccess}
+                                onCancel={handleDoctorCancel}
+                                requireLocation={false}
+                                variant="modal"
+                            />
                         </div>
-
-                        <form onSubmit={handleCreateDoctor} className="p-6 space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="md:col-span-2">
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Referral Hospital *</label>
-                                    <select
-                                        required
-                                        value={doctorForm.referral_hospital_id}
-                                        onChange={(e) => setDoctorForm({ ...doctorForm, referral_hospital_id: e.target.value })}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                                    >
-                                        <option value="">Select Hospital</option>
-                                        {referralHospitals.map((hospital) => (
-                                            <option key={hospital.referral_hospital_id} value={hospital.referral_hospital_id}>
-                                                {hospital.hospital_name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="md:col-span-2">
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Doctor Name *</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        value={doctorForm.doctor_name}
-                                        onChange={(e) => setDoctorForm({ ...doctorForm, doctor_name: e.target.value })}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Specialization *</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        value={doctorForm.specialization}
-                                        onChange={(e) => setDoctorForm({ ...doctorForm, specialization: e.target.value })}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-                                    <input
-                                        type="text"
-                                        value={doctorForm.department}
-                                        onChange={(e) => setDoctorForm({ ...doctorForm, department: e.target.value })}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                                    <input
-                                        type="tel"
-                                        value={doctorForm.phone_number}
-                                        onChange={(e) => {
-                                            const value = e.target.value.replace(/\D/g, "");
-                                            if (value.length <= 10) {
-                                                setDoctorForm({ ...doctorForm, phone_number: value });
-                                            }
-                                        }}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                                        maxLength={10}
-                                        placeholder="10-digit number"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                                    <input
-                                        type="email"
-                                        value={doctorForm.email}
-                                        onChange={(e) => setDoctorForm({ ...doctorForm, email: e.target.value })}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                                    />
-                                </div>
-                                <div className="md:col-span-2">
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Qualifications</label>
-                                    <textarea
-                                        rows={2}
-                                        value={doctorForm.qualifications}
-                                        onChange={(e) => setDoctorForm({ ...doctorForm, qualifications: e.target.value })}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                                        placeholder="MBBS, MD, etc."
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-                                <button
-                                    type="button"
-                                    onClick={() => { setShowDoctorModal(false); resetDoctorForm(); }}
-                                    className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={loading}
-                                    className="flex items-center gap-2 px-8 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
-                                >
-                                    <Save className="w-5 h-5" />
-                                    {loading ? 'Saving...' : editingDoctor ? 'Update' : 'Create'}
-                                </button>
-                            </div>
-                        </form>
                     </div>
                 </div>
             )}
