@@ -9,7 +9,7 @@ class OpdController {
      */
     static async createOpdEntry(req, res, next) {
         try {
-            const {
+            let {
                 // Patient info (for new or existing)
                 patient_id, // If provided, use existing patient
                 first_name, last_name, age, gender, contact_number, blood_group,
@@ -102,7 +102,18 @@ class OpdController {
             } else {
                 // No ID provided. Check if exists by contact (if provided)
                 if (!first_name || !age || !gender) {
-                    return next(new AppError('Patient basic information is required: first_name, age, gender', 400));
+                    if (is_mlc) {
+                        // For MLC, allow missing details. Default them if not provided.
+                        if (!first_name) {
+                            first_name = "Unknown";
+                            last_name = "Patient"; // Or "MLC"
+                        }
+                        if (!age) age = 0;
+                        if (!gender) gender = "Other";
+                        if (!contact_number) contact_number = null; // Ensure passing null if undefined
+                    } else {
+                        return next(new AppError('Patient basic information is required: first_name, age, gender', 400));
+                    }
                 }
 
                 let existingPatient = null;

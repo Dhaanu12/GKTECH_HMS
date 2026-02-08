@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Plus, Calendar, FileText, X, Save, User, ArrowRight, Sun, CloudSun, Moon, Clock, CalendarClock, Check, Stethoscope, MapPin, Activity, Search, ChevronLeft, AlertCircle, Sparkles } from 'lucide-react';
+import { Plus, Calendar, FileText, X, Save, User, ArrowRight, Sun, CloudSun, Moon, Clock, CalendarClock, Check, Stethoscope, MapPin, Activity, Search, ChevronLeft, AlertCircle, Sparkles, Phone } from 'lucide-react';
 import { useAuth } from '../../../lib/AuthContext';
 import SearchableSelect from '../../../components/ui/SearchableSelect';
+import { format } from 'date-fns';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -57,6 +58,59 @@ export default function AppointmentsPage() {
     });
 
     const [doctorSearchQuery, setDoctorSearchQuery] = useState('');
+
+    // --- Ported Logic from Dashboard ---
+    const handleFollowUpStatusChange = async (apptId: string, newStatus: string) => {
+        if (!newStatus) return;
+
+        // Optimistic Update
+        const previousAppointments = [...appointments];
+        setAppointments(prev => prev.map((apt: any) => {
+            if (apt.appointment_id !== apptId) return apt;
+            if (newStatus === 'No Answer') {
+                return { ...apt, appointment_status: 'Cancelled', cancellation_reason: 'No Answer' };
+            }
+            return { ...apt, appointment_status: newStatus };
+        }));
+
+        try {
+            const token = localStorage.getItem('token');
+            let payload: any = { status: newStatus };
+            if (newStatus === 'No Answer') {
+                payload = { status: 'Cancelled', cancellation_reason: 'No Answer' };
+            }
+
+            await axios.patch(`${API_URL}/appointments/${apptId}/status`,
+                payload,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+        } catch (error) {
+            console.error('Error updating status:', error);
+            // Revert on error
+            setAppointments(previousAppointments);
+            alert("Failed to update status. Please try again.");
+        }
+    };
+
+    const getStatusBadge = (apt: any) => {
+        const { appointment_status, cancellation_reason } = apt;
+        if (appointment_status === 'Confirmed') return { label: 'Scheduled', style: 'bg-blue-500 text-white' };
+        if (appointment_status === 'Scheduled') return { label: 'Scheduled', style: 'bg-blue-500 text-white' };
+        if (appointment_status === 'Cancelled') {
+            if (cancellation_reason === 'No Answer') return { label: 'Scheduled', style: 'bg-blue-500 text-white' };
+            return { label: 'Cancelled', style: 'bg-slate-400 text-white' };
+        }
+        if (appointment_status === 'No-show') return { label: 'No Show', style: 'bg-slate-500 text-white' };
+        return { label: 'Scheduled', style: 'bg-blue-500 text-white' };
+    };
+
+    const getDropdownStyle = (apt: any) => {
+        const { appointment_status, cancellation_reason } = apt;
+        if (appointment_status === 'Confirmed') return 'bg-emerald-50 border-emerald-200 text-emerald-600';
+        if (appointment_status === 'Cancelled' && cancellation_reason === 'No Answer') return 'bg-amber-50 border-amber-200 text-amber-600';
+        if (appointment_status === 'No-show') return 'bg-slate-50 border-slate-200 text-slate-500';
+        return 'bg-slate-50 border-slate-200 text-slate-600';
+    };
 
     // Phone search state for appointment modal
     const [apptPhoneSearchResults, setApptPhoneSearchResults] = useState<any[]>([]);
@@ -657,8 +711,8 @@ export default function AppointmentsPage() {
                 ))}
             </div>
 
-            {/* Wide Card List View */}
-            <div className="flex flex-col gap-6 max-w-7xl mx-auto">
+            {/* Wide Card List View - 2 Column Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 max-w-7xl mx-auto px-4 md:px-0">
                 {appointments
                     .filter((a: any) => {
                         // Status Filter
@@ -666,128 +720,148 @@ export default function AppointmentsPage() {
                             activeTab === 'Scheduled' ? ['Scheduled', 'Confirmed'].includes(a.appointment_status) :
                                 a.appointment_status === activeTab;
 
-                        // Department Filter - using department_name from appointment join or specialization as fallback
+                        // Department Filter
                         const deptMatch = selectedDepartment === 'All Departments' ? true :
                             (a.department_name === selectedDepartment || a.specialization?.includes(selectedDepartment));
 
                         return statusMatch && deptMatch;
                     })
-                    .map((apt: any) => (
-                        <div key={apt.appointment_id} className="bg-white rounded-[1.5rem] border border-slate-200 shadow-sm hover:shadow-xl transition-all overflow-hidden group relative">
+                    .map((apt: any) => {
+                        const badgeProps = getStatusBadge(apt);
+                        const dropdownStyle = getDropdownStyle(apt);
 
+                        // Determine dropdown value
+                        let dropdownValue = '';
+                        if (apt.appointment_status === 'Confirmed') dropdownValue = 'Confirmed';
+                        else if (apt.appointment_status === 'Cancelled' && apt.cancellation_reason === 'No Answer') dropdownValue = 'No Answer';
 
-                            <div className="p-5">
-                                {/* Card Header */}
-                                <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold ${apt.appointment_status === 'Confirmed' ? 'bg-blue-100 text-blue-600' :
-                                            apt.appointment_status === 'Completed' ? 'bg-emerald-100 text-emerald-600' :
-                                                apt.appointment_status === 'Cancelled' ? 'bg-red-100 text-red-600' :
-                                                    'bg-blue-100 text-blue-600'
-                                            }`}>
-                                            {apt.patient_name?.charAt(0)}
+                        return (
+                            <div key={apt.appointment_id} className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-xl transition-all overflow-hidden group">
+                                <div className="p-3">
+                                    {/* Header: Patient Info & Status */}
+                                    <div className="flex flex-col md:flex-row md:items-center gap-2 mb-2">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold ${['Scheduled', 'Confirmed'].includes(apt.appointment_status) || (apt.appointment_status === 'Cancelled' && apt.cancellation_reason === 'No Answer')
+                                                ? 'bg-blue-100 text-blue-600'
+                                                : 'bg-slate-100 text-slate-600'
+                                                }`}>
+                                                {apt.patient_name?.charAt(0)}
+                                            </div>
+                                            <div>
+                                                <div className="flex items-center">
+                                                    <div className="flex items-center gap-2">
+                                                        <h3 className="text-base font-bold text-slate-900 leading-tight">
+                                                            {apt.patient_name}
+                                                        </h3>
+                                                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase shrink-0 ${badgeProps.style}`}>
+                                                            {badgeProps.label}
+                                                        </span>
+                                                    </div>
+
+                                                    {apt.phone_number && (
+                                                        <a
+                                                            href={`tel:${apt.phone_number}`}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            className="flex items-center gap-2 px-3 py-1 ml-2 bg-white border border-slate-200 rounded-full shadow-sm hover:shadow-md hover:border-indigo-300 transition-all cursor-pointer group/phone shrink-0"
+                                                        >
+                                                            <Phone className="w-3.5 h-3.5 text-slate-400 group-hover/phone:text-indigo-500 transition-colors" />
+                                                            <span className="text-xs font-bold text-slate-600 group-hover/phone:text-slate-900 tracking-wide">
+                                                                {apt.phone_number}
+                                                            </span>
+                                                        </a>
+                                                    )}
+                                                </div>
+                                                <p className="text-slate-500 text-[10px] font-medium mt-1.5 ml-0.5">{apt.reason_for_visit || 'General Checkup'}</p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <h3 className="text-lg font-bold text-slate-900 leading-tight mb-0.5">{apt.patient_name}</h3>
-                                            <p className="text-slate-500 text-xs font-medium">{apt.reason_for_visit || 'General Checkup'}</p>
+
+                                        {/* Call/Follow-up Status */}
+                                        <div className="md:ml-auto w-full md:w-36">
+                                            <select
+                                                value={dropdownValue}
+                                                onChange={(e) => handleFollowUpStatusChange(apt.appointment_id, e.target.value)}
+                                                className={`w-full appearance-none px-3 py-1.5 rounded-lg text-xs font-bold border-2 transition-colors outline-none focus:ring-2 focus:ring-indigo-500/20 ${dropdownStyle} cursor-pointer`}
+                                            >
+                                                <option value="" disabled>Follow-up Status</option>
+                                                <option value="Confirmed">Confirmed</option>
+                                                <option value="No Answer">No Response</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    {/* Info Grid */}
+                                    <div className="flex flex-wrap gap-2 mb-2">
+                                        <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 flex items-start gap-2 min-w-[120px] flex-1">
+                                            <div className="p-1.5 bg-white rounded-lg text-purple-600 shadow-sm shrink-0">
+                                                <Stethoscope className="w-5 h-5" />
+                                            </div>
+                                            <div>
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Doctor</span>
+                                                <p className="font-bold text-slate-900 text-sm leading-tight">Dr. {apt.doctor_first_name}</p>
+                                                <p className="text-[11px] text-slate-500 font-semibold mt-0.5">{apt.specialization}</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 flex items-start gap-2 min-w-[120px] flex-1">
+                                            <div className="p-1.5 bg-white rounded-lg text-blue-600 shadow-sm shrink-0">
+                                                <Calendar className="w-5 h-5" />
+                                            </div>
+                                            <div>
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Date</span>
+                                                <p className="font-bold text-slate-900 text-sm leading-tight">
+                                                    {format(new Date(apt.appointment_date), 'MMM dd, yyyy')}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 flex items-start gap-2 min-w-[120px] flex-1">
+                                            <div className="p-1.5 bg-white rounded-lg text-emerald-600 shadow-sm shrink-0">
+                                                <Clock className="w-5 h-5" />
+                                            </div>
+                                            <div>
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Time</span>
+                                                <p className="font-bold text-slate-900 text-sm leading-tight">{apt.appointment_time?.slice(0, 5)}</p>
+                                            </div>
                                         </div>
                                     </div>
 
-                                    <span className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 ${apt.appointment_status === 'Completed' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' :
-                                        apt.appointment_status === 'Confirmed' ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' :
-                                            apt.appointment_status === 'Cancelled' ? 'bg-red-100 text-red-600' :
-                                                'bg-blue-500 text-white shadow-lg shadow-blue-500/20'
-                                        }`}>
-                                        {apt.appointment_status === 'Completed' ? <Check className="w-3 h-3" /> :
-                                            apt.appointment_status === 'Cancelled' ? <X className="w-3 h-3" /> :
-                                                <Activity className="w-3 h-3" />}
-                                        {apt.appointment_status === 'Confirmed' ? 'Scheduled' : apt.appointment_status}
-                                    </span>
-                                </div>
+                                    {/* Footer: Actions */}
+                                    <div className="flex flex-col md:flex-row md:items-center gap-6 pt-4 border-t border-slate-100">
+                                        <div className="flex items-center gap-1.5 text-slate-400 font-mono text-xs">
+                                            <User className="w-4 h-4" />
+                                            ID: <span className="font-bold text-slate-700 text-sm">#{apt.appointment_number}</span>
+                                        </div>
 
-                                {/* Info Grid */}
-                                <div className="flex flex-wrap gap-3 mb-4">
-                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex items-start gap-3 min-w-[140px]">
-                                        <div className="p-1.5 bg-white rounded-lg text-purple-600 shadow-sm">
-                                            <Stethoscope className="w-4 h-4" />
+                                        <div className="flex flex-wrap items-center gap-3 md:ml-auto justify-end">
+                                            <button
+                                                onClick={() => openRescheduleModal(apt)}
+                                                className="px-3 py-1.5 text-xs font-bold text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                                            >
+                                                Reschedule
+                                            </button>
+                                            <button
+                                                onClick={() => openCancelModal(apt)}
+                                                className="px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button
+                                                onClick={() => convertToOPD(apt)}
+                                                className="px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-lg hover:bg-black transition-all shadow-lg shadow-slate-900/10 flex items-center gap-2"
+                                            >
+                                                Convert to OPD
+                                                <ArrowRight className="w-3 h-3" />
+                                            </button>
                                         </div>
-                                        <div>
-                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Doctor</span>
-                                            <p className="font-bold text-slate-800 text-xs mt-0.5">Dr. {apt.doctor_first_name}</p>
-                                            <p className="text-[10px] text-slate-500 font-semibold">{apt.specialization}</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex items-start gap-3 min-w-[140px]">
-                                        <div className="p-1.5 bg-white rounded-lg text-blue-600 shadow-sm">
-                                            <Calendar className="w-4 h-4" />
-                                        </div>
-                                        <div>
-                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Date</span>
-                                            <p className="font-bold text-slate-800 text-xs mt-0.5">
-                                                {new Date(apt.appointment_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex items-start gap-3 min-w-[140px]">
-                                        <div className="p-1.5 bg-white rounded-lg text-emerald-600 shadow-sm">
-                                            <Clock className="w-4 h-4" />
-                                        </div>
-                                        <div>
-                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Time</span>
-                                            <p className="font-bold text-slate-800 text-xs mt-0.5">{apt.appointment_time}</p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Footer */}
-                                <div className="flex flex-col md:flex-row md:items-center gap-6 pt-3 border-t border-slate-100">
-                                    <div className="flex items-center gap-1.5 text-slate-400 font-mono text-xs">
-                                        <User className="w-3 h-3" />
-                                        ID: <span className="font-bold text-slate-600">#{apt.appointment_number}</span>
-                                    </div>
-
-                                    <div className="flex items-center gap-2">
-                                        {['Scheduled', 'Confirmed'].includes(apt.appointment_status) && (
-                                            <>
-                                                <button
-                                                    onClick={() => openRescheduleModal(apt)}
-                                                    className="px-3 py-1.5 text-xs font-bold text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                                                >
-                                                    Reschedule
-                                                </button>
-                                                <button
-                                                    onClick={() => openCancelModal(apt)}
-                                                    className="px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                                >
-                                                    Cancel
-                                                </button>
-                                                <button
-                                                    onClick={() => convertToOPD(apt)}
-                                                    className="px-3 py-1.5 bg-slate-900 text-white text-xs font-bold rounded-lg hover:bg-black transition-all shadow-lg shadow-slate-900/10 flex items-center gap-1.5"
-                                                >
-                                                    Convert to OPD
-                                                    <ArrowRight className="w-3 h-3" />
-                                                </button>
-                                            </>
-                                        )}
-                                        {apt.appointment_status === 'Cancelled' && (
-                                            <span className="text-red-500 font-bold text-xs bg-red-50 px-2 py-1 rounded-lg border border-red-100">
-                                                Cancelled: {apt.cancellation_reason}
-                                            </span>
-                                        )}
-                                        {apt.appointment_status === 'Completed' && (
-                                            <button className="text-emerald-600 font-bold text-xs hover:underline">View Report</button>
-                                        )}
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
 
+                {/* Empty State */}
                 {appointments.length === 0 && (
-                    <div className="text-center py-20">
+                    <div className="col-span-full text-center py-20">
                         <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
                             <Calendar className="w-10 h-10" />
                         </div>
