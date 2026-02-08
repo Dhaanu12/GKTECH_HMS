@@ -5,7 +5,7 @@ const { authenticate, authorize } = require('../middleware/auth');
 
 router.use(authenticate);
 
-router.get('/opd/:opdId', authorize('DOCTOR', 'SUPER_ADMIN', 'CLIENT_ADMIN'), MlcController.getMlcDetails);
+router.get('/opd/:opdId', (req, res, next) => { console.log('DEBUG: MLC Route Hit'); next(); }, authorize('DOCTOR', 'NURSE', 'STAFF_NURSE', 'SUPER_ADMIN', 'CLIENT_ADMIN'), MlcController.getMlcDetails);
 router.post('/', authorize('DOCTOR', 'SUPER_ADMIN', 'CLIENT_ADMIN'), MlcController.createOrUpdateMlc);
 
 module.exports = router;

@@ -9,6 +9,8 @@ class ServiceController {
     static async searchHospitalServices(req, res, next) {
         try {
             const { query } = req.query;
+            console.log(`[ServiceController] Search Labs Query: '${query}'`); // DEBUG LOG
+
 
             if (!query) {
                 return res.status(200).json({
