@@ -130,7 +130,7 @@ export default function OpdEntryPage() {
         contact_number: '',
         doctor_id: '',
         visit_type: 'Walk-in',
-        visit_date: new Date().toISOString().split('T')[0],
+        visit_date: new Date().toLocaleDateString('en-CA'),
         visit_time: new Date().toTimeString().slice(0, 5),
         chief_complaint: '',
         symptoms: '',
@@ -582,6 +582,31 @@ export default function OpdEntryPage() {
     const handleDropdownSelect = async (patient: any) => {
         setSelectedPatient(patient);
 
+        // If editing an existing OPD entry, only update patient details
+        // Do NOT reset visit_type, doctor_id, or consultation_fee
+        if (editingOpdId) {
+            setOpdForm(prev => ({
+                ...prev,
+                first_name: patient.first_name,
+                last_name: patient.last_name,
+                age: patient.age?.toString() || '',
+                gender: patient.gender || '',
+                blood_group: patient.blood_group || '',
+                contact_number: patient.contact_number || '',
+                adhaar_number: patient.aadhar_number || patient.adhaar_number || '', // Backend consistency check
+                address_line1: patient.address || '',
+                address_line2: patient.address_line2 || '',
+                city: patient.city || '',
+                state: patient.state || '',
+                pincode: patient.pincode || '',
+                patient_id: patient.patient_id // Ensure patient_id is linked
+            }));
+            // Clear search
+            setModalSearchQuery('');
+            setModalSearchResults([]);
+            return;
+        }
+
         // Get doctor info from pending appointment data if from Convert to OPD
         let doctorId = '';
         let consultationFee = '';
@@ -759,7 +784,9 @@ export default function OpdEntryPage() {
                 ...formData,
                 // Ensure last_name is never empty/null (DB constraint)
                 last_name: formData.last_name?.trim() || '.',
-                patient_id: selectedPatient?.patient_id,
+                // Prioritize formData.patient_id (which is updated by handleDropdownSelect)
+                // Fallback to selectedPatient?.patient_id if formData one is missing/empty
+                patient_id: formData.patient_id || selectedPatient?.patient_id,
                 vital_signs: JSON.stringify(formData.vital_signs),
                 consultation_fee: totalFee.toString(), // Send Total Fee to backend
                 mlc_fee: mlcFeeAmount.toString(), // Send separate MLC fee component
@@ -941,6 +968,8 @@ export default function OpdEntryPage() {
         setOpdForm({
             first_name: entry.patient_first_name || '',
             last_name: entry.patient_last_name || '',
+            patient_id: entry.patient_id, // Ensure patient_id is set for locking logic
+            age: entry.age || '',
             age: entry.age || '',
             gender: entry.gender || '',
             blood_group: entry.blood_group || '',
@@ -1914,7 +1943,7 @@ export default function OpdEntryPage() {
                                                 )}
                                             </div>
 
-                                            <div className={`md:col-span-4 ${(opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && (!opdForm.is_mlc || (opdForm.is_mlc && opdForm.patient_id)) ? 'opacity-50 pointer-events-none' : ''}`}>
+                                            <div className={`md:col-span-4 ${!!opdForm.patient_id && (!opdForm.is_mlc || (!!opdForm.contact_number && opdForm.contact_number.length >= 10)) ? 'opacity-50 pointer-events-none' : ''}`}>
                                                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Name <span className="text-red-500">*</span></label>
                                                 <input
                                                     type="text"
@@ -1932,11 +1961,11 @@ export default function OpdEntryPage() {
                                                 />
                                             </div>
                                             {/* Row 2: Age | Gender | Blood Group */}
-                                            <div className={(opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && (!opdForm.is_mlc || (opdForm.is_mlc && opdForm.patient_id)) ? 'opacity-50 pointer-events-none' : ''}>
+                                            <div className={!!opdForm.patient_id && (!opdForm.is_mlc || (!!opdForm.contact_number && opdForm.contact_number.length >= 10)) ? 'opacity-50 pointer-events-none' : ''}>
                                                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Age <span className="text-red-500">*</span></label>
                                                 <input type="number" required={!opdForm.is_mlc} value={opdForm.age} onChange={(e) => setOpdForm({ ...opdForm, age: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium" />
                                             </div>
-                                            <div className={(opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && (!opdForm.is_mlc || (opdForm.is_mlc && opdForm.patient_id)) ? 'opacity-50 pointer-events-none' : ''}>
+                                            <div className={!!opdForm.patient_id && (!opdForm.is_mlc || (!!opdForm.contact_number && opdForm.contact_number.length >= 10)) ? 'opacity-50 pointer-events-none' : ''}>
                                                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Gender <span className="text-red-500">*</span></label>
                                                 <select required={!opdForm.is_mlc} value={opdForm.gender} onChange={(e) => setOpdForm({ ...opdForm, gender: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium">
                                                     <option value="">Select</option>
@@ -1946,7 +1975,7 @@ export default function OpdEntryPage() {
                                                     <option value="Other">Other</option>
                                                 </select>
                                             </div>
-                                            <div className={`md:col-span-2 ${(opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && (!opdForm.is_mlc || (opdForm.is_mlc && opdForm.patient_id)) ? 'opacity-50 pointer-events-none' : ''}`}>
+                                            <div className={`md:col-span-2 ${!!opdForm.patient_id && (!opdForm.is_mlc || (!!opdForm.contact_number && opdForm.contact_number.length >= 10)) ? 'opacity-50 pointer-events-none' : ''}`}>
                                                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Blood Group</label>
                                                 <select value={opdForm.blood_group} onChange={(e) => setOpdForm({ ...opdForm, blood_group: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium">
                                                     <option value="">Unknown</option>
@@ -1960,7 +1989,7 @@ export default function OpdEntryPage() {
                                                     <option value="AB-">AB-</option>
                                                 </select>
                                             </div>
-                                            <div className={`md:col-span-2 ${(opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && (!opdForm.is_mlc || (opdForm.is_mlc && opdForm.patient_id)) ? 'opacity-50 pointer-events-none' : ''}`}>
+                                            <div className={`md:col-span-2 ${!!opdForm.patient_id && (!opdForm.is_mlc || (!!opdForm.contact_number && opdForm.contact_number.length >= 10)) ? 'opacity-50 pointer-events-none' : ''}`}>
                                                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Aadhaar Number</label>
                                                 <input
                                                     type="text"
@@ -1976,7 +2005,7 @@ export default function OpdEntryPage() {
                                             </div>
 
                                             {/* Address Details Section */}
-                                            <div className={`md:col-span-6 mt-4 ${(opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && (!opdForm.is_mlc || (opdForm.is_mlc && opdForm.patient_id)) ? 'opacity-50 pointer-events-none' : ''}`}>
+                                            <div className={`md:col-span-6 mt-4 ${!!opdForm.patient_id && (!opdForm.is_mlc || (!!opdForm.contact_number && opdForm.contact_number.length >= 10)) ? 'opacity-50 pointer-events-none' : ''}`}>
                                                 <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">ADDRESS DETAILS</h4>
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     <div>
@@ -2078,19 +2107,58 @@ export default function OpdEntryPage() {
                                                 </div>
 
                                                 {/* Added Missing Fields for Edit Mode */}
-                                                <div className="md:col-span-2">
+                                                <div className="md:col-span-2 relative">
                                                     <label className="block text-xs font-semibold text-slate-700 mb-1.5">Phone Number</label>
                                                     <input
                                                         type="tel"
                                                         value={opdForm.contact_number}
                                                         onChange={(e) => {
                                                             const value = e.target.value.replace(/\D/g, "");
-                                                            if (value.length <= 10) setOpdForm({ ...opdForm, contact_number: value });
+                                                            if (value.length <= 10) {
+                                                                setOpdForm({ ...opdForm, contact_number: value });
+                                                                // Trigger search when phone number is 8+ digits
+                                                                if (value.length >= 8) {
+                                                                    setModalSearchQuery(value);
+                                                                } else {
+                                                                    setModalSearchResults([]);
+                                                                }
+                                                            }
                                                         }}
                                                         disabled={!opdForm.is_mlc || !!opdForm.patient_id}
                                                         className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${!opdForm.is_mlc || !!opdForm.patient_id ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : ''}`}
                                                         placeholder="10-digit number"
                                                     />
+
+                                                    {/* Suggestion Dropdown for Edit Mode */}
+                                                    {modalSearchResults.length > 0 && opdForm.contact_number.length >= 8 && (
+                                                        <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-50">
+                                                            <div className="flex items-center justify-between px-4 py-2 bg-slate-50 border-b border-slate-100">
+                                                                <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Existing Patients Found</span>
+                                                            </div>
+                                                            <div className="max-h-48 overflow-y-auto">
+                                                                {modalSearchResults.map((patient: any) => (
+                                                                    <div
+                                                                        key={patient.patient_id}
+                                                                        className="px-4 py-3 hover:bg-blue-50 border-b border-slate-100 last:border-0 flex items-center justify-between"
+                                                                    >
+                                                                        <div>
+                                                                            <p className="font-bold text-slate-800">{patient.first_name} {patient.last_name}</p>
+                                                                            <p className="text-sm text-slate-500">
+                                                                                {patient.gender}, {patient.age} yrs • ID: {patient.mrn_number}
+                                                                            </p>
+                                                                        </div>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleDropdownSelect(patient)}
+                                                                            className="px-3 py-1.5 text-blue-600 border border-blue-200 rounded-lg text-xs font-bold hover:bg-blue-50 transition"
+                                                                        >
+                                                                            Select
+                                                                        </button>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
                                                 <div className="md:col-span-2">
                                                     <label className="block text-xs font-semibold text-slate-700 mb-1.5">Blood Group</label>
@@ -2167,7 +2235,7 @@ export default function OpdEntryPage() {
                                                         ...opdForm,
                                                         is_mlc: isChecked,
                                                         visit_type: isChecked ? 'Emergency' : 'Walk-in',
-                                                        visit_date: isChecked ? new Date().toISOString().split('T')[0] : opdForm.visit_date,
+                                                        visit_date: isChecked ? new Date().toLocaleDateString('en-CA') : opdForm.visit_date,
                                                         visit_time: isChecked ? new Date().toTimeString().slice(0, 5) : opdForm.visit_time,
                                                         consultation_fee: newFee
                                                     });

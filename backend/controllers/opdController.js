@@ -52,8 +52,8 @@ class OpdController {
 
             // 1. Handle Patient Logic
             if (finalPatientId) {
-                // Update existing patient's Adhaar, Blood Group, and Address details if provided
-                if (sanitizedAdhaar || sanitizedBloodGroup || address_line_1 || address_line_2 || city || state || pincode) {
+                // Update existing patient's details if provided
+                if (first_name || last_name || age || gender || sanitizedAdhaar || sanitizedBloodGroup || address_line_1 || address_line_2 || city || state || pincode) {
                     let updateFields = [];
                     let updateValues = [];
                     let queryParts = [];
@@ -67,6 +67,27 @@ class OpdController {
                         updateFields.push('blood_group');
                         updateValues.push(sanitizedBloodGroup);
                         queryParts.push(`blood_group = $${updateValues.length}`);
+                    }
+                    // Allow updating profile details if provided (Critical for MLC updates)
+                    if (first_name) {
+                        updateFields.push('first_name');
+                        updateValues.push(first_name);
+                        queryParts.push(`first_name = $${updateValues.length}`);
+                    }
+                    if (last_name) {
+                        updateFields.push('last_name');
+                        updateValues.push(last_name);
+                        queryParts.push(`last_name = $${updateValues.length}`);
+                    }
+                    if (age) {
+                        updateFields.push('age');
+                        updateValues.push(age);
+                        queryParts.push(`age = $${updateValues.length}`);
+                    }
+                    if (gender) {
+                        updateFields.push('gender');
+                        updateValues.push(gender);
+                        queryParts.push(`gender = $${updateValues.length}`);
                     }
                     if (address_line_1) {
                         updateFields.push('address');
@@ -809,20 +830,48 @@ class OpdController {
                 updatedOpdEntry = existing.rows[0];
             }
 
-            // 2. Update Patient Details
+            // 2. Handle Patient Updates & Merging
+            // Check if we need to switch patient_id (Merge Scenario)
+            if (updates.patient_id && updatedOpdEntry.patient_id && updates.patient_id !== updatedOpdEntry.patient_id) {
+                const oldPatientId = updatedOpdEntry.patient_id;
+                const newPatientId = updates.patient_id;
+
+                console.log(`Merging OPD ${id}: Switching from Patient ${oldPatientId} to ${newPatientId}`);
+
+                // 2a. Update OPD entry to new patient_id
+                await query(`UPDATE opd_entries SET patient_id = $1 WHERE opd_id = $2`, [newPatientId, id]);
+                updatedOpdEntry.patient_id = newPatientId; // Update local obj
+
+                // 2b. Check if old patient is "Orphaned" (No other OPDs, Appointments)
+                // We only delete if it was a temporary/placeholder patient.
+                // Safest check: Does this patient have ANY other records?
+                // REFINEMENT: Also check if patient has a phone number. If yes, DO NOT DELETE.
+                const dependencyCheck = await query(`
+                    SELECT 
+                        contact_number,
+                        (SELECT COUNT(*) FROM opd_entries WHERE patient_id = $1) as opd_count,
+                        (SELECT COUNT(*) FROM appointments WHERE patient_id = $1) as appt_count
+                FROM patients WHERE patient_id = $1`, [oldPatientId]);
+
+                const { opd_count, appt_count, contact_number } = dependencyCheck.rows[0];
+
+                // If counts are 0 (since we already moved the current OPD entry away from it), it's safe to delete
+                // BUT only if contact_number is empty/null (Temporary/Unknown patient).
+                if (parseInt(opd_count) === 0 && parseInt(appt_count) === 0) {
+                    if (!contact_number || contact_number.trim() === '') {
+                        console.log(`Deleting orphan patient ${oldPatientId} (No Phone)`);
+                        await query(`DELETE FROM patients WHERE patient_id = $1`, [oldPatientId]);
+                    } else {
+                        console.log(`Skipping deletion of orphan patient ${oldPatientId} because they have a phone number: ${contact_number}`);
+                    }
+                }
+            }
+
+            // 3. Update Patient Details (for whichever patient is NOW associated)
             if (updatedOpdEntry && updatedOpdEntry.patient_id) {
                 const patientUpdateValues = [];
                 const patientQueryParts = [];
                 let patientParamIndex = 1;
-
-                // Handle mapping from frontend Request body to DB columns
-                // Frontend might send 'address_line1' but DB expects 'address'
-                // Or standardized in req.body? In createOpdEntry, we saw 'address_line_1'.
-                // Let's check the frontend payload. Frontend sends `address_line1`.
-                // Controller createOpdEntry destructures: `address_line_1` from req.body?
-                // Wait, check createOpdEntry at line 25: `address_line_1, address_line_2`
-                // But frontend opdForm has `address_line1`.
-                // Let's ensure mapping is correct.
 
                 // Mapping helpers
                 const mapField = (key) => {
@@ -832,8 +881,7 @@ class OpdController {
                 };
 
                 for (const key of Object.keys(updates)) {
-                    // Check if it's a patient field (handling the mapping mismatch if any)
-                    // Code below handles standard keys. We need to handle `address_line1` explicitly if it comes from frontend.
+                    // Check if it's a patient field
                     if (['address_line1', 'address_line2', 'city', 'state', 'pincode', 'first_name', 'last_name', 'age', 'gender', 'contact_number', 'blood_group', 'adhaar_number'].includes(key)) {
                         const dbCol = mapField(key);
                         patientQueryParts.push(`${dbCol} = $${patientParamIndex}`);

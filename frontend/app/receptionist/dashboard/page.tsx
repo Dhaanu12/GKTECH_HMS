@@ -87,7 +87,7 @@ export default function ReceptionistDashboard() {
     const [opdForm, setOpdForm] = useState({
         first_name: '', last_name: '', age: '', gender: '', blood_group: '',
         contact_number: '', doctor_id: '', visit_type: 'Walk-in',
-        visit_date: new Date().toISOString().split('T')[0],
+        visit_date: new Date().toLocaleDateString('en-CA'),
         visit_time: new Date().toTimeString().slice(0, 5),
         chief_complaint: '', symptoms: '',
         vital_signs: {
@@ -138,7 +138,7 @@ export default function ReceptionistDashboard() {
         setOpdForm({
             first_name: '', last_name: '', age: '', gender: '', blood_group: '',
             contact_number: '', doctor_id: '', visit_type: 'Walk-in',
-            visit_date: new Date().toISOString().split('T')[0],
+            visit_date: new Date().toLocaleDateString('en-CA'),
             visit_time: new Date().toTimeString().slice(0, 5),
             chief_complaint: '', symptoms: '',
             vital_signs: {
@@ -188,7 +188,7 @@ export default function ReceptionistDashboard() {
         age: '',
         gender: '',
         doctor_id: '',
-        appointment_date: new Date().toISOString().split('T')[0],
+        appointment_date: new Date().toLocaleDateString('en-CA'),
         appointment_time: '',
         reason_for_visit: '',
         notes: ''
@@ -522,11 +522,36 @@ export default function ReceptionistDashboard() {
     const handleDropdownSelect = async (patient: any) => {
         setSelectedPatient(patient);
 
+        // If editing an existing OPD entry, only update patient details
+        // Do NOT reset visit_type, doctor_id, or consultation_fee
+        if (editingOpdId) {
+            setOpdForm(prev => ({
+                ...prev,
+                first_name: patient.first_name,
+                last_name: patient.last_name,
+                age: patient.age?.toString() || '',
+                gender: patient.gender || '',
+                blood_group: patient.blood_group || '',
+                contact_number: patient.contact_number || '',
+                adhaar_number: patient.aadhar_number || patient.adhaar_number || '', // Backend consistency check
+                address_line1: patient.address || '',
+                address_line2: patient.address_line2 || '',
+                city: patient.city || '',
+                state: patient.state || '',
+                pincode: patient.pincode || '',
+                patient_id: patient.patient_id // Ensure patient_id is linked
+            }));
+            // Clear search
+            setModalSearchQuery('');
+            setModalSearchResults([]);
+            return;
+        }
+
         // Get doctor info from pending appointment data if from Convert to OPD
         let doctorId = '';
         let consultationFee = '';
         let visitType = 'Walk-in'; // Default
-        let aptArgs = {}; // Object to hold appointment specific extra fields for opdForm
+        let aptArgs: any = {}; // Object to hold appointment specific extra fields for opdForm
 
         if (isFromConvertToOPD && pendingPatientData) {
             // For Convert to OPD: Use doctor info from the ORIGINAL appointment (pendingPatientData)
@@ -623,14 +648,16 @@ export default function ReceptionistDashboard() {
             }
             const payload = {
                 ...formData,
-                patient_id: selectedPatient?.patient_id,
+                // Prioritize formData.patient_id (which is updated by handleDropdownSelect)
+                // Fallback to selectedPatient?.patient_id if formData one is missing/empty
+                patient_id: formData.patient_id || selectedPatient?.patient_id,
                 vital_signs: JSON.stringify(formData.vital_signs),
                 consultation_fee: totalFee.toString(),
                 mlc_fee: mlcFeeAmount.toString(), // Send separate MLC fee component
                 // Map frontend field names to backend expected names
                 address_line_1: formData.address_line1,
                 address_line_2: formData.address_line2,
-                // Ensure appointment_id is explicitly passed if present (though spread should cover it if in opdForm)
+                // Ensure appointment_id is explicitly passed if present
                 appointment_id: formData.appointment_id
             };
 
@@ -1007,7 +1034,10 @@ export default function ReceptionistDashboard() {
 
     const handleSaveAndPrint = async (e: React.MouseEvent) => {
         e.preventDefault();
-        if (!opdForm.first_name || !opdForm.last_name || !opdForm.age || !opdForm.gender || !opdForm.contact_number) {
+        // Mandatory fields:
+        // Non-MLC: Name, Age, Gender, Phone
+        // MLC: All Patient fields optional (backend defaults to Unknown)
+        if (!opdForm.is_mlc && (!opdForm.first_name || !opdForm.contact_number || !opdForm.gender)) {
             alert('Please fill in all mandatory patient fields.');
             return;
         }
@@ -1718,11 +1748,11 @@ export default function ReceptionistDashboard() {
                                                 )}
                                             </div>
 
-                                            <div className={`md:col-span-4 ${(opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && (!opdForm.is_mlc || (opdForm.is_mlc && opdForm.patient_id)) ? 'opacity-50 pointer-events-none' : ''}`}>
-                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Name <span className="text-red-500">*</span></label>
+                                            <div className={`md:col-span-4 ${((opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && !opdForm.is_mlc) || (!!selectedPatient && !!selectedPatient.contact_number) ? 'opacity-50 pointer-events-none' : ''}`}>
+                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Name {opdForm.is_mlc ? '(Optional)' : <span className="text-red-500">*</span>}</label>
                                                 <input
                                                     type="text"
-                                                    required
+                                                    required={!opdForm.is_mlc}
                                                     value={opdForm.first_name + (opdForm.last_name ? ' ' + opdForm.last_name : '')}
                                                     onChange={(e) => {
                                                         const val = e.target.value;
@@ -1736,13 +1766,13 @@ export default function ReceptionistDashboard() {
                                                 />
                                             </div>
                                             {/* Row 2: Age | Gender | Blood Group */}
-                                            <div className={(opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && (!opdForm.is_mlc || (opdForm.is_mlc && opdForm.patient_id)) ? 'opacity-50 pointer-events-none' : ''}>
-                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Age <span className="text-red-500">*</span></label>
-                                                <input type="number" required value={opdForm.age} onChange={(e) => setOpdForm({ ...opdForm, age: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium" />
+                                            <div className={((opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && !opdForm.is_mlc) || (!!selectedPatient && !!selectedPatient.contact_number) ? 'opacity-50 pointer-events-none' : ''}>
+                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Age {opdForm.is_mlc ? '(Optional)' : <span className="text-red-500">*</span>}</label>
+                                                <input type="number" required={!opdForm.is_mlc} value={opdForm.age} onChange={(e) => setOpdForm({ ...opdForm, age: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium" />
                                             </div>
                                             <div className={(opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient ? 'opacity-50 pointer-events-none' : ''}>
-                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Gender <span className="text-red-500">*</span></label>
-                                                <select required value={opdForm.gender} onChange={(e) => setOpdForm({ ...opdForm, gender: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium">
+                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Gender {opdForm.is_mlc ? '(Optional)' : <span className="text-red-500">*</span>}</label>
+                                                <select required={!opdForm.is_mlc} value={opdForm.gender} onChange={(e) => setOpdForm({ ...opdForm, gender: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium">
                                                     <option value="">Select</option>
                                                     <option value="Male">Male</option>
                                                     <option value="Female">Female</option>
@@ -1750,7 +1780,7 @@ export default function ReceptionistDashboard() {
                                                     <option value="Other">Other</option>
                                                 </select>
                                             </div>
-                                            <div className={`md:col-span-2 ${(opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && (!opdForm.is_mlc || (opdForm.is_mlc && opdForm.patient_id)) ? 'opacity-50 pointer-events-none' : ''}`}>
+                                            <div className={`md:col-span-2 ${((opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && !opdForm.is_mlc) || (!!selectedPatient && !!selectedPatient.contact_number) ? 'opacity-50 pointer-events-none' : ''}`}>
                                                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Blood Group</label>
                                                 <select value={opdForm.blood_group} onChange={(e) => setOpdForm({ ...opdForm, blood_group: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium">
                                                     <option value="">Unknown</option>
@@ -1764,7 +1794,7 @@ export default function ReceptionistDashboard() {
                                                     <option value="AB-">AB-</option>
                                                 </select>
                                             </div>
-                                            <div className={`md:col-span-2 ${(opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && (!opdForm.is_mlc || (opdForm.is_mlc && opdForm.patient_id)) ? 'opacity-50 pointer-events-none' : ''}`}>
+                                            <div className={`md:col-span-2 ${((opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && !opdForm.is_mlc) || (!!selectedPatient && !!selectedPatient.contact_number) ? 'opacity-50 pointer-events-none' : ''}`}>
                                                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Aadhaar Number</label>
                                                 <input
                                                     type="text"
@@ -1780,7 +1810,7 @@ export default function ReceptionistDashboard() {
                                             </div>
 
                                             {/* Address Details Section */}
-                                            <div className={`md:col-span-6 mt-4 ${(opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && (!opdForm.is_mlc || (opdForm.is_mlc && opdForm.patient_id)) ? 'opacity-50 pointer-events-none' : ''}`}>
+                                            <div className={`md:col-span-6 mt-4 ${((opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && !opdForm.is_mlc) || (!!selectedPatient && !!selectedPatient.contact_number) ? 'opacity-50 pointer-events-none' : ''}`}>
                                                 <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">ADDRESS DETAILS</h4>
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     <div>
@@ -1860,18 +1890,18 @@ export default function ReceptionistDashboard() {
                                                         const last = parts.slice(1).join(' ');
                                                         setOpdForm({ ...opdForm, first_name: first, last_name: last });
                                                     }}
-                                                    disabled={!opdForm.is_mlc || !!opdForm.patient_id}
-                                                    className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${!opdForm.is_mlc || !!opdForm.patient_id ? 'disabled:bg-slate-100 disabled:text-slate-500' : ''}`}
+                                                    disabled={!!opdForm.patient_id && (!opdForm.is_mlc || (!!opdForm.contact_number && opdForm.contact_number.length >= 10))}
+                                                    className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${!!opdForm.patient_id && (!opdForm.is_mlc || (!!opdForm.contact_number && opdForm.contact_number.length >= 10)) ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`}
                                                     placeholder="e.g. John Doe"
                                                 />
                                             </div>
                                             <div>
                                                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Age <span className="text-red-500">*</span></label>
-                                                <input type="number" required={!opdForm.is_mlc} value={opdForm.age} onChange={(e) => setOpdForm({ ...opdForm, age: e.target.value })} disabled={!opdForm.is_mlc || !!opdForm.patient_id} className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${!opdForm.is_mlc || !!opdForm.patient_id ? 'disabled:bg-slate-100 disabled:text-slate-500' : ''}`} />
+                                                <input type="number" required={!opdForm.is_mlc} value={opdForm.age} onChange={(e) => setOpdForm({ ...opdForm, age: e.target.value })} disabled={!!opdForm.patient_id && (!opdForm.is_mlc || (!!opdForm.contact_number && opdForm.contact_number.length >= 10))} className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${!!opdForm.patient_id && (!opdForm.is_mlc || (!!opdForm.contact_number && opdForm.contact_number.length >= 10)) ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`} />
                                             </div>
                                             <div>
                                                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Gender <span className="text-red-500">*</span></label>
-                                                <select required={!opdForm.is_mlc} value={opdForm.gender} onChange={(e) => setOpdForm({ ...opdForm, gender: e.target.value })} disabled={!opdForm.is_mlc || !!opdForm.patient_id} className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${!opdForm.is_mlc || !!opdForm.patient_id ? 'disabled:bg-slate-100 disabled:text-slate-500' : ''}`}>
+                                                <select required={!opdForm.is_mlc} value={opdForm.gender} onChange={(e) => setOpdForm({ ...opdForm, gender: e.target.value })} disabled={!!opdForm.patient_id && (!opdForm.is_mlc || (!!opdForm.contact_number && opdForm.contact_number.length >= 10))} className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${!!opdForm.patient_id && (!opdForm.is_mlc || (!!opdForm.contact_number && opdForm.contact_number.length >= 10)) ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`}>
                                                     <option value="">Select</option>
                                                     <option value="Male">Male</option>
                                                     <option value="Female">Female</option>
@@ -1899,7 +1929,7 @@ export default function ReceptionistDashboard() {
                                                             ...opdForm,
                                                             is_mlc: checked,
                                                             visit_type: checked ? 'Emergency' : 'Walk-in',
-                                                            visit_date: new Date().toISOString().split('T')[0],
+                                                            visit_date: new Date().toLocaleDateString('en-CA'),
                                                             visit_time: new Date().toTimeString().slice(0, 5)
                                                         });
                                                     }}
@@ -1981,18 +2011,18 @@ export default function ReceptionistDashboard() {
                                                     >
                                                         <option value="">Select Doctor</option>
                                                         {doctors.map((doc: any) => {
-                                                            const todayIST = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
-                                                            const availableSlots = getDoctorAvailabilityCount(doc.doctor_id, todayIST);
-                                                            const isAvailable = availableSlots > 0;
+                                                            // const todayIST = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+                                                            // const availableSlots = getDoctorAvailabilityCount(doc.doctor_id, todayIST);
+                                                            // const isAvailable = availableSlots > 0;
 
                                                             return (
                                                                 <option
                                                                     key={doc.doctor_id}
                                                                     value={doc.doctor_id}
-                                                                    disabled={!isAvailable}
-                                                                    className={!isAvailable ? 'text-gray-400' : ''}
+                                                                // disabled={!isAvailable}
+                                                                // className={!isAvailable ? 'text-gray-400' : ''}
                                                                 >
-                                                                    Dr. {doc.first_name} {doc.last_name} ({doc.specialization}) {!isAvailable ? '* Unavailable' : ''}
+                                                                    Dr. {doc.first_name} {doc.last_name} ({doc.specialization}) {/* {!isAvailable ? '* Unavailable' : ''} */}
                                                                 </option>
                                                             );
                                                         })}
@@ -2300,7 +2330,7 @@ export default function ReceptionistDashboard() {
                                         </button>
                                         <button
                                             type="submit"
-                                            disabled={loading || ((opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient) || !!duplicateWarning}
+                                            disabled={loading || !!duplicateWarning || (!selectedPatient && (opdForm.is_mlc ? (opdForm.contact_number.length > 0 && opdForm.contact_number.length < 10) : (opdForm.contact_number.length < 10 || modalSearchResults.length > 0)))}
                                             className={`px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg hover:shadow-blue-500/30 transition-all font-bold flex items-center gap-2 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed ${duplicateWarning ? 'from-slate-400 to-slate-500 hover:shadow-none' : ''}`}
                                         >
                                             {loading ? 'Saving...' : 'Register Visit'}
