@@ -192,7 +192,8 @@ export default function ReceptionistDashboard() {
             is_mlc: false, mlc_remarks: '', attender_name: '', attender_contact_number: '',
             appointment_id: '', // Reset appointment_id
             adhaar_number: '', referral_hospital: '', referral_doctor_name: '',
-            address_line1: '', address_line2: '', city: '', state: '', pincode: ''
+            address_line1: '', address_line2: '', city: '', state: '', pincode: '',
+            patient_id: null
         });
         setSelectedPatient(null);
         setModalSearchQuery('');
