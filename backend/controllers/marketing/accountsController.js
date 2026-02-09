@@ -168,7 +168,7 @@ exports.getAllReferralDoctorsWithPercentages = async (req, res) => {
             FROM referral_doctor_module rd
             LEFT JOIN referral_doctor_service_percentage_module rdsp ON rd.id = rdsp.referral_doctor_id
             LEFT JOIN hospitals h ON rd.tenant_id = h.hospital_id
-            WHERE rd.tenant_id = $1
+            WHERE rd.tenant_id = $1 AND rd.status != 'Initialization'
             GROUP BY rd.id, rd.doctor_name, rd.mobile_number, rd.speciality_type, rd.clinic_name, rd.medical_council_membership_number, rd.pan_card_number, rd.pan_upload_path, rd.status, rd.referral_pay, h.hospital_name
             ORDER BY rd.doctor_name
         `;
