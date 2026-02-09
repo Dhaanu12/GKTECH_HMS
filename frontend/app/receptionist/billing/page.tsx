@@ -453,7 +453,7 @@ export default function BillingPage() {
             {/* Invoice Modal */}
             {showInvoice && selectedBill && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 print:p-0 print:bg-white print:absolute print:inset-0">
-                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto print:shadow-none print:w-full print:max-w-none print:h-auto print:overflow-visible">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto print:shadow-none print:w-full print:max-w-none print:h-auto print:overflow-visible">
                         <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 print:hidden">
                             <h2 className="text-lg font-bold text-gray-800">Invoice Preview</h2>
                             <div className="flex gap-2">
