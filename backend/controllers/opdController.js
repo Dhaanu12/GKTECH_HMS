@@ -530,16 +530,23 @@ class OpdController {
      * PATCH /api/opd/:id/status
      */
     static async updateOpdStatus(req, res, next) {
+        const client = await getClient();
         try {
+            await client.query('BEGIN');
             const { id } = req.params;
             const { visit_status } = req.body;
             const branch_id = req.user.branch_id;
 
             if (!visit_status) {
+                await client.query('ROLLBACK');
                 return next(new AppError('Visit status is required', 400));
             }
 
-            const result = await query(`
+            // Fetch Staff Code for audit fields
+            const staffRes = await client.query(`SELECT staff_code FROM staff WHERE user_id = $1`, [req.user.user_id]);
+            const staffCode = staffRes.rows[0]?.staff_code || req.user.username || 'SYSTEM';
+
+            const result = await client.query(`
                 UPDATE opd_entries 
                 SET visit_status = $1, updated_at = CURRENT_TIMESTAMP
                 WHERE opd_id = $2 AND branch_id = $3
@@ -547,17 +554,50 @@ class OpdController {
             `, [visit_status, id, branch_id]);
 
             if (result.rows.length === 0) {
+                await client.query('ROLLBACK');
                 return next(new AppError('OPD entry not found or unauthorized', 404));
             }
 
+            // If status is 'Cancelled', also cancel billing
+            if (visit_status === 'Cancelled') {
+                // 1. Update Billing Master
+                await client.query(`
+                    UPDATE billing_master
+                    SET 
+                        status = 'Cancelled',
+                        payment_status = 'Cancelled',
+                        updated_by = $1,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE opd_id = $2 AND branch_id = $3
+                `, [staffCode, id, branch_id]);
+
+                // 2. Update Bill Details
+                await client.query(`
+                    UPDATE bill_details
+                    SET 
+                        status = 'Cancelled',
+                        is_cancelled = true,
+                        cancelled_by = $1,
+                        cancelled_at = CURRENT_TIMESTAMP,
+                        updated_by = $1,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE opd_id = $2 AND branch_id = $3
+                `, [staffCode, id, branch_id]);
+            }
+
+            await client.query('COMMIT');
+
             res.status(200).json({
                 status: 'success',
-                message: 'OPD status updated successfully',
+                message: `OPD status updated to ${visit_status} successfully`,
                 data: { opdEntry: result.rows[0] }
             });
         } catch (error) {
+            await client.query('ROLLBACK');
             console.error('Update OPD status error:', error);
             next(new AppError('Failed to update OPD status', 500));
+        } finally {
+            client.release();
         }
     }
 

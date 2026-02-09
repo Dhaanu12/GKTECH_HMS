@@ -275,6 +275,7 @@ class BillingController {
             // We also want to include relevant patient and doctor details
             const result = await query(`
                 SELECT 
+                    bm.branch_id,
                     bm.bill_master_id,
                     bm.bill_number,
                     bm.invoice_number,
@@ -362,11 +363,19 @@ class BillingController {
     static async getPendingBillItems(req, res, next) {
         try {
             const { opd_id } = req.params;
+            const { bill_master_id } = req.query;
 
-            const result = await query(`
-                SELECT * FROM bill_details 
-                WHERE opd_id = $1 AND status = 'Pending' AND bill_master_id IS NULL
-            `, [opd_id]);
+            let queryText = `SELECT * FROM bill_details WHERE opd_id = $1 AND status = 'Pending'`;
+            const params = [opd_id];
+
+            if (bill_master_id) {
+                params.push(bill_master_id);
+                queryText += ` AND bill_master_id = $2`;
+            } else {
+                queryText += ` AND bill_master_id IS NULL`;
+            }
+
+            const result = await query(queryText, params);
 
             res.status(200).json({
                 status: 'success',

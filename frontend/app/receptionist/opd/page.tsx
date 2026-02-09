@@ -57,7 +57,7 @@ export default function OpdEntryPage() {
     const { user } = useAuth();
     const [loading, setLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
-    const [searchResults, setSearchResults] = useState([]);
+    const [searchResults, setSearchResults] = useState<any[]>([]);
     const [selectedPatient, setSelectedPatient] = useState<any>(null);
     const [doctors, setDoctors] = useState<any[]>([]);
 
@@ -67,7 +67,7 @@ export default function OpdEntryPage() {
         from: new Date().toLocaleDateString('en-CA'), // YYYY-MM-DD in local time
         to: new Date().toLocaleDateString('en-CA')
     });
-    const [opdEntries, setOpdEntries] = useState([]);
+    const [opdEntries, setOpdEntries] = useState<any[]>([]);
     const [showModal, setShowModal] = useState(false);
     const [phoneMatches, setPhoneMatches] = useState<any[]>([]);
     const [showPhoneDropdown, setShowPhoneDropdown] = useState(false);
@@ -123,7 +123,7 @@ export default function OpdEntryPage() {
     const [paymentChoice, setPaymentChoice] = useState<'PayNow' | 'PayLater'>('PayNow');
     const [editingOpdId, setEditingOpdId] = useState<number | null>(null);
     const [branchDetails, setBranchDetails] = useState<any>(null);
-    const [allAppointments, setAllAppointments] = useState([]); // For availability check
+    const [allAppointments, setAllAppointments] = useState<any[]>([]); // For availability check
 
     // Smart Patient Search state (UX Solution 1)
     const [modalSearchQuery, setModalSearchQuery] = useState('');
@@ -800,6 +800,12 @@ export default function OpdEntryPage() {
     };
 
     const saveEntry = async (formData: any = opdForm) => {
+        // Mandatory fields check for Non-MLC cases
+        if (!formData.is_mlc && (!formData.first_name || !formData.contact_number || !formData.gender)) {
+            alert('Please fill in all mandatory patient fields.');
+            return;
+        }
+
         // MLC Validation: Prevent partial phone numbers
         if (formData.is_mlc && formData.contact_number && formData.contact_number.length > 0 && formData.contact_number.length < 10) {
             alert('Invalid Phone Number. Please enter a 10-digit number or leave it empty.');
@@ -856,13 +862,12 @@ export default function OpdEntryPage() {
                 response = await axios.patch(`${API_URL}/opd/${editingOpdId}`, payload, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
-                alert('OPD Entry updated successfully!');
                 return editingOpdId;
             } else {
                 response = await axios.post(`${API_URL}/opd`, payload, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
-                alert('OPD Entry created successfully!');
+
                 // Check if response has data.opdEntry (from createOpdEntry controller)
                 if (response.data?.data?.opdEntry?.opd_id) {
                     return response.data.data.opdEntry;
@@ -2022,7 +2027,7 @@ export default function OpdEntryPage() {
                                             </div>
 
                                             <div className={`md:col-span-4 ${isPatientDetailsLocked ? 'opacity-50 pointer-events-none' : ''}`}>
-                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Name <span className="text-red-500">*</span></label>
+                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Name {opdForm.is_mlc ? <span className="text-slate-400 font-normal">(Optional)</span> : <span className="text-red-500">*</span>}</label>
                                                 <input
                                                     type="text"
                                                     required={!opdForm.is_mlc}
@@ -2040,11 +2045,11 @@ export default function OpdEntryPage() {
                                             </div>
                                             {/* Row 2: Age | Gender | Blood Group */}
                                             <div className={isPatientDetailsLocked ? 'opacity-50 pointer-events-none' : ''}>
-                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Age <span className="text-red-500">*</span></label>
+                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Age {opdForm.is_mlc ? <span className="text-slate-400 font-normal">(Optional)</span> : <span className="text-red-500">*</span>}</label>
                                                 <input type="number" required={!opdForm.is_mlc} value={opdForm.age} onChange={(e) => setOpdForm({ ...opdForm, age: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium" />
                                             </div>
                                             <div className={isPatientDetailsLocked ? 'opacity-50 pointer-events-none' : ''}>
-                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Gender <span className="text-red-500">*</span></label>
+                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Gender {opdForm.is_mlc ? <span className="text-slate-400 font-normal">(Optional)</span> : <span className="text-red-500">*</span>}</label>
                                                 <select required={!opdForm.is_mlc} value={opdForm.gender} onChange={(e) => setOpdForm({ ...opdForm, gender: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium">
                                                     <option value="">Select</option>
                                                     <option value="Male">Male</option>
@@ -2410,18 +2415,22 @@ export default function OpdEntryPage() {
                                                     >
                                                         <option value="">Select Doctor</option>
                                                         {doctors.map((doc: any) => {
+                                                            // Temporarily commented out availability check - allow all doctors to be selectable
+                                                            /*
                                                             const todayIST = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
                                                             const availableSlots = getDoctorAvailabilityCount(doc.doctor_id, todayIST);
                                                             const isAvailable = availableSlots > 0;
+                                                            */
+                                                            const isAvailable = true;
 
                                                             return (
                                                                 <option
                                                                     key={doc.doctor_id}
                                                                     value={doc.doctor_id}
-                                                                    disabled={!isAvailable}
+                                                                    // disabled={!isAvailable}
                                                                     className={!isAvailable ? 'text-gray-400' : ''}
                                                                 >
-                                                                    Dr. {doc.first_name} {doc.last_name} ({doc.specialization}) {!isAvailable ? '* Unavailable' : ''}
+                                                                    Dr. {doc.first_name} {doc.last_name} ({doc.specialization})
                                                                 </option>
                                                             );
                                                         })}
@@ -2675,38 +2684,24 @@ export default function OpdEntryPage() {
                                                     </div>
                                                 </div>
                                             )}
-                                            <div className="flex-1">
+                                            <div className="flex-1 min-w-[200px]">
                                                 <label className="block text-xs font-semibold text-slate-500 mb-2">Payment Preference <span className="text-red-500">*</span></label>
-                                                <div className="flex gap-4">
-                                                    <label className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${paymentChoice === 'PayNow' ? 'bg-blue-50 border-blue-500 text-blue-700 shadow-sm' : 'bg-white border-slate-200 text-slate-600 hover:border-blue-300'}`}>
-                                                        <input
-                                                            type="radio"
-                                                            name="payment_choice"
-                                                            value="PayNow"
-                                                            checked={paymentChoice === 'PayNow'}
-                                                            onChange={() => setPaymentChoice('PayNow')}
-                                                            className="hidden"
-                                                        />
-                                                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${paymentChoice === 'PayNow' ? 'border-blue-600' : 'border-slate-300'}`}>
-                                                            {paymentChoice === 'PayNow' && <div className="w-2 h-2 rounded-full bg-blue-600" />}
-                                                        </div>
-                                                        <span className="font-bold text-sm">Pay Now</span>
-                                                    </label>
-
-                                                    <label className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${paymentChoice === 'PayLater' ? 'bg-amber-50 border-amber-500 text-amber-700 shadow-sm' : 'bg-white border-slate-200 text-slate-600 hover:border-amber-300'}`}>
-                                                        <input
-                                                            type="radio"
-                                                            name="payment_choice"
-                                                            value="PayLater"
-                                                            checked={paymentChoice === 'PayLater'}
-                                                            onChange={() => setPaymentChoice('PayLater')}
-                                                            className="hidden"
-                                                        />
-                                                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${paymentChoice === 'PayLater' ? 'border-amber-600' : 'border-slate-300'}`}>
-                                                            {paymentChoice === 'PayLater' && <div className="w-2 h-2 rounded-full bg-amber-600" />}
-                                                        </div>
-                                                        <span className="font-bold text-sm">Pay Later</span>
-                                                    </label>
+                                                <div className="relative">
+                                                    <select
+                                                        value={paymentChoice}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value as 'PayNow' | 'PayLater';
+                                                            setPaymentChoice(val);
+                                                            setOpdForm(prev => ({ ...prev, payment_status: val === 'PayNow' ? 'Paid' : 'Pending' }));
+                                                        }}
+                                                        className="w-full pl-3 pr-10 py-2.5 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-700 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
+                                                    >
+                                                        <option value="PayNow">Pay Now</option>
+                                                        <option value="PayLater">Pay Later</option>
+                                                    </select>
+                                                    <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-500">
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>

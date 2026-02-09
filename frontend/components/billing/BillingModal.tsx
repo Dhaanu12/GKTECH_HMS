@@ -29,17 +29,24 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, opdData, o
         if (opdData.opd_id) {
             try {
                 const token = localStorage.getItem('token');
-                const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/billing/pending/${opdData.opd_id}`, {
+                const url = new URL(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/billing/pending/${opdData.opd_id}`);
+                if (opdData.bill_master_id) {
+                    url.searchParams.append('bill_master_id', opdData.bill_master_id);
+                }
+
+                const response = await axios.get(url.toString(), {
                     headers: { Authorization: `Bearer ${token}` }
                 });
+
                 if (response.data.data.items && response.data.data.items.length > 0) {
                     loadedItems = response.data.data.items.map((item: any) => ({
                         bill_detail_id: item.bill_detail_id, // Important to track existing items
                         service_type: item.service_type || 'service',
                         service_name: item.service_name,
-                        quantity: 1, // Default to 1 as bill_details usually tracks individuals, or add quantity field to DB if needed
-                        unit_price: parseFloat(item.service_price || item.final_price),
-                        subtotal: parseFloat(item.final_price),
+                        department_id: item.department_id,
+                        quantity: parseFloat(item.quantity) || 1,
+                        unit_price: parseFloat(item.unit_price || item.service_price || item.final_price),
+                        subtotal: parseFloat(item.subtotal || item.final_price),
                         final_price: parseFloat(item.final_price)
                     }));
                 }
