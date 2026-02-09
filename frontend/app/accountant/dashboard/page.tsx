@@ -273,7 +273,7 @@ export default function AccountantDashboard() {
                             </div>
                             <h3 className="font-semibold text-gray-900">Top Referral Payouts</h3>
                         </div>
-                        <Link href="/accountant/referral-payment/reports" className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1">
+                        <Link href="/accounts/payments?tab=reports" className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1">
                             View All <ArrowRight className="w-4 h-4" />
                         </Link>
                     </div>

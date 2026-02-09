@@ -16,6 +16,8 @@ import {
     PieChart, Pie, Cell, Tooltip as RechartsTooltip
 } from 'recharts';
 
+import { useSearchParams } from 'next/navigation';
+
 type TabType = 'upload' | 'reports';
 
 interface ReportRow {
@@ -51,8 +53,24 @@ interface GroupedData {
 
 const COLORS = ['#2563eb', '#7c3aed', '#db2777', '#ea580c', '#16a34a', '#0891b2'];
 
+import { Suspense } from 'react';
+
 export default function ReferralPaymentsHub() {
-    const [activeTab, setActiveTab] = useState<TabType>('upload');
+    return (
+        <Suspense fallback={
+            <div className="flex items-center justify-center p-12">
+                <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+            </div>
+        }>
+            <ReferralPaymentsContent />
+        </Suspense>
+    );
+}
+
+function ReferralPaymentsContent() {
+    const searchParams = useSearchParams();
+    const initialTab = (searchParams.get('tab') as TabType) || 'upload';
+    const [activeTab, setActiveTab] = useState<TabType>(initialTab);
 
     const tabs = [
         { id: 'upload' as TabType, name: 'Upload Bills', icon: Upload, description: 'Upload bulk referral bills via Excel' },
@@ -474,42 +492,144 @@ function PaymentReportsTab() {
     const exportToPDF = () => {
         if (!reports.length) return;
         const doc = new jsPDF('l', 'mm', 'a4');
+        const pageWidth = doc.internal.pageSize.getWidth();
 
-        doc.setFontSize(18);
-        doc.text('Referral Payments Report', 14, 20);
+        // 1. Header Section
+        doc.setFontSize(22);
+        doc.setTextColor(37, 99, 235);
+        doc.text('Referral Payments Analysis Report', 14, 20);
+
         doc.setFontSize(10);
-        doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 28);
+        doc.setTextColor(100);
+        doc.text(`Generated: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, 14, 27);
         if (filters.fromDate || filters.toDate) {
-            doc.text(`Period: ${filters.fromDate || 'Start'} to ${filters.toDate || 'End'}`, 14, 34);
+            doc.text(`Period: ${filters.fromDate || 'All Time'} to ${filters.toDate || 'Present'}`, 14, 32);
         }
 
-        const tableColumns = ["Date", "Doctor", "Patient", "MCI ID", "Service", "Mode", "Cost", "%", "Ref Amt"];
-        const tableRows = reports.map(row => [
+        // 2. Analytics Graph (Top Services)
+        const serviceWiseTotals: Record<string, number> = {};
+        reports.forEach(row => {
+            serviceWiseTotals[row.service_name] = (serviceWiseTotals[row.service_name] || 0) + Number(row.referral_amount);
+        });
+        const sortedServices = Object.entries(serviceWiseTotals)
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => b.value - a.value)
+            .slice(0, 10);
+
+        const chartX = 14;
+        const chartY = 40;
+        const barStartX = chartX + 60;
+        const chartWidth = 120;
+        const barHeight = 7;
+        const gap = 5;
+
+        if (sortedServices.length > 0) {
+            doc.setFontSize(12);
+            doc.setTextColor(50);
+            doc.text('Top Services by Referral Payout', 14, 38);
+
+            const maxVal = Math.max(...sortedServices.map(s => s.value), 1);
+
+            sortedServices.forEach((stat, index) => {
+                const currentY = chartY + (index * (barHeight + gap));
+
+                // Label
+                doc.setFontSize(8);
+                doc.setTextColor(60);
+                const shortName = stat.name.length > 25 ? stat.name.substring(0, 22) + '...' : stat.name;
+                doc.text(shortName, chartX, currentY + barHeight / 2 + 1);
+
+                // Bar Background
+                doc.setFillColor(245, 245, 245);
+                doc.rect(barStartX, currentY, chartWidth, barHeight, 'F');
+
+                // Data Bar
+                const currentWidth = (stat.value / maxVal) * chartWidth;
+                doc.setFillColor(37, 99, 235); // Blue
+                doc.rect(barStartX, currentY, currentWidth, barHeight, 'F');
+
+                // Value label
+                doc.setTextColor(100);
+                doc.text(`Rs.${stat.value.toLocaleString()}`, barStartX + chartWidth + 5, currentY + barHeight / 2 + 1);
+            });
+        }
+
+        // 4. Financial Overview
+        const totalReferralAmount = reports.reduce((sum, row) => sum + Number(row.referral_amount), 0);
+        const boxesY = chartY + (sortedServices.length * (barHeight + gap)) + 15;
+
+        doc.setFontSize(11);
+        doc.setTextColor(37, 99, 235);
+        doc.text("Financial Overview", 14, boxesY - 5);
+
+        doc.setDrawColor(37, 99, 235);
+        doc.setFillColor(240, 248, 255);
+        doc.roundedRect(14, boxesY, 269, 18, 2, 2, 'FD');
+
+        doc.setFontSize(10);
+        doc.setTextColor(70);
+        doc.text("Total Referral Payout (Grand Total):", 20, boxesY + 11);
+        doc.setFontSize(14);
+        doc.setTextColor(30, 58, 138);
+        doc.text(`Rs. ${totalReferralAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, pageWidth - 80, boxesY + 11);
+
+        // 5. Service-wise Summary Table
+        const summaryColumns = ["Service Name", "Contribution (%)", "Total Payout"];
+        const summaryRows = Object.entries(serviceWiseTotals)
+            .sort((a, b) => b[1] - a[1])
+            .map(([name, amount]) => [
+                name,
+                `${((amount / totalReferralAmount) * 100).toFixed(1)}%`,
+                `Rs. ${amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+            ]);
+
+        doc.text("Service-wise Summary", 14, boxesY + 30);
+        autoTable(doc, {
+            head: [summaryColumns],
+            body: summaryRows,
+            startY: boxesY + 35,
+            theme: 'grid',
+            headStyles: { fillColor: [79, 70, 229], halign: 'center' },
+            styles: { fontSize: 9, cellPadding: 2 },
+            columnStyles: {
+                0: { cellWidth: 'auto' },
+                1: { halign: 'center', cellWidth: 40 },
+                2: { halign: 'right', cellWidth: 50 }
+            }
+        });
+
+        // 6. Detailed Report Table
+        const detailedColumns = ["Date", "Doctor", "Patient", "MCI ID", "Service", "Mode", "Cost", "%", "Ref Amt"];
+        const detailedRows = reports.map(row => [
             new Date(row.upload_date).toLocaleDateString(),
             row.doctor_name,
             row.patient_name,
             row.medical_council_id,
             row.service_name,
             row.payment_mode,
-            `Rs. ${Number(row.service_cost).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+            `Rs. ${Number(row.service_cost).toLocaleString()}`,
             `${row.referral_percentage}%`,
-            `Rs. ${Number(row.referral_amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+            `Rs. ${Number(row.referral_amount).toLocaleString()}`
         ]);
 
+        doc.text("Detailed Commission Report", 14, (doc as any).lastAutoTable.finalY + 12);
         autoTable(doc, {
-            head: [tableColumns],
-            body: tableRows,
-            startY: filters.fromDate || filters.toDate ? 40 : 35,
-            styles: { fontSize: 8 },
-            headStyles: { fillColor: [37, 99, 235] },
+            head: [detailedColumns],
+            body: detailedRows,
+            startY: (doc as any).lastAutoTable.finalY + 17,
+            styles: { fontSize: 7, cellPadding: 1.5, overflow: 'linebreak' },
+            headStyles: { fillColor: [37, 99, 235], halign: 'center' },
+            alternateRowStyles: { fillColor: [248, 250, 252] },
             columnStyles: {
-                6: { halign: 'right' },
-                7: { halign: 'right' },
-                8: { halign: 'right' },
-            }
+                0: { cellWidth: 20 },
+                6: { halign: 'right', cellWidth: 25 },
+                7: { halign: 'center', cellWidth: 12 },
+                8: { halign: 'right', cellWidth: 25 },
+            },
+            margin: { top: 25 }
         });
 
-        doc.save(`Referral_Payment_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+        doc.save(`Referral_Payout_Report_${new Date().toISOString().split('T')[0]}.pdf`);
     };
 
     const totalAmount = reports.reduce((sum, row) => sum + Number(row.referral_amount), 0);

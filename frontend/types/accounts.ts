@@ -17,6 +17,7 @@ export interface ReferralDoctor {
     clinic_name?: string;
     hospital_name?: string;
     percentages: ServicePercentage[] | string;
+    created_at?: string; // For sorting
 }
 
 export interface HospitalService {
