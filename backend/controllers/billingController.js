@@ -216,9 +216,12 @@ class BillingController {
             let queryText = `
                 SELECT 
                     bm.*,
+                    p.age,
+                    p.gender,
                     d.first_name || ' ' || d.last_name as doctor_name,
                     dep.department_name
                 FROM billing_master bm
+                JOIN patients p ON bm.patient_id = p.patient_id
                 LEFT JOIN opd_entries oe ON bm.opd_id = oe.opd_id
                 LEFT JOIN doctors d ON oe.doctor_id = d.doctor_id
                 LEFT JOIN departments dep ON oe.department_id = dep.department_id
@@ -287,6 +290,8 @@ class BillingController {
                     bm.contact_number,
                     bm.total_amount as total_pending_amount,
                     bm.billing_date,
+                    bm.due_date,
+                    bm.invoice_type,
                     bm.created_at,
                     oe.token_number,
                     oe.visit_date,
