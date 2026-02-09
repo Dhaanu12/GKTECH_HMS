@@ -12,6 +12,19 @@ const pool = new Pool({
     // Ensure connection uses IST if possible, though 'SET timezone' query on connect is safer for pool
 });
 
+// Helper to get assigned branch IDs for a user
+async function getAssignedBranchIds(user) {
+    const assignedBranchesQuery = `
+        SELECT branch_id FROM staff_branches sb
+        JOIN staff s ON sb.staff_id = s.staff_id
+        WHERE s.user_id = $1 AND sb.is_active = true
+    `;
+    const assignedBranches = await pool.query(assignedBranchesQuery, [user.user_id]);
+    return assignedBranches.rows.length > 0
+        ? assignedBranches.rows.map(row => row.branch_id)
+        : [user.branch_id].filter(Boolean);
+}
+
 // Helper to set timezone for pool connections? 
 // pg pool doesn't have a simple 'on connect' for every client easily without event listener.
 // But we relied on DEFAULT value in DB for inserts. For valid DATE object retrieval, node-pg converts based on local system time usually.
@@ -324,11 +337,11 @@ exports.getAllReferralDoctors = async (req, res) => {
         let query = 'SELECT * FROM referral_doctor_module WHERE 1=1';
         const params = [];
 
-        // Filter by branch_id if user belongs to a branch (and not just hospital-level admin without branch)
-        // If user is Super Admin, they might see all ?? For now, assume strict branch isolation if branch_id exists.
-        if (req.user && req.user.branch_id) {
-            query += ` AND branch_id = $${params.length + 1}`;
-            params.push(req.user.branch_id);
+        // Filter by assigned branch IDs
+        const branchIds = await getAssignedBranchIds(req.user);
+        if (branchIds.length > 0) {
+            query += ` AND branch_id = ANY($${params.length + 1})`;
+            params.push(branchIds);
         }
 
         // Accountant Flow: Filter out 'Initialization' state
