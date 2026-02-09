@@ -1,8 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
-import { useParams, useRouter } from 'next/navigation';
+import MlcModal from '@/components/mlc/MlcModal';
+import WoundCertModal from '@/components/mlc/WoundCertModal';
+import { printMlcCertificate, printWoundCertificate } from '@/lib/mlcUtils';
+import { useRouter } from 'next/navigation';
 import {
     ArrowLeft,
     User,
@@ -44,8 +48,10 @@ import {
     AlertCircle,
     ChevronRight,
     Filter,
-    Save
+    Save,
+    Ruler
 } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -67,8 +73,12 @@ const noteTypeConfig: Record<string, { color: string; bg: string; icon: any }> =
     'History': { color: 'text-gray-600', bg: 'bg-gray-100', icon: History },
 };
 
-export default function ReceptionistPatientDetails() {
-    const params = useParams();
+interface PatientProfileProps {
+    patientId: string;
+    userRole?: 'doctor' | 'nurse';
+}
+
+export default function PatientProfile({ patientId, userRole = 'nurse' }: PatientProfileProps) {
     const router = useRouter();
 
     // Core state
@@ -80,17 +90,6 @@ export default function ReceptionistPatientDetails() {
     const [clinicalNotes, setClinicalNotes] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [showVitalsModal, setShowVitalsModal] = useState(false);
-    const [saving, setSaving] = useState(false);
-    const [vitalsForm, setVitalsForm] = useState({
-        bp_systolic: '',
-        bp_diastolic: '',
-        pulse: '',
-        temperature: '',
-        weight: '',
-        height: '',
-        spo2: '',
-        grbs: ''
-    });
 
     // UI state
     const [activeTab, setActiveTab] = useState<'overview' | 'vitals' | 'notes' | 'labs' | 'documents' | 'consultations'>('overview');
@@ -103,6 +102,13 @@ export default function ReceptionistPatientDetails() {
     const [labOrderDocs, setLabOrderDocs] = useState<any[]>([]);
     const [loadingLabDocs, setLoadingLabDocs] = useState(false);
     const [showNotesModal, setShowNotesModal] = useState(false);
+    const [selectedVitalForGraph, setSelectedVitalForGraph] = useState<string | null>(null);
+
+    // MLC State
+    const [showMlcModal, setShowMlcModal] = useState(false);
+    const [mlcData, setMlcData] = useState<any>(null);
+    const [showWoundCertModal, setShowWoundCertModal] = useState(false);
+    const [woundCertData, setWoundCertData] = useState<any>(null);
 
     // Notes filter
     const [noteTypeFilter, setNoteTypeFilter] = useState<string>('');
@@ -120,14 +126,19 @@ export default function ReceptionistPatientDetails() {
     const fetchPatientDetails = useCallback(async () => {
         try {
             const token = localStorage.getItem('token');
+            if (!token) {
+                router.push('/login');
+                return;
+            }
+
             const [patientRes, opdRes, docsRes, labsRes, vitalsRes, notesRes, consultRes] = await Promise.all([
-                axios.get(`${API_URL}/patients/${params.id}`, { headers: { Authorization: `Bearer ${token}` } }),
-                axios.get(`${API_URL}/opd/patient/${params.id}`, { headers: { Authorization: `Bearer ${token}` } }),
-                axios.get(`${API_URL}/patient-documents/patient/${params.id}`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { data: { documents: [] } } })),
-                axios.get(`${API_URL}/lab-orders/patient/${params.id}?includeCompleted=true`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { data: { orders: [] } } })),
-                axios.get(`${API_URL}/vitals/patient/${params.id}`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { data: { vitals: [] } } })),
-                axios.get(`${API_URL}/clinical-notes/patient/${params.id}`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { data: { notes: [] } } })),
-                axios.get(`${API_URL}/consultations/patient/${params.id}`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { data: { consultations: [] } } }))
+                axios.get(`${API_URL}/patients/${patientId}`, { headers: { Authorization: `Bearer ${token}` } }),
+                axios.get(`${API_URL}/opd/patient/${patientId}`, { headers: { Authorization: `Bearer ${token}` } }),
+                axios.get(`${API_URL}/patient-documents/patient/${patientId}`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { data: { documents: [] } } })),
+                axios.get(`${API_URL}/lab-orders/patient/${patientId}?includeCompleted=true`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { data: { orders: [] } } })),
+                axios.get(`${API_URL}/vitals/patient/${patientId}`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { data: { vitals: [] } } })),
+                axios.get(`${API_URL}/clinical-notes/patient/${patientId}`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { data: { notes: [] } } })),
+                axios.get(`${API_URL}/consultations/patient/${patientId}`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { data: { consultations: [] } } }))
             ]);
 
             setPatient(patientRes.data.data.patient);
@@ -142,18 +153,23 @@ export default function ReceptionistPatientDetails() {
             if (opdHistoryData.length > 0) {
                 setLatestOpdId(opdHistoryData[0].opd_id);
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error fetching patient details:', error);
+            if (error.response && error.response.status === 401) {
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                router.push('/login');
+            }
         } finally {
             setLoading(false);
         }
-    }, [params.id]);
+    }, [patientId, router]);
 
     useEffect(() => {
-        if (params.id) {
+        if (patientId) {
             fetchPatientDetails();
         }
-    }, [params.id, fetchPatientDetails]);
+    }, [patientId, fetchPatientDetails]);
 
     // Fetch filtered vitals and notes when filters change
     const fetchFilteredData = useCallback(async () => {
@@ -170,16 +186,16 @@ export default function ReceptionistPatientDetails() {
 
         try {
             const [vitalsRes, notesRes, labsRes, docsRes] = await Promise.all([
-                axios.get(`${API_URL}/vitals/patient/${params.id}?${filterParams.toString()}`, {
+                axios.get(`${API_URL}/vitals/patient/${patientId}?${filterParams.toString()}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 }).catch(() => ({ data: { data: { vitals: [] } } })),
-                axios.get(`${API_URL}/clinical-notes/patient/${params.id}?${filterParams.toString()}`, {
+                axios.get(`${API_URL}/clinical-notes/patient/${patientId}?${filterParams.toString()}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 }).catch(() => ({ data: { data: { notes: [] } } })),
-                axios.get(`${API_URL}/lab-orders/patient/${params.id}?${opdFilterParams.toString()}`, {
+                axios.get(`${API_URL}/lab-orders/patient/${patientId}?${opdFilterParams.toString()}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 }).catch(() => ({ data: { data: { orders: [] } } })),
-                axios.get(`${API_URL}/patient-documents/patient/${params.id}?${opdFilterParams.toString()}`, {
+                axios.get(`${API_URL}/patient-documents/patient/${patientId}?${opdFilterParams.toString()}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 }).catch(() => ({ data: { data: { documents: [] } } }))
             ]);
@@ -191,14 +207,14 @@ export default function ReceptionistPatientDetails() {
         } catch (error) {
             console.error('Error fetching filtered data:', error);
         }
-    }, [params.id, selectedOpdId, filterStartDate, filterEndDate]);
+    }, [patientId, selectedOpdId, filterStartDate, filterEndDate]);
 
     // Re-fetch when filters change
     useEffect(() => {
-        if (params.id && (selectedOpdId || filterStartDate || filterEndDate)) {
+        if (patientId && (selectedOpdId || filterStartDate || filterEndDate)) {
             fetchFilteredData();
         }
-    }, [params.id, selectedOpdId, filterStartDate, filterEndDate, fetchFilteredData]);
+    }, [patientId, selectedOpdId, filterStartDate, filterEndDate, fetchFilteredData]);
 
     // Clear filters and refetch all data
     const clearFilters = () => {
@@ -231,6 +247,80 @@ export default function ReceptionistPatientDetails() {
     };
 
     // Download consultation as text file
+
+    const handleViewMlc = async (e: React.MouseEvent) => {
+        e.preventDefault();
+        try {
+            console.log('MLC View Button Clicked');
+
+            // Logic to find relevant OPD ID for MLC
+            let opdId = null;
+
+            // 1. Try to find the OPD marked as MLC in history
+            const mlcOpd = opdHistory.find((opd: any) => opd.is_mlc);
+            if (mlcOpd) {
+                opdId = mlcOpd.opd_id;
+            } else if (patient?.is_mlc) {
+                // 2. If patient is MLC but no OPD is explicitly marked in history loaded?
+                // Try latest OPD or selected OPD
+                opdId = selectedOpdId || latestOpdId;
+            }
+
+            if (!opdId) {
+                // Determine if we should allow checking anyway?
+                // If patient.is_mlc is true, maybe backend can find it by patient ID?
+                // But endpoint is /mlc/opd/:id.
+                // We also have /mlc/patient/:id? No, existing endpoints: /mlc (POST), /mlc/opd/:id (GET).
+                // Let's assume we need an OPD ID.
+                if (opdHistory.length > 0) opdId = opdHistory[0].opd_id;
+            }
+
+            if (!opdId) {
+                alert('No OPD record found to fetch MLC details.');
+                return;
+            }
+
+            const token = localStorage.getItem('token');
+            const response = await axios.get(`${API_URL}/mlc/opd/${opdId}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (response.data.data.exists && response.data.data.mlc) {
+                setMlcData(response.data.data.mlc);
+                setShowMlcModal(true);
+            } else {
+                alert('No MLC Certificate found. The doctor has not generated it yet.');
+            }
+        } catch (error: any) {
+            console.error('Error fetching MLC:', error);
+            alert('Failed to load MLC details.');
+        }
+    };
+
+    const handlePrintMlc = () => {
+        if (mlcData) {
+            printMlcCertificate(mlcData, patient);
+        }
+    };
+
+    const handleOpenWoundCert = () => {
+        if (!mlcData) return;
+        // Map MLC data to Wound Cert data fields
+        setWoundCertData({
+            incident_date_time: mlcData.incident_date_time || '',
+            alleged_cause: mlcData.alleged_cause || '',
+            history_alleged: mlcData.history_alleged || '',
+            examination_findings: mlcData.examination_findings || '',
+            性质_of_injury: mlcData.nature_of_injury || 'Simple', // Typo in target? No, using my own key.
+            nature_of_injury: mlcData.nature_of_injury || 'Simple',
+            danger_to_life: mlcData.danger_to_life || 'No',
+            age_of_injuries: mlcData.age_of_injuries || '',
+            treatment_given: mlcData.treatment_given || '',
+            remarks: mlcData.remarks || ''
+        });
+        setShowWoundCertModal(true);
+    };
+
     // Print consultation as formatted PDF (opens print dialog)
     const handlePrintConsultation = (consult: any) => {
         const printWindow = window.open('', '_blank');
@@ -461,7 +551,7 @@ export default function ReceptionistPatientDetails() {
             const token = localStorage.getItem('token');
             const formData = new FormData();
             formData.append('file', file);
-            formData.append('patient_id', params.id as string);
+            formData.append('patient_id', patientId as string);
             formData.append('document_type', docType);
             formData.append('description', description);
 
@@ -523,60 +613,6 @@ export default function ReceptionistPatientDetails() {
             fetchPatientDetails();
         } catch (error) {
             console.error('Error deleting note:', error);
-        }
-    };
-
-    // Vitals handler
-    const handleSaveVitals = async () => {
-        if (!latestOpdId) {
-            alert('No active OPD visit found to record vitals against.');
-            return;
-        }
-
-        setSaving(true);
-        try {
-            const token = localStorage.getItem('token');
-            const user = JSON.parse(localStorage.getItem('user') || '{}');
-
-            // Prepare vitals data
-            const vitalsData = {
-                patient_id: params.id,
-                opd_id: latestOpdId,
-                blood_pressure_systolic: vitalsForm.bp_systolic || null,
-                blood_pressure_diastolic: vitalsForm.bp_diastolic || null,
-                pulse_rate: vitalsForm.pulse || null,
-                temperature: vitalsForm.temperature || null,
-                weight: vitalsForm.weight || null,
-                height: vitalsForm.height || null,
-                spo2: vitalsForm.spo2 || null,
-                respiratory_rate: null,
-                recorded_by: user.user_id
-            };
-
-            await axios.post(`${API_URL}/vitals`, vitalsData, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-
-            // Refresh data
-            await fetchPatientDetails();
-            setShowVitalsModal(false);
-
-            // Reset form
-            setVitalsForm({
-                bp_systolic: '',
-                bp_diastolic: '',
-                pulse: '',
-                temperature: '',
-                weight: '',
-                height: '',
-                spo2: '',
-                grbs: ''
-            });
-        } catch (error) {
-            console.error('Error saving vitals:', error);
-            alert('Failed to save vitals. Please try again.');
-        } finally {
-            setSaving(false);
         }
     };
 
@@ -662,6 +698,11 @@ export default function ReceptionistPatientDetails() {
                                         {patient.blood_group}
                                     </span>
                                 )}
+                                {(patient.is_mlc || opdHistory.some((opd: any) => opd.is_mlc)) && (
+                                    <span className="px-3 py-1 bg-red-100 text-red-700 rounded-lg text-sm font-bold border border-red-200 flex items-center gap-1">
+                                        <Activity className="w-4 h-4" /> MLC CASE
+                                    </span>
+                                )}
                             </div>
 
                             <div className="flex flex-wrap gap-4 text-sm text-slate-600">
@@ -692,22 +733,32 @@ export default function ReceptionistPatientDetails() {
                             )}
                         </div>
 
-                        {/* Quick Actions - Disabled for Receptionist (Read Only) */}
+                        {/* Quick Actions */}
                         <div className="flex flex-col sm:flex-row gap-2">
                             <button
                                 onClick={() => setShowVitalsModal(true)}
-                                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 active:scale-95"
+                                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl font-medium text-sm hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20 whitespace-nowrap"
                             >
                                 <HeartPulse className="w-4 h-4" />
                                 Record Vitals
                             </button>
                             <button
                                 onClick={() => setShowNotesModal(true)}
-                                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-50 hover:text-blue-600 transition-all shadow-sm active:scale-95"
+                                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-medium text-sm hover:bg-slate-50 transition-all whitespace-nowrap"
                             >
                                 <FileText className="w-4 h-4" />
                                 Add Note
                             </button>
+                            {(patient.is_mlc || opdHistory.some((opd: any) => opd.is_mlc)) && userRole !== 'doctor' && (
+                                <button
+                                    type="button"
+                                    onClick={handleViewMlc}
+                                    className="flex items-center justify-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-xl font-medium text-sm hover:bg-red-100 transition-all shadow-sm whitespace-nowrap cursor-pointer active:scale-95"
+                                >
+                                    <FileText className="w-4 h-4" />
+                                    MLC Form
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div >
@@ -752,15 +803,18 @@ export default function ReceptionistPatientDetails() {
                                 })}
                             </span>
                         </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                            {latestVitals.blood_pressure_systolic && (
+                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-9 gap-2">
+                            {(latestVitals.blood_pressure_systolic || latestVitals.blood_pressure_diastolic) && (
                                 <VitalCard
-                                    label="Blood Pressure"
-                                    value={`${latestVitals.blood_pressure_systolic}/${latestVitals.blood_pressure_diastolic}`}
+                                    label={latestVitals.blood_pressure_systolic && latestVitals.blood_pressure_diastolic ? "Blood Pressure" : latestVitals.blood_pressure_systolic ? "Systolic BP" : "Diastolic BP"}
+                                    value={latestVitals.blood_pressure_systolic && latestVitals.blood_pressure_diastolic
+                                        ? `${latestVitals.blood_pressure_systolic}/${latestVitals.blood_pressure_diastolic}`
+                                        : latestVitals.blood_pressure_systolic || latestVitals.blood_pressure_diastolic}
                                     unit="mmHg"
-                                    trend={getVitalsTrend(latestVitals.blood_pressure_systolic, previousVitals?.blood_pressure_systolic)}
-                                    icon={<Activity className="w-5 h-5" />}
+                                    trend={getVitalsTrend(latestVitals.blood_pressure_systolic || latestVitals.blood_pressure_diastolic, previousVitals?.blood_pressure_systolic || previousVitals?.blood_pressure_diastolic)}
+                                    icon={<Activity className="w-4 h-4" />}
                                     color="blue"
+                                    onClick={() => setSelectedVitalForGraph('blood_pressure_systolic')}
                                 />
                             )}
                             {latestVitals.pulse_rate && (
@@ -769,8 +823,9 @@ export default function ReceptionistPatientDetails() {
                                     value={latestVitals.pulse_rate}
                                     unit="bpm"
                                     trend={getVitalsTrend(latestVitals.pulse_rate, previousVitals?.pulse_rate)}
-                                    icon={<HeartPulse className="w-5 h-5" />}
+                                    icon={<HeartPulse className="w-4 h-4" />}
                                     color="red"
+                                    onClick={() => setSelectedVitalForGraph('pulse_rate')}
                                 />
                             )}
                             {latestVitals.temperature && (
@@ -779,8 +834,9 @@ export default function ReceptionistPatientDetails() {
                                     value={latestVitals.temperature}
                                     unit="°F"
                                     trend={getVitalsTrend(latestVitals.temperature, previousVitals?.temperature)}
-                                    icon={<Thermometer className="w-5 h-5" />}
+                                    icon={<Thermometer className="w-4 h-4" />}
                                     color="amber"
+                                    onClick={() => setSelectedVitalForGraph('temperature')}
                                 />
                             )}
                             {latestVitals.spo2 && (
@@ -789,8 +845,9 @@ export default function ReceptionistPatientDetails() {
                                     value={latestVitals.spo2}
                                     unit="%"
                                     trend={getVitalsTrend(latestVitals.spo2, previousVitals?.spo2)}
-                                    icon={<Droplets className="w-5 h-5" />}
+                                    icon={<Droplets className="w-4 h-4" />}
                                     color="cyan"
+                                    onClick={() => setSelectedVitalForGraph('spo2')}
                                 />
                             )}
                             {latestVitals.respiratory_rate && (
@@ -799,8 +856,9 @@ export default function ReceptionistPatientDetails() {
                                     value={latestVitals.respiratory_rate}
                                     unit="/min"
                                     trend={getVitalsTrend(latestVitals.respiratory_rate, previousVitals?.respiratory_rate)}
-                                    icon={<Wind className="w-5 h-5" />}
+                                    icon={<Wind className="w-4 h-4" />}
                                     color="teal"
+                                    onClick={() => setSelectedVitalForGraph('respiratory_rate')}
                                 />
                             )}
                             {latestVitals.weight && (
@@ -809,8 +867,42 @@ export default function ReceptionistPatientDetails() {
                                     value={latestVitals.weight}
                                     unit="kg"
                                     trend={getVitalsTrend(latestVitals.weight, previousVitals?.weight)}
-                                    icon={<User className="w-5 h-5" />}
+                                    icon={<User className="w-4 h-4" />}
                                     color="violet"
+                                    onClick={() => setSelectedVitalForGraph('weight')}
+                                />
+                            )}
+                            {latestVitals.height && (
+                                <VitalCard
+                                    label="Height"
+                                    value={latestVitals.height}
+                                    unit="cm"
+                                    trend={getVitalsTrend(latestVitals.height, previousVitals?.height)}
+                                    icon={<Ruler className="w-4 h-4" />}
+                                    color="indigo"
+                                    onClick={() => setSelectedVitalForGraph('height')}
+                                />
+                            )}
+                            {latestVitals.blood_glucose && (
+                                <VitalCard
+                                    label="Glucose"
+                                    value={latestVitals.blood_glucose}
+                                    unit="mg/dL"
+                                    trend={getVitalsTrend(latestVitals.blood_glucose, previousVitals?.blood_glucose)}
+                                    icon={<Droplets className="w-4 h-4" />}
+                                    color="rose"
+                                    onClick={() => setSelectedVitalForGraph('blood_glucose')}
+                                />
+                            )}
+                            {latestVitals.pain_level !== null && latestVitals.pain_level !== undefined && (
+                                <VitalCard
+                                    label="Pain"
+                                    value={latestVitals.pain_level}
+                                    unit="/10"
+                                    trend={getVitalsTrend(latestVitals.pain_level, previousVitals?.pain_level)}
+                                    icon={<AlertTriangle className="w-4 h-4" />}
+                                    color="orange"
+                                    onClick={() => setSelectedVitalForGraph('pain_level')}
                                 />
                             )}
                         </div>
@@ -982,40 +1074,89 @@ export default function ReceptionistPatientDetails() {
                                                 <span className="text-xs text-slate-400">by {vital.recorded_by_full_name || vital.recorded_by_name || 'Staff'}</span>
                                             </div>
 
-                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                                {vital.blood_pressure_systolic && vital.blood_pressure_diastolic && (
-                                                    <div className="bg-white rounded-lg p-3 border border-slate-100">
-                                                        <p className="text-xs text-slate-500 mb-1">Blood Pressure</p>
-                                                        <p className="text-lg font-bold text-slate-800">
-                                                            {vital.blood_pressure_systolic}/{vital.blood_pressure_diastolic}
-                                                            <span className="text-xs font-normal text-slate-400 ml-1">mmHg</span>
+                                            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-9 gap-2">
+                                                {(vital.blood_pressure_systolic || vital.blood_pressure_diastolic) && (
+                                                    <div className="bg-white rounded-md p-2 border border-slate-100">
+                                                        <p className="text-xs font-medium text-slate-600 mb-0.5">
+                                                            {vital.blood_pressure_systolic && vital.blood_pressure_diastolic ? 'BP' : vital.blood_pressure_systolic ? 'Sys. BP' : 'Dia. BP'}
+                                                        </p>
+                                                        <p className="text-sm font-bold text-slate-800">
+                                                            {vital.blood_pressure_systolic && vital.blood_pressure_diastolic
+                                                                ? `${vital.blood_pressure_systolic}/${vital.blood_pressure_diastolic}`
+                                                                : vital.blood_pressure_systolic || vital.blood_pressure_diastolic}
+                                                            <span className="text-xs font-normal text-slate-500 ml-0.5">mmHg</span>
                                                         </p>
                                                     </div>
                                                 )}
                                                 {vital.pulse_rate && (
-                                                    <div className="bg-white rounded-lg p-3 border border-slate-100">
-                                                        <p className="text-xs text-slate-500 mb-1">Pulse Rate</p>
-                                                        <p className="text-lg font-bold text-slate-800">
+                                                    <div className="bg-white rounded-md p-2 border border-slate-100">
+                                                        <p className="text-xs font-medium text-slate-600 mb-0.5">Pulse</p>
+                                                        <p className="text-sm font-bold text-slate-800">
                                                             {vital.pulse_rate}
-                                                            <span className="text-xs font-normal text-slate-400 ml-1">bpm</span>
+                                                            <span className="text-xs font-normal text-slate-500 ml-0.5">bpm</span>
                                                         </p>
                                                     </div>
                                                 )}
                                                 {vital.temperature && (
-                                                    <div className="bg-white rounded-lg p-3 border border-slate-100">
-                                                        <p className="text-xs text-slate-500 mb-1">Temperature</p>
-                                                        <p className="text-lg font-bold text-slate-800">
+                                                    <div className="bg-white rounded-md p-2 border border-slate-100">
+                                                        <p className="text-xs font-medium text-slate-600 mb-0.5">Temp</p>
+                                                        <p className="text-sm font-bold text-slate-800">
                                                             {vital.temperature}
-                                                            <span className="text-xs font-normal text-slate-400 ml-1">°F</span>
+                                                            <span className="text-xs font-normal text-slate-500 ml-0.5">°F</span>
                                                         </p>
                                                     </div>
                                                 )}
                                                 {vital.spo2 && (
-                                                    <div className="bg-white rounded-lg p-3 border border-slate-100">
-                                                        <p className="text-xs text-slate-500 mb-1">SpO2</p>
-                                                        <p className="text-lg font-bold text-slate-800">
+                                                    <div className="bg-white rounded-md p-2 border border-slate-100">
+                                                        <p className="text-xs font-medium text-slate-600 mb-0.5">SpO2</p>
+                                                        <p className="text-sm font-bold text-slate-800">
                                                             {vital.spo2}
-                                                            <span className="text-xs font-normal text-slate-400 ml-1">%</span>
+                                                            <span className="text-xs font-normal text-slate-500 ml-0.5">%</span>
+                                                        </p>
+                                                    </div>
+                                                )}
+                                                {vital.respiratory_rate && (
+                                                    <div className="bg-white rounded-md p-2 border border-slate-100">
+                                                        <p className="text-xs font-medium text-slate-600 mb-0.5">Resp.</p>
+                                                        <p className="text-sm font-bold text-slate-800">
+                                                            {vital.respiratory_rate}
+                                                            <span className="text-xs font-normal text-slate-500 ml-0.5">/min</span>
+                                                        </p>
+                                                    </div>
+                                                )}
+                                                {vital.weight && (
+                                                    <div className="bg-white rounded-md p-2 border border-slate-100">
+                                                        <p className="text-xs font-medium text-slate-600 mb-0.5">Weight</p>
+                                                        <p className="text-sm font-bold text-slate-800">
+                                                            {vital.weight}
+                                                            <span className="text-xs font-normal text-slate-500 ml-0.5">kg</span>
+                                                        </p>
+                                                    </div>
+                                                )}
+                                                {vital.height && (
+                                                    <div className="bg-white rounded-md p-2 border border-slate-100">
+                                                        <p className="text-xs font-medium text-slate-600 mb-0.5">Height</p>
+                                                        <p className="text-sm font-bold text-slate-800">
+                                                            {vital.height}
+                                                            <span className="text-xs font-normal text-slate-500 ml-0.5">cm</span>
+                                                        </p>
+                                                    </div>
+                                                )}
+                                                {vital.blood_glucose && (
+                                                    <div className="bg-white rounded-md p-2 border border-slate-100">
+                                                        <p className="text-xs font-medium text-slate-600 mb-0.5">Glucose</p>
+                                                        <p className="text-sm font-bold text-slate-800">
+                                                            {vital.blood_glucose}
+                                                            <span className="text-xs font-normal text-slate-500 ml-0.5">mg/dL</span>
+                                                        </p>
+                                                    </div>
+                                                )}
+                                                {vital.pain_level !== null && vital.pain_level !== undefined && (
+                                                    <div className="bg-white rounded-md p-2 border border-slate-100">
+                                                        <p className="text-xs font-medium text-slate-600 mb-0.5">Pain</p>
+                                                        <p className="text-sm font-bold text-slate-800">
+                                                            {vital.pain_level}
+                                                            <span className="text-xs font-normal text-slate-500 ml-0.5">/10</span>
                                                         </p>
                                                     </div>
                                                 )}
@@ -1077,9 +1218,8 @@ export default function ReceptionistPatientDetails() {
                                         ))}
                                     </select>
                                     <button
-                                        disabled
-                                        title="Receptionist: Read-only access"
-                                        className="flex items-center gap-2 px-4 py-2 bg-slate-300 text-slate-500 rounded-lg text-sm font-medium cursor-not-allowed"
+                                        onClick={() => setShowNotesModal(true)}
+                                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-all"
                                     >
                                         <Plus className="w-4 h-4" />
                                         Add Note
@@ -1249,7 +1389,7 @@ export default function ReceptionistPatientDetails() {
                                 <h3 className="text-lg font-bold text-slate-800">Documents</h3>
                                 <button
                                     onClick={() => setShowUploadModal(true)}
-                                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-all shadow-sm active:scale-95"
+                                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-all"
                                 >
                                     <Upload className="w-4 h-4" />
                                     Upload
@@ -1322,9 +1462,12 @@ export default function ReceptionistPatientDetails() {
                                         {selectedOpdId ? 'No documents for this OPD session' : 'No documents uploaded'}
                                     </p>
                                     {!selectedOpdId && (
-                                        <span className="mt-4 text-slate-400 text-sm font-medium">
-                                            (Read-only access)
-                                        </span>
+                                        <button
+                                            onClick={() => setShowUploadModal(true)}
+                                            className="mt-4 text-blue-600 text-sm font-medium hover:underline"
+                                        >
+                                            Upload the first document
+                                        </button>
                                     )}
                                 </div>
                             )}
@@ -1590,18 +1733,49 @@ export default function ReceptionistPatientDetails() {
                     </div>
                 )
             }
+
+            {/* Vital Trend Graph Modal */}
+            {
+                selectedVitalForGraph && (
+                    <VitalsGraphModal
+                        vitalKey={selectedVitalForGraph}
+                        vitalsHistory={vitalsHistory}
+                        onClose={() => setSelectedVitalForGraph(null)}
+                    />
+                )
+            }
+
+            {/* MLC View Modal */}
+            <MlcModal
+                isOpen={showMlcModal}
+                onClose={() => setShowMlcModal(false)}
+                mlcData={mlcData}
+                isReadOnly={true}
+                onPrint={() => printMlcCertificate(mlcData, patient)}
+                onOpenWoundCert={handleOpenWoundCert}
+                existingMlc={mlcData}
+            />
+
+            <WoundCertModal
+                isOpen={showWoundCertModal}
+                onClose={() => setShowWoundCertModal(false)}
+                data={woundCertData}
+                isReadOnly={true}
+                onPrint={() => printWoundCertificate(mlcData, woundCertData, patient)}
+            />
         </div >
     );
 }
 
 // Vital Card Component
-function VitalCard({ label, value, unit, trend, icon, color }: {
+function VitalCard({ label, value, unit, trend, icon, color, onClick }: {
     label: string;
     value: string | number;
     unit: string;
     trend: 'up' | 'down' | 'stable' | null;
     icon: React.ReactNode;
     color: string;
+    onClick?: () => void;
 }) {
     const colorClasses: Record<string, string> = {
         blue: 'bg-blue-50 text-blue-600',
@@ -1610,29 +1784,45 @@ function VitalCard({ label, value, unit, trend, icon, color }: {
         cyan: 'bg-cyan-50 text-cyan-600',
         teal: 'bg-teal-50 text-teal-600',
         violet: 'bg-violet-50 text-violet-600',
+        indigo: 'bg-indigo-50 text-indigo-600',
+        rose: 'bg-rose-50 text-rose-600',
+        orange: 'bg-orange-50 text-orange-600',
     };
 
+    // Trend-based border and background styling
+    const trendStyles = {
+        up: 'border-l-4 border-l-red-400 bg-red-50/30',
+        down: 'border-l-4 border-l-green-400 bg-green-50/30',
+        stable: 'border-l-4 border-l-slate-300 bg-slate-50',
+    };
+
+    const cardStyle = trend ? trendStyles[trend] : 'bg-slate-50 border border-slate-100';
+
     return (
-        <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
-            <div className="flex items-center justify-between mb-2">
-                <div className={`p-2 rounded-lg ${colorClasses[color]}`}>
+        <div
+            className={`rounded-lg p-2.5 cursor-pointer hover:shadow-md transition-all ${cardStyle} ${onClick ? 'hover:scale-[1.02]' : ''}`}
+            onClick={onClick}
+            title="Click to view trend graph"
+        >
+            <div className="flex items-center justify-between mb-1">
+                <div className={`p-1.5 rounded-md ${colorClasses[color]}`}>
                     {icon}
                 </div>
                 {trend && (
-                    <span className={`${trend === 'up' ? 'text-red-500' :
-                        trend === 'down' ? 'text-green-500' :
-                            'text-slate-400'
+                    <span className={`p-1 rounded-full ${trend === 'up' ? 'bg-red-100 text-red-600' :
+                        trend === 'down' ? 'bg-green-100 text-green-600' :
+                            'bg-slate-100 text-slate-500'
                         }`}>
-                        {trend === 'up' ? <TrendingUp className="w-4 h-4" /> :
-                            trend === 'down' ? <TrendingDown className="w-4 h-4" /> :
-                                <Minus className="w-4 h-4" />}
+                        {trend === 'up' ? <TrendingUp className="w-3.5 h-3.5" /> :
+                            trend === 'down' ? <TrendingDown className="w-3.5 h-3.5" /> :
+                                <Minus className="w-3.5 h-3.5" />}
                     </span>
                 )}
             </div>
-            <p className="text-xs text-slate-500 mb-1">{label}</p>
-            <p className="text-xl font-bold text-slate-800">
+            <p className="text-xs font-medium text-slate-600 mb-0.5">{label}</p>
+            <p className="text-lg font-bold text-slate-800">
                 {value}
-                <span className="text-xs font-normal text-slate-400 ml-1">{unit}</span>
+                <span className="text-xs font-normal text-slate-500 ml-0.5">{unit}</span>
             </p>
         </div>
     );
@@ -2196,6 +2386,189 @@ function DocumentUploadModal({
                 </div>
             </div>
 
+        </div>
+    );
+}
+
+// Vitals Graph Modal Component
+function VitalsGraphModal({
+    vitalKey,
+    vitalsHistory,
+    onClose
+}: {
+    vitalKey: string;
+    vitalsHistory: any[];
+    onClose: () => void;
+}) {
+    // Vital configuration
+    const vitalConfig: Record<string, { label: string; unit: string; color: string; normalRange?: { min: number; max: number } }> = {
+        blood_pressure_systolic: { label: 'Blood Pressure (Systolic)', unit: 'mmHg', color: '#3b82f6', normalRange: { min: 90, max: 120 } },
+        blood_pressure_diastolic: { label: 'Blood Pressure (Diastolic)', unit: 'mmHg', color: '#6366f1', normalRange: { min: 60, max: 80 } },
+        pulse_rate: { label: 'Pulse Rate', unit: 'bpm', color: '#ef4444', normalRange: { min: 60, max: 100 } },
+        temperature: { label: 'Temperature', unit: '°F', color: '#f59e0b', normalRange: { min: 97, max: 99 } },
+        spo2: { label: 'SpO2', unit: '%', color: '#06b6d4', normalRange: { min: 95, max: 100 } },
+        respiratory_rate: { label: 'Respiratory Rate', unit: '/min', color: '#14b8a6', normalRange: { min: 12, max: 20 } },
+        weight: { label: 'Weight', unit: 'kg', color: '#8b5cf6' },
+        height: { label: 'Height', unit: 'cm', color: '#6366f1' },
+        blood_glucose: { label: 'Blood Glucose', unit: 'mg/dL', color: '#ec4899', normalRange: { min: 70, max: 100 } },
+        pain_level: { label: 'Pain Level', unit: '/10', color: '#f97316', normalRange: { min: 0, max: 3 } },
+    };
+
+    const config = vitalConfig[vitalKey] || { label: vitalKey, unit: '', color: '#3b82f6' };
+
+    // Prepare chart data - reverse to show oldest first
+    const chartData = vitalsHistory
+        .filter(v => v[vitalKey] !== null && v[vitalKey] !== undefined)
+        .reverse()
+        .map(v => ({
+            date: new Date(v.recorded_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+            time: new Date(v.recorded_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+            value: parseFloat(v[vitalKey]),
+            fullDate: new Date(v.recorded_at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }),
+        }));
+
+    // Calculate stats
+    const values = chartData.map(d => d.value);
+    const minValue = values.length > 0 ? Math.min(...values) : 0;
+    const maxValue = values.length > 0 ? Math.max(...values) : 0;
+    const avgValue = values.length > 0 ? (values.reduce((a, b) => a + b, 0) / values.length).toFixed(1) : 0;
+    const latestValue = values.length > 0 ? values[values.length - 1] : 0;
+    const previousValue = values.length > 1 ? values[values.length - 2] : null;
+    const change = previousValue !== null ? ((latestValue - previousValue) / previousValue * 100).toFixed(1) : null;
+
+    return (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden">
+                {/* Header */}
+                <div className="p-6 border-b border-slate-100 bg-gradient-to-r from-blue-50 to-indigo-50">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-xl" style={{ backgroundColor: `${config.color}20` }}>
+                                <TrendingUp className="w-6 h-6" style={{ color: config.color }} />
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-bold text-slate-800">{config.label} Trend</h2>
+                                <p className="text-sm text-slate-500">
+                                    {chartData.length} readings • Last {vitalsHistory.length > 0 ? Math.ceil((Date.now() - new Date(vitalsHistory[vitalsHistory.length - 1]?.recorded_at).getTime()) / (1000 * 60 * 60 * 24)) : 0} days
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={onClose}
+                            className="p-2 hover:bg-white/80 rounded-lg transition-all"
+                        >
+                            <X className="w-5 h-5 text-slate-500" />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Stats Cards */}
+                <div className="p-4 border-b border-slate-100 bg-slate-50">
+                    <div className="grid grid-cols-4 gap-3">
+                        <div className="bg-white rounded-lg p-3 border border-slate-100">
+                            <p className="text-xs text-slate-500 font-medium">Current</p>
+                            <p className="text-lg font-bold text-slate-800">{latestValue} <span className="text-xs font-normal text-slate-400">{config.unit}</span></p>
+                            {change !== null && (
+                                <p className={`text-xs font-medium ${parseFloat(change) > 0 ? 'text-red-500' : parseFloat(change) < 0 ? 'text-green-500' : 'text-slate-400'}`}>
+                                    {parseFloat(change) > 0 ? '↑' : parseFloat(change) < 0 ? '↓' : '—'} {Math.abs(parseFloat(change))}%
+                                </p>
+                            )}
+                        </div>
+                        <div className="bg-white rounded-lg p-3 border border-slate-100">
+                            <p className="text-xs text-slate-500 font-medium">Average</p>
+                            <p className="text-lg font-bold text-slate-800">{avgValue} <span className="text-xs font-normal text-slate-400">{config.unit}</span></p>
+                        </div>
+                        <div className="bg-white rounded-lg p-3 border border-slate-100">
+                            <p className="text-xs text-slate-500 font-medium">Min</p>
+                            <p className="text-lg font-bold text-slate-800">{minValue} <span className="text-xs font-normal text-slate-400">{config.unit}</span></p>
+                        </div>
+                        <div className="bg-white rounded-lg p-3 border border-slate-100">
+                            <p className="text-xs text-slate-500 font-medium">Max</p>
+                            <p className="text-lg font-bold text-slate-800">{maxValue} <span className="text-xs font-normal text-slate-400">{config.unit}</span></p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Chart */}
+                <div className="p-6">
+                    {chartData.length > 1 ? (
+                        <div className="h-64">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <LineChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                                    <XAxis
+                                        dataKey="date"
+                                        tick={{ fontSize: 11, fill: '#64748b' }}
+                                        tickLine={{ stroke: '#cbd5e1' }}
+                                    />
+                                    <YAxis
+                                        domain={['auto', 'auto']}
+                                        tick={{ fontSize: 11, fill: '#64748b' }}
+                                        tickLine={{ stroke: '#cbd5e1' }}
+                                        width={40}
+                                    />
+                                    <Tooltip
+                                        contentStyle={{
+                                            backgroundColor: '#fff',
+                                            border: '1px solid #e2e8f0',
+                                            borderRadius: '8px',
+                                            boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                                        }}
+                                        formatter={(value: number) => [`${value} ${config.unit}`, config.label]}
+                                        labelFormatter={(label, payload) => payload?.[0]?.payload?.fullDate || label}
+                                    />
+                                    <Line
+                                        type="monotone"
+                                        dataKey="value"
+                                        stroke={config.color}
+                                        strokeWidth={2.5}
+                                        dot={{ fill: config.color, strokeWidth: 2, r: 4 }}
+                                        activeDot={{ r: 6, fill: config.color, stroke: '#fff', strokeWidth: 2 }}
+                                    />
+                                </LineChart>
+                            </ResponsiveContainer>
+                        </div>
+                    ) : chartData.length === 1 ? (
+                        <div className="text-center py-12">
+                            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 mb-4">
+                                <Activity className="w-8 h-8 text-blue-600" />
+                            </div>
+                            <h3 className="text-lg font-bold text-slate-800 mb-2">Only one reading</h3>
+                            <p className="text-sm text-slate-500">Record more vitals to see the trend over time.</p>
+                            <div className="mt-4 text-2xl font-bold" style={{ color: config.color }}>
+                                {chartData[0].value} {config.unit}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="text-center py-12">
+                            <AlertTriangle className="w-12 h-12 text-amber-400 mx-auto mb-4" />
+                            <h3 className="text-lg font-bold text-slate-800 mb-2">No data available</h3>
+                            <p className="text-sm text-slate-500">No readings recorded for this vital sign yet.</p>
+                        </div>
+                    )}
+                </div>
+
+                {/* Normal Range Info */}
+                {config.normalRange && (
+                    <div className="px-6 pb-4">
+                        <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-100">
+                            <p className="text-xs font-medium text-emerald-700">
+                                Normal Range: {config.normalRange.min} - {config.normalRange.max} {config.unit}
+                            </p>
+                        </div>
+                    </div>
+                )}
+
+                {/* Footer */}
+                <div className="p-4 border-t border-slate-100 bg-slate-50">
+                    <button
+                        onClick={onClose}
+                        className="w-full px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-200 transition-all"
+                    >
+                        Close
+                    </button>
+                </div>
+            </div>
 
         </div>
     );
