@@ -329,11 +329,34 @@ class BillingController {
         try {
             const { id } = req.params;
 
-            // Master
+            // Master with enriched details
             const masterResult = await query(`
-                SELECT bm.*, oe.token_number
+                SELECT 
+                    bm.*, 
+                    oe.token_number,
+                    oe.visit_type,
+                    oe.created_at as registered_date,
+                    p.age,
+                    p.gender,
+                    p.address as patient_address_line1,
+                    p.address_line2 as patient_address_line2,
+                    p.city as patient_city,
+                    p.state as patient_state,
+                    d.first_name || ' ' || d.last_name as doctor_name,
+                    dep.department_name,
+                    b.branch_name as clinic_name,
+                    b.address_line1 as clinic_address_line1,
+                    b.address_line2 as clinic_address_line2,
+                    b.city as clinic_city,
+                    b.state as clinic_state,
+                    b.pincode as clinic_pincode,
+                    b.contact_number as clinic_phone
                 FROM billing_master bm
                 LEFT JOIN opd_entries oe ON bm.opd_id = oe.opd_id
+                LEFT JOIN patients p ON bm.patient_id = p.patient_id
+                LEFT JOIN doctors d ON oe.doctor_id = d.doctor_id
+                LEFT JOIN departments dep ON oe.department_id = dep.department_id
+                LEFT JOIN branches b ON bm.branch_id = b.branch_id
                 WHERE bm.bill_master_id = $1
             `, [id]);
 

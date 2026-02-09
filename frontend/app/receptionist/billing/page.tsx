@@ -495,9 +495,13 @@ export default function BillingPage() {
                         setSelectedPendingOpd(null);
                     }}
                     opdData={selectedPendingOpd}
-                    onSuccess={() => {
+                    onSuccess={(data) => {
                         fetchPendingClearances();
                         if (activeTab === 'paid') fetchBills();
+                        // Automatically show invoice after payment
+                        if (data && data.bill_master_id) {
+                            handleViewInvoice(data.bill_master_id);
+                        }
                     }}
                 />
             )}

@@ -474,6 +474,7 @@ export default function ReceptionistDashboard() {
                     visit_type: 'Appointment',
                     consultation_fee: consultationFee,
                     appointment_id: patient.appointment_id || '',
+                    patient_id: fullPatient.patient_id,
                     chief_complaint: patient.reason_for_visit || '',
                     visit_date: format(new Date(), 'yyyy-MM-dd'),
                     visit_time: format(new Date(), 'HH:mm')
@@ -526,6 +527,7 @@ export default function ReceptionistDashboard() {
                     visit_type: 'Appointment',
                     consultation_fee: consultationFee,
                     appointment_id: patient.appointment_id || '',
+                    patient_id: patient.patient_id,
                     chief_complaint: patient.reason_for_visit || '',
                     visit_date: format(new Date(), 'yyyy-MM-dd'),
                     visit_time: format(new Date(), 'HH:mm')
@@ -641,8 +643,11 @@ export default function ReceptionistDashboard() {
                 doctor_id: doctorId,
                 visit_type: visitType,
                 consultation_fee: consultationFee,
+                patient_id: patient.patient_id,
                 ...aptArgs // Add appointment_id if present
-            } : {})
+            } : {
+                patient_id: patient.patient_id
+            })
         }));
 
         // Clear search results after selection
@@ -1818,49 +1823,75 @@ export default function ReceptionistDashboard() {
                                                     placeholder="e.g. John Doe"
                                                 />
                                             </div>
-                                            {/* Row 2: Age | Gender | Blood Group */}
-                                            <div className={((opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && !opdForm.is_mlc) || (!!selectedPatient && !!selectedPatient.contact_number) ? 'opacity-50 pointer-events-none' : ''}>
-                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Age {opdForm.is_mlc ? '(Optional)' : <span className="text-red-500">*</span>}</label>
-                                                <input type="number" required={!opdForm.is_mlc} value={opdForm.age} onChange={(e) => setOpdForm({ ...opdForm, age: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium" />
-                                            </div>
-                                            <div className={(opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient ? 'opacity-50 pointer-events-none' : ''}>
-                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Gender {opdForm.is_mlc ? '(Optional)' : <span className="text-red-500">*</span>}</label>
-                                                <select required={!opdForm.is_mlc} value={opdForm.gender} onChange={(e) => setOpdForm({ ...opdForm, gender: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium">
-                                                    <option value="">Select</option>
-                                                    <option value="Male">Male</option>
-                                                    <option value="Female">Female</option>
-                                                    <option value="Pediatric">Pediatric</option>
-                                                    <option value="Other">Other</option>
-                                                </select>
-                                            </div>
-                                            <div className={`md:col-span-2 ${((opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && !opdForm.is_mlc) || (!!selectedPatient && !!selectedPatient.contact_number) ? 'opacity-50 pointer-events-none' : ''}`}>
-                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Blood Group</label>
-                                                <select value={opdForm.blood_group} onChange={(e) => setOpdForm({ ...opdForm, blood_group: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium">
-                                                    <option value="">Unknown</option>
-                                                    <option value="A+">A+</option>
-                                                    <option value="A-">A-</option>
-                                                    <option value="B+">B+</option>
-                                                    <option value="B-">B-</option>
-                                                    <option value="O+">O+</option>
-                                                    <option value="O-">O-</option>
-                                                    <option value="AB+">AB+</option>
-                                                    <option value="AB-">AB-</option>
-                                                </select>
-                                            </div>
-                                            <div className={`md:col-span-2 ${((opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && !opdForm.is_mlc) || (!!selectedPatient && !!selectedPatient.contact_number) ? 'opacity-50 pointer-events-none' : ''}`}>
-                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Aadhaar Number</label>
-                                                <input
-                                                    type="text"
-                                                    value={opdForm.adhaar_number}
-                                                    onChange={(e) => {
-                                                        const value = e.target.value.replace(/\D/g, "");
-                                                        if (value.length <= 12) setOpdForm({ ...opdForm, adhaar_number: value });
-                                                    }}
-                                                    maxLength={12}
-                                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
-                                                    placeholder="12-digit Aadhaar"
-                                                />
-                                            </div>
+                                            {/* Row 2: Age | Gender | Blood Group | Aadhaar */}
+                                            {(() => {
+                                                const isPatientDetailsLocked = ((opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && !opdForm.is_mlc) || (!!selectedPatient && !!selectedPatient.contact_number);
+                                                return (
+                                                    <>
+                                                        <div className={isPatientDetailsLocked ? 'opacity-50 pointer-events-none' : ''}>
+                                                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Age {opdForm.is_mlc ? '(Optional)' : <span className="text-red-500">*</span>}</label>
+                                                            <input
+                                                                type="number"
+                                                                required={!opdForm.is_mlc}
+                                                                value={opdForm.age}
+                                                                onChange={(e) => setOpdForm({ ...opdForm, age: e.target.value })}
+                                                                disabled={isPatientDetailsLocked}
+                                                                className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isPatientDetailsLocked ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`}
+                                                            />
+                                                        </div>
+                                                        <div className={isPatientDetailsLocked ? 'opacity-50 pointer-events-none' : ''}>
+                                                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Gender {opdForm.is_mlc ? '(Optional)' : <span className="text-red-500">*</span>}</label>
+                                                            <select
+                                                                required={!opdForm.is_mlc}
+                                                                value={opdForm.gender}
+                                                                onChange={(e) => setOpdForm({ ...opdForm, gender: e.target.value })}
+                                                                disabled={isPatientDetailsLocked}
+                                                                className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isPatientDetailsLocked ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`}
+                                                            >
+                                                                <option value="">Select</option>
+                                                                <option value="Male">Male</option>
+                                                                <option value="Female">Female</option>
+                                                                <option value="Pediatric">Pediatric</option>
+                                                                <option value="Other">Other</option>
+                                                            </select>
+                                                        </div>
+                                                        <div className={`md:col-span-2 ${isPatientDetailsLocked ? 'opacity-50 pointer-events-none' : ''}`}>
+                                                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Blood Group</label>
+                                                            <select
+                                                                value={opdForm.blood_group}
+                                                                onChange={(e) => setOpdForm({ ...opdForm, blood_group: e.target.value })}
+                                                                disabled={isPatientDetailsLocked}
+                                                                className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isPatientDetailsLocked ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`}
+                                                            >
+                                                                <option value="">Unknown</option>
+                                                                <option value="A+">A+</option>
+                                                                <option value="A-">A-</option>
+                                                                <option value="B+">B+</option>
+                                                                <option value="B-">B-</option>
+                                                                <option value="O+">O+</option>
+                                                                <option value="O-">O-</option>
+                                                                <option value="AB+">AB+</option>
+                                                                <option value="AB-">AB-</option>
+                                                            </select>
+                                                        </div>
+                                                        <div className={`md:col-span-2 ${isPatientDetailsLocked ? 'opacity-50 pointer-events-none' : ''}`}>
+                                                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Aadhaar Number</label>
+                                                            <input
+                                                                type="text"
+                                                                value={opdForm.adhaar_number}
+                                                                onChange={(e) => {
+                                                                    const value = e.target.value.replace(/\D/g, "");
+                                                                    if (value.length <= 12) setOpdForm({ ...opdForm, adhaar_number: value });
+                                                                }}
+                                                                maxLength={12}
+                                                                disabled={isPatientDetailsLocked}
+                                                                className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isPatientDetailsLocked ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`}
+                                                                placeholder="12-digit Aadhaar"
+                                                            />
+                                                        </div>
+                                                    </>
+                                                );
+                                            })()}
 
                                             {/* Address Details Section */}
                                             <div className={`md:col-span-6 mt-4 ${((opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && !opdForm.is_mlc) || (!!selectedPatient && !!selectedPatient.contact_number) ? 'opacity-50 pointer-events-none' : ''}`}>
@@ -1924,7 +1955,7 @@ export default function ReceptionistDashboard() {
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
+                                        </div >
                                     )}
 
                                     {/* Edit Mode - Show all fields */}

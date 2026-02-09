@@ -615,6 +615,7 @@ export default function OpdEntryPage() {
             doctor_id: doctorId,
             visit_type: suggestedVisitType,
             consultation_fee: consultationFee,
+            patient_id: patient.patient_id,
         });
         setSearchResults([]);
         setSearchQuery('');
@@ -702,8 +703,11 @@ export default function OpdEntryPage() {
                 doctor_id: doctorId,
                 visit_type: visitType,
                 consultation_fee: consultationFee,
+                patient_id: patient.patient_id,
                 ...aptArgs // Add appointment_id if present
-            } : {})
+            } : {
+                patient_id: patient.patient_id
+            })
         }));
 
         // Clear search results after selection
@@ -740,6 +744,7 @@ export default function OpdEntryPage() {
             doctor_id: lastDoctorId,
             visit_type: 'Follow-up', // Auto-set to Follow-up
             consultation_fee: consultationFee,
+            patient_id: patient.patient_id,
         });
 
         // Clear modal search and show form
@@ -2050,7 +2055,13 @@ export default function OpdEntryPage() {
                                             </div>
                                             <div className={isPatientDetailsLocked ? 'opacity-50 pointer-events-none' : ''}>
                                                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Gender {opdForm.is_mlc ? <span className="text-slate-400 font-normal">(Optional)</span> : <span className="text-red-500">*</span>}</label>
-                                                <select required={!opdForm.is_mlc} value={opdForm.gender} onChange={(e) => setOpdForm({ ...opdForm, gender: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium">
+                                                <select
+                                                    required={!opdForm.is_mlc}
+                                                    value={opdForm.gender}
+                                                    onChange={(e) => setOpdForm({ ...opdForm, gender: e.target.value })}
+                                                    disabled={isPatientDetailsLocked}
+                                                    className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isPatientDetailsLocked ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`}
+                                                >
                                                     <option value="">Select</option>
                                                     <option value="Male">Male</option>
                                                     <option value="Female">Female</option>
