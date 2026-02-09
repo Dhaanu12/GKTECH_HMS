@@ -5,6 +5,7 @@ import axios from 'axios';
 import { Calendar, Filter, Building2, Stethoscope, UserCog, UserCheck, BarChart3, Download } from 'lucide-react';
 import BranchPerformance from '@/components/reports/BranchPerformance';
 import StaffPerformance from '@/components/reports/StaffPerformance';
+import OverviewPerformance from '@/components/reports/OverviewPerformance';
 
 export default function ClientAdminReports() {
     const [activeTab, setActiveTab] = useState('overview'); // overview, branch, doctor, nurse, receptionist
@@ -18,6 +19,7 @@ export default function ClientAdminReports() {
 
     const fetchData = useCallback(async () => {
         setLoading(true);
+        setData(null); // Clear old data to prevent type mismatches
         try {
             const token = localStorage.getItem('token');
             const headers = { Authorization: `Bearer ${token}` };
@@ -118,12 +120,7 @@ export default function ClientAdminReports() {
                 ) : (
                     <>
                         {activeTab === 'overview' && data && (
-                            <div className="p-12 text-center text-gray-500 bg-white/50 rounded-3xl border border-dashed border-gray-300">
-                                <BarChart3 className="w-16 h-16 mx-auto mb-4 opacity-20" />
-                                <h3 className="text-xl font-bold text-gray-400">General Overview</h3>
-                                <p>Use the specific tabs above for detailed breakdown reports.</p>
-                                {/* We could reuse the ReportPage.tsx components here if needed, but keeping it simple for now to focus on new requirements */}
-                            </div>
+                            <OverviewPerformance data={data} />
                         )}
 
                         {activeTab === 'branch' && data && <BranchPerformance data={data} />}

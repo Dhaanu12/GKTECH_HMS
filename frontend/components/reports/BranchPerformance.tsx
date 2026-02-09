@@ -19,6 +19,8 @@ interface Props {
 }
 
 export default function BranchPerformance({ data }: Props) {
+    if (!data || !Array.isArray(data)) return <div className="p-4 text-center text-gray-500">No data available</div>;
+
     const chartData = data.map(d => ({
         name: d.branch_name,
         Revenue: parseFloat(d.total_revenue),

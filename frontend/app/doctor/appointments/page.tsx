@@ -21,15 +21,15 @@ export default function DoctorAppointments() {
     }, [filterDate]);
 
     // Simulate AI Insight after data load
-    useEffect(() => {
-        if (!loading && waitingQueue.length > 5) {
-            setAiInsight("You're running about 15 minutes behind schedule. I can notify the next 3 patients to arrive slightly later.");
-        } else if (!loading && waitingQueue.length > 0) {
-            setAiInsight("Smooth flow detected. You're on track to finish the morning OPD by 1:00 PM.");
-        } else {
-            setAiInsight(null);
-        }
-    }, [loading, waitingQueue]);
+    // useEffect(() => {
+    //     if (!loading && waitingQueue.length > 5) {
+    //         setAiInsight("You're running about 15 minutes behind schedule. I can notify the next 3 patients to arrive slightly later.");
+    //     } else if (!loading && waitingQueue.length > 0) {
+    //         setAiInsight("Smooth flow detected. You're on track to finish the morning OPD by 1:00 PM.");
+    //     } else {
+    //         setAiInsight(null);
+    //     }
+    // }, [loading, waitingQueue]);
 
     const fetchSchedule = async () => {
         setLoading(true);
