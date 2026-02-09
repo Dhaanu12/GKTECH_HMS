@@ -327,32 +327,136 @@ class ClientAdminController {
         }
     }
 
+    // static async getAnalytics(req, res, next) {
+    //     try {
+    //         const hospital_id = req.user.hospital_id;
+    //         const { startDate, endDate } = req.query;
+
+    //         if (!hospital_id) {
+    //             return next(new AppError('Hospital not linked to your account', 403));
+    //         }
+
+    //         // Default to current date if not provided
+    //         const start = startDate || new Date().toISOString().split('T')[0];
+    //         const end = endDate || new Date().toISOString().split('T')[0];
+
+    //         const client = await require('../config/db').pool.connect();
+    //         try {
+    //             // 1. Summary Stats (Total Patients, Revenue, MLCs)
+    //             const summaryRes = await client.query(`
+    //                 SELECT 
+    //                     COUNT(*) as total_opd_visits,
+    //                     COUNT(CASE WHEN o.is_mlc = true THEN 1 END) as total_mlc,
+    //                     SUM(COALESCE(o.consultation_fee, 0)) as total_revenue,
+    //                     COUNT(DISTINCT o.patient_id) as unique_patients
+    //                 FROM opd_entries o
+    //                 JOIN branches b ON o.branch_id = b.branch_id
+    //                 WHERE b.hospital_id = $1
+    //                 AND o.visit_date >= $2::date AND o.visit_date <= $3::date
+    //             `, [hospital_id, start, end]);
+
+    //             // 2. Doctor Performance
+    //             const doctorRes = await client.query(`
+    //                 SELECT 
+    //                     d.first_name, 
+    //                     d.last_name, 
+    //                     d.specialization,
+    //                     COUNT(o.opd_id) as patient_count,
+    //                     SUM(COALESCE(o.consultation_fee, 0)) as revenue_generated
+    //                 FROM opd_entries o
+    //                 JOIN doctors d ON o.doctor_id = d.doctor_id
+    //                 JOIN branches b ON o.branch_id = b.branch_id
+    //                 WHERE b.hospital_id = $1
+    //                 AND o.visit_date >= $2::date AND o.visit_date <= $3::date
+    //                 GROUP BY d.doctor_id, d.first_name, d.last_name, d.specialization
+    //                 ORDER BY patient_count DESC
+    //                 LIMIT 10
+    //             `, [hospital_id, start, end]);
+
+    //             // 3. Department Analysis
+    //             const deptRes = await client.query(`
+    //                 SELECT 
+    //                     dp.department_name,
+    //                     COUNT(o.opd_id) as patient_count
+    //                 FROM opd_entries o
+    //                 JOIN departments dp ON o.department_id = dp.department_id
+    //                 JOIN branches b ON o.branch_id = b.branch_id
+    //                 WHERE b.hospital_id = $1
+    //                 AND o.visit_date >= $2::date AND o.visit_date <= $3::date
+    //                 GROUP BY dp.department_id, dp.department_name
+    //                 ORDER BY patient_count DESC
+    //             `, [hospital_id, start, end]);
+
+    //             // 4. Daily Trend (within selected range)
+    //             const trendRes = await client.query(`
+    //                 SELECT 
+    //                     TO_CHAR(o.visit_date, 'YYYY-MM-DD') as period_label,
+    //                     COUNT(o.opd_id) as count
+    //                 FROM opd_entries o
+    //                 JOIN branches b ON o.branch_id = b.branch_id
+    //                 WHERE b.hospital_id = $1
+    //                 AND o.visit_date >= $2::date AND o.visit_date <= $3::date
+    //                 GROUP BY o.visit_date
+    //                 ORDER BY o.visit_date ASC
+    //             `, [hospital_id, start, end]);
+
+    //             res.status(200).json({
+    //                 status: 'success',
+    //                 data: {
+    //                     summary: summaryRes.rows[0],
+    //                     doctorStats: doctorRes.rows,
+    //                     deptStats: deptRes.rows,
+    //                     trends: trendRes.rows
+    //                 }
+    //             });
+    //         } finally {
+    //             client.release();
+    //         }
+    //     } catch (error) {
+    //         console.error('Get analytics error:', error);
+    //         next(new AppError('Failed to fetch analytics', 500));
+    //     }
+    // }
     static async getAnalytics(req, res, next) {
         try {
             const hospital_id = req.user.hospital_id;
-            const { startDate, endDate } = req.query;
+            let { startDate, endDate } = req.query;
+
+            console.log('==========================================');
+            console.log('ANALYTICS REQUEST RECEIVED');
+            console.log('==========================================');
+            console.log('Hospital ID:', hospital_id);
+            console.log('startDate:', startDate);
+            console.log('endDate:', endDate);
 
             if (!hospital_id) {
                 return next(new AppError('Hospital not linked to your account', 403));
             }
 
-            // Default to current date if not provided
-            const start = startDate || new Date().toISOString().split('T')[0];
-            const end = endDate || new Date().toISOString().split('T')[0];
+            if (!startDate || !endDate) {
+                startDate = startDate || new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
+                endDate = endDate || new Date().toISOString().split('T')[0];
+            }
+
+            const start = startDate.trim();
+            const end = endDate.trim();
+
+            console.log('Using date range:', start, 'to', end);
 
             const client = await require('../config/db').pool.connect();
             try {
-                // 1. Summary Stats (Total Patients, Revenue, MLCs)
+                // 1. Summary Stats
                 const summaryRes = await client.query(`
                     SELECT 
-                        COUNT(*) as total_opd_visits,
-                        COUNT(CASE WHEN o.is_mlc = true THEN 1 END) as total_mlc,
-                        SUM(COALESCE(o.consultation_fee, 0)) as total_revenue,
-                        COUNT(DISTINCT o.patient_id) as unique_patients
+                        COUNT(*)::text as total_opd_visits,
+                        COUNT(CASE WHEN o.is_mlc = true THEN 1 END)::text as total_mlc,
+                        COALESCE(SUM(o.consultation_fee), 0)::text as total_revenue,
+                        COUNT(DISTINCT o.patient_id)::text as unique_patients
                     FROM opd_entries o
                     JOIN branches b ON o.branch_id = b.branch_id
                     WHERE b.hospital_id = $1
-                    AND o.visit_date >= $2::date AND o.visit_date <= $3::date
+                    AND DATE(o.visit_date) >= $2::date 
+                    AND DATE(o.visit_date) <= $3::date
                 `, [hospital_id, start, end]);
 
                 // 2. Doctor Performance
@@ -361,15 +465,16 @@ class ClientAdminController {
                         d.first_name, 
                         d.last_name, 
                         d.specialization,
-                        COUNT(o.opd_id) as patient_count,
-                        SUM(COALESCE(o.consultation_fee, 0)) as revenue_generated
+                        COUNT(o.opd_id)::text as patient_count,
+                        COALESCE(SUM(o.consultation_fee), 0)::text as revenue_generated
                     FROM opd_entries o
                     JOIN doctors d ON o.doctor_id = d.doctor_id
                     JOIN branches b ON o.branch_id = b.branch_id
                     WHERE b.hospital_id = $1
-                    AND o.visit_date >= $2::date AND o.visit_date <= $3::date
+                    AND DATE(o.visit_date) >= $2::date 
+                    AND DATE(o.visit_date) <= $3::date
                     GROUP BY d.doctor_id, d.first_name, d.last_name, d.specialization
-                    ORDER BY patient_count DESC
+                    ORDER BY SUM(o.consultation_fee) DESC
                     LIMIT 10
                 `, [hospital_id, start, end]);
 
@@ -377,43 +482,62 @@ class ClientAdminController {
                 const deptRes = await client.query(`
                     SELECT 
                         dp.department_name,
-                        COUNT(o.opd_id) as patient_count
+                        COUNT(o.opd_id)::text as patient_count
                     FROM opd_entries o
                     JOIN departments dp ON o.department_id = dp.department_id
                     JOIN branches b ON o.branch_id = b.branch_id
                     WHERE b.hospital_id = $1
-                    AND o.visit_date >= $2::date AND o.visit_date <= $3::date
+                    AND DATE(o.visit_date) >= $2::date 
+                    AND DATE(o.visit_date) <= $3::date
                     GROUP BY dp.department_id, dp.department_name
-                    ORDER BY patient_count DESC
+                    ORDER BY COUNT(o.opd_id) DESC
                 `, [hospital_id, start, end]);
 
-                // 4. Daily Trend (within selected range)
+                // 4. Daily Trend - FIXED: Use DATE() to extract date from timestamp
                 const trendRes = await client.query(`
                     SELECT 
-                        TO_CHAR(o.visit_date, 'YYYY-MM-DD') as period_label,
-                        COUNT(o.opd_id) as count
+                        TO_CHAR(DATE(o.visit_date), 'YYYY-MM-DD') as period_label,
+                        COUNT(o.opd_id)::text as count
                     FROM opd_entries o
                     JOIN branches b ON o.branch_id = b.branch_id
                     WHERE b.hospital_id = $1
-                    AND o.visit_date >= $2::date AND o.visit_date <= $3::date
-                    GROUP BY o.visit_date
-                    ORDER BY o.visit_date ASC
+                    AND DATE(o.visit_date) >= $2::date 
+                    AND DATE(o.visit_date) <= $3::date
+                    GROUP BY DATE(o.visit_date)
+                    ORDER BY DATE(o.visit_date) ASC
                 `, [hospital_id, start, end]);
+
+                console.log(`Found ${trendRes.rows.length} days with data`);
+                if (trendRes.rows.length > 0) {
+                    console.log('First trend:', trendRes.rows[0]);
+                    console.log('Last trend:', trendRes.rows[trendRes.rows.length - 1]);
+                }
+
+                const responseData = {
+                    summary: summaryRes.rows[0],
+                    doctorStats: doctorRes.rows,
+                    deptStats: deptRes.rows,
+                    trends: trendRes.rows
+                };
+
+                console.log('Response summary:', {
+                    visits: responseData.summary.total_opd_visits,
+                    revenue: responseData.summary.total_revenue,
+                    trendPoints: responseData.trends.length,
+                    doctors: responseData.doctorStats.length,
+                    departments: responseData.deptStats.length
+                });
+                console.log('==========================================');
 
                 res.status(200).json({
                     status: 'success',
-                    data: {
-                        summary: summaryRes.rows[0],
-                        doctorStats: doctorRes.rows,
-                        deptStats: deptRes.rows,
-                        trends: trendRes.rows
-                    }
+                    data: responseData
                 });
             } finally {
                 client.release();
             }
         } catch (error) {
-            console.error('Get analytics error:', error);
+            console.error('Analytics error:', error);
             next(new AppError('Failed to fetch analytics', 500));
         }
     }

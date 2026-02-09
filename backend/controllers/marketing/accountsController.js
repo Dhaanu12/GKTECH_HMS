@@ -10,6 +10,38 @@ const pool = new Pool({
 });
 
 /**
+ * Helper to get assigned hospital IDs for a user
+ */
+async function getAssignedHospitalIds(user) {
+    const assignedHospitalsQuery = `
+        SELECT DISTINCT b.hospital_id
+        FROM staff s
+        JOIN staff_branches sb ON s.staff_id = sb.staff_id
+        JOIN branches b ON sb.branch_id = b.branch_id
+        WHERE s.user_id = $1 AND sb.is_active = true
+    `;
+    const assignedHospitals = await pool.query(assignedHospitalsQuery, [user.user_id]);
+    return assignedHospitals.rows.length > 0
+        ? assignedHospitals.rows.map(row => row.hospital_id)
+        : [user.hospital_id].filter(Boolean);
+}
+
+/**
+ * Helper to get assigned branch IDs for a user
+ */
+async function getAssignedBranchIds(user) {
+    const assignedBranchesQuery = `
+        SELECT branch_id FROM staff_branches sb
+        JOIN staff s ON sb.staff_id = s.staff_id
+        WHERE s.user_id = $1 AND sb.is_active = true
+    `;
+    const assignedBranches = await pool.query(assignedBranchesQuery, [user.user_id]);
+    return assignedBranches.rows.length > 0
+        ? assignedBranches.rows.map(row => row.branch_id)
+        : [user.branch_id].filter(Boolean);
+}
+
+/**
  * Save payment record after GST calculation
  */
 exports.savePaymentRecord = async (req, res) => {
@@ -61,6 +93,13 @@ exports.getPaymentHistory = async (req, res) => {
     try {
         const { referral_doctor_id, payment_status, start_date, end_date } = req.query;
 
+        // Get assigned hospital IDs 
+        const hospitalIds = await getAssignedHospitalIds(req.user);
+
+        if (hospitalIds.length === 0) {
+            return res.status(200).json({ success: true, data: [] });
+        }
+
         let query = `
             SELECT 
                 rp.*,
@@ -69,11 +108,11 @@ exports.getPaymentHistory = async (req, res) => {
                 rd.speciality_type
             FROM referral_payments rp
             INNER JOIN referral_doctor_module rd ON rp.referral_doctor_id = rd.id
-            WHERE 1=1
+            WHERE rd.tenant_id = ANY($1)
         `;
 
-        const params = [];
-        let paramCount = 1;
+        const params = [hospitalIds];
+        let paramCount = 2;
 
         if (referral_doctor_id) {
             params.push(referral_doctor_id);
@@ -134,11 +173,15 @@ exports.updatePaymentStatus = async (req, res) => {
     }
 };
 
-/**
- * Get all referral doctors with their service percentages
- */
 exports.getAllReferralDoctorsWithPercentages = async (req, res) => {
     try {
+        // Get assigned hospital IDs for this user
+        const hospitalIds = await getAssignedHospitalIds(req.user);
+
+        if (hospitalIds.length === 0) {
+            return res.status(200).json({ success: true, data: [] });
+        }
+
         const query = `
             SELECT 
                 rd.id,
@@ -168,13 +211,12 @@ exports.getAllReferralDoctorsWithPercentages = async (req, res) => {
             FROM referral_doctor_module rd
             LEFT JOIN referral_doctor_service_percentage_module rdsp ON rd.id = rdsp.referral_doctor_id
             LEFT JOIN hospitals h ON rd.tenant_id = h.hospital_id
-            WHERE rd.tenant_id = $1
+            WHERE rd.tenant_id = ANY($1) AND rd.status != 'Initialization'
             GROUP BY rd.id, rd.doctor_name, rd.mobile_number, rd.speciality_type, rd.clinic_name, rd.medical_council_membership_number, rd.pan_card_number, rd.pan_upload_path, rd.status, rd.referral_pay, h.hospital_name
             ORDER BY rd.doctor_name
         `;
 
-        const hospitalId = req.user.hospital_id;
-        const result = await pool.query(query, [hospitalId]);
+        const result = await pool.query(query, [hospitalIds]);
         res.status(200).json({ success: true, data: result.rows });
     } catch (error) {
         console.error('Error fetching referral doctors with percentages:', error);
@@ -187,19 +229,25 @@ exports.getAllReferralDoctorsWithPercentages = async (req, res) => {
  */
 exports.getHospitalServices = async (req, res) => {
     try {
-        const branchId = req.user.branch_id;
+        // Get assigned branch IDs
+        const branchIds = await getAssignedBranchIds(req.user);
+
+        if (branchIds.length === 0) {
+            return res.status(200).json({ success: true, data: [] });
+        }
+
         const result = await pool.query(
             `SELECT s.service_id, s.service_code, s.service_name, s.description as service_description, 18 as gst_rate, bs.is_active
              FROM services s
              JOIN branch_services bs ON s.service_id = bs.service_id
-             WHERE bs.branch_id = $1 AND bs.is_active = true
+             WHERE bs.branch_id = ANY($1) AND bs.is_active = true
              UNION ALL
              SELECT ms.service_id, ms.service_code, ms.service_name, ms.category as service_description, 18 as gst_rate, bms.is_active
              FROM medical_services ms
              JOIN branch_medical_services bms ON ms.service_id = bms.service_id
-             WHERE bms.branch_id = $1 AND bms.is_active = true
+             WHERE bms.branch_id = ANY($1) AND bms.is_active = true
              ORDER BY service_name`,
-            [branchId]
+            [branchIds]
         );
         res.status(200).json({ success: true, data: result.rows });
     } catch (error) {
@@ -275,7 +323,7 @@ exports.updateServiceGSTRate = async (req, res) => {
             `UPDATE hospital_services 
              SET gst_rate = $1, updated_at = CURRENT_TIMESTAMP
              WHERE hosp_service_id = $2
-             RETURNING *`,
+        RETURNING * `,
             [gst_rate, hosp_service_id]
         );
 
@@ -300,6 +348,13 @@ exports.getReferralSummary = async (req, res) => {
     try {
         const { start_date, end_date, referral_doctor_id } = req.query;
 
+        // Get assigned hospital IDs
+        const hospitalIds = await getAssignedHospitalIds(req.user);
+
+        if (hospitalIds.length === 0) {
+            return res.status(200).json({ success: true, data: [] });
+        }
+
         let query = `
             SELECT 
                 rd.id as referral_doctor_id,
@@ -313,10 +368,10 @@ exports.getReferralSummary = async (req, res) => {
             FROM referral_doctor_module rd
             INNER JOIN referral_doctor_service_percentage_module rdsp ON rd.id = rdsp.referral_doctor_id
             LEFT JOIN hospital_services hs ON hs.service_code = rdsp.service_type
-            WHERE rdsp.status = 'Active'
+            WHERE rdsp.status = 'Active' AND rd.tenant_id = ANY($1)
         `;
 
-        const params = [];
+        const params = [hospitalIds];
         if (referral_doctor_id) {
             params.push(referral_doctor_id);
             query += ` AND rd.id = $${params.length}`;
@@ -332,13 +387,23 @@ exports.getReferralSummary = async (req, res) => {
     }
 };
 
-// Export existing functions from accountsController
 exports.upsertServicePercentage = async (req, res) => {
     const { referral_doctor_id, service_type, referral_pay, cash_percentage, inpatient_percentage, status } = req.body;
     const created_by = req.user ? (req.user.username || req.user.user_id.toString()) : 'unknown';
     const updated_by = req.user ? (req.user.username || req.user.user_id.toString()) : 'unknown';
 
     try {
+        // Security check: Ensure doctor belongs to an assigned hospital
+        const hospitalIds = await getAssignedHospitalIds(req.user);
+        const doctorCheck = await pool.query(
+            'SELECT id FROM referral_doctor_module WHERE id = $1 AND tenant_id = ANY($2)',
+            [referral_doctor_id, hospitalIds]
+        );
+
+        if (doctorCheck.rows.length === 0) {
+            return res.status(403).json({ success: false, message: 'Unauthorized: Doctor does not belong to your assigned hospitals' });
+        }
+
         console.log('Upserting percentage:', { referral_doctor_id, service_type, referral_pay, cash_percentage, inpatient_percentage, status });
 
         // Check if exists
@@ -386,7 +451,14 @@ exports.upsertServicePercentage = async (req, res) => {
 exports.getPercentagesByDoctor = async (req, res) => {
     const { referral_doctor_id } = req.params;
     try {
-        const result = await pool.query('SELECT * FROM referral_doctor_service_percentage_module WHERE referral_doctor_id = $1', [referral_doctor_id]);
+        // Security check: Ensure doctor belongs to an assigned hospital
+        const hospitalIds = await getAssignedHospitalIds(req.user);
+        const result = await pool.query(
+            `SELECT p.* FROM referral_doctor_service_percentage_module p
+             JOIN referral_doctor_module d ON p.referral_doctor_id = d.id
+             WHERE p.referral_doctor_id = $1 AND d.tenant_id = ANY($2)`,
+            [referral_doctor_id, hospitalIds]
+        );
         res.status(200).json({ success: true, data: result.rows });
     } catch (error) {
         console.error('Error fetching percentages:', error);
