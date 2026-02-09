@@ -46,6 +46,9 @@ router.get('/assigned-branches', authenticate, authorize('ACCOUNTANT', 'ACCOUNTA
 // Dashboard Stats
 router.get('/dashboard-stats', authenticate, authorize('ACCOUNTANT', 'ACCOUNTANT_MANAGER'), accountantController.getDashboardStats);
 
+// Download Claims Template
+router.get('/download-claims-template', authenticate, authorize('ACCOUNTANT', 'ACCOUNTANT_MANAGER', 'SUPER_ADMIN'), accountantController.downloadClaimsTemplate);
+
 // Analytics Routes - ACCOUNTANT ONLY
 router.get('/analytics/hospital-branch', authenticate, authorize('ACCOUNTANT', 'ACCOUNTANT_MANAGER'), accountantController.getHospitalBranchAnalytics);
 router.get('/analytics/insurers', authenticate, authorize('ACCOUNTANT', 'ACCOUNTANT_MANAGER'), accountantController.getInsurerAnalytics);

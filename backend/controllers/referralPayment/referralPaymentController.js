@@ -157,10 +157,10 @@ exports.uploadReferralData = async (req, res) => {
             // If IP Number is missing, we proceed as new (or skip? Let's proceed as new to allow old format fallback if necessary, but ideally IP is required).
             // Assuming IP provided:
 
-            // Find Doctor ID by MCI
+            // Find Doctor ID by MCI (Scoped to THIS hospital)
             const doctorQuery = await client.query(
-                "SELECT id, doctor_name, referral_pay FROM referral_doctor_module WHERE medical_council_membership_number = $1",
-                [mciId]
+                "SELECT id, doctor_name, referral_pay FROM referral_doctor_module WHERE medical_council_membership_number = $1 AND tenant_id = $2",
+                [mciId, hospital_id]
             );
 
             let doctorId = null;

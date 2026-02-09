@@ -100,6 +100,27 @@ export default function UploadPage() {
         }
     };
 
+    const handleDownloadTemplate = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.get('http://localhost:5000/api/accountant/download-claims-template', {
+                headers: { Authorization: `Bearer ${token}` },
+                responseType: 'blob'
+            });
+
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', 'Claims_Upload_Template.xlsx');
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        } catch (error) {
+            console.error("Error downloading template", error);
+            setMessage({ type: 'error', text: 'Failed to download template. Please try again.' });
+        }
+    };
+
     return (
         <div className="max-w-2xl mx-auto space-y-6">
             <div>
@@ -202,14 +223,13 @@ export default function UploadPage() {
             <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
                 <div className="flex justify-between items-center mb-2">
                     <h4 className="text-sm font-semibold text-blue-800">Expected File Format</h4>
-                    <a
-                        href="/sample_claims.xlsx"
-                        download
+                    <button
+                        onClick={handleDownloadTemplate}
                         className="flex items-center gap-1.5 text-xs font-medium text-blue-700 hover:text-blue-900 transition-colors bg-white px-3 py-1.5 rounded-lg border border-blue-200 shadow-sm"
                     >
                         <Upload className="w-3 h-3 rotate-180" />
-                        Download Sample CSV
-                    </a>
+                        Download Sample Template
+                    </button>
                 </div>
                 <p className="text-xs text-blue-600 mb-2">The file should contain headers matching these fields (case-insensitive):</p>
                 <div className="flex flex-wrap gap-2 text-xs text-blue-700 font-mono">
