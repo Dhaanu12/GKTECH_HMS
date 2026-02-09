@@ -30,90 +30,149 @@ class BillingController {
 
             const branch_id = req.body.branch_id || req.user.branch_id;
 
-            // 1. Generate Bill Number & Invoice Number
-            // Bill Number: BILL-YYYYMMDD-XXXX
-            // Invoice Number: INV-YYYYMMDD-XXXX
-            const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-            const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-            const bill_number = `BILL-${dateStr}-${randomSuffix}`;
+            // Fetch Staff Code for created_by/updated_by
+            const staffRes = await client.query(`SELECT staff_code FROM staff WHERE user_id = $1`, [req.user.user_id]);
+            const staffCode = staffRes.rows[0]?.staff_code || req.user.username || 'SYSTEM';
 
-            // Generate Sequential Invoice Number
-            const lastInvQuery = await client.query(
-                `SELECT invoice_number FROM billing_master WHERE invoice_number LIKE $1 ORDER BY bill_master_id DESC LIMIT 1`,
-                [`INV-${dateStr}-%`]
+            let bill_master_id;
+            let invoice_number;
+            let payment_status; // To return
+
+            // Check if Billing Master already exists for this OPD (created during Registration)
+            const existingBillQuery = await client.query(
+                `SELECT bill_master_id, invoice_number, paid_amount FROM billing_master WHERE opd_id = $1`,
+                [opd_id]
             );
 
-            let nextInvSuffix = 1;
-            if (lastInvQuery.rows.length > 0) {
-                const lastInv = lastInvQuery.rows[0].invoice_number;
-                const parts = lastInv.split('-');
-                if (parts.length === 3) {
-                    const numPart = parseInt(parts[2]);
-                    if (!isNaN(numPart)) nextInvSuffix = numPart + 1;
-                }
-            }
-            const invoice_number = `INV-${dateStr}-${nextInvSuffix.toString().padStart(4, '0')}`;
-
-            // 2. Create Billing Master
             // Calculate pending amount
             const pending_amount = parseFloat(total_amount) - parseFloat(paid_amount || total_amount);
-            const payment_status = pending_amount <= 0 ? 'Paid' : (parseFloat(paid_amount) > 0 ? 'Partial' : 'Unpaid');
+            payment_status = pending_amount <= 0 ? 'Paid' : (parseFloat(paid_amount) > 0 ? 'Partial' : 'Unpaid');
 
-            const masterQuery = `
-                INSERT INTO billing_master (
+            if (existingBillQuery.rows.length > 0) {
+                // UPDATE Existing Bill
+                const existingBill = existingBillQuery.rows[0];
+                bill_master_id = existingBill.bill_master_id;
+                invoice_number = existingBill.invoice_number;
+
+                // Update Master
+                await client.query(`
+                    UPDATE billing_master
+                    SET 
+                        total_amount = $1,
+                        paid_amount = $2,
+                        pending_amount = $3,
+                        payment_mode = $4,
+                        payment_status = $5,
+                        status = 'Paid',
+                        discount_type = $6,
+                        discount_value = $7,
+                        updated_by = $8,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE bill_master_id = $9
+                `, [
+                    total_amount, paid_amount || total_amount, pending_amount,
+                    payment_mode, payment_status,
+                    discount_type || 'none', discount_value || 0,
+                    staffCode, // updated_by
+                    bill_master_id
+                ]);
+
+            } else {
+                // CREATE New Bill (Fallback for old entries or direct billing)
+
+                // 1. Generate Bill Number & Invoice Number
+                const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+                const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+                const bill_number = `BILL-${dateStr}-${randomSuffix}`;
+
+                // Generate Sequential Invoice Number
+                const lastInvQuery = await client.query(
+                    `SELECT invoice_number FROM billing_master WHERE invoice_number LIKE $1 ORDER BY bill_master_id DESC LIMIT 1`,
+                    [`INV-${dateStr}-%`]
+                );
+
+                let nextInvSuffix = 1;
+                if (lastInvQuery.rows.length > 0) {
+                    const lastInv = lastInvQuery.rows[0].invoice_number;
+                    const parts = lastInv.split('-');
+                    if (parts.length === 3) {
+                        const numPart = parseInt(parts[2]);
+                        if (!isNaN(numPart)) nextInvSuffix = numPart + 1;
+                    }
+                }
+                invoice_number = `INV-${dateStr}-${nextInvSuffix.toString().padStart(4, '0')}`;
+
+                const masterQuery = `
+                    INSERT INTO billing_master (
+                        bill_number, invoice_number, opd_id, opd_number, branch_id,
+                        patient_id, mrn_number, patient_name, patient_address, contact_number,
+                        billing_date, total_amount, paid_amount, pending_amount,
+                        payment_mode, payment_status, status,
+                        discount_type, discount_value, created_by
+                    ) VALUES (
+                        $1, $2, $3, $4, $5,
+                        $6, $7, $8, $9, $10,
+                        $11, $12, $13, $14,
+                        $15, $16, 'Paid',
+                        $17, $18, $19
+                    ) RETURNING bill_master_id
+                `;
+
+                const masterValues = [
                     bill_number, invoice_number, opd_id, opd_number, branch_id,
                     patient_id, mrn_number, patient_name, patient_address, contact_number,
-                    billing_date, total_amount, paid_amount, pending_amount,
-                    payment_mode, payment_status, status,
-                    discount_type, discount_value
-                ) VALUES (
-                    $1, $2, $3, $4, $5,
-                    $6, $7, $8, $9, $10,
-                    $11, $12, $13, $14,
-                    $15, $16, 'Paid',
-                    $17, $18
-                ) RETURNING bill_master_id
-            `;
+                    billing_date || new Date(), total_amount, paid_amount || total_amount, pending_amount,
+                    payment_mode, payment_status,
+                    discount_type || 'none', discount_value || 0, staffCode // created_by
+                ];
 
-            const masterValues = [
-                bill_number, invoice_number, opd_id, opd_number, branch_id,
-                patient_id, mrn_number, patient_name, patient_address, contact_number,
-                billing_date || new Date(), total_amount, paid_amount || total_amount, pending_amount,
-                payment_mode, payment_status,
-                discount_type || 'none', discount_value || 0
-            ];
-
-            const masterResult = await client.query(masterQuery, masterValues);
-            const bill_master_id = masterResult.rows[0].bill_master_id;
+                const masterResult = await client.query(masterQuery, masterValues);
+                bill_master_id = masterResult.rows[0].bill_master_id;
+            }
 
             // 3. Process Bill Items (Billing Details)
             if (items && items.length > 0) {
                 for (const item of items) {
-                    // Check if item already exists (e.g. created during Pay Later flow)
+                    // Check if item already exists (e.g. created during Registration or Pay Later flow)
                     // If it has bill_detail_id, update it. Else insert new.
                     if (item.bill_detail_id) {
                         await client.query(`
                             UPDATE bill_details 
-                            SET bill_master_id = $1, status = 'Paid', updated_at = CURRENT_TIMESTAMP
+                            SET bill_master_id = $1, status = 'Paid', updated_by = $3, updated_at = CURRENT_TIMESTAMP
                             WHERE bill_detail_id = $2
-                        `, [bill_master_id, item.bill_detail_id]);
+                        `, [bill_master_id, item.bill_detail_id, staffCode]);
                     } else {
-                        await client.query(`
-                            INSERT INTO bill_details (
-                                bill_master_id, branch_id, department_id, patient_id, mrn_number, opd_id,
-                                service_type, service_name, quantity, unit_price, subtotal, final_price, status,
-                                created_by
-                            ) VALUES (
-                                $1, $2, $3, $4, $5, $6,
-                                $7, $8, $9, $10, $11, $12, 'Paid',
-                                $13
-                            )
-                        `, [
-                            bill_master_id, branch_id, item.department_id || 0, patient_id, mrn_number, opd_id,
-                            item.service_type || 'consultation', item.service_name, item.quantity || 1,
-                            item.unit_price, item.subtotal, item.final_price,
-                            req.user.user_id
-                        ]);
+                        // Check if an item exists for this OPD with same service to avoid duplicates if ID was missing
+                        const distinctCheck = await client.query(`
+                            SELECT bill_detail_id FROM bill_details 
+                            WHERE opd_id = $1 AND service_type = $2 AND status = 'Pending'
+                         `, [opd_id, item.service_type || 'consultation']);
+
+                        if (distinctCheck.rows.length > 0) {
+                            // Update the first matching pending item
+                            await client.query(`
+                                UPDATE bill_details 
+                                SET bill_master_id = $1, status = 'Paid', updated_by = $3, updated_at = CURRENT_TIMESTAMP
+                                WHERE bill_detail_id = $2
+                            `, [bill_master_id, distinctCheck.rows[0].bill_detail_id, staffCode]);
+                        } else {
+                            await client.query(`
+                                INSERT INTO bill_details (
+                                    bill_master_id, branch_id, department_id, patient_id, mrn_number, opd_id,
+                                    service_type, service_name, quantity, unit_price, subtotal, final_price, status,
+                                    created_by
+                                ) VALUES (
+                                    $1, $2, $3, $4, $5, $6,
+                                    $7, $8, $9, $10, $11, $12, 'Paid',
+                                    $13
+                                )
+                            `, [
+                                bill_master_id, branch_id, item.department_id || 0, patient_id, mrn_number, opd_id,
+                                item.service_type || 'consultation', item.service_name, item.quantity || 1,
+                                item.unit_price, item.subtotal, item.final_price,
+                                staffCode // created_by
+                            ]);
+                        }
                     }
                 }
             }
@@ -129,7 +188,7 @@ class BillingController {
 
             res.status(201).json({
                 status: 'success',
-                message: 'Bill created successfully',
+                message: 'Bill processed successfully',
                 data: {
                     bill_master_id,
                     invoice_number,
@@ -206,44 +265,44 @@ class BillingController {
     }
 
     /**
-     * Get Pending Clearances (OPD visits with pending items)
+     * Get Pending Clearances (Pending Bills)
      */
     static async getPendingClearances(req, res, next) {
         try {
             const branch_id = req.user.branch_id;
 
-            // Find unique OPD entries that have pending bill details
+            // Fetch Pending Bills from Billing Master
+            // We also want to include relevant patient and doctor details
             const result = await query(`
                 SELECT 
-                    oe.opd_id,
-                    oe.opd_number,
-                    oe.branch_id,
-                    oe.patient_id,
-                    oe.visit_date,
+                    bm.bill_master_id,
+                    bm.bill_number,
+                    bm.invoice_number,
+                    bm.opd_id,
+                    bm.opd_number,
+                    bm.patient_id,
+                    bm.mrn_number,
+                    bm.patient_name,
+                    bm.contact_number,
+                    bm.total_amount as total_pending_amount,
+                    bm.billing_date,
+                    bm.created_at,
                     oe.token_number,
-                    p.first_name || ' ' || p.last_name as patient_name,
-                    p.mrn_number,
+                    oe.visit_date,
                     p.age,
                     p.gender,
-                    p.contact_number,
                     d.first_name || ' ' || d.last_name as doctor_name,
                     dep.department_name,
-                    COUNT(bd.bill_detail_id) as pending_items_count,
-                    SUM(bd.final_price) as total_pending_amount
-                FROM bill_details bd
-                JOIN opd_entries oe ON bd.opd_id = oe.opd_id
-                JOIN patients p ON oe.patient_id = p.patient_id
+                    (SELECT COUNT(*) FROM bill_details bd WHERE bd.bill_master_id = bm.bill_master_id) as pending_items_count
+                FROM billing_master bm
+                JOIN opd_entries oe ON bm.opd_id = oe.opd_id
+                JOIN patients p ON bm.patient_id = p.patient_id
                 LEFT JOIN doctors d ON oe.doctor_id = d.doctor_id
                 LEFT JOIN departments dep ON oe.department_id = dep.department_id
                 WHERE 
-                    oe.branch_id = $1 
-                    AND bd.status = 'Pending' 
-                    AND bd.bill_master_id IS NULL
-                GROUP BY 
-                    oe.opd_id, oe.opd_number, oe.branch_id, oe.patient_id, oe.visit_date, oe.token_number,
-                    p.first_name, p.last_name, p.mrn_number, p.age, p.gender, p.contact_number,
-                    d.first_name, d.last_name, dep.department_name
-                ORDER BY oe.visit_date DESC
+                    bm.branch_id = $1 
+                    AND bm.status = 'Pending'
+                ORDER BY bm.created_at DESC
             `, [branch_id]);
 
             res.status(200).json({

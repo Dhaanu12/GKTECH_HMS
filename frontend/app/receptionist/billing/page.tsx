@@ -9,7 +9,7 @@ import BillingModal from '@/components/billing/BillingModal';
 
 export default function BillingPage() {
     const { user } = useAuth();
-    const [activeTab, setActiveTab] = useState<'paid' | 'pending'>('paid');
+    const [activeTab, setActiveTab] = useState<'paid' | 'pending'>('pending');
     const [bills, setBills] = useState([]);
     const [pendingItems, setPendingItems] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -24,17 +24,24 @@ export default function BillingPage() {
     const [selectedPendingOpd, setSelectedPendingOpd] = useState<any>(null);
     const [showBillingModal, setShowBillingModal] = useState(false);
 
+
     useEffect(() => {
-        if (activeTab === 'paid') {
-            fetchBills();
-        } else {
-            fetchPendingClearances();
+        fetchAllData();
+    }, [search, selectedDate]);
+
+    const fetchAllData = async () => {
+        setLoading(true);
+        try {
+            await Promise.all([fetchBills(), fetchPendingClearances()]);
+        } catch (error) {
+            console.error('Error fetching data:', error);
+        } finally {
+            setLoading(false);
         }
-    }, [activeTab, search, selectedDate]);
+    };
 
     const fetchBills = async () => {
         try {
-            setLoading(true);
             const token = localStorage.getItem('token');
             const params: any = {};
             if (search) params.search = search;
@@ -42,6 +49,7 @@ export default function BillingPage() {
                 params.startDate = selectedDate;
                 params.endDate = selectedDate;
             }
+            params.status = 'Paid';
 
             const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/billing`, {
                 headers: { Authorization: `Bearer ${token}` },
@@ -51,14 +59,11 @@ export default function BillingPage() {
             setBills(response.data.data.bills);
         } catch (error) {
             console.error('Error fetching bills:', error);
-        } finally {
-            setLoading(false);
         }
     };
 
     const fetchPendingClearances = async () => {
         try {
-            setLoading(true);
             const token = localStorage.getItem('token');
             const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/billing/pending-clearances`, {
                 headers: { Authorization: `Bearer ${token}` }
@@ -71,14 +76,12 @@ export default function BillingPage() {
                 data = data.filter((item: any) =>
                     item.patient_name?.toLowerCase().includes(lowerSearch) ||
                     item.mrn_number?.toLowerCase().includes(lowerSearch) ||
-                    item.opd_number?.toLowerCase().includes(lowerSearch)
+                    item.bill_number?.toLowerCase().includes(lowerSearch)
                 );
             }
             setPendingItems(data);
         } catch (error) {
             console.error('Error fetching pending items:', error);
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -104,21 +107,14 @@ export default function BillingPage() {
         setSelectedPendingOpd({
             opd_id: item.opd_id,
             opd_number: item.opd_number,
-            patient_id: item.patient_id, // ensure this is passed if available, or verify backend sets it
+            patient_id: item.patient_id,
             mrn_number: item.mrn_number,
             patient_first_name: item.patient_name.split(' ')[0],
             patient_last_name: item.patient_name.split(' ').slice(1).join(' '),
             patient: {
                 contact_number: item.contact_number
             },
-            // We need to fetch the specific pending items for this OPD to pass to modal? 
-            // actually BillingModal fetches items if we pass plain OPD data?
-            // Wait, BillingModal takes `opdData` and initializes `items`. 
-            // But here we might have multiple pending items that might not be just consultation.
-            // The BillingModal logic currently initializes consultation fee. 
-            // We might need to enhance BillingModal to fetch pending items if they exist.
-            // For now, let's pass what we have. 
-            consultation_fee: 0 // We rely on backend fetching pending items or manual add
+            consultation_fee: 0 // We rely on backend fetching pending items
         });
         setShowBillingModal(true);
     };
@@ -140,20 +136,6 @@ export default function BillingPage() {
                 {/* Tabs */}
                 <div className="flex bg-slate-100 p-1 rounded-xl self-start lg:self-center">
                     <button
-                        onClick={() => setActiveTab('paid')}
-                        className={`px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'paid'
-                            ? 'bg-white text-blue-600 shadow-sm'
-                            : 'text-slate-500 hover:text-slate-700'
-                            }`}
-                    >
-                        Paid Bills
-                        {bills.length > 0 && activeTab === 'paid' && (
-                            <span className="bg-blue-100 text-blue-600 text-[10px] px-1.5 py-0.5 rounded-full">
-                                {bills.length}
-                            </span>
-                        )}
-                    </button>
-                    <button
                         onClick={() => setActiveTab('pending')}
                         className={`px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'pending'
                             ? 'bg-white text-amber-600 shadow-sm'
@@ -165,6 +147,21 @@ export default function BillingPage() {
                             <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${activeTab === 'pending' ? 'bg-amber-100 text-amber-600' : 'bg-slate-200 text-slate-500'
                                 }`}>
                                 {pendingItems.length}
+                            </span>
+                        )}
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('paid')}
+                        className={`px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'paid'
+                            ? 'bg-white text-blue-600 shadow-sm'
+                            : 'text-slate-500 hover:text-slate-700'
+                            }`}
+                    >
+                        Paid Bills
+                        {bills.length > 0 && (
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${activeTab === 'paid' ? 'bg-blue-100 text-blue-600' : 'bg-slate-200 text-slate-500'
+                                }`}>
+                                {bills.length}
                             </span>
                         )}
                     </button>
@@ -213,8 +210,8 @@ export default function BillingPage() {
                                                     <CreditCard className="w-6 h-6" />
                                                 </div>
                                                 <div>
-                                                    <p className="text-sm text-slate-500 font-bold uppercase tracking-wider">{bill.invoice_number}</p>
-                                                    <p className="text-xs text-slate-400 font-medium mt-0.5">{new Date(bill.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                                                    <p className="text-sm text-slate-700 font-bold uppercase tracking-wider">{bill.invoice_number}</p>
+                                                    <p className="text-xs text-slate-600 font-medium mt-0.5">{new Date(bill.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                                                 </div>
                                             </div>
                                             <div className="text-right">
@@ -230,7 +227,7 @@ export default function BillingPage() {
                                                 {bill.patient_name}
                                             </h3>
                                             <div className="flex items-center gap-2 mb-4">
-                                                <span className="bg-slate-100 px-3 py-1 rounded-lg text-xs font-bold text-slate-500">MRN: {bill.mrn_number}</span>
+                                                <span className="bg-slate-100 px-3 py-1 rounded-lg text-xs font-bold text-slate-700">MRN: {bill.mrn_number}</span>
                                             </div>
 
                                             {/* Doctor info if available */}
@@ -241,7 +238,7 @@ export default function BillingPage() {
                                                     </div>
                                                     <div className="flex flex-col">
                                                         <span className="font-bold text-slate-800 text-sm">{bill.doctor_name || 'Unknown Doctor'}</span>
-                                                        {bill.department_name && <span className="text-xs text-slate-400 font-semibold uppercase tracking-wide mt-0.5">{bill.department_name}</span>}
+                                                        {bill.department_name && <span className="text-xs text-slate-600 font-semibold uppercase tracking-wide mt-0.5">{bill.department_name}</span>}
                                                     </div>
                                                 </div>
                                             )}
@@ -249,7 +246,7 @@ export default function BillingPage() {
                                     </div>
 
                                     <div className="pt-5 border-t border-slate-100 flex justify-between items-center mt-auto">
-                                        <span className="text-xs text-slate-400 font-bold uppercase tracking-wider flex items-center gap-2">
+                                        <span className="text-xs text-slate-600 font-bold uppercase tracking-wider flex items-center gap-2">
                                             <span className="w-2 h-2 rounded-full bg-slate-300"></span>
                                             {bill.payment_mode}
                                         </span>
@@ -257,7 +254,7 @@ export default function BillingPage() {
                                             onClick={() => handleViewInvoice(bill.bill_master_id)}
                                             className="text-sm font-bold text-slate-600 hover:text-blue-600 flex items-center gap-2 transition-colors group/btn bg-slate-50 hover:bg-blue-50 px-4 py-2 rounded-lg"
                                         >
-                                            <Eye className="w-4 h-4 text-slate-400 group-hover/btn:text-blue-500 transition-colors" />
+                                            <Eye className="w-4 h-4 text-slate-500 group-hover/btn:text-blue-500 transition-colors" />
                                             View Invoice
                                         </button>
                                     </div>
@@ -284,8 +281,8 @@ export default function BillingPage() {
                                                     <Clock className="w-6 h-6" />
                                                 </div>
                                                 <div>
-                                                    <p className="text-sm text-slate-500 font-bold uppercase tracking-wider">Token: {item.token_number}</p>
-                                                    <p className="text-xs text-slate-400 font-medium mt-0.5">{new Date(item.visit_date).toLocaleDateString()}</p>
+                                                    <p className="text-sm text-slate-700 font-bold uppercase tracking-wider">Token: {item.token_number}</p>
+                                                    <p className="text-xs text-slate-600 font-medium mt-0.5">{new Date(item.visit_date).toLocaleDateString()}</p>
                                                 </div>
                                             </div>
                                             <div className="text-right">
@@ -301,7 +298,7 @@ export default function BillingPage() {
                                                 {item.patient_name}
                                             </h3>
                                             <div className="flex flex-wrap gap-2 mb-4">
-                                                <span className="bg-slate-100 px-3 py-1 rounded-lg text-xs font-bold text-slate-500">MRN: {item.mrn_number}</span>
+                                                <span className="bg-slate-100 px-3 py-1 rounded-lg text-xs font-bold text-slate-700">MRN: {item.mrn_number}</span>
                                             </div>
 
                                             <div className="flex items-center gap-4 text-slate-600 bg-slate-50 p-4 rounded-xl border border-slate-100">
@@ -310,11 +307,11 @@ export default function BillingPage() {
                                                 </div>
                                                 <div className="flex flex-col">
                                                     <span className="font-bold text-slate-800 text-sm">{item.doctor_name}</span>
-                                                    {item.department_name && <span className="text-xs text-slate-400 font-semibold uppercase tracking-wide mt-0.5">{item.department_name}</span>}
+                                                    {item.department_name && <span className="text-xs text-slate-600 font-semibold uppercase tracking-wide mt-0.5">{item.department_name}</span>}
                                                 </div>
                                             </div>
 
-                                            <div className="mt-4 px-2 text-xs text-slate-500 font-bold flex items-center gap-2 uppercase tracking-wide">
+                                            <div className="mt-4 px-2 text-xs text-slate-700 font-bold flex items-center gap-2 uppercase tracking-wide">
                                                 <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
                                                 {item.pending_items_count} items awaiting clearance
                                             </div>
@@ -324,7 +321,7 @@ export default function BillingPage() {
                                     <div className="pt-5 border-t border-slate-100 mt-auto">
                                         <button
                                             onClick={() => handleProcessBill(item)}
-                                            className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-xl font-bold shadow-lg shadow-amber-500/30 transition-all flex items-center justify-center gap-2 hover:-translate-y-0.5 active:translate-y-0 text-sm tracking-wide"
+                                            className="w-full py-3.5 bg-black hover:bg-neutral-800 text-white rounded-xl font-bold shadow-lg shadow-black/10 transition-all flex items-center justify-center gap-2 hover:-translate-y-0.5 active:translate-y-0 text-sm tracking-wide"
                                         >
                                             <CreditCard className="w-5 h-5" /> Process Payment
                                         </button>
