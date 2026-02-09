@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useAuth } from '../../../lib/AuthContext';
 import SearchableSelect from '../../../components/ui/SearchableSelect';
 import MultiInputTags from '../dashboard/components/MultiInputTags';
+import BillingModal from '../../../components/billing/BillingModal';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -87,6 +88,11 @@ export default function OpdEntryPage() {
     // Duplicate Check State
     const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
 
+    // Billing Modal State
+    const [showBillModal, setShowBillModal] = useState(false);
+    const [billData, setBillData] = useState<any>(null);
+    const [newOpdData, setNewOpdData] = useState<any>(null);
+
     const checkPhoneMatches = async (phone: string) => {
         if (phone.length === 10) {
             try {
@@ -114,9 +120,8 @@ export default function OpdEntryPage() {
     };
     const [hasAppointment, setHasAppointment] = useState(false);
     const [appointmentDoctorName, setAppointmentDoctorName] = useState('');
+    const [paymentChoice, setPaymentChoice] = useState<'PayNow' | 'PayLater'>('PayNow');
     const [editingOpdId, setEditingOpdId] = useState<number | null>(null);
-    const [showBillModal, setShowBillModal] = useState(false);
-    const [billData, setBillData] = useState<any>(null);
     const [branchDetails, setBranchDetails] = useState<any>(null);
     const [allAppointments, setAllAppointments] = useState([]); // For availability check
 
@@ -854,7 +859,7 @@ export default function OpdEntryPage() {
                 alert('OPD Entry created successfully!');
                 // Check if response has data.opdEntry (from createOpdEntry controller)
                 if (response.data?.data?.opdEntry?.opd_id) {
-                    return response.data.data.opdEntry.opd_id;
+                    return response.data.data.opdEntry;
                 }
                 // Fallback if needed, though controller seems to return it
                 return null;
@@ -870,9 +875,26 @@ export default function OpdEntryPage() {
         e.preventDefault();
         setLoading(true);
         try {
-            await saveEntry();
-            setShowModal(false);
-            resetForm();
+            const savedEntry = await saveEntry();
+
+            if (paymentChoice === 'PayNow' && savedEntry) {
+                // Determine MRN - might be from response or selectedPatient
+                const mrn = savedEntry.mrn_number || selectedPatient?.mrn_number;
+
+                setNewOpdData({
+                    ...savedEntry,
+                    // Ensure we have patient details for the modal
+                    patient_first_name: opdForm.first_name,
+                    patient_last_name: opdForm.last_name,
+                    patient_contact_number: opdForm.contact_number,
+                    mrn_number: mrn
+                });
+                setShowModal(false); // Close OPD Modal
+                setShowBillModal(true); // Open Billing Modal
+            } else {
+                setShowModal(false);
+                resetForm();
+            }
             fetchOpdEntries();
             fetchDashboardStats(); // Refresh stats
         } catch (error) {
@@ -911,8 +933,9 @@ export default function OpdEntryPage() {
                 // Let's close the entry modal to avoid clutter, as the bill modal is an overlay?
                 // Or maybe better: Switch to edit mode so they can see what they just saved under the bill modal?
                 // Decision: Close the entry form modal so only the Bill modal is visible on top of list.
-                setShowModal(false);
-                resetForm();
+                // Decision: Close the entry form modal so only the Bill modal is visible on top of list.
+                // setShowModal(false);
+                // resetForm();
             }
         } catch (error) {
             // Error handled in saveEntry
@@ -977,6 +1000,7 @@ export default function OpdEntryPage() {
         // Reset Convert to OPD state
         setIsFromConvertToOPD(false);
         setPendingPatientData(null);
+        setPaymentChoice('PayNow');
     };
 
     const handleEditOpd = (entry: any) => {
@@ -1058,6 +1082,9 @@ export default function OpdEntryPage() {
             contact_number: entry.contact_number,
             blood_group: entry.blood_group
         });
+
+        // Set Payment Choice based on status
+        setPaymentChoice(entry.payment_status === 'Paid' ? 'PayNow' : 'PayLater');
 
         setShowModal(true);
     };
@@ -2627,20 +2654,39 @@ export default function OpdEntryPage() {
                                                     </div>
                                                 </div>
                                             )}
-                                            <div>
-                                                <label className="block text-xs font-semibold text-slate-500 mb-1">Payment Status <span className="text-red-500">*</span></label>
-                                                <select required value={opdForm.payment_status} onChange={(e) => setOpdForm({ ...opdForm, payment_status: e.target.value })} className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium">
-                                                    <option value="Pending">Pending</option>
-                                                    <option value="Paid">Paid</option>
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-semibold text-slate-500 mb-1">Method</label>
-                                                <select value={opdForm.payment_method} onChange={(e) => setOpdForm({ ...opdForm, payment_method: e.target.value })} className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium">
-                                                    <option value="Cash">Cash</option>
-                                                    <option value="UPI">UPI</option>
-                                                    <option value="Card">Card</option>
-                                                </select>
+                                            <div className="flex-1">
+                                                <label className="block text-xs font-semibold text-slate-500 mb-2">Payment Preference <span className="text-red-500">*</span></label>
+                                                <div className="flex gap-4">
+                                                    <label className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${paymentChoice === 'PayNow' ? 'bg-blue-50 border-blue-500 text-blue-700 shadow-sm' : 'bg-white border-slate-200 text-slate-600 hover:border-blue-300'}`}>
+                                                        <input
+                                                            type="radio"
+                                                            name="payment_choice"
+                                                            value="PayNow"
+                                                            checked={paymentChoice === 'PayNow'}
+                                                            onChange={() => setPaymentChoice('PayNow')}
+                                                            className="hidden"
+                                                        />
+                                                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${paymentChoice === 'PayNow' ? 'border-blue-600' : 'border-slate-300'}`}>
+                                                            {paymentChoice === 'PayNow' && <div className="w-2 h-2 rounded-full bg-blue-600" />}
+                                                        </div>
+                                                        <span className="font-bold text-sm">Pay Now</span>
+                                                    </label>
+
+                                                    <label className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${paymentChoice === 'PayLater' ? 'bg-amber-50 border-amber-500 text-amber-700 shadow-sm' : 'bg-white border-slate-200 text-slate-600 hover:border-amber-300'}`}>
+                                                        <input
+                                                            type="radio"
+                                                            name="payment_choice"
+                                                            value="PayLater"
+                                                            checked={paymentChoice === 'PayLater'}
+                                                            onChange={() => setPaymentChoice('PayLater')}
+                                                            className="hidden"
+                                                        />
+                                                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${paymentChoice === 'PayLater' ? 'border-amber-600' : 'border-slate-300'}`}>
+                                                            {paymentChoice === 'PayLater' && <div className="w-2 h-2 rounded-full bg-amber-600" />}
+                                                        </div>
+                                                        <span className="font-bold text-sm">Pay Later</span>
+                                                    </label>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -3066,6 +3112,24 @@ export default function OpdEntryPage() {
                     .print\\:shadow-none { box-shadow: none !important; }
                 }
             `}</style>
+
+            <BillingModal
+                isOpen={showBillModal}
+                onClose={() => {
+                    setShowBillModal(false);
+                    // If we just finished a Pay Now flow, we should reset the form
+                    if (newOpdData) {
+                        resetForm();
+                        setNewOpdData(null);
+                    }
+                    if (billData) setBillData(null);
+                }}
+                opdData={newOpdData || billData} // Use newOpdData for Pay Now, billData for Reprint
+                onSuccess={() => {
+                    fetchOpdEntries();
+                    fetchDashboardStats();
+                }}
+            />
         </div >
     );
 }

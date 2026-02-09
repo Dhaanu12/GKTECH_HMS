@@ -289,10 +289,27 @@ class OpdController {
             const finalConsultationFee = consultation_fee === '' || consultation_fee === null || consultation_fee === undefined ? null : consultation_fee;
             const finalDoctorId = doctor_id === '' || doctor_id === null || doctor_id === undefined ? null : doctor_id;
 
+            // 2.5. Get Department from Doctor (Fix for missing column error)
+            let departmentId = null;
+            if (finalDoctorId) {
+                // Fetch from doctor_departments (ordered by primary first)
+                const docRes = await query(`
+                    SELECT department_id 
+                    FROM doctor_departments 
+                    WHERE doctor_id = $1 
+                    ORDER BY is_primary_department DESC, department_id ASC 
+                    LIMIT 1
+                `, [finalDoctorId]);
+
+                if (docRes.rows.length > 0) {
+                    departmentId = docRes.rows[0].department_id;
+                }
+            }
+
             // 3. Create OPD Entry
             const result = await query(`
                 INSERT INTO opd_entries (
-                    opd_number, patient_id, branch_id, doctor_id,
+                    opd_number, patient_id, branch_id, doctor_id, department_id,
                     visit_type, visit_date, visit_time, token_number,
                     reason_for_visit, symptoms, vital_signs, chief_complaint,
                     consultation_fee, payment_status, payment_method, visit_status,
@@ -300,7 +317,7 @@ class OpdController {
                     is_mlc, attender_name, attender_contact_number, mlc_remarks,
                     referral_hospital, referral_doctor_name
                 ) VALUES (
-                    $1, $2, $3, $4,
+                    $1, $2, $3, $4, $23,
                     $5, $6, $7, $8,
                     $9, $10, $11, $12,
                     $13, $14, $15, 'Registered',
@@ -316,8 +333,36 @@ class OpdController {
                 payment_method || 'Cash', // Default to Cash if not provided
                 req.user.user_id,
                 is_mlc || false, attender_name, sanitizedAttenderContact, sanitizedMlcRemarks,
-                referral_hospital || null, referral_doctor_name || null
+                referral_hospital || null, referral_doctor_name || null,
+                departmentId // $23
             ]);
+
+            const newOpdEntry = result.rows[0];
+            const newOpdId = newOpdEntry.opd_id;
+
+            // 3.5. Auto-create Billing Detail (Pending)
+            if (finalConsultationFee && parseFloat(finalConsultationFee) > 0) {
+                // Fetch MRN
+                const patientRes = await query(`SELECT mrn_number FROM patients WHERE patient_id = $1`, [finalPatientId]);
+                const patientMrn = patientRes.rows[0]?.mrn_number;
+
+                // Use the departmentId we already fetched
+
+                await query(`
+                    INSERT INTO bill_details (
+                        branch_id, department_id, patient_id, mrn_number, opd_id,
+                        service_type, service_name, quantity, unit_price, subtotal, final_price, status,
+                        created_by
+                    ) VALUES (
+                        $1, $2, $3, $4, $5,
+                        'consultation', 'OPD Consultation', 1, $6, $6, $6, 'Pending',
+                        $7
+                    )
+                `, [
+                    branch_id, departmentId || 0, finalPatientId, patientMrn, newOpdId,
+                    finalConsultationFee, req.user.user_id
+                ]);
+            }
 
 
             // 4. Sync Appointment Status
