@@ -12,19 +12,51 @@ class InsuranceClaim extends BaseModel {
      */
     async createBulk(claimsData, branchId, hospitalId) {
         if (!claimsData || claimsData.length === 0) return [];
-        
-        // This is a simplified bulk insert. For large datasets, a transaction and prepared statement would be better.
-        // For now, we'll iterate and create (or use a helper if BaseModel supports it, but standard BaseModel usually does single inserts).
-        // Let's implement a transaction-based bulk insert manually here for efficiency.
-        
+
         const db = require('../config/db');
         const client = await db.getClient();
-        
+
         try {
             await client.query('BEGIN');
             const results = [];
-            
+
+            // 1. Get existing approval numbers for this branch/hospital to prevent duplicates
+            // We assume uniqueness is within the hospital or branch. Let's use hospital_id as scope if available, else branch.
+            // Or better, check specific approval numbers in the batch.
+
+            const incomingApprovals = claimsData
+                .map(c => c.approval_no)
+                .filter(Boolean); // Filter null/undefined
+
+            let existingApprovals = new Set();
+
+            if (incomingApprovals.length > 0) {
+                // Fetch existing approvals from DB that match incoming ones
+                const checkQuery = `
+                    SELECT approval_no 
+                    FROM insurance_claims 
+                    WHERE approval_no = ANY($1) 
+                    AND (hospital_id = $2 OR branch_id = $3)
+                 `;
+                const checkRes = await client.query(checkQuery, [incomingApprovals, hospitalId, branchId]);
+                checkRes.rows.forEach(r => existingApprovals.add(r.approval_no));
+            }
+
+            const skipped = [];
+
             for (const claim of claimsData) {
+                // SKIP if duplicate approval_no
+                if (claim.approval_no && existingApprovals.has(claim.approval_no)) {
+                    console.log(`Skipping duplicate claim with approval_no: ${claim.approval_no}`);
+                    skipped.push(claim.approval_no);
+                    continue;
+                }
+
+                // Add to set to prevent duplicates within the same batch
+                if (claim.approval_no) {
+                    existingApprovals.add(claim.approval_no);
+                }
+
                 const query = `
                     INSERT INTO insurance_claims (
                         s_no, ip_no, patient_name, doctor_name, approval_no, 
@@ -36,7 +68,7 @@ class InsuranceClaim extends BaseModel {
                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
                     RETURNING *
                 `;
-                
+
                 const values = [
                     claim.s_no || null,
                     claim.ip_no || null,
@@ -62,13 +94,13 @@ class InsuranceClaim extends BaseModel {
                     branchId || null,
                     hospitalId || null
                 ];
-                
+
                 const res = await client.query(query, values);
                 results.push(res.rows[0]);
             }
-            
+
             await client.query('COMMIT');
-            return results;
+            return { created: results, skipped: skipped };
         } catch (error) {
             await client.query('ROLLBACK');
             throw error;

@@ -130,11 +130,18 @@ exports.uploadClaims = async (req, res, next) => {
         // Clean up file
         fs.unlinkSync(filePath);
 
+        let message = `Successfully uploaded ${result.created.length} claims.`;
+        if (result.skipped.length > 0) {
+            message += ` Skipped ${result.skipped.length} duplicates.`;
+        }
+
         res.status(200).json({
             status: 'success',
-            count: result.length,
-            message: 'Claims uploaded successfully',
-            data: result
+            count: result.created.length,
+            skipped_count: result.skipped.length,
+            skipped_approvals: result.skipped,
+            message: message,
+            data: result.created
         });
 
     } catch (err) {
@@ -1297,10 +1304,10 @@ exports.getDashboardStats = async (req, res, next) => {
                 // 6. Referral Payouts (current month for these hospitals)
                 const referralPayoutQuery = `
                     SELECT COALESCE(SUM(rd.referral_amount), 0) as total_payout
-                    FROM referral_data rd
-                    JOIN referral_header rh ON rd.header_id = rh.header_id
-                    JOIN referral_doctor_module rdm ON rd.referral_doctor_id = rdm.id
-                    WHERE DATE_TRUNC('month', rh.upload_date) = DATE_TRUNC('month', CURRENT_DATE)
+                    FROM referral_payment_details rd
+                    JOIN referral_payment_header rh ON rd.payment_header_id = rh.id
+                    JOIN referral_doctor_module rdm ON rh.medical_council_id = rdm.medical_council_membership_number
+                    WHERE DATE_TRUNC('month', rh.created_at) = DATE_TRUNC('month', CURRENT_DATE)
                       AND rdm.tenant_id = ANY($1)
                 `;
                 const referralPayoutRes = await client.query(referralPayoutQuery, [allHospitalIds]);
@@ -1311,10 +1318,10 @@ exports.getDashboardStats = async (req, res, next) => {
                     SELECT 
                         rdm.doctor_name,
                         COALESCE(SUM(rd.referral_amount), 0) as total_amount
-                    FROM referral_data rd
-                    JOIN referral_header rh ON rd.header_id = rh.header_id
-                    JOIN referral_doctor_module rdm ON rd.referral_doctor_id = rdm.id
-                    WHERE rh.upload_date >= CURRENT_DATE - INTERVAL '30 days'
+                    FROM referral_payment_details rd
+                    JOIN referral_payment_header rh ON rd.payment_header_id = rh.id
+                    JOIN referral_doctor_module rdm ON rh.medical_council_id = rdm.medical_council_membership_number
+                    WHERE rh.created_at >= CURRENT_DATE - INTERVAL '30 days'
                       AND rdm.tenant_id = ANY($1)
                     GROUP BY rdm.doctor_name
                     ORDER BY total_amount DESC

@@ -15,6 +15,25 @@ import BranchInsurerChart from '@/components/charts/BranchInsurerChart';
 import InsurersDistributionChart from '@/components/charts/InsurersDistributionChart';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import {
+    BarChart,
+    Bar,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    Legend,
+    ResponsiveContainer
+} from 'recharts';
+
+interface InsuranceStats {
+    name: string;
+    totalBill: number;
+    totalApproval: number;
+    totalReceived: number;
+    totalPending: number;
+    count: number;
+}
 
 interface Claim {
     claim_id: number;
@@ -39,6 +58,7 @@ interface Claim {
     discount: number;
     advance_amount: number;
     is_updated: number;
+    created_at?: string;
 }
 
 interface Branch {
@@ -75,6 +95,7 @@ export default function ClaimsPage() {
     const [uploadFile, setUploadFile] = useState<File | null>(null);
     const [uploading, setUploading] = useState(false);
     const [uploadResult, setUploadResult] = useState<{ success: boolean; message: string; count?: number } | null>(null);
+    const [showAnalysis, setShowAnalysis] = useState(false);
 
     // Pagination
     const [page, setPage] = useState(1);
@@ -251,7 +272,7 @@ export default function ClaimsPage() {
 
             setUploadResult({
                 success: true,
-                message: 'Upload successful!',
+                message: response.data.message || 'Upload successful!',
                 count: response.data.count || response.data.data?.length
             });
 
@@ -272,35 +293,193 @@ export default function ClaimsPage() {
         }
     };
 
+    const calculateStats = () => {
+        const stats: Record<string, InsuranceStats> = {};
+
+        claims.forEach(claim => {
+            const name = claim.insurance_name || 'Unknown';
+            if (!stats[name]) {
+                stats[name] = {
+                    name,
+                    totalBill: 0,
+                    totalApproval: 0,
+                    totalReceived: 0,
+                    totalPending: 0,
+                    count: 0
+                };
+            }
+            stats[name].totalBill += Number(claim.bill_amount || 0);
+            stats[name].totalApproval += Number(claim.approval_amount || 0);
+            stats[name].totalReceived += Number(claim.amount_received || 0);
+            stats[name].totalPending += Number(claim.pending_amount || 0);
+            stats[name].count += 1;
+        });
+
+        return Object.values(stats);
+    };
+
     const handleExportPDF = () => {
         if (claims.length === 0) return;
 
         const doc = new jsPDF('l', 'mm', 'a4');
-        doc.setFontSize(16);
-        doc.text('Insurance Claims Report', 14, 15);
-        doc.setFontSize(10);
-        doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 22);
+        const stats = calculateStats();
+        const pageWidth = doc.internal.pageSize.getWidth();
 
-        const columns = ['IP No', 'Patient', 'Insurance', 'Bill Amt', 'Approval', 'Received', 'Pending'];
-        const rows = claims.map(c => [
-            c.ip_no,
-            c.patient_name,
-            c.insurance_name,
-            `₹${c.bill_amount?.toLocaleString() || 0}`,
-            `₹${c.approval_amount?.toLocaleString() || 0}`,
-            `₹${c.amount_received?.toLocaleString() || 0}`,
-            `₹${c.pending_amount?.toLocaleString() || 0}`
+        // 1. Title & Header
+        doc.setFontSize(18);
+        doc.setTextColor(37, 99, 235);
+        doc.text('Insurance Claims Analysis Report', 14, 15);
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text(`Generated: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, 14, 22);
+
+        const chartX = 14;
+        const chartY = 38;
+        const barStartX = chartX + 55; // More room for labels
+        const chartWidth = 140;
+        const barHeight = 7;
+        const gap = 5;
+
+        // 2. Simple Bar Chart visualization at the top
+        if (stats.length > 0) {
+            doc.setFontSize(12);
+            doc.setTextColor(50);
+            doc.text('Financial Analysis by Insurance Company', 14, 32);
+
+            // Legend moved to top-right of chart area
+            doc.setFontSize(9);
+            doc.setFillColor(99, 102, 241);
+            doc.rect(200, 27, 4, 4, 'F');
+            doc.setTextColor(80);
+            doc.text('Total Bill', 206, 30.5);
+
+            doc.setFillColor(34, 197, 94);
+            doc.rect(230, 27, 4, 4, 'F');
+            doc.text('Received', 236, 30.5);
+
+            const maxVal = Math.max(...stats.map(s => s.totalBill), 1);
+
+            stats.slice(0, 10).forEach((stat, index) => {
+                const currentY = chartY + (index * (barHeight + gap));
+
+                // Label (Insurance Name)
+                doc.setFontSize(8);
+                doc.setTextColor(60);
+                const shortName = stat.name.length > 25 ? stat.name.substring(0, 22) + '...' : stat.name;
+                doc.text(shortName, chartX, currentY + barHeight / 2 + 1);
+
+                // Background track
+                doc.setFillColor(245, 245, 245);
+                doc.rect(barStartX, currentY, chartWidth, barHeight, 'F');
+
+                // Bill Bar
+                const billWidth = (stat.totalBill / maxVal) * chartWidth;
+                doc.setFillColor(99, 102, 241);
+                doc.rect(barStartX, currentY, billWidth, barHeight, 'F');
+
+                // Received Bar (thinner inset)
+                const receivedWidth = (stat.totalReceived / maxVal) * chartWidth;
+                doc.setFillColor(34, 197, 94);
+                doc.rect(barStartX, currentY + 2, receivedWidth, barHeight - 4, 'F');
+
+                // Value labels at the end of the bars
+                doc.setFontSize(7);
+                doc.setTextColor(100);
+                const valText = `Rs.${stat.totalBill.toLocaleString()} (Rec: Rs.${stat.totalReceived.toLocaleString()})`;
+                doc.text(valText, barStartX + chartWidth + 3, currentY + barHeight / 2 + 1);
+            });
+        }
+
+        // 3. Summary Table
+        doc.setFontSize(11);
+        doc.setTextColor(37, 99, 235); // Blue for consistency
+        const chartHeight = stats.length > 0 ? (Math.min(stats.length, 10) * (barHeight + gap)) : 0;
+        const tableStartY = chartY + chartHeight + 25; // Increased buffer to 25
+        doc.text('Summary by Insurance Company', 14, tableStartY - 8);
+
+        const summaryColumns = ['Insurance Company', 'Total Bill', 'Total Approval', 'Total Received', 'Total Pending', 'Claims'];
+        const summaryRows = stats.map(s => [
+            s.name,
+            `Rs.${s.totalBill.toLocaleString()}`,
+            `Rs.${s.totalApproval.toLocaleString()}`,
+            `Rs.${s.totalReceived.toLocaleString()}`,
+            `Rs.${s.totalPending.toLocaleString()}`,
+            s.count.toString()
         ]);
 
         autoTable(doc, {
-            head: [columns],
-            body: rows,
-            startY: 28,
-            styles: { fontSize: 8 },
-            headStyles: { fillColor: [37, 99, 235] }
+            head: [summaryColumns],
+            body: summaryRows,
+            startY: (stats.length > 0 ? 38 + (stats.slice(0, 10).length * 10) + 10 : 38),
+            theme: 'grid',
+            headStyles: {
+                fillColor: [63, 81, 181],
+                textColor: 255,
+                fontStyle: 'bold',
+                halign: 'center'
+            },
+            styles: {
+                fontSize: 8,
+                cellPadding: 1.5,
+                valign: 'middle',
+                overflow: 'linebreak'
+            },
+            columnStyles: {
+                0: { cellWidth: 50 }, // Insurance Company
+                1: { halign: 'right', cellWidth: 32 },
+                2: { halign: 'right', cellWidth: 32 },
+                3: { halign: 'right', cellWidth: 32 },
+                4: { halign: 'right', cellWidth: 32 },
+                5: { halign: 'center', cellWidth: 15 }
+            }
         });
 
-        doc.save(`Claims_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+        // 4. Detailed Claims Table
+        const detailedColumns = ['Uploaded', 'IP No', 'Patient', 'Approval No', 'Insurance', 'Bill Amt', 'Appr Amt', 'Received', 'Pending'];
+        const detailedRows = claims.map(c => [
+            new Date(c.created_at || Date.now()).toLocaleDateString(),
+            c.ip_no || '-',
+            c.patient_name || '-',
+            c.approval_no || '-',
+            c.insurance_name || '-',
+            `Rs.${(c.bill_amount || 0).toLocaleString()}`,
+            `Rs.${(c.approval_amount || 0).toLocaleString()}`,
+            `Rs.${(c.amount_received || 0).toLocaleString()}`,
+            `Rs.${(c.pending_amount || 0).toLocaleString()}`
+        ]);
+
+        doc.setFontSize(11);
+        doc.text('Detailed Claims List', 14, (doc as any).lastAutoTable.finalY + 12);
+
+        autoTable(doc, {
+            head: [detailedColumns],
+            body: detailedRows,
+            startY: (doc as any).lastAutoTable.finalY + 17,
+            styles: {
+                fontSize: 7,
+                cellPadding: 1,
+                valign: 'middle',
+                overflow: 'linebreak'
+            },
+            headStyles: {
+                fillColor: [37, 99, 235],
+                halign: 'center',
+                fontStyle: 'bold'
+            },
+            columnStyles: {
+                0: { cellWidth: 20 }, // Date
+                1: { cellWidth: 15 }, // IP
+                2: { cellWidth: 30 }, // Patient
+                3: { cellWidth: 20 }, // Appr No
+                4: { cellWidth: 30 }, // Insurance
+                5: { halign: 'right', cellWidth: 24 }, // Bill
+                6: { halign: 'right', cellWidth: 24 }, // Appr Amt
+                7: { halign: 'right', cellWidth: 24 }, // Received
+                8: { halign: 'right', cellWidth: 24 }  // Pending
+            }
+        });
+
+        doc.save(`Insurance_Claims_Export_${new Date().toISOString().split('T')[0]}.pdf`);
     };
 
     const formatCurrency = (amount: number) => {
@@ -326,6 +505,13 @@ export default function ClaimsPage() {
                 </div>
                 <div className="flex gap-3">
                     <button
+                        onClick={() => setShowAnalysis(!showAnalysis)}
+                        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-colors font-medium border ${showAnalysis ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'}`}
+                    >
+                        <BarChart3 className="w-4 h-4" />
+                        {showAnalysis ? 'Hide Analysis' : 'Show Analysis'}
+                    </button>
+                    <button
                         onClick={() => setShowUploadModal(true)}
                         className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors shadow-sm font-medium"
                     >
@@ -342,6 +528,40 @@ export default function ClaimsPage() {
                     </button>
                 </div>
             </div>
+
+            {/* Analysis Section */}
+            {showAnalysis && claims.length > 0 && (
+                <div className="mb-6 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Claims Analysis by Insurance Company</h3>
+                    <div className="h-[400px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart
+                                data={calculateStats()}
+                                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                            >
+                                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                                <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                                <YAxis
+                                    stroke="#888888"
+                                    fontSize={12}
+                                    tickLine={false}
+                                    axisLine={false}
+                                    tickFormatter={(value) => `₹${value.toLocaleString()}`}
+                                />
+                                <Tooltip
+                                    cursor={{ fill: '#f8fafc' }}
+                                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                    formatter={(value: number) => [`₹${value.toLocaleString()}`, '']}
+                                />
+                                <Legend />
+                                <Bar name="Total Bill Amount" dataKey="totalBill" fill="#6366f1" radius={[4, 4, 0, 0]} barSize={30} />
+                                <Bar name="Amount Received" dataKey="totalReceived" fill="#22c55e" radius={[4, 4, 0, 0]} barSize={30} />
+                                <Bar name="Pending Amount" dataKey="totalPending" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={30} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+            )}
 
             {/* Tabs */}
             <div className="flex gap-1 p-1 bg-gray-100 rounded-xl w-fit">
@@ -445,8 +665,10 @@ export default function ClaimsPage() {
                             <table className="w-full text-sm">
                                 <thead className="bg-gray-50 border-b border-gray-200">
                                     <tr>
+                                        <th className="text-left py-3 px-4 font-semibold text-gray-600">Uploaded</th>
                                         <th className="text-left py-3 px-4 font-semibold text-gray-600">IP No</th>
                                         <th className="text-left py-3 px-4 font-semibold text-gray-600">Patient</th>
+                                        <th className="text-left py-3 px-4 font-semibold text-gray-600">Approval No</th>
                                         <th className="text-left py-3 px-4 font-semibold text-gray-600">Insurance</th>
                                         <th className="text-right py-3 px-4 font-semibold text-gray-600">Bill</th>
                                         <th className="text-right py-3 px-4 font-semibold text-gray-600">Received</th>
@@ -477,8 +699,15 @@ export default function ClaimsPage() {
                                                     className={`border-b border-gray-100 cursor-pointer transition-colors ${expandedRow === claim.claim_id ? 'bg-blue-50' : 'hover:bg-gray-50'
                                                         } ${claim.is_updated === 1 ? 'opacity-60' : ''}`}
                                                 >
+                                                    <td className="py-3 px-4 text-xs text-gray-500">
+                                                        {new Date(claim.created_at || Date.now()).toLocaleDateString()}
+                                                        <span className="block text-[10px] text-gray-400">
+                                                            {new Date(claim.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                        </span>
+                                                    </td>
                                                     <td className="py-3 px-4 font-mono text-xs">{claim.ip_no}</td>
                                                     <td className="py-3 px-4">{claim.patient_name}</td>
+                                                    <td className="py-3 px-4 font-mono text-xs text-gray-500">{claim.approval_no || '-'}</td>
                                                     <td className="py-3 px-4">
                                                         <span className="inline-block px-2 py-1 bg-gray-100 rounded text-xs">
                                                             {claim.insurance_name}
