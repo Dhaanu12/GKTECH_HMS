@@ -100,40 +100,38 @@ class ReportingController {
                     GROUP BY n.nurse_id, n.first_name, n.last_name
                 `;
             } else if (type === 'RECEPTIONIST') {
-                // Assuming Receptionists are in 'staff' table with staff_type='RECEPTIONIST'
-                // Metric: Appointments booked (booked_by linked to user_id, need join)
                 query = `
                     SELECT 
                         s.staff_id as id,
                         s.first_name,
                         s.last_name,
                         'Receptionist' as role_detail,
-                        -- Count appointments confirmed by this user + OPD entries checked in
-                        -- Count appointments confirmed by this user + OPD entries checked in
+                        -- Total Actions (Bookings + Checkins)
                         (
                             (SELECT COUNT(*) FROM appointments a 
-                             WHERE a.created_at >= $2::timestamp AND a.created_at <= $3::timestamp 
+                             WHERE a.appointment_date >= $2::date AND a.appointment_date <= $3::date 
                              AND a.confirmed_by = s.user_id)
                             +
                             (SELECT COUNT(*) FROM opd_entries o 
-                             WHERE o.created_at >= $2::timestamp AND o.created_at <= $3::timestamp 
+                             WHERE o.visit_date >= $2::date AND o.visit_date <= $3::date 
                              AND o.checked_in_by = s.user_id)
                         ) as task_count,
-                        -- Performance Metric: Cancellations handled
+                        -- Primary Performance Metric (Cancellations + No-shows handled/recorded)
                         (SELECT COUNT(*) FROM appointments a 
-                         WHERE a.updated_at >= $2::timestamp AND a.updated_at <= $3::timestamp 
-                         AND a.cancelled_by = s.user_id) as performance_metric,
+                         WHERE a.appointment_date >= $2::date AND a.appointment_date <= $3::date 
+                         AND (a.cancelled_by = s.user_id OR (a.confirmed_by = s.user_id AND a.appointment_status = 'No-show'))) as performance_metric,
                          
                          -- Detailed Breakdown
-                         (SELECT COUNT(*) FROM appointments a WHERE a.confirmed_by = s.user_id AND a.created_at >= $2::timestamp AND a.created_at <= $3::timestamp) as confirmed_appts,
-                         (SELECT COUNT(*) FROM opd_entries o WHERE o.checked_in_by = s.user_id AND o.created_at >= $2::timestamp AND o.created_at <= $3::timestamp) as opd_checkins
+                         (SELECT COUNT(*) FROM appointments a WHERE a.confirmed_by = s.user_id AND a.appointment_date >= $2::date AND a.appointment_date <= $3::date) as total_confirmed,
+                         (SELECT COUNT(*) FROM opd_entries o WHERE o.checked_in_by = s.user_id AND o.visit_date >= $2::date AND o.visit_date <= $3::date) as opd_checkins,
+                         (SELECT COUNT(*) FROM appointments a WHERE a.confirmed_by = s.user_id AND a.appointment_status = 'No-show' AND a.appointment_date >= $2::date AND a.appointment_date <= $3::date) as no_show_count,
+                         (SELECT COUNT(*) FROM appointments a WHERE a.cancelled_by = s.user_id AND a.appointment_date >= $2::date AND a.appointment_date <= $3::date) as cancellations_handled
                     FROM staff s
                     JOIN staff_branches sb ON s.staff_id = sb.staff_id
                     JOIN branches b ON sb.branch_id = b.branch_id
                     WHERE b.hospital_id = $1 AND s.staff_type = 'RECEPTIONIST'
                     GROUP BY s.staff_id, s.first_name, s.last_name, s.user_id
                 `;
-                // Metric: Appointments confirmed + OPDs checked in
             } else {
                 return next(new AppError('Invalid staff type', 400));
             }
