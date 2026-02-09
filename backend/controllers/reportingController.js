@@ -64,7 +64,13 @@ class ReportingController {
                         d.last_name,
                         d.specialization as role_detail,
                         COUNT(o.opd_id) as task_count, -- Patients Seen
-                        SUM(COALESCE(o.consultation_fee, 0)) as performance_metric -- Revenue
+                        SUM(COALESCE(o.consultation_fee, 0)) as performance_metric, -- Revenue
+                        -- New Metrics
+                        COUNT(CASE WHEN o.visit_type = 'Walk-in' THEN 1 END) as walk_in_count,
+                        COUNT(CASE WHEN o.visit_type = 'Referral' THEN 1 END) as referral_count,
+                        COUNT(CASE WHEN o.visit_type = 'Follow-up' THEN 1 END) as follow_up_count,
+                        (SELECT COUNT(*) FROM appointments a WHERE a.doctor_id = d.doctor_id AND a.appointment_date >= $2::date AND a.appointment_date <= $3::date) as total_appointments,
+                        (SELECT COUNT(*) FROM appointments a WHERE a.doctor_id = d.doctor_id AND a.appointment_status = 'Completed' AND a.appointment_date >= $2::date AND a.appointment_date <= $3::date) as completed_appointments
                     FROM doctors d
                     JOIN doctor_branches db ON d.doctor_id = db.doctor_id
                     JOIN branches b ON db.branch_id = b.branch_id
@@ -81,7 +87,10 @@ class ReportingController {
                         n.last_name,
                         'Nurse' as role_detail,
                         COUNT(ns.nurse_shift_id) as task_count, -- Shifts Completed
-                        COUNT(CASE WHEN ns.attendance_status = 'Present' THEN 1 END) as performance_metric -- Present Days
+                        COUNT(CASE WHEN ns.attendance_status = 'Present' THEN 1 END) as performance_metric, -- Present Days
+                        -- New Punctuality Metrics
+                        COUNT(CASE WHEN ns.attendance_status = 'Late' THEN 1 END) as late_days,
+                        COUNT(CASE WHEN ns.attendance_status = 'Absent' THEN 1 END) as absent_days
                     FROM nurses n
                     JOIN nurse_branches nb ON n.nurse_id = nb.nurse_id
                     JOIN branches b ON nb.branch_id = b.branch_id
@@ -99,21 +108,32 @@ class ReportingController {
                         s.first_name,
                         s.last_name,
                         'Receptionist' as role_detail,
-                        -- Count appointments created by this user
-                        (SELECT COUNT(*) FROM appointments a 
-                         WHERE a.created_at >= $2::timestamp AND a.created_at <= $3::timestamp 
-                         -- AND a.created_by = s.user_id (This join assumes we track creator)
-                         -- For now, returning 0/mock or joining if 'created_by' exists
+                        -- Count appointments confirmed by this user + OPD entries checked in
+                        -- Count appointments confirmed by this user + OPD entries checked in
+                        (
+                            (SELECT COUNT(*) FROM appointments a 
+                             WHERE a.created_at >= $2::timestamp AND a.created_at <= $3::timestamp 
+                             AND a.confirmed_by = s.user_id)
+                            +
+                            (SELECT COUNT(*) FROM opd_entries o 
+                             WHERE o.created_at >= $2::timestamp AND o.created_at <= $3::timestamp 
+                             AND o.checked_in_by = s.user_id)
                         ) as task_count,
-                        0 as performance_metric
+                        -- Performance Metric: Cancellations handled
+                        (SELECT COUNT(*) FROM appointments a 
+                         WHERE a.updated_at >= $2::timestamp AND a.updated_at <= $3::timestamp 
+                         AND a.cancelled_by = s.user_id) as performance_metric,
+                         
+                         -- Detailed Breakdown
+                         (SELECT COUNT(*) FROM appointments a WHERE a.confirmed_by = s.user_id AND a.created_at >= $2::timestamp AND a.created_at <= $3::timestamp) as confirmed_appts,
+                         (SELECT COUNT(*) FROM opd_entries o WHERE o.checked_in_by = s.user_id AND o.created_at >= $2::timestamp AND o.created_at <= $3::timestamp) as opd_checkins
                     FROM staff s
                     JOIN staff_branches sb ON s.staff_id = sb.staff_id
                     JOIN branches b ON sb.branch_id = b.branch_id
                     WHERE b.hospital_id = $1 AND s.staff_type = 'RECEPTIONIST'
-                    GROUP BY s.staff_id, s.first_name, s.last_name
+                    GROUP BY s.staff_id, s.first_name, s.last_name, s.user_id
                 `;
-                // Note: Ideally, we need 'created_by' columns in appointments/opd_entries to track receptionist performance accurately. 
-                // If not available, we list them without specific metrics or rely on shift attendance like nurses.
+                // Metric: Appointments confirmed + OPDs checked in
             } else {
                 return next(new AppError('Invalid staff type', 400));
             }
