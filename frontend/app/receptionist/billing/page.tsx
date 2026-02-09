@@ -133,8 +133,14 @@ export default function BillingPage() {
             patient_name: item.patient_name,
             patient_first_name: item.patient_name.split(' ')[0],
             patient_last_name: item.patient_name.split(' ').slice(1).join(' '),
+            age: item.age, // Mapped from pending item
+            gender: item.gender, // Mapped from pending item
+            doctor_name: item.doctor_name, // Mapped from pending item
+            department_name: item.department_name, // Mapped from pending item
             patient: {
-                contact_number: item.contact_number
+                contact_number: item.contact_number,
+                gender: item.gender,
+                age: item.age
             },
             consultation_fee: 0
         });

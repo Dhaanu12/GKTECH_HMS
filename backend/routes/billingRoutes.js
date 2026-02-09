@@ -20,4 +20,7 @@ router.get('/:id', authorize('RECEPTIONIST', 'ADMIN', 'ACCOUNTANT'), BillingCont
 // Get Pending Bill Items for OPD
 router.get('/pending/:opd_id', authorize('RECEPTIONIST', 'ADMIN', 'ACCOUNTANT'), BillingController.getPendingBillItems);
 
+// Cancel Bill Item
+router.post('/cancel-item', authorize('RECEPTIONIST', 'ADMIN', 'ACCOUNTANT'), BillingController.cancelBillItem);
+
 module.exports = router;
