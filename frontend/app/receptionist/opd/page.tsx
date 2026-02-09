@@ -17,9 +17,7 @@ export default function OpdEntryPage() {
     const [searchResults, setSearchResults] = useState([]);
     const [selectedPatient, setSelectedPatient] = useState<any>(null);
     const [doctors, setDoctors] = useState<any[]>([]);
-
     const [doctorSchedules, setDoctorSchedules] = useState<any[]>([]); // Added schedule state
-    const [showMlcList, setShowMlcList] = useState(false); // Added MLC filter state
     const [dateRange, setDateRange] = useState({
         from: new Date().toLocaleDateString('en-CA'), // YYYY-MM-DD in local time
         to: new Date().toLocaleDateString('en-CA')
@@ -38,9 +36,8 @@ export default function OpdEntryPage() {
         pendingCount: 0,
         collectedAmount: 0,
         collectedCount: 0,
-        newPatients: 0, // Added field
+        newPatients: 0 // Added field
     });
-    const [bookedSlots, setBookedSlots] = useState<string[]>([]);
 
     // Duplicate Check State
     const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
@@ -300,14 +297,14 @@ export default function OpdEntryPage() {
         }
     };
 
-    const fetchOpdEntries = async (query = '', startDate = dateRange.from, endDate = dateRange.to) => {
+    const fetchOpdEntries = async (query = '') => {
         try {
             const token = localStorage.getItem('token');
             const response = await axios.get(`${API_URL}/opd`, {
                 params: {
                     search: query,
-                    startDate: startDate,
-                    endDate: endDate
+                    startDate: dateRange.from,
+                    endDate: dateRange.to
                 },
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -316,12 +313,6 @@ export default function OpdEntryPage() {
             console.error('Error fetching OPD entries:', error);
         }
     };
-
-    // Auto-fetch when date range changes (e.g. from Refresh button or Date Picker)
-    useEffect(() => {
-        // Debounce or just fetch? Since date picker might fire rapidly, simple fetch is fine for now.
-        fetchOpdEntries(searchQuery);
-    }, [dateRange.from, dateRange.to]);
 
     const fetchAppointments = async () => {
         try {
@@ -450,7 +441,6 @@ export default function OpdEntryPage() {
                     headers: { Authorization: `Bearer ${token}` }
                 }),
                 fetchOpdEntries(searchQuery)
-
             ]);
 
             setSearchResults(patientRes.data.data.patients || []);
@@ -1007,15 +997,22 @@ export default function OpdEntryPage() {
 
 
     // --- Cancel Modal Functions (matches UpcomingAppointments) ---
-    // --- Cancel Modal Functions (matches UpcomingAppointments) ---
     const openCancelModal = (entry: any) => {
-        // Strictly cancel the OPD Entry from this page
-        setAppointmentToCancel({
-            appointment_id: null,
-            opd_id: entry.opd_id,
-            patient_name: `${entry.patient_first_name} ${entry.patient_last_name}`,
-            isOpdCancel: true
-        });
+        // Find the appointment for this patient (if exists)
+        const patientAppointment = allAppointments.find((apt: any) =>
+            apt.patient_id === entry.patient_id && ['Scheduled', 'Confirmed'].includes(apt.appointment_status)
+        );
+        if (patientAppointment) {
+            setAppointmentToCancel(patientAppointment);
+        } else {
+            // Create a pseudo-appointment from OPD data for cancellation
+            setAppointmentToCancel({
+                appointment_id: null,
+                opd_id: entry.opd_id,
+                patient_name: `${entry.patient_first_name} ${entry.patient_last_name}`,
+                isOpdCancel: true
+            });
+        }
         setCancelReason('Patient Request');
         setShowCancelModal(true);
     };
@@ -1058,101 +1055,28 @@ export default function OpdEntryPage() {
         }
     };
 
-    // Fetch booked slots for the visual grid
-    const fetchBookedSlots = async (doctorId: string, date: string) => {
-        if (!doctorId || !date) return;
-        try {
-            const token = localStorage.getItem('token');
-            const response = await axios.get(`${API_URL}/appointments`, {
-                params: { doctor_id: doctorId, date: date },
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            const apps = response.data.data.appointments || [];
-            const times = apps
-                .filter((app: any) => ['Scheduled', 'Confirmed'].includes(app.appointment_status))
-                .map((app: any) => app.appointment_time.slice(0, 5)); // HH:MM
-            setBookedSlots(times);
-        } catch (error) {
-            console.error("Error fetching booked slots:", error);
-        }
-    };
-
-    useEffect(() => {
-        if (rescheduleForm.doctor_id && rescheduleForm.appointment_date) {
-            fetchBookedSlots(rescheduleForm.doctor_id, rescheduleForm.appointment_date);
-        }
-    }, [rescheduleForm.doctor_id, rescheduleForm.appointment_date]);
-
-    // Real-time duplicate check
-    useEffect(() => {
-        if (!showRescheduleModal || !appointmentToReschedule || !rescheduleForm.appointment_date || !rescheduleForm.doctor_id) return;
-
-        const checkDuplicate = async () => {
-            try {
-                const token = localStorage.getItem('token');
-                // Construct params based on whether we are updating (exclude self) or creating new
-                const params: any = {
-                    doctor_id: rescheduleForm.doctor_id,
-                    appointment_date: rescheduleForm.appointment_date,
-                    exclude_appointment_id: appointmentToReschedule.appointment_id // null if new
-                };
-
-                // Use patient_id if available (registered patient), else phone_number
-                if (appointmentToReschedule.patient_id) {
-                    params.patient_id = appointmentToReschedule.patient_id;
-                } else {
-                    params.phone_number = appointmentToReschedule.phone_number;
-                }
-
-                const response = await axios.get(`${API_URL}/appointments/check-duplicate`, {
-                    params,
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-
-                if (response.data.exists) {
-                    setRescheduleError(response.data.message);
-                } else {
-                    setRescheduleError(null);
-                }
-            } catch (err) {
-                console.error('Check duplicate error', err);
-            }
-        };
-
-        const timer = setTimeout(() => {
-            checkDuplicate();
-        }, 500); // 500ms debounce
-
-        return () => clearTimeout(timer);
-    }, [rescheduleForm.appointment_date, rescheduleForm.doctor_id, showRescheduleModal, appointmentToReschedule]);
-
     // --- Reschedule Modal Functions (matches UpcomingAppointments) ---
     const openRescheduleModal = (entry: any) => {
+        // Find existing appointment for this patient
+        const patientAppointment = allAppointments.find((apt: any) =>
+            apt.patient_id === entry.patient_id && ['Scheduled', 'Confirmed'].includes(apt.appointment_status)
+        );
+
         const today = new Date().toISOString().split('T')[0];
-        // Fix: Only link to an existing appointment if this SPECIFIC entry is that appointment
-        // Otherwise we risk overwriting an existing future appointment when we just meant to create a new one
-        if (entry.visit_status === 'Scheduled' && entry.appointment_id) {
-            // It's an active scheduled visit - we are Rescheduling it
-            setAppointmentToReschedule({
-                appointment_id: entry.appointment_id,
-                patient_id: entry.patient_id,
-                patient_name: `${entry.patient_first_name} ${entry.patient_last_name}`,
-                phone_number: entry.contact_number,
-                age: entry.age,
-                gender: entry.gender,
-                doctor_id: entry.doctor_id,
-                appointment_date: entry.visit_date,
-                appointment_time: entry.visit_time
-            });
+
+        if (patientAppointment) {
+            setAppointmentToReschedule(patientAppointment);
+            const currentApptDate = patientAppointment.appointment_date?.split('T')[0] || today;
+            const defaultDate = currentApptDate < today ? today : currentApptDate;
 
             setRescheduleForm({
-                appointment_date: entry.visit_date,
-                appointment_time: entry.visit_time || '',
-                doctor_id: entry.doctor_id?.toString() || '',
+                appointment_date: defaultDate,
+                appointment_time: patientAppointment.appointment_time || '',
+                doctor_id: patientAppointment.doctor_id?.toString() || entry.doctor_id?.toString() || '',
                 reason: ''
             });
 
-            const hour = parseInt(entry.visit_time?.split(':')[0] || '9');
+            const hour = parseInt(patientAppointment.appointment_time?.split(':')[0] || '9');
             if (hour < 12) setTimeSlotCategory('Morning');
             else if (hour < 16) setTimeSlotCategory('Afternoon');
             else setTimeSlotCategory('Evening');
@@ -1160,7 +1084,6 @@ export default function OpdEntryPage() {
             // Create new appointment from OPD data
             setAppointmentToReschedule({
                 appointment_id: null,
-                opd_id: entry.opd_id, // Capture OPD ID for status update
                 patient_id: entry.patient_id,
                 patient_name: `${entry.patient_first_name} ${entry.patient_last_name}`,
                 phone_number: entry.contact_number,
@@ -1222,21 +1145,10 @@ export default function OpdEntryPage() {
                 await axios.post(`${API_URL}/appointments`, appointmentData, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
-
-                // Update original OPD entry status to 'Rescheduled'
-                if (appointmentToReschedule.opd_id) {
-                    await axios.patch(`${API_URL}/opd/${appointmentToReschedule.opd_id}/status`, {
-                        visit_status: 'Rescheduled'
-                    }, {
-                        headers: { Authorization: `Bearer ${token}` }
-                    });
-                }
-
                 alert('Appointment scheduled successfully!');
             }
 
             fetchAppointments();
-            fetchOpdEntries(); // Refresh OPD list to hide rescheduled entry
             setShowRescheduleModal(false);
             setAppointmentToReschedule(null);
         } catch (error: any) {
@@ -1373,7 +1285,7 @@ export default function OpdEntryPage() {
                     </div>
 
                     {/* MLC Cases - Legal compliance */}
-                    <div className="bg-gradient-to-br from-red-50 to-rose-50 p-6 rounded-3xl border border-red-100 shadow-sm hover:shadow-md transition-shadow group min-h-[180px] flex flex-col relative">
+                    <div className="bg-gradient-to-br from-red-50 to-rose-50 p-6 rounded-3xl border border-red-100 shadow-sm hover:shadow-md transition-shadow group min-h-[180px] flex flex-col">
                         <div className="flex items-center justify-between mb-4">
                             <div className="w-12 h-12 bg-red-500 rounded-2xl flex items-center justify-center text-white group-hover:scale-110 transition-transform shadow-lg shadow-red-500/30">
                                 <AlertCircle className="w-6 h-6" />
@@ -1387,12 +1299,6 @@ export default function OpdEntryPage() {
                             <p className="text-sm font-semibold text-red-600 mt-1">MLC Cases</p>
                         </div>
                         <p className="text-xs text-red-500 mt-auto pt-2">Medical Legal Cases today</p>
-                        <button
-                            onClick={() => setShowMlcList(!showMlcList)}
-                            className="absolute bottom-6 right-6 text-xs font-bold text-red-600 hover:text-red-800 underline transition-colors"
-                        >
-                            {showMlcList ? 'Show All' : 'View'}
-                        </button>
                     </div>
                 </div>
             </div>
@@ -1487,41 +1393,18 @@ export default function OpdEntryPage() {
                     >
                         {loading ? 'Searching...' : 'Search'}
                     </button>
-
-                    <button
-                        onClick={() => {
-                            const today = new Date().toLocaleDateString('en-CA');
-
-                            // 1. Reset all state to defaults
-                            setDateRange({ from: today, to: today });
-                            setSearchQuery('');
-                            setSelectedDoctorFilter('');
-                            setShowMlcList(false);
-
-                            // 2. Force immediate refetch with 'today' values
-                            // Pass explicit dates to bypass async state update lag
-                            fetchOpdEntries('', today, today);
-                            fetchDashboardStats();
-                            fetchDoctors();
-                            fetchDoctorSchedules();
-                        }}
-                        className="p-3 bg-white border border-slate-200 text-slate-500 rounded-xl hover:bg-slate-50 hover:text-blue-600 transition-colors shadow-sm active:scale-95"
-                        title="Reset to Today"
-                    >
-                        <RefreshCw className="w-5 h-5" />
-                    </button>
                 </div>
 
                 {/* Neat & Intuitive Entry List */}
                 <div className="mt-6 space-y-4 px-1 pb-20 bg-slate-50/50 rounded-2xl p-4 border border-slate-100">
                     <div className="hidden md:flex items-center px-4 text-xs font-bold text-slate-400 uppercase tracking-widest pb-2">
-                        <div className="w-[15%] pl-4">Token & ID</div>
-                        <div className="w-[15%]">Patient Details</div>
-                        <div className="w-[15%]">Assigned Doctor</div>
-                        <div className="w-[10%]">Timings</div>
-                        <div className="w-[10%]">Status</div>
-                        <div className="w-[10%] text-right">Payment</div>
-                        <div className="w-[25%] text-right pr-4">Actions</div>
+                        <div className="w-[15%] pl-4">Token</div>
+                        <div className="w-[17%]">Patient Details</div>
+                        <div className="w-[17%]">Assigned Doctor</div>
+                        <div className="w-[9%]">Timings</div>
+                        <div className="w-[12%]">Status</div>
+                        <div className="w-[12%] text-right">Payment</div>
+                        <div className="w-[18%] text-right pr-4">Actions</div>
                     </div>
 
                     {opdEntries.length === 0 ? (
@@ -1535,9 +1418,6 @@ export default function OpdEntryPage() {
                     ) : (
                         opdEntries
                             .filter((entry: any) => {
-                                // MLC Filter
-                                if (showMlcList && !entry.is_mlc) return false;
-
                                 // Doctor filter
                                 const doctorMatch = !selectedDoctorFilter || entry.doctor_id === parseInt(selectedDoctorFilter);
 
@@ -1551,167 +1431,154 @@ export default function OpdEntryPage() {
 
                                 return doctorMatch && searchMatch;
                             })
-                            .map((entry: any) => {
-                                // Theme Logic: Female -> Pink, Male MLC -> Red, Male Default -> Blue
-                                const isFemale = entry.gender === 'Female';
-                                const isMLC = entry.is_mlc;
+                            .map((entry: any) => (
+                                <div
+                                    key={entry.opd_id}
+                                    className="group bg-white rounded-2xl p-4 border border-slate-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all duration-300 flex flex-col md:flex-row items-center relative overflow-hidden"
+                                >
+                                    {/* Left Accent Bar */}
+                                    <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${entry.visit_status === 'Completed' ? 'bg-emerald-500' :
+                                        entry.visit_status === 'In-consultation' ? 'bg-amber-500' :
+                                            'bg-blue-500'
+                                        }`}></div>
 
-                                let theme = 'blue';
-                                if (isFemale) theme = 'pink';
-                                else if (isMLC) theme = 'red';
-
-                                const themeColors: any = {
-                                    blue: {
-                                        bg: 'bg-blue-50', border: 'border-blue-100', text: 'text-blue-600',
-                                        bar: 'bg-blue-500', hoverBorder: 'hover:border-blue-100',
-                                        lightGroupHover: 'group-hover:bg-blue-100', textDate: 'text-blue-600'
-                                    },
-                                    pink: {
-                                        bg: 'bg-purple-50', border: 'border-purple-100', text: 'text-purple-600',
-                                        bar: 'bg-purple-500', hoverBorder: 'hover:border-purple-200',
-                                        lightGroupHover: 'group-hover:bg-purple-100', textDate: 'text-purple-600'
-                                    },
-                                    red: {
-                                        bg: 'bg-red-50', border: 'border-red-100', text: 'text-red-600',
-                                        bar: 'bg-red-500', hoverBorder: 'hover:border-red-100',
-                                        lightGroupHover: 'group-hover:bg-red-100', textDate: 'text-red-600'
-                                    }
-                                };
-                                const colors = themeColors[theme];
-
-                                return (
-                                    <div
-                                        key={entry.opd_id}
-                                        className={`group bg-white rounded-2xl p-4 border border-slate-100 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col md:flex-row items-center relative overflow-hidden ${colors.hoverBorder}`}
-                                    >
-                                        {/* Left Accent Bar */}
-                                        <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${entry.visit_status === 'Completed' ? 'bg-emerald-500' :
-                                            entry.visit_status === 'In-consultation' ? 'bg-amber-500' :
-                                                colors.bar
-                                            }`}></div>
-
-                                        {/* Token & ID - Scaled Up */}
-                                        <div className="w-full md:w-[15%] pl-4 flex flex-row items-center gap-3 flex-shrink-0">
-                                            <div className={`${colors.bg} ${colors.lightGroupHover} transition-colors rounded-xl border ${colors.border} h-12 w-12 flex items-center justify-center shadow-sm group-hover:scale-105 duration-300 flex-shrink-0`}>
-                                                <span className={`font-black ${colors.text} text-lg`}>
-                                                    {entry.token_number}
-                                                </span>
-                                            </div>
-                                            <button
-                                                onClick={() => handleEditOpd(entry)}
-                                                className={`text-xs font-mono font-bold text-slate-500 hover:${colors.text} hover:underline whitespace-nowrap`}
-                                            >
-                                                #{entry.opd_number}
-                                            </button>
-                                        </div>
-
-                                        {/* Patient Info - Scaled Up */}
-                                        <div className="w-full md:w-[15%] flex items-center gap-3 flex-shrink-0 pl-2">
-                                            <div className={`w-11 h-11 rounded-full flex-shrink-0 flex items-center justify-center text-lg font-bold shadow-sm ${colors.bg} ${colors.text}`}>
-                                                {entry.patient_first_name[0]}
-                                            </div>
-                                            <div className="min-w-0">
-                                                <Link href={`/receptionist/patients/${entry.patient_id}`} className={`block font-bold text-slate-800 text-lg truncate hover:${colors.text} transition`} title={`${entry.patient_first_name} ${entry.patient_last_name}`}>
-                                                    {entry.patient_first_name} {entry.patient_last_name}
-                                                </Link>
-                                                <p className="text-xs text-slate-500 font-medium truncate">{entry.gender}, {entry.age} yrs</p>
+                                    {/* Token & ID */}
+                                    <div className="w-full md:w-[15%] pl-4 flex flex-row items-center gap-3 flex-shrink-0">
+                                        <div className="bg-blue-50 hover:bg-blue-100 transition-colors rounded-2xl border border-blue-100 h-14 w-14 flex flex-col items-center justify-center shadow-sm group-hover:scale-105 duration-300 flex-shrink-0">
+                                            <div className="text-[7px] font-bold text-blue-400 uppercase tracking-widest">Token</div>
+                                            <div className={`font-black text-blue-600 leading-none text-center ${entry.token_number.toString().length > 3 ? 'text-lg' : 'text-xl'}`}>
+                                                {entry.token_number}
                                             </div>
                                         </div>
+                                        <button
+                                            onClick={() => handleEditOpd(entry)}
+                                            className="text-xs font-mono font-bold text-slate-500 hover:text-blue-600 hover:underline whitespace-nowrap"
+                                        >
+                                            #{entry.opd_number}
+                                        </button>
+                                    </div>
 
-                                        {/* Doctor Info - Scaled Up */}
-                                        <div className="w-full md:w-[15%] flex-shrink-0">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-sm">
-                                                    {entry.doctor_first_name ? entry.doctor_first_name[0].toUpperCase() : 'D'}
-                                                </div>
-                                                <div className="min-w-0">
-                                                    <p className="text-base font-bold text-slate-700 leading-tight capitalize truncate">
-                                                        Dr. {entry.doctor_first_name} {entry.doctor_last_name}
-                                                    </p>
-                                                    <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider truncate mt-0.5">
-                                                        {entry.specialization || 'General'}
-                                                    </p>
-                                                </div>
-                                            </div>
+                                    {/* Patient Info */}
+                                    <div className="w-full md:w-[17%] flex items-center gap-3 flex-shrink-0">
+                                        <div className={`w-12 h-12 rounded-2xl flex-shrink-0 flex items-center justify-center text-lg font-bold shadow-sm ${entry.gender === 'Female' ? 'bg-pink-50 text-pink-600' : 'bg-blue-50 text-blue-600'
+                                            }`}>
+                                            {entry.patient_first_name[0]}
                                         </div>
-
-                                        {/* Timings - Scaled Up */}
-                                        <div className="w-full md:w-[10%] flex-shrink-0">
-                                            <div className="flex flex-col">
-                                                <p className="text-base font-bold text-slate-700">{entry.visit_time.slice(0, 5)}</p>
-                                                <p className="text-[11px] text-slate-400 font-medium">{new Date(entry.visit_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</p>
-                                            </div>
-                                        </div>
-
-                                        {/* Status Pills - Scaled Up */}
-                                        <div className="w-full md:w-[10%] flex flex-col gap-1.5 flex-shrink-0 items-start">
-                                            <span className={`inline-flex px-2.5 py-1 text-[11px] font-bold rounded-lg border ${entry.visit_type === 'Emergency' ? 'bg-red-50 text-red-600 border-red-100' :
-                                                entry.visit_type === 'Follow-up' ? 'bg-blue-50 text-blue-600 border-blue-100' :
-                                                    'bg-slate-50 text-slate-600 border-slate-100'
-                                                }`}>
-                                                {entry.visit_type}
-                                            </span>
-                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold rounded-lg border ${entry.visit_status === 'Completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
-                                                entry.visit_status === 'In-consultation' ? 'bg-amber-50 text-amber-700 border-amber-100' :
-                                                    'bg-white text-slate-500 border-slate-200'
-                                                }`}>
-                                                <span className={`w-1.5 h-1.5 rounded-full ${entry.visit_status === 'Completed' ? 'bg-emerald-500' :
-                                                    entry.visit_status === 'In-consultation' ? 'bg-amber-500' :
-                                                        'bg-slate-300'
-                                                    }`}></span>
-                                                {entry.visit_status}
-                                            </span>
-                                        </div>
-
-                                        {/* Payment - Scaled Up */}
-                                        <div className="w-full md:w-[10%] text-right flex-shrink-0">
-                                            <p className="font-mono text-base font-bold text-slate-800">₹{entry.consultation_fee || '0'}</p>
-                                            <p className={`text-[11px] font-bold uppercase tracking-wider ${entry.payment_status === 'Paid' ? 'text-emerald-500' : 'text-red-500'
-                                                }`}>
-                                                {entry.payment_status}
-                                            </p>
-                                        </div>
-
-                                        {/* Action Buttons - 25% Width - Spacious Layout */}
-                                        <div className="w-full md:w-[25%] flex flex-col gap-1.5 pl-6 flex-shrink-0">
-                                            {/* Row 1: Edit & Cancel (Side by Side) */}
-                                            <div className="flex items-center gap-1.5 w-full">
-                                                {/* Edit Button */}
-                                                <button
-                                                    onClick={() => handleEditOpd(entry)}
-                                                    className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-800 rounded-lg transition-all font-bold text-xs"
-                                                    title="Edit OPD Entry"
-                                                >
-                                                    Edit
-                                                </button>
-
-                                                {/* Cancel Button */}
-                                                {entry.visit_status === 'Registered' ? (
-                                                    <button
-                                                        onClick={() => openCancelModal(entry)}
-                                                        className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-all font-bold text-xs border border-red-100"
-                                                        title="Cancel Visit"
-                                                    >
-                                                        Cancel
-                                                    </button>
-                                                ) : (
-                                                    <div className="flex-1"></div>
-                                                )}
-                                            </div>
-
-                                            {/* Row 2: Re-Appoint (Full Width) */}
-                                            <button
-                                                onClick={() => openRescheduleModal(entry)}
-                                                className="w-full flex items-center justify-center gap-2 px-2 py-1.5 bg-slate-900 text-white hover:bg-slate-800 rounded-lg transition-all font-bold text-xs shadow-sm active:scale-95"
-                                                title="Re-Appoint Patient"
-                                            >
-                                                Re-Appoint
-                                            </button>
+                                        <div>
+                                            <Link href={`/receptionist/patients/${entry.patient_id}`} className="block font-bold text-slate-800 text-lg hover:text-blue-600 transition">
+                                                {entry.patient_first_name} {entry.patient_last_name}
+                                            </Link>
+                                            <p className="text-xs text-slate-500 font-medium mt-0.5">{entry.gender}, {entry.age} yrs</p>
                                         </div>
                                     </div>
-                                );
-                            }))
-                    }
+
+                                    {/* Doctor Info */}
+                                    <div className="w-full md:w-[17%] flex-shrink-0">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-sm">
+                                                {entry.doctor_first_name ? entry.doctor_first_name[0].toUpperCase() : 'D'}
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-bold text-slate-700 leading-tight capitalize">
+                                                    Dr. {entry.doctor_first_name} {entry.doctor_last_name}
+                                                </p>
+                                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+                                                    {entry.specialization || 'General'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Timings */}
+                                    <div className="w-full md:w-[9%] flex-shrink-0">
+                                        <div className="flex flex-row md:flex-col gap-2 md:gap-0">
+                                            <p className="text-sm font-bold text-slate-700">{entry.visit_time.slice(0, 5)}</p>
+                                            <p className="text-xs text-slate-400 font-medium">{new Date(entry.visit_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Status Pills */}
+                                    <div className="w-full md:w-[12%] flex flex-wrap gap-1.5 flex-shrink-0">
+                                        <span className={`inline-flex px-2.5 py-1 text-[10px] font-bold rounded-lg border ${entry.visit_type === 'Emergency' ? 'bg-red-50 text-red-600 border-red-100' :
+                                            entry.visit_type === 'Follow-up' ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                                                'bg-slate-50 text-slate-600 border-slate-100'
+                                            }`}>
+                                            {entry.visit_type}
+                                        </span>
+                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold rounded-lg border ${entry.visit_status === 'Completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                                            entry.visit_status === 'In-consultation' ? 'bg-amber-50 text-amber-700 border-amber-100' :
+                                                'bg-white text-slate-500 border-slate-200'
+                                            }`}>
+                                            <span className={`w-1.5 h-1.5 rounded-full ${entry.visit_status === 'Completed' ? 'bg-emerald-500' :
+                                                entry.visit_status === 'In-consultation' ? 'bg-amber-500' :
+                                                    'bg-slate-300'
+                                                }`}></span>
+                                            {entry.visit_status}
+                                        </span>
+                                    </div>
+
+                                    {/* Payment */}
+                                    <div className="w-full md:w-[12%] text-left md:text-right flex-shrink-0">
+                                        <p className="font-mono text-sm font-bold text-slate-800">₹{entry.consultation_fee || '0'} <span className="text-[10px] text-slate-400 font-sans font-normal">INR</span></p>
+                                        <p className={`text-[10px] font-bold uppercase tracking-wider mt-1 ${entry.payment_status === 'Paid' ? 'text-emerald-500' : 'text-red-500'
+                                            }`}>
+                                            {entry.payment_status}
+                                        </p>
+                                    </div>
+
+                                    {/* Quick Actions (UX Solution 2) */}
+                                    <div className="w-full md:w-[18%] flex items-center justify-end pr-2 flex-shrink-0 gap-2">
+                                        {/* Edit Button - Always visible for MLC cases, otherwise for all */}
+                                        <button
+                                            onClick={() => handleEditOpd(entry)}
+                                            className={`flex items-center gap-1.5 px-3 py-2 ${entry.is_mlc ? 'bg-red-500 hover:bg-red-600' : 'bg-slate-500 hover:bg-slate-600'} text-white rounded-lg transition-all shadow-sm font-bold text-xs`}
+                                            title="Edit OPD Entry"
+                                        >
+                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                            </svg>
+                                            Edit
+                                        </button>
+
+                                        {/* Reschedule Button - text style like appointments */}
+                                        <button
+                                            onClick={() => openRescheduleModal(entry)}
+                                            className="px-3 py-2 text-xs font-bold text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                                            title="Re-Appoint Patient"
+                                        >
+                                            Re-Appoint
+                                        </button>
+
+                                        {/* Cancel Button - text style, only for Registered status */}
+                                        {entry.visit_status === 'Registered' && (
+                                            <button
+                                                onClick={() => openCancelModal(entry)}
+                                                className="px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                title="Cancel"
+                                            >
+                                                Cancel
+                                            </button>
+                                        )}
+
+                                        {/* Quick Follow-Up Button - Only show if visit is completed and within 30 days */}
+                                        {entry.visit_status === 'Completed' && (() => {
+                                            const visitDate = new Date(entry.visit_date);
+                                            const daysSince = Math.floor((new Date().getTime() - visitDate.getTime()) / (1000 * 60 * 60 * 24));
+                                            return daysSince <= 30;
+                                        })() && (
+                                                <button
+                                                    onClick={() => handleQuickFollowUpFromEntry(entry)}
+                                                    className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-all shadow-sm font-bold text-sm"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                    </svg>
+                                                    Follow-Up
+                                                </button>
+                                            )}
+                                    </div>
+                                </div>
+                            )))}
                 </div>
             </div>
 
@@ -2172,7 +2039,6 @@ export default function OpdEntryPage() {
                                             <label className="block text-xs font-semibold text-slate-700 mb-1.5">Visit Type <span className="text-red-500">*</span></label>
                                             <select required value={opdForm.visit_type} onChange={(e) => setOpdForm({ ...opdForm, visit_type: e.target.value })} disabled={opdForm.is_mlc} className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${opdForm.is_mlc ? 'bg-slate-100 cursor-not-allowed' : ''}`}>
                                                 <option value="Walk-in">Walk-in</option>
-                                                <option value="Appointment">Appointment</option>
                                                 <option value="Follow-up">Follow-up</option>
                                                 <option value="Emergency">Emergency</option>
                                                 <option value="Referral">Referral</option>
@@ -2720,209 +2586,205 @@ export default function OpdEntryPage() {
             }
 
             {/* Cancel Confirmation Modal */}
-            {
-                showCancelModal && (
-                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                        <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full border border-slate-100 p-6 animate-in zoom-in-95 duration-200">
-                            <div className="flex flex-col items-center text-center">
-                                <div className="w-12 h-12 bg-red-50 text-red-500 rounded-full flex items-center justify-center mb-4">
-                                    <X className="w-6 h-6" />
-                                </div>
-                                <h3 className="text-lg font-bold text-slate-800 mb-1">Cancel {appointmentToCancel?.isOpdCancel ? 'OPD Entry' : 'Appointment'}?</h3>
-                                <p className="text-sm text-slate-500 mb-6">
-                                    Are you sure you want to cancel for <br />
-                                    <span className="font-bold text-slate-800">{appointmentToCancel?.patient_name}</span>?
-                                </p>
-
-                                <div className="w-full mb-6 text-left">
-                                    <label className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Reason</label>
-                                    <select
-                                        value={cancelReason}
-                                        onChange={(e) => setCancelReason(e.target.value)}
-                                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none"
-                                    >
-                                        <option value="Patient Request">Patient Request</option>
-                                        <option value="Doctor Unavailable">Doctor Unavailable</option>
-                                        <option value="Scheduling Conflict">Scheduling Conflict</option>
-                                        <option value="No Show">No Show (Pre-emptive)</option>
-                                        <option value="Other">Other</option>
-                                    </select>
-                                </div>
-
-                                <div className="flex gap-3 w-full">
-                                    <button
-                                        onClick={() => setShowCancelModal(false)}
-                                        className="flex-1 px-4 py-2 border border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-50 transition"
-                                    >
-                                        Keep It
-                                    </button>
-                                    <button
-                                        onClick={confirmCancel}
-                                        disabled={loading}
-                                        className="flex-1 px-4 py-2 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 shadow-lg shadow-red-500/30 transition"
-                                    >
-                                        {loading ? '...' : 'Yes, Cancel'}
-                                    </button>
-                                </div>
+            {showCancelModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full border border-slate-100 p-6 animate-in zoom-in-95 duration-200">
+                        <div className="flex flex-col items-center text-center">
+                            <div className="w-12 h-12 bg-red-50 text-red-500 rounded-full flex items-center justify-center mb-4">
+                                <X className="w-6 h-6" />
                             </div>
-                        </div>
-                    </div>
-                )
-            }
+                            <h3 className="text-lg font-bold text-slate-800 mb-1">Cancel {appointmentToCancel?.isOpdCancel ? 'OPD Entry' : 'Appointment'}?</h3>
+                            <p className="text-sm text-slate-500 mb-6">
+                                Are you sure you want to cancel for <br />
+                                <span className="font-bold text-slate-800">{appointmentToCancel?.patient_name}</span>?
+                            </p>
 
-            {/* Reschedule Modal */}
-            {
-                showRescheduleModal && (
-                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                        <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto border border-white/20">
-                            <div className="sticky top-0 bg-gradient-to-r from-amber-500 to-orange-600 text-white px-6 py-4 flex justify-between items-center rounded-t-2xl">
-                                <h2 className="text-xl font-bold flex items-center gap-2">
-                                    <CalendarClock className="w-6 h-6" />
-                                    {appointmentToReschedule?.isNewAppointment ? 'Re-Appoint Patient' : 'Reschedule Appointment'}
-                                </h2>
-                                <button onClick={() => setShowRescheduleModal(false)} className="text-white hover:bg-white/20 p-2 rounded-lg transition">
-                                    <X className="w-6 h-6" />
+                            <div className="w-full mb-6 text-left">
+                                <label className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Reason</label>
+                                <select
+                                    value={cancelReason}
+                                    onChange={(e) => setCancelReason(e.target.value)}
+                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none"
+                                >
+                                    <option value="Patient Request">Patient Request</option>
+                                    <option value="Doctor Unavailable">Doctor Unavailable</option>
+                                    <option value="Scheduling Conflict">Scheduling Conflict</option>
+                                    <option value="No Show">No Show (Pre-emptive)</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+
+                            <div className="flex gap-3 w-full">
+                                <button
+                                    onClick={() => setShowCancelModal(false)}
+                                    className="flex-1 px-4 py-2 border border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-50 transition"
+                                >
+                                    Keep It
+                                </button>
+                                <button
+                                    onClick={confirmCancel}
+                                    disabled={loading}
+                                    className="flex-1 px-4 py-2 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 shadow-lg shadow-red-500/30 transition"
+                                >
+                                    {loading ? '...' : 'Yes, Cancel'}
                                 </button>
                             </div>
-
-                            <form onSubmit={handleReschedule} className="p-6 space-y-6">
-                                <div className="bg-amber-50 rounded-lg p-4 mb-4 border border-amber-100">
-                                    <p className="text-sm text-amber-800 flex items-center gap-2">
-                                        <User className="w-4 h-4" />
-                                        {appointmentToReschedule?.isNewAppointment ? 'Booking for:' : 'Rescheduling for:'} <span className="font-bold">{appointmentToReschedule?.patient_name}</span>
-                                    </p>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Doctor</label>
-                                    <SearchableSelect
-                                        label=""
-                                        options={doctorOptions}
-                                        value={rescheduleForm.doctor_id}
-                                        onChange={(val) => { setRescheduleForm({ ...rescheduleForm, doctor_id: val }); setRescheduleError(null); }}
-                                        placeholder="Select Doctor"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
-                                    <input
-                                        type="date"
-                                        required
-                                        value={rescheduleForm.appointment_date}
-                                        onChange={(e) => { setRescheduleForm({ ...rescheduleForm, appointment_date: e.target.value }); setRescheduleError(null); }}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500"
-                                        min={new Date().toISOString().split('T')[0]}
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Time Slot *</label>
-                                    {/* Category Tabs */}
-                                    <div className="flex gap-2 mb-3 bg-gray-100 p-1 rounded-xl">
-                                        {[
-                                            { id: 'Morning', icon: Sun, label: 'Morning' },
-                                            { id: 'Afternoon', icon: CloudSun, label: 'Afternoon' },
-                                            { id: 'Evening', icon: Moon, label: 'Evening' }
-                                        ].map((cat) => (
-                                            <button
-                                                key={cat.id}
-                                                type="button"
-                                                onClick={() => setTimeSlotCategory(cat.id as any)}
-                                                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all ${timeSlotCategory === cat.id
-                                                    ? 'bg-white text-amber-600 shadow-sm'
-                                                    : 'text-gray-500 hover:text-gray-700'
-                                                    }`}
-                                            >
-                                                <cat.icon className="w-4 h-4" />
-                                                {cat.label}
-                                            </button>
-                                        ))}
-                                    </div>
-
-                                    {/* Time Grid */}
-                                    <div className="grid grid-cols-4 md:grid-cols-6 gap-2 mb-2 max-h-60 overflow-y-auto">
-                                        {(() => {
-                                            const slots = generateTimeSlotsFromSchedule(rescheduleForm.doctor_id, rescheduleForm.appointment_date);
-                                            const filteredSlots = slots.filter((slot: any) => {
-                                                const time = typeof slot === 'string' ? slot : slot.time;
-                                                const hour = parseInt(time?.split(':')[0] || '0');
-                                                if (timeSlotCategory === 'Morning') return hour >= 6 && hour < 12;
-                                                if (timeSlotCategory === 'Afternoon') return hour >= 12 && hour < 17;
-                                                if (timeSlotCategory === 'Evening') return hour >= 17 && hour < 22;
-                                                return false;
-                                            });
-
-                                            if (filteredSlots.length === 0) {
-                                                return (
-                                                    <div className="col-span-full text-center py-4 text-xs font-bold text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                                                        No {timeSlotCategory.toLowerCase()} slots available.
-                                                    </div>
-                                                );
-                                            }
-
-                                            return filteredSlots.map((slot: any) => {
-                                                const time = typeof slot === 'string' ? slot : slot.time;
-                                                const isBooked = (typeof slot === 'object' && slot.status === 'booked') || bookedSlots.includes(time);
-                                                const isSelected = rescheduleForm.appointment_time === time;
-                                                return (
-                                                    <button
-                                                        key={time}
-                                                        type="button"
-                                                        disabled={isBooked}
-                                                        onClick={() => { !isBooked && !bookedSlots.includes(time) && setRescheduleForm({ ...rescheduleForm, appointment_time: time }); setRescheduleError(null); }}
-                                                        className={`py-2 px-1 text-xs font-bold rounded-lg border transition-all relative ${isBooked || bookedSlots.includes(time)
-                                                            ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed opacity-60'
-                                                            : isSelected
-                                                                ? 'bg-amber-500 border-amber-500 text-white font-bold ring-2 ring-amber-200 shadow-md transform scale-105'
-                                                                : 'bg-white border-slate-200 text-slate-600 hover:border-amber-300 hover:bg-amber-50'
-                                                            }`}
-                                                    >
-                                                        {time}
-                                                        {isBooked && (
-                                                            <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5 items-center justify-center bg-red-100 rounded-full border border-red-200">
-                                                                <span className="block h-1.5 w-1.5 rounded-full bg-red-500"></span>
-                                                            </span>
-                                                        )}
-                                                    </button>
-                                                )
-                                            });
-                                        })()}
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Reason</label>
-                                    <textarea
-                                        rows={2}
-                                        value={rescheduleForm.reason}
-                                        onChange={(e) => setRescheduleForm({ ...rescheduleForm, reason: e.target.value })}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500"
-                                        placeholder="e.g., Patient requested change"
-                                    />
-                                </div>
-
-                                {rescheduleError && (
-                                    <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg flex items-center gap-2">
-                                        <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                                        <p className="text-sm font-medium">{rescheduleError}</p>
-                                    </div>
-                                )}
-
-                                <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-                                    <button type="button" onClick={() => setShowRescheduleModal(false)} className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium">
-                                        Cancel
-                                    </button>
-                                    <button type="submit" disabled={loading || !!rescheduleError || !rescheduleForm.appointment_time} className={`flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-lg hover:from-amber-600 hover:to-orange-700 transition font-medium shadow-lg shadow-amber-500/30 ${loading || !!rescheduleError || !rescheduleForm.appointment_time ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                                        <CalendarClock className="w-5 h-5" />
-                                        {loading ? 'Updating...' : (appointmentToReschedule?.isNewAppointment ? 'Schedule' : 'Confirm New Time')}
-                                    </button>
-                                </div>
-                            </form>
                         </div>
                     </div>
-                )
-            }
+                </div>
+            )}
+
+            {/* Reschedule Modal */}
+            {showRescheduleModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto border border-white/20">
+                        <div className="sticky top-0 bg-gradient-to-r from-amber-500 to-orange-600 text-white px-6 py-4 flex justify-between items-center rounded-t-2xl">
+                            <h2 className="text-xl font-bold flex items-center gap-2">
+                                <CalendarClock className="w-6 h-6" />
+                                {appointmentToReschedule?.isNewAppointment ? 'Re-Appoint Patient' : 'Reschedule Appointment'}
+                            </h2>
+                            <button onClick={() => setShowRescheduleModal(false)} className="text-white hover:bg-white/20 p-2 rounded-lg transition">
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleReschedule} className="p-6 space-y-6">
+                            <div className="bg-amber-50 rounded-lg p-4 mb-4 border border-amber-100">
+                                <p className="text-sm text-amber-800 flex items-center gap-2">
+                                    <User className="w-4 h-4" />
+                                    {appointmentToReschedule?.isNewAppointment ? 'Booking for:' : 'Rescheduling for:'} <span className="font-bold">{appointmentToReschedule?.patient_name}</span>
+                                </p>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Doctor</label>
+                                <SearchableSelect
+                                    label=""
+                                    options={doctorOptions}
+                                    value={rescheduleForm.doctor_id}
+                                    onChange={(val) => { setRescheduleForm({ ...rescheduleForm, doctor_id: val }); setRescheduleError(null); }}
+                                    placeholder="Select Doctor"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
+                                <input
+                                    type="date"
+                                    required
+                                    value={rescheduleForm.appointment_date}
+                                    onChange={(e) => { setRescheduleForm({ ...rescheduleForm, appointment_date: e.target.value }); setRescheduleError(null); }}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                                    min={new Date().toISOString().split('T')[0]}
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Time Slot *</label>
+                                {/* Category Tabs */}
+                                <div className="flex gap-2 mb-3 bg-gray-100 p-1 rounded-xl">
+                                    {[
+                                        { id: 'Morning', icon: Sun, label: 'Morning' },
+                                        { id: 'Afternoon', icon: CloudSun, label: 'Afternoon' },
+                                        { id: 'Evening', icon: Moon, label: 'Evening' }
+                                    ].map((cat) => (
+                                        <button
+                                            key={cat.id}
+                                            type="button"
+                                            onClick={() => setTimeSlotCategory(cat.id as any)}
+                                            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all ${timeSlotCategory === cat.id
+                                                ? 'bg-white text-amber-600 shadow-sm'
+                                                : 'text-gray-500 hover:text-gray-700'
+                                                }`}
+                                        >
+                                            <cat.icon className="w-4 h-4" />
+                                            {cat.label}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Time Grid */}
+                                <div className="grid grid-cols-4 md:grid-cols-6 gap-2 mb-2 max-h-60 overflow-y-auto">
+                                    {(() => {
+                                        const slots = generateTimeSlotsFromSchedule(rescheduleForm.doctor_id, rescheduleForm.appointment_date);
+                                        const filteredSlots = slots.filter((slot: any) => {
+                                            const time = typeof slot === 'string' ? slot : slot.time;
+                                            const hour = parseInt(time?.split(':')[0] || '0');
+                                            if (timeSlotCategory === 'Morning') return hour >= 6 && hour < 12;
+                                            if (timeSlotCategory === 'Afternoon') return hour >= 12 && hour < 17;
+                                            if (timeSlotCategory === 'Evening') return hour >= 17 && hour < 22;
+                                            return false;
+                                        });
+
+                                        if (filteredSlots.length === 0) {
+                                            return (
+                                                <div className="col-span-full text-center py-4 text-xs font-bold text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                                                    No {timeSlotCategory.toLowerCase()} slots available.
+                                                </div>
+                                            );
+                                        }
+
+                                        return filteredSlots.map((slot: any) => {
+                                            const time = typeof slot === 'string' ? slot : slot.time;
+                                            const isBooked = typeof slot === 'object' && slot.status === 'booked';
+                                            const isSelected = rescheduleForm.appointment_time === time;
+                                            return (
+                                                <button
+                                                    key={time}
+                                                    type="button"
+                                                    disabled={isBooked}
+                                                    onClick={() => { !isBooked && setRescheduleForm({ ...rescheduleForm, appointment_time: time }); setRescheduleError(null); }}
+                                                    className={`py-2 px-1 text-xs font-bold rounded-lg border transition-all relative ${isBooked
+                                                        ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed opacity-60'
+                                                        : isSelected
+                                                            ? 'bg-amber-500 border-amber-500 text-white font-bold ring-2 ring-amber-200 shadow-md transform scale-105'
+                                                            : 'bg-white border-slate-200 text-slate-600 hover:border-amber-300 hover:bg-amber-50'
+                                                        }`}
+                                                >
+                                                    {time}
+                                                    {isBooked && (
+                                                        <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5 items-center justify-center bg-red-100 rounded-full border border-red-200">
+                                                            <span className="block h-1.5 w-1.5 rounded-full bg-red-500"></span>
+                                                        </span>
+                                                    )}
+                                                </button>
+                                            )
+                                        });
+                                    })()}
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Reason</label>
+                                <textarea
+                                    rows={2}
+                                    value={rescheduleForm.reason}
+                                    onChange={(e) => setRescheduleForm({ ...rescheduleForm, reason: e.target.value })}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                                    placeholder="e.g., Patient requested change"
+                                />
+                            </div>
+
+                            {rescheduleError && (
+                                <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg flex items-center gap-2">
+                                    <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                                    <p className="text-sm font-medium">{rescheduleError}</p>
+                                </div>
+                            )}
+
+                            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+                                <button type="button" onClick={() => setShowRescheduleModal(false)} className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium">
+                                    Cancel
+                                </button>
+                                <button type="submit" disabled={loading || !!rescheduleError || !rescheduleForm.appointment_time} className={`flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-lg hover:from-amber-600 hover:to-orange-700 transition font-medium shadow-lg shadow-amber-500/30 ${loading || !!rescheduleError || !rescheduleForm.appointment_time ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                    <CalendarClock className="w-5 h-5" />
+                                    {loading ? 'Updating...' : (appointmentToReschedule?.isNewAppointment ? 'Schedule' : 'Confirm New Time')}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
 
             <style jsx global>{`
                 @media print {

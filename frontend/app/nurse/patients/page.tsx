@@ -16,6 +16,7 @@ import {
     Edit
 } from 'lucide-react';
 import Link from 'next/link';
+import { useAI } from '@/components/ai';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -24,9 +25,33 @@ export default function NursePatients() {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
 
+    // AI Context - inform chat about visible patients
+    let aiContext: { setPageContext?: (page: string, patient?: string) => void } = {};
+    try {
+        aiContext = useAI();
+    } catch {
+        // AIContextProvider not available
+    }
+
     useEffect(() => {
         fetchPatients();
     }, [searchTerm]);
+
+    // Update AI context with visible patients (limited info - no detailed medical data)
+    useEffect(() => {
+        if (aiContext.setPageContext && patients.length > 0) {
+            const patientList = patients.slice(0, 10).map(p => 
+                `${p.first_name} ${p.last_name} (MRN: ${p.mrn}, ${p.gender}, Age: ${p.age || 'N/A'})`
+            ).join('; ');
+            const context = `Viewing patient list page. ${patients.length} patients visible. ` +
+                `Patients: ${patientList}${patients.length > 10 ? ` and ${patients.length - 10} more...` : ''}. ` +
+                `Note: This is only a list view. To get detailed patient information (vitals, history, notes), ` +
+                `the user must click on a patient to open their full profile.`;
+            aiContext.setPageContext('/nurse/patients', context);
+        } else if (aiContext.setPageContext) {
+            aiContext.setPageContext('/nurse/patients', 'Viewing patient list page. No patients currently displayed.');
+        }
+    }, [patients, aiContext.setPageContext]);
 
     const fetchPatients = async () => {
         try {

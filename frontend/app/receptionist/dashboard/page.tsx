@@ -656,8 +656,6 @@ export default function ReceptionistDashboard() {
     const fetchStats = async () => {
         try {
             const token = localStorage.getItem('token');
-            if (!token) return;
-
             const response = await axios.get('http://localhost:5000/api/opd/stats', {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -671,19 +669,14 @@ export default function ReceptionistDashboard() {
                 collectedAmount: stats.collectedAmount || 0,
                 collectedCount: stats.collectedCount || 0
             });
-        } catch (error: any) {
+        } catch (error) {
             console.error('Error fetching dashboard stats:', error);
-            if (axios.isAxiosError(error) && error.response?.status === 401) {
-                router.push('/login');
-            }
         }
     };
 
     const fetchFollowUps = async () => {
         try {
             const token = localStorage.getItem('token');
-            if (!token) return;
-
             const response = await axios.get('http://localhost:5000/api/follow-ups/due', {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -693,11 +686,8 @@ export default function ReceptionistDashboard() {
                 upcoming: [],
                 summary: { overdue_count: 0, due_today_count: 0, upcoming_count: 0, total: 0 }
             });
-        } catch (error: any) {
+        } catch (error) {
             console.error('Error fetching follow-ups:', error);
-            if (axios.isAxiosError(error) && error.response?.status === 401) {
-                router.push('/login');
-            }
         }
     };
 
@@ -729,7 +719,7 @@ export default function ReceptionistDashboard() {
     const fetchTodayOpdEntries = async () => {
         try {
             const token = localStorage.getItem('token');
-            const today = format(new Date(), 'yyyy-MM-dd');
+            const today = new Date().toISOString().split('T')[0];
             const response = await axios.get('http://localhost:5000/api/opd', {
                 params: { startDate: today, endDate: today },
                 headers: { Authorization: `Bearer ${token}` }
@@ -1083,13 +1073,12 @@ export default function ReceptionistDashboard() {
                     <h2 className="text-2xl font-bold text-slate-800 font-heading">Welcome back, {user?.first_name || user?.username}</h2>
                     <div className="mt-2 flex items-center gap-2 text-sm font-medium text-slate-600 bg-amber-50/50 px-3 py-1.5 rounded-lg border border-amber-100 max-w-fit animate-in fade-in slide-in-from-bottom-2 duration-700 delay-150">
                         <Clock className="w-4 h-4 text-amber-500" />
-                        <span>Peak Activity Hour: <span className="text-amber-700 font-bold">
+                        <span>Expected Busy Hour: <span className="text-amber-700 font-bold">
                             {(() => {
-                                const today = format(new Date(), 'yyyy-MM-dd');
+                                const today = new Date().toISOString().split('T')[0];
                                 // Combine appointments and OPD entries
                                 const todayAppointments = allAppointments.filter((a: any) => {
-                                    if (!a.appointment_date) return false;
-                                    const apptDate = format(new Date(a.appointment_date), 'yyyy-MM-dd');
+                                    const apptDate = new Date(a.appointment_date).toISOString().split('T')[0];
                                     return apptDate === today && ['Scheduled', 'Confirmed'].includes(a.appointment_status);
                                 });
 
@@ -1915,7 +1904,6 @@ export default function ReceptionistDashboard() {
                                             <label className="block text-xs font-semibold text-slate-700 mb-1.5">Visit Type <span className="text-red-500">*</span></label>
                                             <select required value={opdForm.visit_type} onChange={(e) => setOpdForm({ ...opdForm, visit_type: e.target.value })} disabled={opdForm.is_mlc} className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${opdForm.is_mlc ? 'bg-slate-100 cursor-not-allowed' : ''}`}>
                                                 <option value="Walk-in">Walk-in</option>
-                                                <option value="Appointment">Appointment</option>
                                                 <option value="Follow-up">Follow-up</option>
                                                 <option value="Emergency">Emergency</option>
                                                 <option value="Referral">Referral</option>

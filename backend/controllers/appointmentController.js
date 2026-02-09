@@ -78,13 +78,6 @@ class AppointmentController {
                 }
             }
 
-
-            // Check slot availability (Strict)
-            const isSlotAvailable = await AppointmentController.checkSlotAvailability(doctor_id, appointment_date, appointment_time);
-            if (!isSlotAvailable) {
-                return next(new AppError('Selected time slot is already booked. Please choose another time.', 409));
-            }
-
             const result = await query(`
                 INSERT INTO appointments (
                     appointment_number, patient_id, patient_name, phone_number,
@@ -338,11 +331,7 @@ class AppointmentController {
                 return next(new AppError('Duplicate Appointment: Patient already has an appointment with this doctor on this date.', 409));
             }
 
-            // Check slot availability (Strict)
-            const isSlotAvailable = await AppointmentController.checkSlotAvailability(doctor_id, appointment_date, appointment_time, id);
-            if (!isSlotAvailable) {
-                return next(new AppError('Selected time slot is already booked. Please choose another time.', 409));
-            }
+            // Optional: Check if slot is available (skipping complex check for now as per requirement speed)
 
             let sql = `
                 UPDATE appointments 
@@ -414,29 +403,6 @@ class AppointmentController {
             next(new AppError('Failed to reschedule appointment', 500));
         }
     }
-    /**
-     * Helper: Check if a slot is available
-     */
-    static async checkSlotAvailability(doctor_id, appointment_date, appointment_time, exclude_appointment_id = null) {
-        const activeStatuses = ['Scheduled', 'Confirmed'];
-        let sql = `
-            SELECT appointment_id FROM appointments 
-            WHERE doctor_id = $1 
-            AND appointment_date::date = $2::date 
-            AND appointment_time = $3 
-            AND appointment_status = ANY($4)
-        `;
-        const params = [doctor_id, appointment_date, appointment_time, activeStatuses];
-
-        if (exclude_appointment_id) {
-            sql += ` AND appointment_id != $5`;
-            params.push(exclude_appointment_id);
-        }
-
-        const result = await query(sql, params);
-        return result.rows.length === 0;
-    }
-
     /**
      * Check for duplicate appointment
      * GET /api/appointments/check-duplicate

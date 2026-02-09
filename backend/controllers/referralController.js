@@ -10,7 +10,7 @@ class ReferralController {
         try {
             const {
                 hospital_name, hospital_address, city, state,
-                phone_number, email, hospital_type, specialties, type
+                phone_number, email, hospital_type, specialties
             } = req.body;
 
             console.log('🏥 Creating referral hospital:', hospital_name);
@@ -177,7 +177,7 @@ class ReferralController {
             const { id } = req.params;
             const {
                 hospital_name, hospital_address, city, state,
-                phone_number, email, hospital_type, specialties, type
+                phone_number, email, hospital_type, specialties
             } = req.body;
 
             const sql = `

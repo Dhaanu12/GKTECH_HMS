@@ -11,12 +11,11 @@ class MlcController {
                        d.first_name as doctor_first_name, d.last_name as doctor_last_name, d.qualification, d.registration_number, d.contact_number as doctor_phone,
                        b.branch_name, b.address_line1 as branch_address, b.city as branch_city
                 FROM mlc_entries m
-                LEFT JOIN patients p ON m.patient_id = p.patient_id
-                LEFT JOIN doctors d ON m.doctor_id = d.doctor_id
+                JOIN patients p ON m.patient_id = p.patient_id
+                JOIN doctors d ON m.doctor_id = d.doctor_id
                 LEFT JOIN branches b ON m.branch_id = b.branch_id
                 WHERE m.opd_id = $1
             `, [opdId]);
-            console.log(`DEBUG: MLC Query for OPD ${opdId}. Found: ${result.rows.length} rows.`);
 
             if (result.rows.length === 0) {
                 // Check if OPD is MLC

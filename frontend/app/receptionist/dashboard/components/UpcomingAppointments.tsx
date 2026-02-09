@@ -45,32 +45,6 @@ export default function UpcomingAppointments({ doctors, onConvertToOPD, refreshT
         reason: ''
     });
     const [doctorSchedules, setDoctorSchedules] = useState<any[]>([]);
-    const [bookedSlots, setBookedSlots] = useState<string[]>([]);
-
-    // Fetch booked slots for reschedule modal
-    const fetchBookedSlots = async (doctorId: string, date: string) => {
-        if (!doctorId || !date) return;
-        try {
-            const token = localStorage.getItem('token');
-            const response = await axios.get('http://localhost:5000/api/appointments', {
-                params: { doctor_id: doctorId, date: date },
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            const apps = response.data.data.appointments || [];
-            const times = apps
-                .filter((app: any) => ['Scheduled', 'Confirmed'].includes(app.appointment_status))
-                .map((app: any) => app.appointment_time.slice(0, 5));
-            setBookedSlots(times);
-        } catch (error) {
-            console.error("Error fetching booked slots:", error);
-        }
-    };
-
-    useEffect(() => {
-        if (showRescheduleModal && rescheduleForm.doctor_id && rescheduleForm.appointment_date) {
-            fetchBookedSlots(rescheduleForm.doctor_id, rescheduleForm.appointment_date);
-        }
-    }, [showRescheduleModal, rescheduleForm.doctor_id, rescheduleForm.appointment_date]);
 
     useEffect(() => {
         fetchAppointments();
@@ -926,7 +900,7 @@ export default function UpcomingAppointments({ doctors, onConvertToOPD, refreshT
                                             }
 
                                             return filteredSlots.map((slot) => {
-                                                const isBooked = slot.status === 'booked' || bookedSlots.includes(slot.time);
+                                                const isBooked = slot.status === 'booked';
                                                 const isSelected = rescheduleForm.appointment_time === slot.time;
                                                 return (
                                                     <button

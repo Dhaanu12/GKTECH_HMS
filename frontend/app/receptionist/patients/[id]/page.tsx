@@ -695,15 +695,17 @@ export default function ReceptionistPatientDetails() {
                         {/* Quick Actions - Disabled for Receptionist (Read Only) */}
                         <div className="flex flex-col sm:flex-row gap-2">
                             <button
-                                onClick={() => setShowVitalsModal(true)}
-                                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 active:scale-95"
+                                disabled
+                                title="Receptionist: Read-only access"
+                                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-300 text-slate-500 rounded-xl font-medium text-sm cursor-not-allowed whitespace-nowrap"
                             >
                                 <HeartPulse className="w-4 h-4" />
                                 Record Vitals
                             </button>
                             <button
-                                onClick={() => setShowNotesModal(true)}
-                                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-50 hover:text-blue-600 transition-all shadow-sm active:scale-95"
+                                disabled
+                                title="Receptionist: Read-only access"
+                                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 border border-slate-200 text-slate-400 rounded-xl font-medium text-sm cursor-not-allowed whitespace-nowrap"
                             >
                                 <FileText className="w-4 h-4" />
                                 Add Note
@@ -1248,8 +1250,9 @@ export default function ReceptionistPatientDetails() {
                             <div className="flex justify-between items-center">
                                 <h3 className="text-lg font-bold text-slate-800">Documents</h3>
                                 <button
-                                    onClick={() => setShowUploadModal(true)}
-                                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-all shadow-sm active:scale-95"
+                                    disabled
+                                    title="Receptionist: Read-only access"
+                                    className="flex items-center gap-2 px-4 py-2 bg-slate-300 text-slate-500 rounded-lg text-sm font-medium cursor-not-allowed"
                                 >
                                     <Upload className="w-4 h-4" />
                                     Upload
@@ -2196,7 +2199,135 @@ function DocumentUploadModal({
                 </div>
             </div>
 
+            {/* Vitals Modal */}
+            {
+                showVitalsModal && (
+                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+                        <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full p-0 overflow-hidden">
+                            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+                                <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                    <Activity className="w-5 h-5 text-blue-600" /> Record Vitals
+                                </h2>
+                                <button
+                                    onClick={() => setShowVitalsModal(false)}
+                                    className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-slate-500 hover:bg-slate-100 transition shadow-sm border border-slate-100"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
 
+                            <div className="p-8">
+                                <div className="bg-purple-50/50 p-6 rounded-2xl border border-purple-100">
+                                    <h3 className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-4">Vital Signs</h3>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-6">
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 mb-1.5">BP Systolic</label>
+                                            <div className="relative">
+                                                <input
+                                                    type="text"
+                                                    value={vitalsForm.bp_systolic}
+                                                    onChange={(e) => setVitalsForm({ ...vitalsForm, bp_systolic: e.target.value })}
+                                                    className="w-full px-4 py-2.5 bg-white border border-purple-100 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                                                    placeholder="mmHg"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 mb-1.5">BP Diastolic</label>
+                                            <div className="relative">
+                                                <input
+                                                    type="text"
+                                                    value={vitalsForm.bp_diastolic}
+                                                    onChange={(e) => setVitalsForm({ ...vitalsForm, bp_diastolic: e.target.value })}
+                                                    className="w-full px-4 py-2.5 bg-white border border-purple-100 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                                                    placeholder="mmHg"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 mb-1.5">Pulse</label>
+                                            <input
+                                                type="text"
+                                                value={vitalsForm.pulse}
+                                                onChange={(e) => setVitalsForm({ ...vitalsForm, pulse: e.target.value })}
+                                                className="w-full px-4 py-2.5 bg-white border border-purple-100 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                                                placeholder="bpm"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 mb-1.5">Temperature</label>
+                                            <input
+                                                type="text"
+                                                value={vitalsForm.temperature}
+                                                onChange={(e) => setVitalsForm({ ...vitalsForm, temperature: e.target.value })}
+                                                className="w-full px-4 py-2.5 bg-white border border-purple-100 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                                                placeholder="°F"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 mb-1.5">Weight</label>
+                                            <input
+                                                type="text"
+                                                value={vitalsForm.weight}
+                                                onChange={(e) => setVitalsForm({ ...vitalsForm, weight: e.target.value })}
+                                                className="w-full px-4 py-2.5 bg-white border border-purple-100 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                                                placeholder="kg"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 mb-1.5">Height</label>
+                                            <input
+                                                type="text"
+                                                value={vitalsForm.height}
+                                                onChange={(e) => setVitalsForm({ ...vitalsForm, height: e.target.value })}
+                                                className="w-full px-4 py-2.5 bg-white border border-purple-100 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                                                placeholder="cm"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 mb-1.5">SpO2</label>
+                                            <input
+                                                type="text"
+                                                value={vitalsForm.spo2}
+                                                onChange={(e) => setVitalsForm({ ...vitalsForm, spo2: e.target.value })}
+                                                className="w-full px-4 py-2.5 bg-white border border-purple-100 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                                                placeholder="%"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 mb-1.5">GRBS</label>
+                                            <input
+                                                type="text"
+                                                value={vitalsForm.grbs}
+                                                onChange={(e) => setVitalsForm({ ...vitalsForm, grbs: e.target.value })}
+                                                className="w-full px-4 py-2.5 bg-white border border-purple-100 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                                                placeholder="mg/dL"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+                                <button
+                                    onClick={() => setShowVitalsModal(false)}
+                                    className="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleSaveVitals}
+                                    disabled={saving}
+                                    className="px-5 py-2.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-lg shadow-blue-600/20 flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                                >
+                                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                    Save Vitals
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
         </div>
     );
 }

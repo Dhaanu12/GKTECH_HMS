@@ -27,7 +27,6 @@ export default function AddReferralDoctorPage() {
                     router.push('/marketing/dashboard');
                 }}
                 onCancel={() => router.back()}
-                requireLocation={true}
             />
         </div>
     );

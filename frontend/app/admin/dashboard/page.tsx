@@ -3,8 +3,10 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/lib/AuthContext';
-import { Building2, Users, Stethoscope, Briefcase } from 'lucide-react';
+import { Building2, Users, Stethoscope, Briefcase, Sparkles } from 'lucide-react';
 import Link from 'next/link';
+import { AIInsightCard, AILoadingIndicator } from '@/components/ai';
+import { getDashboardInsights } from '@/lib/api/ai';
 
 export default function AdminDashboard() {
     const { user } = useAuth();
@@ -14,6 +16,36 @@ export default function AdminDashboard() {
         nurses: 0,
         receptionists: 0
     });
+    
+    // AI insights state
+    const [aiInsights, setAiInsights] = useState<string | null>(null);
+    const [aiInsightsLoading, setAiInsightsLoading] = useState(false);
+    
+    const handleGenerateInsights = async () => {
+        setAiInsightsLoading(true);
+        setAiInsights(null);
+        
+        try {
+            const result = await getDashboardInsights({
+                totalHospitals: statsData.hospitals,
+                totalDoctors: statsData.doctors,
+                totalNurses: statsData.nurses,
+                totalReceptionists: statsData.receptionists,
+                roleType: 'Super Admin',
+                timestamp: new Date().toISOString(),
+            });
+            
+            if (result.success) {
+                setAiInsights(result.message);
+            } else {
+                setAiInsights(result.message);
+            }
+        } catch (err) {
+            setAiInsights('Failed to generate insights. Please try again.');
+        } finally {
+            setAiInsightsLoading(false);
+        }
+    };
 
     useEffect(() => {
         const fetchStats = async () => {
@@ -114,6 +146,46 @@ export default function AdminDashboard() {
                         </div>
                     );
                 })}
+            </div>
+
+            {/* AI Insights Panel */}
+            <div className="glass-panel p-6 rounded-2xl">
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-lg text-white">
+                            <Sparkles className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold text-slate-800">AI Insights</h3>
+                            <p className="text-xs text-slate-500">Get AI-powered analysis of your dashboard metrics</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={handleGenerateInsights}
+                        disabled={aiInsightsLoading}
+                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl font-medium text-sm hover:from-indigo-600 hover:to-purple-600 transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50"
+                    >
+                        <Sparkles className="w-4 h-4" />
+                        {aiInsightsLoading ? 'Analyzing...' : 'Generate Insights'}
+                    </button>
+                </div>
+                
+                {aiInsightsLoading && (
+                    <AILoadingIndicator text="Analyzing dashboard metrics..." />
+                )}
+                {aiInsights && !aiInsightsLoading && (
+                    <AIInsightCard
+                        title="Dashboard Analysis"
+                        content={aiInsights}
+                        type="info"
+                        onDismiss={() => setAiInsights(null)}
+                    />
+                )}
+                {!aiInsights && !aiInsightsLoading && (
+                    <p className="text-sm text-slate-500 text-center py-4">
+                        Click "Generate Insights" to get AI-powered analysis of your hospital network metrics.
+                    </p>
+                )}
             </div>
 
             {/* Quick Actions */}

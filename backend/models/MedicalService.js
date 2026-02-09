@@ -23,17 +23,6 @@ class MedicalService extends BaseModel {
     }
 
     /**
-     * Search for Lab services specifically
-     * @param {String} searchTerm
-     * @returns {Promise<Array>}
-     */
-    async searchLabs(searchTerm) {
-        // Currently utilizing general search. 
-        // Can be enhanced to filter by category='Laboratory' if such schema exists and is populated.
-        return this.searchByName(searchTerm);
-    }
-
-    /**
      * Search services by name and category
      * @param {String} searchTerm
      * @param {String} category

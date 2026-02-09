@@ -5,6 +5,8 @@ import axios from 'axios';
 import { Plus, Calendar, FileText, X, Save, User, ArrowRight, Sun, CloudSun, Moon, Clock, CalendarClock, Check, Stethoscope, MapPin, Activity, Search, ChevronLeft, AlertCircle, Sparkles } from 'lucide-react';
 import { useAuth } from '../../../lib/AuthContext';
 import SearchableSelect from '../../../components/ui/SearchableSelect';
+import { AIInsightCard, AILoadingIndicator } from '@/components/ai';
+import { optimizeSchedule } from '@/lib/api/ai';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -41,6 +43,10 @@ export default function AppointmentsPage() {
         doctor_id: '',
         reason: ''
     });
+    
+    // AI scheduling state
+    const [aiSchedulingSuggestion, setAiSchedulingSuggestion] = useState<string | null>(null);
+    const [aiSchedulingLoading, setAiSchedulingLoading] = useState(false);
 
     const [appointmentForm, setAppointmentForm] = useState({
         patient_id: null as number | null,
@@ -443,6 +449,41 @@ export default function AppointmentsPage() {
         else setTimeSlotCategory('Evening');
 
         setShowRescheduleModal(true);
+        
+        // Clear previous AI suggestion
+        setAiSchedulingSuggestion(null);
+    };
+    
+    const handleGetAISchedulingSuggestion = async () => {
+        if (!appointmentToReschedule) return;
+        
+        setAiSchedulingLoading(true);
+        setAiSchedulingSuggestion(null);
+        
+        try {
+            // Get the selected doctor's name
+            const selectedDoctor = doctors.find((d: any) => d.doctor_id === parseInt(rescheduleForm.doctor_id));
+            
+            const result = await optimizeSchedule({
+                doctorName: selectedDoctor?.name || appointmentToReschedule.doctor_name,
+                requestedTime: `${rescheduleForm.appointment_date} ${rescheduleForm.appointment_time}`,
+                patientName: appointmentToReschedule.patient_name,
+                availableSlots: availableTimeSlots.map(slot => ({
+                    time: slot,
+                    date: rescheduleForm.appointment_date
+                })),
+            });
+            
+            if (result.success) {
+                setAiSchedulingSuggestion(result.message);
+            } else {
+                setAiSchedulingSuggestion(result.message);
+            }
+        } catch (err) {
+            setAiSchedulingSuggestion('Failed to get scheduling suggestions.');
+        } finally {
+            setAiSchedulingLoading(false);
+        }
     };
 
     const handleReschedule = async (e: React.FormEvent) => {
@@ -1522,6 +1563,41 @@ export default function AppointmentsPage() {
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500"
                                         placeholder="e.g., Patient requested change"
                                     />
+                                </div>
+                                
+                                {/* AI Scheduling Suggestions */}
+                                <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-4 border border-indigo-100">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <div className="flex items-center gap-2">
+                                            <Sparkles className="w-4 h-4 text-indigo-600" />
+                                            <span className="text-sm font-medium text-indigo-800">AI Scheduling Assistant</span>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={handleGetAISchedulingSuggestion}
+                                            disabled={aiSchedulingLoading}
+                                            className="text-xs font-medium text-indigo-600 hover:text-indigo-700 disabled:opacity-50"
+                                        >
+                                            {aiSchedulingLoading ? 'Analyzing...' : 'Get Suggestion'}
+                                        </button>
+                                    </div>
+                                    
+                                    {aiSchedulingLoading && (
+                                        <AILoadingIndicator text="Analyzing schedule..." variant="compact" />
+                                    )}
+                                    {aiSchedulingSuggestion && !aiSchedulingLoading && (
+                                        <AIInsightCard
+                                            title="Scheduling Recommendation"
+                                            content={aiSchedulingSuggestion}
+                                            type="info"
+                                            onDismiss={() => setAiSchedulingSuggestion(null)}
+                                        />
+                                    )}
+                                    {!aiSchedulingSuggestion && !aiSchedulingLoading && (
+                                        <p className="text-xs text-indigo-600/70">
+                                            Click "Get Suggestion" for AI recommendations on optimal scheduling.
+                                        </p>
+                                    )}
                                 </div>
 
                                 <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">

@@ -18,15 +18,6 @@ router.get('/stats', authorize('CLIENT_ADMIN'), clientAdminController.getDashboa
 // GET /api/clientadmins/analytics - Get comprehensive analytics for logged-in Client Admin
 router.get('/analytics', authorize('CLIENT_ADMIN', 'RECEPTIONIST'), clientAdminController.getAnalytics);
 
-// --- NEW Reporting System Routes ---
-const reportingController = require('../controllers/reportingController');
-
-// GET /api/clientadmins/reports/branch - Compare Branch Performance
-router.get('/reports/branch', authorize('CLIENT_ADMIN'), reportingController.getBranchPerformance);
-
-// GET /api/clientadmins/reports/staff - Get Staff Performance (Doctors, Nurses, Receptionists)
-router.get('/reports/staff', authorize('CLIENT_ADMIN'), reportingController.getStaffPerformance);
-
 // GET /api/clientadmins/:id - Get client admin by ID
 router.get('/:id', authorize('SUPER_ADMIN'), clientAdminController.getClientAdminById);
 

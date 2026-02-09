@@ -38,8 +38,4 @@ module.exports = {
     Service: require('./Service'),
     Billing: require('./Billing'),
     BillingItem: require('./BillingItem'),
-
-    // New Billing Models
-    BillingMaster: require('./BillingMaster'),
-    BillDetails: require('./BillDetails'),
 };

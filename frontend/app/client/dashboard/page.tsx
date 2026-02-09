@@ -3,7 +3,9 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/lib/AuthContext';
-import { Building2, Users, Stethoscope, Briefcase } from 'lucide-react';
+import { Building2, Users, Stethoscope, Briefcase, Sparkles } from 'lucide-react';
+import { AIInsightCard, AILoadingIndicator } from '@/components/ai';
+import { getDashboardInsights } from '@/lib/api/ai';
 
 export default function ClientDashboard() {
     const { user } = useAuth();
@@ -13,6 +15,37 @@ export default function ClientDashboard() {
         nurses: 0,
         receptionists: 0
     });
+    
+    // AI insights state
+    const [aiInsights, setAiInsights] = useState<string | null>(null);
+    const [aiInsightsLoading, setAiInsightsLoading] = useState(false);
+    
+    const handleGenerateInsights = async () => {
+        setAiInsightsLoading(true);
+        setAiInsights(null);
+        
+        try {
+            const result = await getDashboardInsights({
+                totalBranches: statsData.branches,
+                totalDoctors: statsData.doctors,
+                totalNurses: statsData.nurses,
+                totalReceptionists: statsData.receptionists,
+                roleType: 'Client Admin',
+                hospitalName: user?.hospital_name || 'Unknown',
+                timestamp: new Date().toISOString(),
+            });
+            
+            if (result.success) {
+                setAiInsights(result.message);
+            } else {
+                setAiInsights(result.message);
+            }
+        } catch (err) {
+            setAiInsights('Failed to generate insights. Please try again.');
+        } finally {
+            setAiInsightsLoading(false);
+        }
+    };
 
     useEffect(() => {
         const fetchStats = async () => {
@@ -82,6 +115,46 @@ export default function ClientDashboard() {
                         </div>
                     );
                 })}
+            </div>
+
+            {/* AI Insights Panel */}
+            <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200 mb-6">
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-lg text-white">
+                            <Sparkles className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-semibold text-slate-800">AI Insights</h3>
+                            <p className="text-xs text-slate-500">Get AI-powered analysis of your hospital metrics</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={handleGenerateInsights}
+                        disabled={aiInsightsLoading}
+                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg font-medium text-sm hover:from-indigo-600 hover:to-purple-600 transition-all shadow-md disabled:opacity-50"
+                    >
+                        <Sparkles className="w-4 h-4" />
+                        {aiInsightsLoading ? 'Analyzing...' : 'Generate Insights'}
+                    </button>
+                </div>
+                
+                {aiInsightsLoading && (
+                    <AILoadingIndicator text="Analyzing dashboard metrics..." />
+                )}
+                {aiInsights && !aiInsightsLoading && (
+                    <AIInsightCard
+                        title="Dashboard Analysis"
+                        content={aiInsights}
+                        type="info"
+                        onDismiss={() => setAiInsights(null)}
+                    />
+                )}
+                {!aiInsights && !aiInsightsLoading && (
+                    <p className="text-sm text-slate-500 text-center py-4">
+                        Click "Generate Insights" to get AI-powered analysis of your hospital metrics.
+                    </p>
+                )}
             </div>
 
             {/* Quick Actions */}

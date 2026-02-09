@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../lib/AuthContext';
+import { useAI } from '../../../components/ai';
 import {
     fetchLabOrders,
     fetchOPDEntries,
@@ -53,6 +54,10 @@ const statusColors = {
 export default function NurseDashboard() {
     const { user } = useAuth();
     const router = useRouter();
+    
+    // AI context - clear patient context when on dashboard
+    let aiContext: { setPageContext?: (page: string, patient?: string) => void } = {};
+    try { aiContext = useAI(); } catch { /* AIContextProvider not available */ }
 
     // State
     const [shift, setShift] = useState<'Day' | 'Night'>('Day');
@@ -213,6 +218,20 @@ export default function NurseDashboard() {
         const entryDate = new Date(entry.visit_date).toISOString().split('T')[0];
         return entryDate === today;
     });
+    
+    // Set AI context for dashboard (clears any patient-specific context)
+    useEffect(() => {
+        if (aiContext.setPageContext && !loading) {
+            const dashboardContext = `Viewing Nurse Dashboard. ` +
+                `User: Nurse ${user?.first_name || user?.username || 'User'}. ` +
+                `Current shift: ${shift}. ` +
+                `Summary: ${myTasksCount} tasks assigned to me, ${pendingCount} pending orders, ${urgentCount} urgent/STAT orders, ${completedTodayCount} completed today. ` +
+                `Today's OPD: ${todayOPD.length} patients. ` +
+                `Note: This is the dashboard overview. No specific patient is currently selected. ` +
+                `To help with a specific patient, ask the user for the patient name or MRN, or use the searchPatients tool.`;
+            aiContext.setPageContext('/nurse/dashboard', dashboardContext);
+        }
+    }, [aiContext.setPageContext, loading, user, shift, myTasksCount, pendingCount, urgentCount, completedTodayCount, todayOPD.length]);
 
     // Handle quick actions
     const handleStartTask = async (orderId: number) => {

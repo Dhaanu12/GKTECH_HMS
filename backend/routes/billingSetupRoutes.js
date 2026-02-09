@@ -4,7 +4,7 @@ const BillingSetupController = require('../controllers/BillingSetupController');
 const { authenticate, authorize } = require('../middleware/auth'); // Assuming auth middleware exists
 
 // Search services (autocomplete)
-router.get('/search-services', authenticate, authorize('SUPER_ADMIN', 'CLIENT_ADMIN', 'DOCTOR', 'NURSE', 'RECEPTIONIST'), BillingSetupController.searchServices);
+router.get('/search-services', authenticate, authorize('SUPER_ADMIN', 'CLIENT_ADMIN'), BillingSetupController.searchServices);
 
 // Create new billing setup
 router.post('/create', authenticate, authorize('SUPER_ADMIN', 'CLIENT_ADMIN'), BillingSetupController.createBillingSetup);

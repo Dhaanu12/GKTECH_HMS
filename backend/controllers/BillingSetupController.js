@@ -12,108 +12,42 @@ class BillingSetupController {
     async searchServices(req, res) {
         try {
             const { term, category, branchId } = req.query;
-
             if (!term) {
                 return res.status(400).json({ message: 'Search term is required' });
             }
 
             let services;
 
-            // If branchId is provided, filter by branch's assigned medical services + In-House Billing Setups
+            // If branchId is provided, filter by branch's assigned medical services
             if (branchId) {
-                services = [];
-                const limit = 50; // Limit results per category to avoid huge responses
+                const query = `
+                    SELECT ms.service_id, ms.service_name, ms.category
+                    FROM branch_medical_services bms
+                    JOIN medical_services ms ON bms.service_id = ms.service_id
+                    WHERE bms.branch_id = $1 
+                    AND bms.is_active = true
+                    AND ms.service_name ILIKE $2
+                    ${category ? 'AND ms.category ILIKE $3' : ''}
+                    
+                    UNION ALL
+                    
+                    SELECT s.service_id, s.service_name, s.service_category as category
+                    FROM branch_services bs
+                    JOIN services s ON bs.service_id = s.service_id
+                    WHERE bs.branch_id = $1 
+                    AND bs.is_active = true
+                    AND s.service_name ILIKE $2
+                    ${category ? 'AND s.service_category ILIKE $3' : ''}
+                    
+                    ORDER BY service_name ASC
+                `;
 
-                // 1. Medical Services (Global Search for External Labs)
-                try {
-                    const medicalLimitPlaceholder = category ? '$3' : '$2';
-                    const medicalQuery = `
-                        SELECT ms.service_id, ms.service_name, ms.category
-                        FROM medical_services ms
-                        WHERE ms.is_active = true
-                        AND ms.service_name ILIKE $1
-                        ${category ? 'AND ms.category ILIKE $2' : ''}
-                        ORDER BY ms.service_name ASC
-                        LIMIT ${medicalLimitPlaceholder}
-                    `;
-                    // Remove branchId from params for this query as it uses global table
-                    const medicalParams = category
-                        ? [`%${term}%`, `%${category}%`, limit]
-                        : [`%${term}%`, limit];
+                const params = category
+                    ? [branchId, `%${term}%`, `%${category}%`]
+                    : [branchId, `%${term}%`];
 
-                    const medicalRes = await db.query(medicalQuery, medicalParams);
-                    services.push(...medicalRes.rows.map(row => ({
-                        id: row.service_id,
-                        service_name: row.service_name,
-                        category: row.category,
-                        source: 'medical_service', // Will show as 'External'
-                        price: null
-                    })));
-                } catch (err) {
-                    console.error('Error searching medical services:', err);
-                }
-
-                // 2. General Services
-                try {
-                    const serviceLimitPlaceholder = category ? '$4' : '$3';
-                    const serviceQuery = `
-                        SELECT s.service_id, s.service_name, s.service_category as category
-                        FROM branch_services bs
-                        JOIN services s ON bs.service_id = s.service_id
-                        WHERE bs.branch_id = $1 
-                        AND bs.is_active = true
-                        AND s.service_name ILIKE $2
-                        ${category ? 'AND s.service_category ILIKE $3' : ''}
-                        ORDER BY s.service_name ASC
-                        LIMIT ${serviceLimitPlaceholder}
-                    `;
-                    const serviceParams = category
-                        ? [branchId, `%${term}%`, `%${category}%`, limit]
-                        : [branchId, `%${term}%`, limit];
-
-                    const serviceRes = await db.query(serviceQuery, serviceParams);
-                    services.push(...serviceRes.rows.map(row => ({
-                        id: row.service_id,
-                        service_name: row.service_name,
-                        category: row.category,
-                        source: 'service',
-                        price: null
-                    })));
-                } catch (err) {
-                    console.error('Error searching branch services:', err);
-                }
-
-                // 3. Billing Setup Master (In-House)
-                try {
-                    const billingLimitPlaceholder = category ? '$4' : '$3';
-                    const billingQuery = `
-                        SELECT bsm.billing_setup_id, bsm.service_name, bsm.type_of_service as category, bsm.patient_charge
-                        FROM billing_setup_master bsm
-                        WHERE bsm.branch_id = $1
-                        AND bsm.is_active = true
-                        AND bsm.service_name ILIKE $2
-                        ${category ? 'AND bsm.type_of_service ILIKE $3' : ''}
-                        ORDER BY bsm.service_name ASC
-                        LIMIT ${billingLimitPlaceholder}
-                    `;
-                    const billingParams = category
-                        ? [branchId, `%${term}%`, `%${category}%`, limit]
-                        : [branchId, `%${term}%`, limit];
-
-                    const billingRes = await db.query(billingQuery, billingParams);
-                    services.push(...billingRes.rows.map(row => ({
-                        id: row.billing_setup_id,
-                        service_name: row.service_name,
-                        category: row.category,
-                        source: 'billing_master',
-                        price: row.patient_charge
-                    })));
-                } catch (err) {
-                    console.error('Error searching billing setup:', err);
-                }
-
-                // Sort combined results by name
-                services.sort((a, b) => a.service_name.localeCompare(b.service_name));
+                const result = await db.query(query, params);
+                services = result.rows;
             } else {
                 // Fallback to all medical services if no branchId (backward compatibility)
                 if (category) {
