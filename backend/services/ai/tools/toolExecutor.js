@@ -80,12 +80,32 @@ async function executeTool(toolName, args, authToken) {
 
 async function executeSearchPatients(args, headers) {
     const { query } = args;
+    let patients = [];
+    
+    // Try full query first
     const response = await axios.get(`${API_URL}/patients/search`, {
         params: { q: query },
         headers
     });
+    patients = response.data?.data?.patients || [];
     
-    const patients = response.data?.data?.patients || [];
+    // If no results and query contains spaces, try different parts
+    if (patients.length === 0 && query.includes(' ')) {
+        const parts = query.trim().split(/\s+/);
+        
+        // Try each part individually until we find results
+        for (const part of parts) {
+            if (part.length < 2) continue; // Skip single letters like initials
+            
+            const response2 = await axios.get(`${API_URL}/patients/search`, {
+                params: { q: part },
+                headers
+            });
+            patients = response2.data?.data?.patients || [];
+            
+            if (patients.length > 0) break;
+        }
+    }
     
     if (patients.length === 0) {
         return { message: 'No patients found matching the search criteria.' };
@@ -97,10 +117,10 @@ async function executeSearchPatients(args, headers) {
         patients: patients.slice(0, 10).map(p => ({
             id: p.patient_id,
             name: `${p.first_name} ${p.last_name}`,
-            mrn: p.mrn,
+            mrn: p.mrn_number || p.mrn,
             age: p.age,
             gender: p.gender,
-            phone: p.phone,
+            phone: p.contact_number || p.phone,
             bloodGroup: p.blood_group
         }))
     };

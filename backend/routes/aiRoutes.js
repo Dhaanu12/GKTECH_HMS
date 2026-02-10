@@ -90,17 +90,21 @@ router.post('/chat/stream', async (req, res) => {
             // This ensures data lookup happens before responding
             const result = await aiService.agentChat(messages, { systemPrompt, authToken });
             
-            if (result.success && result.message) {
-                // Stream the response character by character for a streaming effect
-                const words = result.message.split(' ');
+            console.log('Agent chat result:', { success: result.success, hasMessage: !!result.message, messageLength: result.message?.length });
+            
+            if (result.success) {
+                const responseText = result.message || 'I was unable to generate a response. Please try again.';
+                // Stream the response word by word for a streaming effect
+                const words = responseText.split(' ');
                 for (let i = 0; i < words.length; i++) {
                     const chunk = (i === 0 ? '' : ' ') + words[i];
                     res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
                     // Small delay for streaming effect
                     await new Promise(resolve => setTimeout(resolve, 20));
                 }
-            } else if (!result.success) {
-                res.write(`data: ${JSON.stringify({ content: result.message || 'AI service unavailable.' })}\n\n`);
+            } else {
+                const errorMessage = result.message || result.error || 'AI service unavailable. Please try again.';
+                res.write(`data: ${JSON.stringify({ content: errorMessage })}\n\n`);
             }
         } else {
             // Regular streaming without tools

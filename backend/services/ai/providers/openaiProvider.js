@@ -11,7 +11,7 @@ class OpenAIProvider extends BaseProvider {
         // Lazy initialization - only create client when needed
         this._client = null;
         this.model = process.env.OPENAI_MODEL || 'gpt-5-mini';
-        this.maxTokens = 1024;
+        this.maxTokens = 4096; // Increased for complex responses with tool results
         
         // Token usage tracking
         this.usage = {
@@ -67,8 +67,7 @@ class OpenAIProvider extends BaseProvider {
                     ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
                     ...messages,
                 ],
-                max_tokens: options.maxTokens || this.maxTokens,
-                temperature: options.temperature || 0.7,
+                max_completion_tokens: options.maxTokens || this.maxTokens,
             };
 
             // Add tools if provided
@@ -90,6 +89,12 @@ class OpenAIProvider extends BaseProvider {
                     message: choice.message.content || '',
                     toolCalls: choice.message.tool_calls.map(tc => ({
                         id: tc.id,
+                        type: 'function',
+                        function: {
+                            name: tc.function.name,
+                            arguments: tc.function.arguments
+                        },
+                        // Also keep flat versions for tool executor
                         name: tc.function.name,
                         arguments: JSON.parse(tc.function.arguments)
                     })),
@@ -128,8 +133,7 @@ class OpenAIProvider extends BaseProvider {
                     ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
                     ...messages,
                 ],
-                max_tokens: options.maxTokens || this.maxTokens,
-                temperature: options.temperature || 0.7,
+                max_completion_tokens: options.maxTokens || this.maxTokens,
             };
 
             if (tools && tools.length > 0) {
@@ -141,6 +145,12 @@ class OpenAIProvider extends BaseProvider {
             this._trackUsage(response.usage);
 
             const choice = response.choices[0];
+            console.log('OpenAI continueWithToolResult response:', {
+                finish_reason: choice.finish_reason,
+                hasContent: !!choice.message.content,
+                contentLength: choice.message.content?.length || 0,
+                hasToolCalls: !!choice.message.tool_calls
+            });
 
             // Check if more tool calls are needed
             if (choice.finish_reason === 'tool_calls' && choice.message.tool_calls) {
@@ -149,6 +159,12 @@ class OpenAIProvider extends BaseProvider {
                     message: choice.message.content || '',
                     toolCalls: choice.message.tool_calls.map(tc => ({
                         id: tc.id,
+                        type: 'function',
+                        function: {
+                            name: tc.function.name,
+                            arguments: tc.function.arguments
+                        },
+                        // Also keep flat versions for tool executor
                         name: tc.function.name,
                         arguments: JSON.parse(tc.function.arguments)
                     })),
@@ -158,7 +174,7 @@ class OpenAIProvider extends BaseProvider {
 
             return {
                 success: true,
-                message: choice.message.content,
+                message: choice.message.content || '',
                 usage: response.usage,
             };
         } catch (error) {
@@ -181,8 +197,7 @@ class OpenAIProvider extends BaseProvider {
                     ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
                     ...messages,
                 ],
-                max_tokens: options.maxTokens || this.maxTokens,
-                temperature: options.temperature || 0.7,
+                max_completion_tokens: options.maxTokens || this.maxTokens,
                 stream: true,
             });
 
@@ -207,7 +222,7 @@ class OpenAIProvider extends BaseProvider {
             const response = await this.client.chat.completions.create({
                 model: this.model,
                 messages: [{ role: 'user', content: 'Hi' }],
-                max_tokens: 5,
+                max_completion_tokens: 5,
             });
 
             return { available: true };
