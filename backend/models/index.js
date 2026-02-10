@@ -40,4 +40,7 @@ module.exports = {
     BillingItem: require('./BillingItem'),
     BillingMaster: require('./BillingMaster'),
     BillDetails: require('./BillDetails'),
+
+    // Utility Models
+    MLCCaseType: require('./MLCCaseType'),
 };

@@ -271,7 +271,8 @@ export default function UpcomingAppointments({ doctors, onConvertToOPD, refreshT
             // Pass doctor info for auto-fill in OPD form
             doctor_id: apt.doctor_id,
             doctor_name: `Dr. ${apt.doctor_first_name} ${apt.doctor_last_name}`,
-            appointment_id: apt.appointment_id
+            appointment_id: apt.appointment_id,
+            reason_for_visit: apt.reason_for_visit
         };
         onConvertToOPD(patientObj);
     };

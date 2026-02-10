@@ -251,6 +251,28 @@ export default function ClaimsPage() {
         }
     };
 
+    const handleDownloadTemplate = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.get('http://localhost:5000/api/accountant/download-claims-template', {
+                headers: { Authorization: `Bearer ${token}` },
+                responseType: 'blob'
+            });
+
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', 'Claims_Upload_Template.xlsx');
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        } catch (error) {
+            console.error("Error downloading template", error);
+            // We can add a temporary error message if needed, but console is fine for now
+            alert("Failed to download template. Please try again.");
+        }
+    };
+
     const handleUpload = async () => {
         if (!uploadFile || !uploadBranch) return;
 
@@ -1092,14 +1114,13 @@ export default function ClaimsPage() {
                             <div className="pt-4 border-t border-gray-100">
                                 <div className="flex justify-between items-center mb-3">
                                     <h4 className="font-semibold text-gray-900">Expected File Format</h4>
-                                    <a
-                                        href="/templates/claims_template.xlsx"
-                                        download
+                                    <button
+                                        onClick={handleDownloadTemplate}
                                         className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100"
                                     >
                                         <Download className="w-3 h-3" />
                                         Download Template
-                                    </a>
+                                    </button>
                                 </div>
                                 <p className="text-xs text-gray-500 mb-3">Please ensure your file headers match these fields (case-insensitive):</p>
                                 <div className="flex flex-wrap gap-1.5 text-[10px] text-gray-600 transition-all">

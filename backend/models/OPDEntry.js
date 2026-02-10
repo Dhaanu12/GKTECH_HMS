@@ -78,6 +78,7 @@ class OPDEntry extends BaseModel {
         o.*,
         p.first_name as patient_first_name, p.last_name as patient_last_name, p.mrn_number, 
         p.age, p.gender, p.blood_group, p.contact_number, p.medical_history, p.allergies,
+        p.address, p.address_line2, p.city, p.state, p.pincode,
         d.first_name as doctor_first_name, d.last_name as doctor_last_name, d.specialization,
         b.branch_name, b.mlc_fee,
         dept.department_name

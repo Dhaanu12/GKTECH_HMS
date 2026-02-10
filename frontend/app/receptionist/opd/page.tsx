@@ -7,14 +7,57 @@ import Link from 'next/link';
 import { useAuth } from '../../../lib/AuthContext';
 import SearchableSelect from '../../../components/ui/SearchableSelect';
 import MultiInputTags from '../dashboard/components/MultiInputTags';
+import BillingModal from '../../../components/billing/BillingModal';
 
 const API_URL = 'http://localhost:5000/api';
+
+interface OpdFormState {
+    first_name: string;
+    last_name: string;
+    age: string;
+    gender: string;
+    blood_group: string;
+    contact_number: string;
+    doctor_id: string;
+    visit_type: string;
+    visit_date: string;
+    visit_time: string;
+    chief_complaint: string;
+    symptoms: string;
+    vital_signs: {
+        bp_systolic: string;
+        bp_diastolic: string;
+        pulse: string;
+        temperature: string;
+        weight: string;
+        height: string;
+        spo2: string;
+        grbs: string;
+    };
+    consultation_fee: string;
+    payment_status: string;
+    payment_method: string;
+    is_mlc: boolean;
+    mlc_remarks: string;
+    attender_name: string;
+    attender_contact_number: string;
+    adhaar_number: string;
+    referral_hospital: string;
+    referral_doctor_name: string;
+    address_line1: string;
+    address_line2: string;
+    city: string;
+    state: string;
+    pincode: string;
+    appointment_id: string;
+    patient_id?: number | null;
+}
 
 export default function OpdEntryPage() {
     const { user } = useAuth();
     const [loading, setLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
-    const [searchResults, setSearchResults] = useState([]);
+    const [searchResults, setSearchResults] = useState<any[]>([]);
     const [selectedPatient, setSelectedPatient] = useState<any>(null);
     const [doctors, setDoctors] = useState<any[]>([]);
 
@@ -24,7 +67,7 @@ export default function OpdEntryPage() {
         from: new Date().toLocaleDateString('en-CA'), // YYYY-MM-DD in local time
         to: new Date().toLocaleDateString('en-CA')
     });
-    const [opdEntries, setOpdEntries] = useState([]);
+    const [opdEntries, setOpdEntries] = useState<any[]>([]);
     const [showModal, setShowModal] = useState(false);
     const [phoneMatches, setPhoneMatches] = useState<any[]>([]);
     const [showPhoneDropdown, setShowPhoneDropdown] = useState(false);
@@ -44,6 +87,11 @@ export default function OpdEntryPage() {
 
     // Duplicate Check State
     const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
+
+    // Billing Modal State
+    const [showBillModal, setShowBillModal] = useState(false);
+    const [billData, setBillData] = useState<any>(null);
+    const [newOpdData, setNewOpdData] = useState<any>(null);
 
     const checkPhoneMatches = async (phone: string) => {
         if (phone.length === 10) {
@@ -72,11 +120,10 @@ export default function OpdEntryPage() {
     };
     const [hasAppointment, setHasAppointment] = useState(false);
     const [appointmentDoctorName, setAppointmentDoctorName] = useState('');
+    const [paymentChoice, setPaymentChoice] = useState<'PayNow' | 'PayLater'>('PayNow');
     const [editingOpdId, setEditingOpdId] = useState<number | null>(null);
-    const [showBillModal, setShowBillModal] = useState(false);
-    const [billData, setBillData] = useState<any>(null);
     const [branchDetails, setBranchDetails] = useState<any>(null);
-    const [allAppointments, setAllAppointments] = useState([]); // For availability check
+    const [allAppointments, setAllAppointments] = useState<any[]>([]); // For availability check
 
     // Smart Patient Search state (UX Solution 1)
     const [modalSearchQuery, setModalSearchQuery] = useState('');
@@ -121,7 +168,7 @@ export default function OpdEntryPage() {
     });
 
 
-    const [opdForm, setOpdForm] = useState({
+    const [opdForm, setOpdForm] = useState<OpdFormState>({
         first_name: '',
         last_name: '',
         age: '',
@@ -130,7 +177,7 @@ export default function OpdEntryPage() {
         contact_number: '',
         doctor_id: '',
         visit_type: 'Walk-in',
-        visit_date: new Date().toISOString().split('T')[0],
+        visit_date: new Date().toLocaleDateString('en-CA'),
         visit_time: new Date().toTimeString().slice(0, 5),
         chief_complaint: '',
         symptoms: '',
@@ -159,7 +206,8 @@ export default function OpdEntryPage() {
         city: '',
         state: '',
         pincode: '',
-        appointment_id: ''
+        appointment_id: '',
+        patient_id: null
     });
 
 
@@ -567,6 +615,7 @@ export default function OpdEntryPage() {
             doctor_id: doctorId,
             visit_type: suggestedVisitType,
             consultation_fee: consultationFee,
+            patient_id: patient.patient_id,
         });
         setSearchResults([]);
         setSearchQuery('');
@@ -581,6 +630,31 @@ export default function OpdEntryPage() {
     // This function is called when user clicks "Select" on a patient in the dropdown
     const handleDropdownSelect = async (patient: any) => {
         setSelectedPatient(patient);
+
+        // If editing an existing OPD entry, only update patient details
+        // Do NOT reset visit_type, doctor_id, or consultation_fee
+        if (editingOpdId) {
+            setOpdForm(prev => ({
+                ...prev,
+                first_name: patient.first_name,
+                last_name: patient.last_name,
+                age: patient.age?.toString() || '',
+                gender: patient.gender || '',
+                blood_group: patient.blood_group || '',
+                contact_number: patient.contact_number || '',
+                adhaar_number: patient.aadhar_number || patient.adhaar_number || '', // Backend consistency check
+                address_line1: patient.address || '',
+                address_line2: patient.address_line2 || '',
+                city: patient.city || '',
+                state: patient.state || '',
+                pincode: patient.pincode || '',
+                patient_id: patient.patient_id // Ensure patient_id is linked
+            }));
+            // Clear search
+            setModalSearchQuery('');
+            setModalSearchResults([]);
+            return;
+        }
 
         // Get doctor info from pending appointment data if from Convert to OPD
         let doctorId = '';
@@ -629,8 +703,11 @@ export default function OpdEntryPage() {
                 doctor_id: doctorId,
                 visit_type: visitType,
                 consultation_fee: consultationFee,
+                patient_id: patient.patient_id,
                 ...aptArgs // Add appointment_id if present
-            } : {})
+            } : {
+                patient_id: patient.patient_id
+            })
         }));
 
         // Clear search results after selection
@@ -667,6 +744,7 @@ export default function OpdEntryPage() {
             doctor_id: lastDoctorId,
             visit_type: 'Follow-up', // Auto-set to Follow-up
             consultation_fee: consultationFee,
+            patient_id: patient.patient_id,
         });
 
         // Clear modal search and show form
@@ -727,6 +805,18 @@ export default function OpdEntryPage() {
     };
 
     const saveEntry = async (formData: any = opdForm) => {
+        // Mandatory fields check for Non-MLC cases
+        if (!formData.is_mlc && (!formData.first_name || !formData.contact_number || !formData.gender)) {
+            alert('Please fill in all mandatory patient fields.');
+            return;
+        }
+
+        // MLC Validation: Prevent partial phone numbers
+        if (formData.is_mlc && formData.contact_number && formData.contact_number.length > 0 && formData.contact_number.length < 10) {
+            alert('Invalid Phone Number. Please enter a 10-digit number or leave it empty.');
+            return;
+        }
+
         try {
             const token = localStorage.getItem('token');
             // Calculate Total Fee (Doctor + MLC)
@@ -759,7 +849,9 @@ export default function OpdEntryPage() {
                 ...formData,
                 // Ensure last_name is never empty/null (DB constraint)
                 last_name: formData.last_name?.trim() || '.',
-                patient_id: selectedPatient?.patient_id,
+                // Prioritize formData.patient_id (which is updated by handleDropdownSelect)
+                // Fallback to selectedPatient?.patient_id if formData one is missing/empty
+                patient_id: formData.patient_id || selectedPatient?.patient_id,
                 vital_signs: JSON.stringify(formData.vital_signs),
                 consultation_fee: totalFee.toString(), // Send Total Fee to backend
                 mlc_fee: mlcFeeAmount.toString(), // Send separate MLC fee component
@@ -775,16 +867,15 @@ export default function OpdEntryPage() {
                 response = await axios.patch(`${API_URL}/opd/${editingOpdId}`, payload, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
-                alert('OPD Entry updated successfully!');
                 return editingOpdId;
             } else {
                 response = await axios.post(`${API_URL}/opd`, payload, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
-                alert('OPD Entry created successfully!');
+
                 // Check if response has data.opdEntry (from createOpdEntry controller)
                 if (response.data?.data?.opdEntry?.opd_id) {
-                    return response.data.data.opdEntry.opd_id;
+                    return response.data.data.opdEntry;
                 }
                 // Fallback if needed, though controller seems to return it
                 return null;
@@ -800,9 +891,26 @@ export default function OpdEntryPage() {
         e.preventDefault();
         setLoading(true);
         try {
-            await saveEntry();
-            setShowModal(false);
-            resetForm();
+            const savedEntry = await saveEntry();
+
+            if (paymentChoice === 'PayNow' && savedEntry) {
+                // Determine MRN - might be from response or selectedPatient
+                const mrn = savedEntry.mrn_number || selectedPatient?.mrn_number;
+
+                setNewOpdData({
+                    ...savedEntry,
+                    // Ensure we have patient details for the modal
+                    patient_first_name: opdForm.first_name,
+                    patient_last_name: opdForm.last_name,
+                    patient_contact_number: opdForm.contact_number,
+                    mrn_number: mrn
+                });
+                setShowModal(false); // Close OPD Modal
+                setShowBillModal(true); // Open Billing Modal
+            } else {
+                setShowModal(false);
+                resetForm();
+            }
             fetchOpdEntries();
             fetchDashboardStats(); // Refresh stats
         } catch (error) {
@@ -841,8 +949,9 @@ export default function OpdEntryPage() {
                 // Let's close the entry modal to avoid clutter, as the bill modal is an overlay?
                 // Or maybe better: Switch to edit mode so they can see what they just saved under the bill modal?
                 // Decision: Close the entry form modal so only the Bill modal is visible on top of list.
-                setShowModal(false);
-                resetForm();
+                // Decision: Close the entry form modal so only the Bill modal is visible on top of list.
+                // setShowModal(false);
+                // resetForm();
             }
         } catch (error) {
             // Error handled in saveEntry
@@ -890,7 +999,8 @@ export default function OpdEntryPage() {
             city: '',
             state: '',
             pincode: '',
-            appointment_id: ''
+            appointment_id: '',
+            patient_id: null
         });
         setSelectedPatient(null);
         setSearchQuery('');
@@ -906,6 +1016,7 @@ export default function OpdEntryPage() {
         // Reset Convert to OPD state
         setIsFromConvertToOPD(false);
         setPendingPatientData(null);
+        setPaymentChoice('PayNow');
     };
 
     const handleEditOpd = (entry: any) => {
@@ -941,6 +1052,7 @@ export default function OpdEntryPage() {
         setOpdForm({
             first_name: entry.patient_first_name || '',
             last_name: entry.patient_last_name || '',
+            patient_id: entry.patient_id, // Ensure patient_id is set for locking logic
             age: entry.age || '',
             gender: entry.gender || '',
             blood_group: entry.blood_group || '',
@@ -986,6 +1098,9 @@ export default function OpdEntryPage() {
             contact_number: entry.contact_number,
             blood_group: entry.blood_group
         });
+
+        // Set Payment Choice based on status
+        setPaymentChoice(entry.payment_status === 'Paid' ? 'PayNow' : 'PayLater');
 
         setShowModal(true);
     };
@@ -1255,6 +1370,8 @@ export default function OpdEntryPage() {
         value: doc.doctor_id,
         label: `Dr. ${doc.first_name} ${doc.last_name} (${doc.specialization})`
     }));
+
+    const isPatientDetailsLocked = !!opdForm.patient_id && (!opdForm.is_mlc || (!!opdForm.contact_number && opdForm.contact_number.length >= 10));
 
     return (
         <div className="space-y-8 min-h-screen pb-20">
@@ -1914,11 +2031,11 @@ export default function OpdEntryPage() {
                                                 )}
                                             </div>
 
-                                            <div className={`md:col-span-4 ${(opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient ? 'opacity-50 pointer-events-none' : ''}`}>
-                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Name <span className="text-red-500">*</span></label>
+                                            <div className={`md:col-span-4 ${isPatientDetailsLocked ? 'opacity-50 pointer-events-none' : ''}`}>
+                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Name {opdForm.is_mlc ? <span className="text-slate-400 font-normal">(Optional)</span> : <span className="text-red-500">*</span>}</label>
                                                 <input
                                                     type="text"
-                                                    required
+                                                    required={!opdForm.is_mlc}
                                                     value={opdForm.first_name + (opdForm.last_name ? ' ' + opdForm.last_name : '')}
                                                     onChange={(e) => {
                                                         const val = e.target.value;
@@ -1932,13 +2049,19 @@ export default function OpdEntryPage() {
                                                 />
                                             </div>
                                             {/* Row 2: Age | Gender | Blood Group */}
-                                            <div className={(opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient ? 'opacity-50 pointer-events-none' : ''}>
-                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Age <span className="text-red-500">*</span></label>
-                                                <input type="number" required value={opdForm.age} onChange={(e) => setOpdForm({ ...opdForm, age: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium" />
+                                            <div className={isPatientDetailsLocked ? 'opacity-50 pointer-events-none' : ''}>
+                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Age {opdForm.is_mlc ? <span className="text-slate-400 font-normal">(Optional)</span> : <span className="text-red-500">*</span>}</label>
+                                                <input type="number" required={!opdForm.is_mlc} value={opdForm.age} onChange={(e) => setOpdForm({ ...opdForm, age: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium" />
                                             </div>
-                                            <div className={(opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient ? 'opacity-50 pointer-events-none' : ''}>
-                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Gender <span className="text-red-500">*</span></label>
-                                                <select required value={opdForm.gender} onChange={(e) => setOpdForm({ ...opdForm, gender: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium">
+                                            <div className={isPatientDetailsLocked ? 'opacity-50 pointer-events-none' : ''}>
+                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Gender {opdForm.is_mlc ? <span className="text-slate-400 font-normal">(Optional)</span> : <span className="text-red-500">*</span>}</label>
+                                                <select
+                                                    required={!opdForm.is_mlc}
+                                                    value={opdForm.gender}
+                                                    onChange={(e) => setOpdForm({ ...opdForm, gender: e.target.value })}
+                                                    disabled={isPatientDetailsLocked}
+                                                    className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isPatientDetailsLocked ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`}
+                                                >
                                                     <option value="">Select</option>
                                                     <option value="Male">Male</option>
                                                     <option value="Female">Female</option>
@@ -1946,7 +2069,7 @@ export default function OpdEntryPage() {
                                                     <option value="Other">Other</option>
                                                 </select>
                                             </div>
-                                            <div className={`md:col-span-2 ${(opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient ? 'opacity-50 pointer-events-none' : ''}`}>
+                                            <div className={`md:col-span-2 ${isPatientDetailsLocked ? 'opacity-50 pointer-events-none' : ''}`}>
                                                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Blood Group</label>
                                                 <select value={opdForm.blood_group} onChange={(e) => setOpdForm({ ...opdForm, blood_group: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium">
                                                     <option value="">Unknown</option>
@@ -1960,7 +2083,7 @@ export default function OpdEntryPage() {
                                                     <option value="AB-">AB-</option>
                                                 </select>
                                             </div>
-                                            <div className={`md:col-span-2 ${(opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient ? 'opacity-50 pointer-events-none' : ''}`}>
+                                            <div className={`md:col-span-2 ${isPatientDetailsLocked ? 'opacity-50 pointer-events-none' : ''}`}>
                                                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Aadhaar Number</label>
                                                 <input
                                                     type="text"
@@ -1976,7 +2099,7 @@ export default function OpdEntryPage() {
                                             </div>
 
                                             {/* Address Details Section */}
-                                            <div className={`md:col-span-6 mt-4 ${(opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient ? 'opacity-50 pointer-events-none' : ''}`}>
+                                            <div className={`md:col-span-6 mt-4 ${isPatientDetailsLocked ? 'opacity-50 pointer-events-none' : ''}`}>
                                                 <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">ADDRESS DETAILS</h4>
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     <div>
@@ -2043,69 +2166,105 @@ export default function OpdEntryPage() {
                                     {/* Edit Mode - Show all fields */}
                                     {editingOpdId && (
                                         <div className="space-y-4">
-                                            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                                                <div className="md:col-span-4">
-                                                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">Name <span className="text-red-500">*</span></label>
-                                                    <input
-                                                        type="text"
-                                                        required
-                                                        value={opdForm.first_name + (opdForm.last_name ? ' ' + opdForm.last_name : '')}
-                                                        disabled
-                                                        className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl cursor-not-allowed font-medium text-slate-600"
-                                                        placeholder="e.g. John Doe"
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">Age <span className="text-red-500">*</span></label>
-                                                    <input type="number" required value={opdForm.age} disabled className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl cursor-not-allowed font-medium text-slate-600" />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">Gender <span className="text-red-500">*</span></label>
-                                                    <select required value={opdForm.gender} disabled className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl cursor-not-allowed font-medium text-slate-600">
-                                                        <option value="">Select</option>
-                                                        <option value="Male">Male</option>
-                                                        <option value="Female">Female</option>
-                                                        <option value="Pediatric">Pediatric</option>
-                                                        <option value="Other">Other</option>
-                                                    </select>
-                                                </div>
+                                            {(() => {
+                                                // Lock logic: Dependent on SAVED record state, not current input
+                                                // This prevents fields from locking immediately while user is typing a new number
+                                                const originalOpdEntry = opdEntries.find((e: any) => e.opd_id === editingOpdId);
+                                                const hasValidPhoneOnRecord = originalOpdEntry?.contact_number && originalOpdEntry.contact_number.length >= 10;
+                                                const isLocked = !opdForm.is_mlc || hasValidPhoneOnRecord;
 
-                                                {/* Added Missing Fields for Edit Mode */}
-                                                <div className="md:col-span-2">
-                                                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">Phone Number</label>
-                                                    <input
-                                                        type="tel"
-                                                        value={opdForm.contact_number}
-                                                        disabled
-                                                        className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl cursor-not-allowed font-medium text-slate-600"
-                                                        placeholder="10-digit number"
-                                                    />
-                                                </div>
-                                                <div className="md:col-span-2">
-                                                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">Blood Group</label>
-                                                    <select value={opdForm.blood_group} disabled className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl cursor-not-allowed font-medium text-slate-600">
-                                                        <option value="">Unknown</option>
-                                                        <option value="A+">A+</option>
-                                                        <option value="A-">A-</option>
-                                                        <option value="B+">B+</option>
-                                                        <option value="B-">B-</option>
-                                                        <option value="O+">O+</option>
-                                                        <option value="O-">O-</option>
-                                                        <option value="AB+">AB+</option>
-                                                        <option value="AB-">AB-</option>
-                                                    </select>
-                                                </div>
-                                                <div className="md:col-span-2">
-                                                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">Aadhaar Number</label>
-                                                    <input
-                                                        type="text"
-                                                        value={opdForm.adhaar_number}
-                                                        disabled
-                                                        className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl cursor-not-allowed font-medium text-slate-600"
-                                                        placeholder="12-digit Aadhaar"
-                                                    />
-                                                </div>
-                                            </div>
+                                                return (
+                                                    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                                                        <div className="md:col-span-4">
+                                                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Name {!opdForm.is_mlc && <span className="text-red-500">*</span>}</label>
+                                                            <input
+                                                                type="text"
+                                                                required={!opdForm.is_mlc}
+                                                                value={opdForm.first_name + (opdForm.last_name ? ' ' + opdForm.last_name : '')}
+                                                                onChange={(e) => {
+                                                                    const val = e.target.value;
+                                                                    const parts = val.split(' ');
+                                                                    const first = parts[0];
+                                                                    const last = parts.slice(1).join(' ');
+                                                                    setOpdForm({ ...opdForm, first_name: first, last_name: last });
+                                                                }}
+                                                                disabled={isLocked}
+                                                                className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isLocked ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : ''}`}
+                                                                placeholder="e.g. John Doe"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Age {!opdForm.is_mlc && <span className="text-red-500">*</span>}</label>
+                                                            <input type="number" required={!opdForm.is_mlc} value={opdForm.age} onChange={(e) => setOpdForm({ ...opdForm, age: e.target.value })}
+                                                                disabled={isLocked}
+                                                                className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isLocked ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : ''}`}
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Gender {!opdForm.is_mlc && <span className="text-red-500">*</span>}</label>
+                                                            <select required={!opdForm.is_mlc} value={opdForm.gender} onChange={(e) => setOpdForm({ ...opdForm, gender: e.target.value })}
+                                                                disabled={isLocked}
+                                                                className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isLocked ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : ''}`}>
+                                                                <option value="">Select</option>
+                                                                <option value="Male">Male</option>
+                                                                <option value="Female">Female</option>
+                                                                <option value="Pediatric">Pediatric</option>
+                                                                <option value="Other">Other</option>
+                                                            </select>
+                                                        </div>
+
+                                                        {/* Edit Mode Phone Number - Simple Input (No Search) */}
+                                                        <div className="md:col-span-2 relative">
+                                                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Phone Number</label>
+                                                            <input
+                                                                type="tel"
+                                                                value={opdForm.contact_number}
+                                                                onChange={(e) => {
+                                                                    const value = e.target.value.replace(/\D/g, "");
+                                                                    if (value.length <= 10) {
+                                                                        setOpdForm({ ...opdForm, contact_number: value });
+                                                                    }
+                                                                }}
+                                                                disabled={isLocked}
+                                                                className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isLocked ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : ''}`}
+                                                                placeholder="10-digit number"
+                                                            />
+                                                        </div>
+                                                        <div className="md:col-span-2">
+                                                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Blood Group</label>
+                                                            <select value={opdForm.blood_group} onChange={(e) => setOpdForm({ ...opdForm, blood_group: e.target.value })}
+                                                                disabled={isLocked}
+                                                                className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isLocked ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : ''}`}>
+                                                                <option value="">Unknown</option>
+                                                                <option value="A+">A+</option>
+                                                                <option value="A-">A-</option>
+                                                                <option value="B+">B+</option>
+                                                                <option value="B-">B-</option>
+                                                                <option value="O+">O+</option>
+                                                                <option value="O-">O-</option>
+                                                                <option value="AB+">AB+</option>
+                                                                <option value="AB-">AB-</option>
+                                                            </select>
+                                                        </div>
+                                                        <div className="md:col-span-2">
+                                                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Aadhaar Number</label>
+                                                            <input
+                                                                type="text"
+                                                                value={opdForm.adhaar_number}
+                                                                onChange={(e) => {
+                                                                    const value = e.target.value.replace(/\D/g, "");
+                                                                    if (value.length <= 12) setOpdForm({ ...opdForm, adhaar_number: value });
+                                                                }}
+                                                                maxLength={12}
+                                                                disabled={isLocked}
+                                                                className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isLocked ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : ''}`}
+                                                                placeholder="12-digit Aadhaar"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
+
 
                                             {/* Address Details for Edit Mode */}
                                             <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
@@ -2113,17 +2272,43 @@ export default function OpdEntryPage() {
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     <div>
                                                         <label className="block text-xs font-semibold text-slate-700 mb-1.5">Address Line 1</label>
-                                                        <input type="text" value={opdForm.address_line1} disabled className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl cursor-not-allowed font-medium text-slate-600" placeholder="House No, Street" />
+                                                        <input type="text" value={opdForm.address_line1} onChange={(e) => setOpdForm({ ...opdForm, address_line1: e.target.value })}
+                                                            disabled={!opdForm.is_mlc || opdForm.contact_number.length >= 10}
+                                                            className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${(!opdForm.is_mlc || opdForm.contact_number.length >= 10) ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : ''}`} placeholder="House No, Street" />
                                                     </div>
                                                     <div>
                                                         <label className="block text-xs font-semibold text-slate-700 mb-1.5">Address Line 2</label>
-                                                        <input type="text" value={opdForm.address_line2} disabled className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl cursor-not-allowed font-medium text-slate-600" placeholder="Area, Landmark" />
+                                                        <input type="text" value={opdForm.address_line2} onChange={(e) => setOpdForm({ ...opdForm, address_line2: e.target.value })}
+                                                            disabled={!opdForm.is_mlc || opdForm.contact_number.length >= 10}
+                                                            className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${(!opdForm.is_mlc || opdForm.contact_number.length >= 10) ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : ''}`} placeholder="Area, Landmark" />
                                                     </div>
                                                 </div>
                                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
-                                                    <div> <label className="block text-xs font-semibold text-slate-700 mb-1.5">City</label> <input type="text" value={opdForm.city} disabled className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl cursor-not-allowed font-medium text-slate-600" /> </div>
-                                                    <div> <label className="block text-xs font-semibold text-slate-700 mb-1.5">State</label> <input type="text" value={opdForm.state} disabled className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl cursor-not-allowed font-medium text-slate-600" /> </div>
-                                                    <div> <label className="block text-xs font-semibold text-slate-700 mb-1.5">Pincode</label> <input type="text" value={opdForm.pincode} disabled className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl cursor-not-allowed font-medium text-slate-600" /> </div>
+                                                    <div>
+                                                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">City</label>
+                                                        <input type="text" value={opdForm.city} onChange={(e) => setOpdForm({ ...opdForm, city: e.target.value })}
+                                                            disabled={!opdForm.is_mlc || opdForm.contact_number.length >= 10}
+                                                            className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${(!opdForm.is_mlc || opdForm.contact_number.length >= 10) ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : ''}`} />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">State</label>
+                                                        <input type="text" value={opdForm.state} onChange={(e) => setOpdForm({ ...opdForm, state: e.target.value })}
+                                                            disabled={!opdForm.is_mlc || opdForm.contact_number.length >= 10}
+                                                            className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${(!opdForm.is_mlc || opdForm.contact_number.length >= 10) ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : ''}`} />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">Pincode</label>
+                                                        <input
+                                                            type="text"
+                                                            value={opdForm.pincode}
+                                                            onChange={(e) => {
+                                                                const value = e.target.value.replace(/\D/g, "");
+                                                                if (value.length <= 6) setOpdForm({ ...opdForm, pincode: value });
+                                                            }}
+                                                            maxLength={6}
+                                                            disabled={!opdForm.is_mlc || opdForm.contact_number.length >= 10}
+                                                            className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${(!opdForm.is_mlc || opdForm.contact_number.length >= 10) ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : ''}`} />
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -2140,6 +2325,8 @@ export default function OpdEntryPage() {
                                                 id="mlc-toggle"
                                                 type="checkbox"
                                                 checked={opdForm.is_mlc}
+                                                // Locked if editing an existing MLC case
+                                                disabled={!!editingOpdId && opdForm.is_mlc}
                                                 onChange={(e) => {
                                                     const isChecked = e.target.checked;
 
@@ -2156,17 +2343,18 @@ export default function OpdEntryPage() {
                                                         ...opdForm,
                                                         is_mlc: isChecked,
                                                         visit_type: isChecked ? 'Emergency' : 'Walk-in',
-                                                        visit_date: isChecked ? new Date().toISOString().split('T')[0] : opdForm.visit_date,
+                                                        visit_date: isChecked ? new Date().toLocaleDateString('en-CA') : opdForm.visit_date,
                                                         visit_time: isChecked ? new Date().toTimeString().slice(0, 5) : opdForm.visit_time,
                                                         consultation_fee: newFee
                                                     });
                                                 }}
-                                                className="w-5 h-5 text-red-600 border-gray-300 rounded focus:ring-red-500 transition-all cursor-pointer"
+                                                className={`w-5 h-5 text-red-600 border-gray-300 rounded focus:ring-red-500 transition-all cursor-pointer ${!!editingOpdId && opdForm.is_mlc ? 'opacity-50 cursor-not-allowed' : ''}`}
                                             />
-                                            <label htmlFor="mlc-toggle" className="font-bold text-red-800 cursor-pointer select-none">
+                                            <label htmlFor="mlc-toggle" className={`font-bold text-red-800 select-none ${!!editingOpdId && opdForm.is_mlc ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
                                                 Mark as Medical Legal Case (MLC)
                                             </label>
                                         </div>
+
 
                                         <div>
                                             <label className="block text-xs font-semibold text-slate-700 mb-1.5">Visit Type <span className="text-red-500">*</span></label>
@@ -2238,18 +2426,22 @@ export default function OpdEntryPage() {
                                                     >
                                                         <option value="">Select Doctor</option>
                                                         {doctors.map((doc: any) => {
+                                                            // Temporarily commented out availability check - allow all doctors to be selectable
+                                                            /*
                                                             const todayIST = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
                                                             const availableSlots = getDoctorAvailabilityCount(doc.doctor_id, todayIST);
                                                             const isAvailable = availableSlots > 0;
+                                                            */
+                                                            const isAvailable = true;
 
                                                             return (
                                                                 <option
                                                                     key={doc.doctor_id}
                                                                     value={doc.doctor_id}
-                                                                    disabled={!isAvailable}
+                                                                    // disabled={!isAvailable}
                                                                     className={!isAvailable ? 'text-gray-400' : ''}
                                                                 >
-                                                                    Dr. {doc.first_name} {doc.last_name} ({doc.specialization}) {!isAvailable ? '* Unavailable' : ''}
+                                                                    Dr. {doc.first_name} {doc.last_name} ({doc.specialization})
                                                                 </option>
                                                             );
                                                         })}
@@ -2503,20 +2695,25 @@ export default function OpdEntryPage() {
                                                     </div>
                                                 </div>
                                             )}
-                                            <div>
-                                                <label className="block text-xs font-semibold text-slate-500 mb-1">Payment Status <span className="text-red-500">*</span></label>
-                                                <select required value={opdForm.payment_status} onChange={(e) => setOpdForm({ ...opdForm, payment_status: e.target.value })} className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium">
-                                                    <option value="Pending">Pending</option>
-                                                    <option value="Paid">Paid</option>
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-semibold text-slate-500 mb-1">Method</label>
-                                                <select value={opdForm.payment_method} onChange={(e) => setOpdForm({ ...opdForm, payment_method: e.target.value })} className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium">
-                                                    <option value="Cash">Cash</option>
-                                                    <option value="UPI">UPI</option>
-                                                    <option value="Card">Card</option>
-                                                </select>
+                                            <div className="flex-1 min-w-[200px]">
+                                                <label className="block text-xs font-semibold text-slate-500 mb-2">Payment Preference <span className="text-red-500">*</span></label>
+                                                <div className="relative">
+                                                    <select
+                                                        value={paymentChoice}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value as 'PayNow' | 'PayLater';
+                                                            setPaymentChoice(val);
+                                                            setOpdForm(prev => ({ ...prev, payment_status: val === 'PayNow' ? 'Paid' : 'Pending' }));
+                                                        }}
+                                                        className="w-full pl-3 pr-10 py-2.5 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-700 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
+                                                    >
+                                                        <option value="PayNow">Pay Now</option>
+                                                        <option value="PayLater">Pay Later</option>
+                                                    </select>
+                                                    <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-500">
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -2942,6 +3139,28 @@ export default function OpdEntryPage() {
                     .print\\:shadow-none { box-shadow: none !important; }
                 }
             `}</style>
+
+            <BillingModal
+                isOpen={showBillModal}
+                onClose={() => {
+                    setShowBillModal(false);
+                    // If we just finished a Pay Now flow, we should reset the form
+                    if (newOpdData) {
+                        resetForm();
+                        setNewOpdData(null);
+                    }
+                    if (billData) setBillData(null);
+
+                    // Always refresh the list to ensure "Pending" status is visible if user clicked "Pay Later"
+                    fetchOpdEntries();
+                    fetchDashboardStats();
+                }}
+                opdData={newOpdData || billData} // Use newOpdData for Pay Now, billData for Reprint
+                onSuccess={() => {
+                    fetchOpdEntries();
+                    fetchDashboardStats();
+                }}
+            />
         </div >
     );
 }

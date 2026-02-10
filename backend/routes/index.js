@@ -87,7 +87,8 @@ router.use('/follow-ups', require('./followUpRoutes'));
 router.use('/feedback', require('./feedbackRoutes'));
 // ... other routes
 router.use('/templates', require('./templateRoutes'));
-router.use('/doctor-schedules', require('./doctorScheduleRoutes')); // Added new route
+router.use('/doctor-schedules', require('./doctorScheduleRoutes'));
+router.use('/billing', require('./billingRoutes')); // Added Billing Routes
 router.use('/feedback', require('./feedbackRoutes'));
 router.use('/lab-orders', require('./labOrderRoutes'));
 router.use('/patient-documents', require('./patientDocumentRoutes'));

@@ -39,6 +39,7 @@ export default function ReceptionistLayout({ children }: { children: React.React
         { name: 'OPD', path: '/receptionist/opd', icon: FileText },
         { name: 'Patients', path: '/receptionist/patients', icon: Users },
         { name: 'Appointments', path: '/receptionist/appointments', icon: Calendar },
+        { name: 'Billing', path: '/receptionist/billing', icon: FileText },
         { name: 'Reports', path: '/receptionist/reports', icon: FileText },
     ];
 

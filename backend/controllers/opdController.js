@@ -1,4 +1,4 @@
-const { query } = require('../config/db');
+const { query, getClient } = require('../config/db');
 const { AppError } = require('../middleware/errorHandler');
 const OPDEntry = require('../models/OPDEntry');
 
@@ -8,8 +8,12 @@ class OpdController {
      * POST /api/opd
      */
     static async createOpdEntry(req, res, next) {
+        // Use a dedicated client for transaction
+        const client = await getClient();
         try {
-            const {
+            await client.query('BEGIN');
+
+            let {
                 // Patient info (for new or existing)
                 patient_id, // If provided, use existing patient
                 first_name, last_name, age, gender, contact_number, blood_group,
@@ -35,14 +39,12 @@ class OpdController {
             // Get branch_id from logged-in user (receptionist)
             const branch_id = req.user.branch_id;
             if (!branch_id) {
+                await client.query('ROLLBACK');
                 return next(new AppError('Branch not linked to your account', 403));
             }
 
-            // MLC Validation - Attender details are optional for MLC
-            // For non-MLC cases, keep existing optional Adhaar logic
+            // MLC Validation
             if (!is_mlc) {
-                // Non-MLC: Adhaar is optional but encouraged.
-                // No mandatory validation here now.
                 if (!adhaar_number && !patient_id) {
                     // return next(new AppError('Adhaar Number is mandatory for non-MLC cases.', 400));
                 }
@@ -52,8 +54,8 @@ class OpdController {
 
             // 1. Handle Patient Logic
             if (finalPatientId) {
-                // Update existing patient's Adhaar, Blood Group, and Address details if provided
-                if (sanitizedAdhaar || sanitizedBloodGroup || address_line_1 || address_line_2 || city || state || pincode) {
+                // Update existing patient's details if provided
+                if (first_name || last_name || age || gender || sanitizedAdhaar || sanitizedBloodGroup || address_line_1 || address_line_2 || city || state || pincode) {
                     let updateFields = [];
                     let updateValues = [];
                     let queryParts = [];
@@ -67,6 +69,26 @@ class OpdController {
                         updateFields.push('blood_group');
                         updateValues.push(sanitizedBloodGroup);
                         queryParts.push(`blood_group = $${updateValues.length}`);
+                    }
+                    if (first_name) {
+                        updateFields.push('first_name');
+                        updateValues.push(first_name);
+                        queryParts.push(`first_name = $${updateValues.length}`);
+                    }
+                    if (last_name) {
+                        updateFields.push('last_name');
+                        updateValues.push(last_name);
+                        queryParts.push(`last_name = $${updateValues.length}`);
+                    }
+                    if (age) {
+                        updateFields.push('age');
+                        updateValues.push(age);
+                        queryParts.push(`age = $${updateValues.length}`);
+                    }
+                    if (gender) {
+                        updateFields.push('gender');
+                        updateValues.push(gender);
+                        queryParts.push(`gender = $${updateValues.length}`);
                     }
                     if (address_line_1) {
                         updateFields.push('address');
@@ -96,26 +118,36 @@ class OpdController {
 
                     if (queryParts.length > 0) {
                         updateValues.push(finalPatientId);
-                        await query(`UPDATE patients SET ${queryParts.join(', ')} WHERE patient_id = $${updateValues.length}`, updateValues);
+                        await client.query(`UPDATE patients SET ${queryParts.join(', ')} WHERE patient_id = $${updateValues.length}`, updateValues);
                     }
                 }
             } else {
                 // No ID provided. Check if exists by contact (if provided)
                 if (!first_name || !age || !gender) {
-                    return next(new AppError('Patient basic information is required: first_name, age, gender', 400));
+                    if (is_mlc) {
+                        // For MLC, allow missing details. Default them if not provided.
+                        if (!first_name) {
+                            first_name = "Unknown";
+                            last_name = "Patient"; // Or "MLC"
+                        }
+                        if (!age) age = 0;
+                        if (!gender) gender = "Other";
+                        if (!contact_number) contact_number = null;
+                    } else {
+                        await client.query('ROLLBACK');
+                        return next(new AppError('Patient basic information is required: first_name, age, gender', 400));
+                    }
                 }
 
                 let existingPatient = null;
 
                 // Check by contact only if contact_number is provided
                 if (contact_number && contact_number.trim() !== '') {
-                    const potentialMatches = await query(
+                    const potentialMatches = await client.query(
                         'SELECT patient_id, first_name FROM patients WHERE contact_number = $1 AND is_active = true',
                         [contact_number]
                     );
 
-                    // Refined Logic: If matches found, check if the input NAME matches any of them.
-                    // If name matches, reuse ID. If not, treat as NEW patient (family member with same phone).
                     if (potentialMatches.rows.length > 0) {
                         const inputName = first_name.trim().toLowerCase();
                         const exactMatch = potentialMatches.rows.find(p => p.first_name.toLowerCase() === inputName);
@@ -123,7 +155,6 @@ class OpdController {
                         if (exactMatch) {
                             existingPatient = { rows: [exactMatch] };
                         } else {
-                            // Phone matches, but Name does not. Assume new patient.
                             existingPatient = null;
                         }
                     }
@@ -136,6 +167,8 @@ class OpdController {
                         let updateFields = [];
                         let updateValues = [];
                         let queryParts = [];
+                        // Similar update logic as above... omitted for brevity if duplicate, but must be exact.
+                        // Ideally, refactor patient update to a helper, but for now copying is safer to ensure correct client usage.
 
                         if (sanitizedAdhaar) {
                             updateFields.push('adhaar_number');
@@ -175,20 +208,20 @@ class OpdController {
 
                         if (queryParts.length > 0) {
                             updateValues.push(finalPatientId);
-                            await query(`UPDATE patients SET ${queryParts.join(', ')} WHERE patient_id = $${updateValues.length}`, updateValues);
+                            await client.query(`UPDATE patients SET ${queryParts.join(', ')} WHERE patient_id = $${updateValues.length}`, updateValues);
                         }
                     }
                 } else {
                     // Generate Sequential MRN
                     const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-                    const lastMrnQuery = await query(
+                    const lastMrnQuery = await client.query(
                         `SELECT mrn_number FROM patients WHERE mrn_number LIKE $1 ORDER BY patient_id DESC LIMIT 1`,
                         [`MRN-${dateStr}-%`]
                     );
 
                     let nextMrnSuffix = 1;
                     if (lastMrnQuery.rows.length > 0) {
-                        const lastMrn = lastMrnQuery.rows[0].mrn_number; // e.g. MRN-20250120-0001
+                        const lastMrn = lastMrnQuery.rows[0].mrn_number;
                         const parts = lastMrn.split('-');
                         if (parts.length === 3) {
                             const numPart = parseInt(parts[2]);
@@ -200,7 +233,7 @@ class OpdController {
                     const mrn_number = `MRN-${dateStr}-${nextMrnSuffix.toString().padStart(4, '0')}`;
                     const patient_code = `PAT-${Math.floor(100000 + Math.random() * 900000)}`;
 
-                    const newPatient = await query(`
+                    const newPatient = await client.query(`
                         INSERT INTO patients (
                             mrn_number, patient_code, first_name, last_name,
                             age, gender, contact_number, registration_date, adhaar_number, blood_group,
@@ -213,11 +246,9 @@ class OpdController {
                 }
             }
 
-
-
-            // CHECK DUPLICATE: Check if patient already has an OPD with this doctor today
+            // CHECK DUPLICATE
             if (finalPatientId && doctor_id) {
-                const duplicateCheck = await query(
+                const duplicateCheck = await client.query(
                     `SELECT opd_id FROM opd_entries 
                      WHERE patient_id = $1 AND doctor_id = $2 AND visit_date = $3 
                      AND visit_status != 'Cancelled'`,
@@ -225,6 +256,7 @@ class OpdController {
                 );
 
                 if (duplicateCheck.rows.length > 0) {
+                    await client.query('ROLLBACK');
                     return res.status(409).json({
                         error: 'Duplicate Entry',
                         message: 'This patient is already registered with this doctor for today.'
@@ -237,14 +269,14 @@ class OpdController {
             const randomSuffix = Math.floor(1000 + Math.random() * 9000);
             const opd_number = `OPD-${dateStr}-${randomSuffix}`;
             // Generate Sequential Token
-            const lastTokenQuery = await query(
+            const lastTokenQuery = await client.query(
                 `SELECT token_number FROM opd_entries WHERE branch_id = $1 AND visit_date = $2 ORDER BY opd_id DESC LIMIT 1`,
                 [branch_id, visit_date]
             );
 
             let nextTokenInt = 1;
             if (lastTokenQuery.rows.length > 0) {
-                const lastToken = lastTokenQuery.rows[0].token_number; // e.g "T-101"
+                const lastToken = lastTokenQuery.rows[0].token_number;
                 if (lastToken && lastToken.includes('-')) {
                     const numPart = parseInt(lastToken.split('-')[1]);
                     if (!isNaN(numPart)) {
@@ -257,10 +289,30 @@ class OpdController {
             const finalConsultationFee = consultation_fee === '' || consultation_fee === null || consultation_fee === undefined ? null : consultation_fee;
             const finalDoctorId = doctor_id === '' || doctor_id === null || doctor_id === undefined ? null : doctor_id;
 
+            // Fetch Staff Code for created_by
+            const staffRes = await client.query(`SELECT staff_code FROM staff WHERE user_id = $1`, [req.user.user_id]);
+            const staffCode = staffRes.rows[0]?.staff_code || req.user.username || 'SYSTEM';
+
+            // 2.5. Get Department from Doctor
+            let departmentId = null;
+            if (finalDoctorId) {
+                const docRes = await client.query(`
+                    SELECT department_id 
+                    FROM doctor_departments 
+                    WHERE doctor_id = $1 
+                    ORDER BY is_primary_department DESC, department_id ASC 
+                    LIMIT 1
+                `, [finalDoctorId]);
+
+                if (docRes.rows.length > 0) {
+                    departmentId = docRes.rows[0].department_id;
+                }
+            }
+
             // 3. Create OPD Entry
-            const result = await query(`
+            const result = await client.query(`
                 INSERT INTO opd_entries (
-                    opd_number, patient_id, branch_id, doctor_id,
+                    opd_number, patient_id, branch_id, doctor_id, department_id,
                     visit_type, visit_date, visit_time, token_number,
                     reason_for_visit, symptoms, vital_signs, chief_complaint,
                     consultation_fee, payment_status, payment_method, visit_status,
@@ -268,10 +320,11 @@ class OpdController {
                     is_mlc, attender_name, attender_contact_number, mlc_remarks,
                     referral_hospital, referral_doctor_name
                 ) VALUES (
-                    $1, $2, $3, $4,
+                    $1, $2, $3, $4, $23,
                     $5, $6, $7, $8,
                     $9, $10, $11, $12,
-                    $13, $14, $15, 'Registered',
+                    $13, $14,
+                    $15, 'Registered',
                     $16, CURRENT_TIMESTAMP,
                     $17, $18, $19, $20,
                     $21, $22
@@ -282,23 +335,95 @@ class OpdController {
                 reason_for_visit, symptoms, vital_signs, chief_complaint,
                 finalConsultationFee, payment_status,
                 payment_method || 'Cash', // Default to Cash if not provided
-                req.user.user_id,
+                staffCode,
                 is_mlc || false, attender_name, sanitizedAttenderContact, sanitizedMlcRemarks,
-                referral_hospital || null, referral_doctor_name || null
+                referral_hospital || null, referral_doctor_name || null,
+                departmentId // $23
             ]);
 
+            const newOpdEntry = result.rows[0];
+            const newOpdId = newOpdEntry.opd_id;
+
+            // 3.5. Auto-create Billing Master & Details (Pending Status)
+            if (finalConsultationFee && parseFloat(finalConsultationFee) > 0) {
+                const patientRes = await client.query(`SELECT mrn_number, first_name, last_name, address, contact_number FROM patients WHERE patient_id = $1`, [finalPatientId]);
+                const patientData = patientRes.rows[0];
+                const patientMrn = patientData?.mrn_number;
+                const patientName = `${patientData?.first_name} ${patientData?.last_name}`.trim();
+
+                const dateStrBill = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+                const randomSuffixBill = Math.floor(1000 + Math.random() * 9000);
+                const bill_number = `BILL-${dateStrBill}-${randomSuffixBill}`;
+
+                const lastInvQuery = await client.query(
+                    `SELECT invoice_number FROM billing_master WHERE invoice_number LIKE $1 ORDER BY bill_master_id DESC LIMIT 1`,
+                    [`INV-${dateStrBill}-%`]
+                );
+
+                let nextInvSuffix = 1;
+                if (lastInvQuery.rows.length > 0) {
+                    const lastInv = lastInvQuery.rows[0].invoice_number;
+                    const parts = lastInv.split('-');
+                    if (parts.length === 3) {
+                        const numPart = parseInt(parts[2]);
+                        if (!isNaN(numPart)) nextInvSuffix = numPart + 1;
+                    }
+                }
+                const invoice_number = `INV-${dateStrBill}-${nextInvSuffix.toString().padStart(4, '0')}`;
+
+                const masterResult = await client.query(`
+                    INSERT INTO billing_master (
+                        bill_number, invoice_number, opd_id, opd_number, branch_id,
+                        patient_id, mrn_number, patient_name, patient_address, contact_number,
+                        billing_date, 
+                        subtotal_amount, total_amount, paid_amount, pending_amount,
+                        payment_mode, payment_status, status,
+                        created_by
+                    ) VALUES (
+                        $1, $2, $3, $4, $5,
+                        $6, $7, $8, $9, $10,
+                        CURRENT_DATE,
+                        $11, $11, 0, $11,
+                        $12, 'Unpaid', 'Pending',
+                        $13
+                    ) RETURNING bill_master_id
+                `, [
+                    bill_number, invoice_number, newOpdId, opd_number, branch_id,
+                    finalPatientId, patientMrn, patientName, patientData?.address || 'N/A', patientData?.contact_number || '0000000000',
+                    finalConsultationFee,
+                    payment_method || 'Cash',
+                    staffCode
+                ]);
+
+                const bill_master_id = masterResult.rows[0].bill_master_id;
+
+                // Insert Bill Details
+                await client.query(`
+                    INSERT INTO bill_details (
+                        bill_master_id, branch_id, department_id, patient_id, mrn_number, opd_id,
+                        service_type, service_name, quantity, unit_price, subtotal, final_price, status,
+                        is_cancellable, created_by
+                    ) VALUES (
+                        $1, $2, $3, $4, $5, $6,
+                        'consultation', 'OPD Consultation', 1, $7, $7, $7, 'Pending',
+                        false, $8
+                    )
+                `, [
+                    bill_master_id, branch_id, departmentId || 0, finalPatientId, patientMrn, newOpdId,
+                    finalConsultationFee, staffCode
+                ]);
+            }
 
             // 4. Sync Appointment Status
             const { appointment_id } = req.body;
 
             if (appointment_id) {
-                await query(`
+                await client.query(`
                     UPDATE appointments 
                     SET appointment_status = 'In OPD', patient_id = $2, updated_at = CURRENT_TIMESTAMP
                     WHERE appointment_id = $1
                 `, [appointment_id, finalPatientId]);
             } else {
-                // Try to find matching appointment by Patient ID OR Phone Number
                 let matchQuery = `
                     UPDATE appointments 
                     SET appointment_status = 'In OPD', patient_id = $1, updated_at = CURRENT_TIMESTAMP
@@ -312,11 +437,11 @@ class OpdController {
                     )
                 `;
 
-                // Ensure we have a phone number to check against
                 const checkPhone = contact_number || '';
-
-                await query(matchQuery, [finalPatientId, doctor_id, visit_date, checkPhone]);
+                await client.query(matchQuery, [finalPatientId, doctor_id, visit_date, checkPhone]);
             }
+
+            await client.query('COMMIT');
 
             res.status(201).json({
                 status: 'success',
@@ -324,8 +449,11 @@ class OpdController {
                 data: { opdEntry: result.rows[0] }
             });
         } catch (error) {
+            await client.query('ROLLBACK');
             console.error('Create OPD entry error:', error);
             next(new AppError('Failed to create OPD entry', 500));
+        } finally {
+            client.release();
         }
     }
 
@@ -402,16 +530,23 @@ class OpdController {
      * PATCH /api/opd/:id/status
      */
     static async updateOpdStatus(req, res, next) {
+        const client = await getClient();
         try {
+            await client.query('BEGIN');
             const { id } = req.params;
             const { visit_status } = req.body;
             const branch_id = req.user.branch_id;
 
             if (!visit_status) {
+                await client.query('ROLLBACK');
                 return next(new AppError('Visit status is required', 400));
             }
 
-            const result = await query(`
+            // Fetch Staff Code for audit fields
+            const staffRes = await client.query(`SELECT staff_code FROM staff WHERE user_id = $1`, [req.user.user_id]);
+            const staffCode = staffRes.rows[0]?.staff_code || req.user.username || 'SYSTEM';
+
+            const result = await client.query(`
                 UPDATE opd_entries 
                 SET visit_status = $1, updated_at = CURRENT_TIMESTAMP
                 WHERE opd_id = $2 AND branch_id = $3
@@ -419,17 +554,50 @@ class OpdController {
             `, [visit_status, id, branch_id]);
 
             if (result.rows.length === 0) {
+                await client.query('ROLLBACK');
                 return next(new AppError('OPD entry not found or unauthorized', 404));
             }
 
+            // If status is 'Cancelled', also cancel billing
+            if (visit_status === 'Cancelled') {
+                // 1. Update Billing Master
+                await client.query(`
+                    UPDATE billing_master
+                    SET 
+                        status = 'Cancelled',
+                        payment_status = 'Cancelled',
+                        updated_by = $1,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE opd_id = $2 AND branch_id = $3
+                `, [staffCode, id, branch_id]);
+
+                // 2. Update Bill Details
+                await client.query(`
+                    UPDATE bill_details
+                    SET 
+                        status = 'Cancelled',
+                        is_cancelled = true,
+                        cancelled_by = $1,
+                        cancelled_at = CURRENT_TIMESTAMP,
+                        updated_by = $1,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE opd_id = $2 AND branch_id = $3
+                `, [staffCode, id, branch_id]);
+            }
+
+            await client.query('COMMIT');
+
             res.status(200).json({
                 status: 'success',
-                message: 'OPD status updated successfully',
+                message: `OPD status updated to ${visit_status} successfully`,
                 data: { opdEntry: result.rows[0] }
             });
         } catch (error) {
+            await client.query('ROLLBACK');
             console.error('Update OPD status error:', error);
             next(new AppError('Failed to update OPD status', 500));
+        } finally {
+            client.release();
         }
     }
 
@@ -798,20 +966,48 @@ class OpdController {
                 updatedOpdEntry = existing.rows[0];
             }
 
-            // 2. Update Patient Details
+            // 2. Handle Patient Updates & Merging
+            // Check if we need to switch patient_id (Merge Scenario)
+            if (updates.patient_id && updatedOpdEntry.patient_id && updates.patient_id !== updatedOpdEntry.patient_id) {
+                const oldPatientId = updatedOpdEntry.patient_id;
+                const newPatientId = updates.patient_id;
+
+                console.log(`Merging OPD ${id}: Switching from Patient ${oldPatientId} to ${newPatientId}`);
+
+                // 2a. Update OPD entry to new patient_id
+                await query(`UPDATE opd_entries SET patient_id = $1 WHERE opd_id = $2`, [newPatientId, id]);
+                updatedOpdEntry.patient_id = newPatientId; // Update local obj
+
+                // 2b. Check if old patient is "Orphaned" (No other OPDs, Appointments)
+                // We only delete if it was a temporary/placeholder patient.
+                // Safest check: Does this patient have ANY other records?
+                // REFINEMENT: Also check if patient has a phone number. If yes, DO NOT DELETE.
+                const dependencyCheck = await query(`
+                    SELECT 
+                        contact_number,
+                        (SELECT COUNT(*) FROM opd_entries WHERE patient_id = $1) as opd_count,
+                        (SELECT COUNT(*) FROM appointments WHERE patient_id = $1) as appt_count
+                FROM patients WHERE patient_id = $1`, [oldPatientId]);
+
+                const { opd_count, appt_count, contact_number } = dependencyCheck.rows[0];
+
+                // If counts are 0 (since we already moved the current OPD entry away from it), it's safe to delete
+                // BUT only if contact_number is empty/null (Temporary/Unknown patient).
+                if (parseInt(opd_count) === 0 && parseInt(appt_count) === 0) {
+                    if (!contact_number || contact_number.trim() === '') {
+                        console.log(`Deleting orphan patient ${oldPatientId} (No Phone)`);
+                        await query(`DELETE FROM patients WHERE patient_id = $1`, [oldPatientId]);
+                    } else {
+                        console.log(`Skipping deletion of orphan patient ${oldPatientId} because they have a phone number: ${contact_number}`);
+                    }
+                }
+            }
+
+            // 3. Update Patient Details (for whichever patient is NOW associated)
             if (updatedOpdEntry && updatedOpdEntry.patient_id) {
                 const patientUpdateValues = [];
                 const patientQueryParts = [];
                 let patientParamIndex = 1;
-
-                // Handle mapping from frontend Request body to DB columns
-                // Frontend might send 'address_line1' but DB expects 'address'
-                // Or standardized in req.body? In createOpdEntry, we saw 'address_line_1'.
-                // Let's check the frontend payload. Frontend sends `address_line1`.
-                // Controller createOpdEntry destructures: `address_line_1` from req.body?
-                // Wait, check createOpdEntry at line 25: `address_line_1, address_line_2`
-                // But frontend opdForm has `address_line1`.
-                // Let's ensure mapping is correct.
 
                 // Mapping helpers
                 const mapField = (key) => {
@@ -821,8 +1017,7 @@ class OpdController {
                 };
 
                 for (const key of Object.keys(updates)) {
-                    // Check if it's a patient field (handling the mapping mismatch if any)
-                    // Code below handles standard keys. We need to handle `address_line1` explicitly if it comes from frontend.
+                    // Check if it's a patient field
                     if (['address_line1', 'address_line2', 'city', 'state', 'pincode', 'first_name', 'last_name', 'age', 'gender', 'contact_number', 'blood_group', 'adhaar_number'].includes(key)) {
                         const dbCol = mapField(key);
                         patientQueryParts.push(`${dbCol} = $${patientParamIndex}`);

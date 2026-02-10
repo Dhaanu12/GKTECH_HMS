@@ -1,6 +1,38 @@
 const db = require('../../config/db');
 
 /**
+ * Helper to get assigned hospital IDs for a user
+ */
+async function getAssignedHospitalIds(user) {
+    const assignedHospitalsQuery = `
+        SELECT DISTINCT b.hospital_id
+        FROM staff s
+        JOIN staff_branches sb ON s.staff_id = sb.staff_id
+        JOIN branches b ON sb.branch_id = b.branch_id
+        WHERE s.user_id = $1 AND sb.is_active = true
+    `;
+    const assignedHospitals = await db.query(assignedHospitalsQuery, [user.user_id]);
+    return assignedHospitals.rows.length > 0
+        ? assignedHospitals.rows.map(row => row.hospital_id)
+        : [user.hospital_id].filter(Boolean);
+}
+
+/**
+ * Helper to get assigned branch IDs for a user
+ */
+async function getAssignedBranchIds(user) {
+    const assignedBranchesQuery = `
+        SELECT branch_id FROM staff_branches sb
+        JOIN staff s ON sb.staff_id = s.staff_id
+        WHERE s.user_id = $1 AND sb.is_active = true
+    `;
+    const assignedBranches = await db.query(assignedBranchesQuery, [user.user_id]);
+    return assignedBranches.rows.length > 0
+        ? assignedBranches.rows.map(row => row.branch_id)
+        : [user.branch_id].filter(Boolean);
+}
+
+/**
  * Bulk insert service percentages for multiple doctors
  */
 // ============================================
@@ -17,12 +49,19 @@ exports.bulkInsertServicePercentages = async (req, res) => {
         client = await db.getClient();
         const { doctor_ids, services } = req.body;
 
-        if (!doctor_ids || !Array.isArray(doctor_ids) || doctor_ids.length === 0) {
-            return res.status(400).json({ success: false, message: 'doctor_ids array is required' });
-        }
-
         if (!services || !Array.isArray(services) || services.length === 0) {
             return res.status(400).json({ success: false, message: 'services array is required' });
+        }
+
+        // Security check: Ensure all doctors belong to assigned hospitals
+        const hospitalIds = await getAssignedHospitalIds(req.user);
+        const validDoctorsCheck = await client.query(
+            'SELECT id FROM referral_doctor_module WHERE id = ANY($1) AND tenant_id = ANY($2)',
+            [doctor_ids, hospitalIds]
+        );
+
+        if (validDoctorsCheck.rows.length !== doctor_ids.length) {
+            return res.status(403).json({ success: false, message: 'Unauthorized: One or more doctors do not belong to your assigned hospitals' });
         }
 
         await client.query('BEGIN');
@@ -112,12 +151,20 @@ exports.copyServicePercentages = async (req, res) => {
         client = await db.getClient();
         const { source_doctor_id, target_doctor_ids } = req.body;
 
-        if (!source_doctor_id) {
-            return res.status(400).json({ success: false, message: 'source_doctor_id is required' });
-        }
-
         if (!target_doctor_ids || !Array.isArray(target_doctor_ids) || target_doctor_ids.length === 0) {
             return res.status(400).json({ success: false, message: 'target_doctor_ids array is required' });
+        }
+
+        // Security check: Ensure source and target doctors belong to assigned hospitals
+        const hospitalIds = await getAssignedHospitalIds(req.user);
+        const allDoctorIds = [...new Set([source_doctor_id, ...target_doctor_ids])];
+        const validDoctorsCheck = await client.query(
+            'SELECT id FROM referral_doctor_module WHERE id = ANY($1) AND tenant_id = ANY($2)',
+            [allDoctorIds, hospitalIds]
+        );
+
+        if (validDoctorsCheck.rows.length !== allDoctorIds.length) {
+            return res.status(403).json({ success: false, message: 'Unauthorized: One or more doctors do not belong to your assigned hospitals' });
         }
 
         // Get source doctor's service percentages
@@ -215,12 +262,15 @@ exports.copyServicePercentages = async (req, res) => {
  */
 exports.getDoctorsWithoutPercentages = async (req, res) => {
     try {
+        const hospitalIds = await getAssignedHospitalIds(req.user);
+
         const result = await db.query(
             `SELECT rd.id, rd.doctor_name, rd.speciality_type, rd.mobile_number, rd.status
              FROM referral_doctor_module rd
              LEFT JOIN referral_doctor_service_percentage_module rdsp ON rd.id = rdsp.referral_doctor_id
-             WHERE rdsp.id IS NULL
-             ORDER BY rd.doctor_name`
+             WHERE rdsp.id IS NULL AND rd.tenant_id = ANY($1)
+             ORDER BY rd.doctor_name`,
+            [hospitalIds]
         );
 
         res.status(200).json({ success: true, data: result.rows });
@@ -235,17 +285,27 @@ exports.getDoctorsWithoutPercentages = async (req, res) => {
  */
 exports.exportCSVTemplate = async (req, res) => {
     try {
+        const hospitalIds = await getAssignedHospitalIds(req.user);
+        const branchIds = await getAssignedBranchIds(req.user);
+
         // Get all doctors and services for template
         const doctors = await db.query(
-            `SELECT id, doctor_name FROM referral_doctor_module WHERE status = 'Active' ORDER BY doctor_name`
+            `SELECT id, doctor_name FROM referral_doctor_module WHERE status = 'Active' AND tenant_id = ANY($1) ORDER BY doctor_name`,
+            [hospitalIds]
         );
 
         const services = await db.query(
             `SELECT DISTINCT s.service_name as service_type 
              FROM services s
              JOIN branch_services bs ON s.service_id = bs.service_id
-             WHERE bs.is_active = true 
-             ORDER BY s.service_name`
+             WHERE bs.is_active = true AND bs.branch_id = ANY($1)
+             UNION
+             SELECT DISTINCT ms.service_name as service_type
+             FROM medical_services ms
+             JOIN branch_medical_services bms ON ms.service_id = bms.service_id
+             WHERE bms.is_active = true AND bms.branch_id = ANY($1)
+             ORDER BY service_type`,
+            [branchIds]
         );
 
         // Create CSV header
@@ -289,6 +349,18 @@ exports.importCSV = async (req, res) => {
         }
 
         client = await db.getClient();
+
+        // Security check: Ensure all doctors in CSV belong to assigned hospitals
+        const hospitalIds = await getAssignedHospitalIds(req.user);
+        const doctorIdsInCSV = [...new Set(csv_data.map(row => row.doctor_id).filter(id => id != null))];
+
+        const validDoctorsCheck = await client.query(
+            'SELECT id FROM referral_doctor_module WHERE id = ANY($1) AND tenant_id = ANY($2)',
+            [doctorIdsInCSV, hospitalIds]
+        );
+
+        const validDoctorIds = new Set(validDoctorsCheck.rows.map(row => row.id.toString()));
+
         await client.query('BEGIN');
 
         const insertedRecords = [];
@@ -304,6 +376,12 @@ exports.importCSV = async (req, res) => {
                 if (!row.doctor_id || !row.service_type) {
                     console.log(`⚠️ Row ${i + 1} validation failed:`, row);
                     errors.push({ row: i + 1, error: 'Missing doctor_id or service_type' });
+                    continue;
+                }
+
+                if (!validDoctorIds.has(row.doctor_id.toString())) {
+                    console.log(`⚠️ Row ${i + 1} security validation failed: Doctor ${row.doctor_id} unauthorized`);
+                    errors.push({ row: i + 1, error: 'Unauthorized: Doctor does not belong to your assigned hospitals' });
                     continue;
                 }
 
