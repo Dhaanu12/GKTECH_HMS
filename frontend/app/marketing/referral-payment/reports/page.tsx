@@ -1,9 +1,19 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/lib/AuthContext';
-import { Download, Search, Calendar, Filter, Loader2, IndianRupee } from 'lucide-react';
+import {
+    Download, Search, Calendar, Filter, Loader2, IndianRupee,
+    FileText, User, ChevronRight, ChevronDown, PieChart as PieChartIcon,
+    BarChart3, Activity, TrendingUp, Users, ArrowUpRight
+} from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import {
+    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+    PieChart, Pie, Cell, Tooltip as RechartsTooltip
+} from 'recharts';
 
 interface ReportRow {
     header_id: number;
@@ -21,6 +31,23 @@ interface ReportRow {
     file_name: string;
 }
 
+interface GroupedData {
+    [doctorName: string]: {
+        doctorName: string;
+        totalPayout: number;
+        patients: {
+            [patientName: string]: {
+                patientName: string;
+                mci_id: string;
+                totalPayout: number;
+                services: ReportRow[];
+            }
+        }
+    }
+}
+
+const COLORS = ['#2563eb', '#7c3aed', '#db2777', '#ea580c', '#16a34a', '#0891b2'];
+
 export default function ReferralPaymentReports() {
     const { user } = useAuth();
     const [reports, setReports] = useState<ReportRow[]>([]);
@@ -31,6 +58,8 @@ export default function ReferralPaymentReports() {
         doctorId: ''
     });
     const [doctors, setDoctors] = useState<{ id: string, name: string }[]>([]);
+    const [expandedDoctors, setExpandedDoctors] = useState<string[]>([]);
+    const [expandedPatients, setExpandedPatients] = useState<string[]>([]);
 
     useEffect(() => {
         fetchDoctors();
@@ -83,185 +112,465 @@ export default function ReferralPaymentReports() {
         fetchReports();
     };
 
-    const exportToCSV = () => {
-        if (!reports.length) return;
-
-        const headers = ["Date", "Patient", "Doctor", "MCI ID", "Service", "Cost", "Percent", "Ref Amount", "Payment Mode", "File"];
-        const csvRows = [headers.join(',')];
+    // Analytics Data Transformation
+    const analyticsData = useMemo(() => {
+        const doctorPayouts: Record<string, number> = {};
+        const servicePayouts: Record<string, number> = {};
 
         reports.forEach(row => {
-            csvRows.push([
-                new Date(row.upload_date).toLocaleDateString(),
-                `"${row.patient_name}"`,
-                `"${row.doctor_name}"`,
-                row.medical_council_id,
-                `"${row.service_name}"`,
-                row.service_cost,
-                row.referral_percentage,
-                row.referral_amount,
-                row.payment_mode,
-                `"${row.file_name}"`
-            ].join(','));
+            doctorPayouts[row.doctor_name] = (doctorPayouts[row.doctor_name] || 0) + Number(row.referral_amount);
+            servicePayouts[row.service_name] = (servicePayouts[row.service_name] || 0) + Number(row.referral_amount);
         });
 
-        const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `referral_report_${new Date().toISOString().split('T')[0]}.csv`;
-        a.click();
+        const barData = Object.entries(doctorPayouts)
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => b.value - a.value)
+            .slice(0, 10);
+
+        const pieData = Object.entries(servicePayouts)
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => b.value - a.value)
+            .slice(0, 6);
+
+        return { barData, pieData };
+    }, [reports]);
+
+    // Grouping Logic
+    const groupedReports = useMemo<GroupedData>(() => {
+        const groups: GroupedData = {};
+
+        reports.forEach(row => {
+            if (!groups[row.doctor_name]) {
+                groups[row.doctor_name] = {
+                    doctorName: row.doctor_name,
+                    totalPayout: 0,
+                    patients: {}
+                };
+            }
+
+            const doctorGroup = groups[row.doctor_name];
+            doctorGroup.totalPayout += Number(row.referral_amount);
+
+            if (!doctorGroup.patients[row.patient_name]) {
+                doctorGroup.patients[row.patient_name] = {
+                    patientName: row.patient_name,
+                    mci_id: row.medical_council_id,
+                    totalPayout: 0,
+                    services: []
+                };
+            }
+
+            const patientGroup = doctorGroup.patients[row.patient_name];
+            patientGroup.totalPayout += Number(row.referral_amount);
+            patientGroup.services.push(row);
+        });
+
+        return groups;
+    }, [reports]);
+
+    const toggleDoctorExpansion = (doctorName: string) => {
+        setExpandedDoctors(prev =>
+            prev.includes(doctorName) ? prev.filter(n => n !== doctorName) : [...prev, doctorName]
+        );
     };
 
-    // Calculate totals
-    const totalAmount = reports.reduce((sum, row) => sum + Number(row.referral_amount), 0);
-    const uniqueDoctors = new Set(reports.map(r => r.doctor_name)).size;
-    const uniquePatients = new Set(reports.map(r => r.patient_name)).size;
+    const togglePatientExpansion = (patientName: string) => {
+        setExpandedPatients(prev =>
+            prev.includes(patientName) ? prev.filter(n => n !== patientName) : [...prev, patientName]
+        );
+    };
+
+    const exportToPDF = () => {
+        if (!reports.length) return;
+        const doc = new jsPDF('l', 'mm', 'a4');
+        const pageWidth = doc.internal.pageSize.getWidth();
+
+        // 1. Header Section
+        doc.setFontSize(22);
+        doc.setTextColor(37, 99, 235);
+        doc.text('Referral Payments Analysis Report', 14, 20);
+
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text(`Generated: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, 14, 27);
+        if (filters.fromDate || filters.toDate) {
+            doc.text(`Period: ${filters.fromDate || 'All Time'} to ${filters.toDate || 'Present'}`, 14, 32);
+        }
+
+        // 2. Analytics Graph
+        const serviceWiseTotals: Record<string, number> = {};
+        reports.forEach(row => {
+            serviceWiseTotals[row.service_name] = (serviceWiseTotals[row.service_name] || 0) + Number(row.referral_amount);
+        });
+        const sortedServices = Object.entries(serviceWiseTotals)
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => b.value - a.value)
+            .slice(0, 10);
+
+        const chartX = 14;
+        const chartY = 40;
+        const barStartX = chartX + 60;
+        const chartWidth = 120;
+        const barHeight = 7;
+        const gap = 5;
+
+        if (sortedServices.length > 0) {
+            doc.setFontSize(12);
+            doc.setTextColor(50);
+            doc.text('Top Services by Referral Payout', 14, 38);
+
+            const maxVal = Math.max(...sortedServices.map(s => s.value), 1);
+
+            sortedServices.forEach((stat, index) => {
+                const currentY = chartY + (index * (barHeight + gap));
+                doc.setFontSize(8);
+                doc.setTextColor(60);
+                const shortName = stat.name.length > 25 ? stat.name.substring(0, 22) + '...' : stat.name;
+                doc.text(shortName, chartX, currentY + barHeight / 2 + 1);
+                doc.setFillColor(245, 245, 245);
+                doc.rect(barStartX, currentY, chartWidth, barHeight, 'F');
+                const currentWidth = (stat.value / maxVal) * chartWidth;
+                doc.setFillColor(37, 99, 235);
+                doc.rect(barStartX, currentY, currentWidth, barHeight, 'F');
+                doc.setTextColor(100);
+                doc.text(`Rs.${stat.value.toLocaleString()}`, barStartX + chartWidth + 5, currentY + barHeight / 2 + 1);
+            });
+        }
+
+        // 3. Payment Summaries
+        const totalReferralAmount = reports.reduce((sum, row) => sum + Number(row.referral_amount), 0);
+        const boxesY = chartY + (sortedServices.length * (barHeight + gap)) + 15;
+        doc.setFontSize(11);
+        doc.setTextColor(37, 99, 235);
+        doc.text("Financial Overview", 14, boxesY - 5);
+        doc.setDrawColor(37, 99, 235);
+        doc.setFillColor(240, 248, 255);
+        doc.roundedRect(14, boxesY, 269, 18, 2, 2, 'FD');
+        doc.setFontSize(10);
+        doc.setTextColor(70);
+        doc.text("Total Referral Payout (Grand Total):", 20, boxesY + 11);
+        doc.setFontSize(14);
+        doc.setTextColor(30, 58, 138);
+        doc.text(`Rs. ${totalReferralAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, pageWidth - 80, boxesY + 11);
+
+        // 4. Service-wise Summary Table
+        const summaryColumns = ["Service Name", "Total Contribution (%)", "Total Payout Amount"];
+        const summaryRows = Object.entries(serviceWiseTotals)
+            .sort((a, b) => b[1] - a[1])
+            .map(([name, amount]) => [
+                name,
+                `${((amount / totalReferralAmount) * 100).toFixed(1)}%`,
+                `Rs. ${amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+            ]);
+
+        doc.text("Service-wise Summary", 14, boxesY + 30);
+        autoTable(doc, {
+            head: [summaryColumns],
+            body: summaryRows,
+            startY: boxesY + 35,
+            theme: 'grid',
+            headStyles: { fillColor: [79, 70, 229], halign: 'center' },
+            styles: { fontSize: 9, cellPadding: 2 },
+            columnStyles: {
+                0: { cellWidth: 'auto' },
+                1: { halign: 'center', cellWidth: 40 },
+                2: { halign: 'right', cellWidth: 50 }
+            }
+        });
+
+        // 5. Detailed Detailed Report Table
+        const detailedColumns = ["Date", "Doctor", "Patient", "MCI ID", "Service", "Mode", "Cost", "%", "Ref Amt"];
+        const detailedRows = reports.map(row => [
+            new Date(row.upload_date).toLocaleDateString(),
+            row.doctor_name,
+            row.patient_name,
+            row.medical_council_id,
+            row.service_name,
+            row.payment_mode,
+            `Rs. ${Number(row.service_cost).toLocaleString()}`,
+            `${row.referral_percentage}%`,
+            `Rs. ${Number(row.referral_amount).toLocaleString()}`
+        ]);
+
+        doc.text("Detailed Commission Report", 14, (doc as any).lastAutoTable.finalY + 12);
+        autoTable(doc, {
+            head: [detailedColumns],
+            body: detailedRows,
+            startY: (doc as any).lastAutoTable.finalY + 17,
+            styles: { fontSize: 7, cellPadding: 1.5, overflow: 'linebreak' },
+            headStyles: { fillColor: [37, 99, 235], halign: 'center' },
+            alternateRowStyles: { fillColor: [248, 250, 252] },
+            columnStyles: {
+                0: { cellWidth: 20 },
+                6: { halign: 'right', cellWidth: 25 },
+                7: { halign: 'center', cellWidth: 12 },
+                8: { halign: 'right', cellWidth: 25 },
+            },
+            margin: { top: 25 }
+        });
+
+        doc.save(`Referral_Payout_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+    };
+
+    const totalPayoutAmount = reports.reduce((sum, row) => sum + Number(row.referral_amount), 0);
+    const uniqueDoctorsCount = Object.keys(groupedReports).length;
+    const uniquePatientsCount = reports.reduce((acc, row) => {
+        acc.add(`${row.doctor_name}-${row.patient_name}`);
+        return acc;
+    }, new Set()).size;
 
     return (
-        <div className="p-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Referral Payment Reports</h1>
-                    <p className="text-gray-600">Track and analyze referral payouts</p>
+        <div className="p-4 md:p-6 bg-gray-50 min-h-screen">
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+                <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200">
+                        <Activity className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Referral Analytics</h1>
+                        <p className="text-sm text-gray-500 font-medium">Insights & Detailed Payment Reports</p>
+                    </div>
                 </div>
-                <button
-                    onClick={exportToCSV}
-                    disabled={!reports.length}
-                    className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition shadow-sm"
-                >
-                    <Download className="w-4 h-4" />
-                    Export CSV
-                </button>
-            </div>
-
-            {/* Filters */}
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6">
-                <form onSubmit={applyFilters} className="flex flex-wrap gap-4 items-end">
-                    <div>
-                        <label className="block text-xs font-semibold text-gray-700 mb-1">From Date</label>
-                        <input
-                            type="date"
-                            name="fromDate"
-                            value={filters.fromDate}
-                            onChange={handleFilterChange}
-                            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-xs font-semibold text-gray-700 mb-1">To Date</label>
-                        <input
-                            type="date"
-                            name="toDate"
-                            value={filters.toDate}
-                            onChange={handleFilterChange}
-                            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                        />
-                    </div>
-                    <div className="flex-1 min-w-[200px]">
-                        <label className="block text-xs font-semibold text-gray-700 mb-1">Doctor</label>
-                        <select
-                            name="doctorId"
-                            value={filters.doctorId}
-                            onChange={handleFilterChange}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                        >
-                            <option value="">All Doctors</option>
-                            {doctors.map(d => (
-                                <option key={d.id} value={d.id}>{d.name}</option>
-                            ))}
-                        </select>
-                    </div>
+                <div className="flex items-center gap-3">
                     <button
-                        type="submit"
-                        className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition flex items-center gap-2"
+                        onClick={exportToPDF}
+                        disabled={!reports.length}
+                        className="flex items-center gap-2 bg-white border border-gray-200 text-gray-700 font-bold px-5 py-2.5 rounded-xl hover:bg-gray-50 disabled:opacity-50 transition-all shadow-sm hover:shadow-md"
                     >
-                        <Filter className="w-4 h-4" />
-                        Apply
+                        <FileText className="w-4 h-4 text-blue-600" />
+                        Export PDF
                     </button>
-                </form>
-            </div>
-
-            {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-xl shadow-lg">
-                    <p className="text-blue-100 text-sm font-medium mb-1">Total Payout</p>
-                    <h3 className="text-3xl font-bold flex items-center">
-                        <IndianRupee className="w-6 h-6 mr-1" />
-                        {totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                    </h3>
-                </div>
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                    <p className="text-gray-500 text-sm font-medium mb-1">Doctors Paid</p>
-                    <h3 className="text-3xl font-bold text-gray-800">{uniqueDoctors}</h3>
-                </div>
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                    <p className="text-gray-500 text-sm font-medium mb-1">Patients Referred</p>
-                    <h3 className="text-3xl font-bold text-gray-800">{uniquePatients}</h3>
                 </div>
             </div>
 
-            {/* Data Table */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                        <thead className="bg-gray-50 border-b border-gray-200 text-gray-600 uppercase text-xs font-semibold">
-                            <tr>
-                                <th className="px-6 py-4">Date</th>
-                                <th className="px-6 py-4">Context</th>
-                                <th className="px-6 py-4">Service Details</th>
-                                <th className="px-6 py-4 text-right">Cost</th>
-                                <th className="px-6 py-4 text-right">%</th>
-                                <th className="px-6 py-4 text-right">Referral Amt</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <div className="lg:col-span-8 space-y-6">
+                    <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 transition-all hover:shadow-md">
+                        <form onSubmit={applyFilters} className="flex flex-wrap gap-4 items-end">
+                            <div className="flex-1 min-w-[140px]">
+                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 ml-1">From Date</label>
+                                <input
+                                    type="date"
+                                    name="fromDate"
+                                    value={filters.fromDate}
+                                    onChange={handleFilterChange}
+                                    className="w-full pl-3 pr-2 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all font-medium text-gray-700"
+                                />
+                            </div>
+                            <div className="flex-1 min-w-[140px]">
+                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 ml-1">To Date</label>
+                                <input
+                                    type="date"
+                                    name="toDate"
+                                    value={filters.toDate}
+                                    onChange={handleFilterChange}
+                                    className="w-full pl-3 pr-2 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all font-medium text-gray-700"
+                                />
+                            </div>
+                            <div className="flex-[1.5] min-w-[200px]">
+                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Select Doctor</label>
+                                <select
+                                    name="doctorId"
+                                    value={filters.doctorId}
+                                    onChange={handleFilterChange}
+                                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all font-medium text-gray-700 appearance-none bg-no-repeat bg-[right_1rem_center]"
+                                >
+                                    <option value="">All Referral Doctors</option>
+                                    {doctors.map(d => (
+                                        <option key={d.id} value={d.id}>{d.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <button
+                                type="submit"
+                                className="px-6 py-2.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all flex items-center gap-2 shadow-lg shadow-blue-500/20 active:scale-[0.98]"
+                            >
+                                <Filter className="w-4 h-4" />
+                                Apply
+                            </button>
+                        </form>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+                            <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center">
+                                <IndianRupee className="w-6 h-6 text-blue-600" />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Payout</p>
+                                <h3 className="text-xl font-bold text-gray-900">₹{totalPayoutAmount.toLocaleString('en-IN')}</h3>
+                            </div>
+                        </div>
+                        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+                            <div className="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center">
+                                <Users className="w-6 h-6 text-purple-600" />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Active Doctors</p>
+                                <h3 className="text-xl font-bold text-gray-900">{uniqueDoctorsCount}</h3>
+                            </div>
+                        </div>
+                        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+                            <div className="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center">
+                                <User className="w-6 h-6 text-orange-600" />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Patients</p>
+                                <h3 className="text-xl font-bold text-gray-900">{uniquePatientsCount}</h3>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div className="px-6 py-4 bg-gray-50/50 border-b border-gray-100 flex items-center justify-between">
+                            <h2 className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                                <FileText className="w-4 h-4 text-blue-500" />
+                                Detailed Grouped Report
+                            </h2>
+                        </div>
+                        <div className="divide-y divide-gray-100">
                             {loading ? (
-                                <tr>
-                                    <td colSpan={6} className="px-6 py-12 text-center">
-                                        <Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-600 mb-2" />
-                                        <p className="text-gray-500">Loading Report...</p>
-                                    </td>
-                                </tr>
-                            ) : reports.length === 0 ? (
-                                <tr>
-                                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                                        No records found for the selected filters.
-                                    </td>
-                                </tr>
+                                <div className="p-12 text-center">
+                                    <Loader2 className="w-10 h-10 animate-spin mx-auto text-blue-600 mb-4" />
+                                    <p className="text-gray-500 font-medium">Analyzing records...</p>
+                                </div>
+                            ) : Object.keys(groupedReports).length === 0 ? (
+                                <div className="p-12 text-center text-gray-500 bg-gray-50/30">
+                                    <Search className="w-12 h-12 text-gray-200 mx-auto mb-3" />
+                                    <p className="font-medium">No results found matching your filters</p>
+                                </div>
                             ) : (
-                                reports.map((row, index) => (
-                                    <tr key={`${row.header_id}-${index}`} className="hover:bg-gray-50/50 transition">
-                                        <td className="px-6 py-4 whitespace-nowrap text-gray-500">
-                                            {new Date(row.upload_date).toLocaleDateString()}
-                                            <div className="text-xs text-gray-400 mt-1">{new Date(row.upload_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="font-medium text-gray-900">{row.doctor_name}</div>
-                                            <div className="text-xs text-gray-500">Pt: {row.patient_name}</div>
-                                            <div className="text-xs text-gray-400 font-mono mt-0.5">{row.medical_council_id}</div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="text-gray-800">{row.service_name}</div>
-                                            <div className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 mt-1">
-                                                {row.payment_mode}
+                                Object.entries(groupedReports).map(([docName, doctor]) => {
+                                    const isDocExpanded = expandedDoctors.includes(docName);
+                                    return (
+                                        <div key={docName} className="bg-white">
+                                            <div
+                                                onClick={() => toggleDoctorExpansion(docName)}
+                                                className={`px-6 py-4 flex items-center justify-between cursor-pointer transition-all ${isDocExpanded ? 'bg-blue-50/30' : 'hover:bg-gray-50/50'}`}
+                                            >
+                                                <div className="flex items-center gap-4">
+                                                    <div className={`p-1.5 rounded-lg transition-colors ${isDocExpanded ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
+                                                        {isDocExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors uppercase tracking-tight text-sm">{docName}</h3>
+                                                        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">{Object.keys(doctor.patients).length} Patients Referred</p>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-sm font-black text-gray-900">₹{doctor.totalPayout.toLocaleString()}</p>
+                                                </div>
                                             </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-right text-gray-600">
-                                            ₹{Number(row.service_cost).toLocaleString()}
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <span className="inline-block px-2 py-1 bg-blue-50 text-blue-700 rounded-md font-medium text-xs">
-                                                {row.referral_percentage}%
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 text-right font-bold text-gray-900">
-                                            ₹{Number(row.referral_amount).toLocaleString()}
-                                        </td>
-                                    </tr>
-                                ))
+                                            {isDocExpanded && (
+                                                <div className="bg-gray-50/50 divide-y divide-gray-100">
+                                                    {Object.entries(doctor.patients).map(([patName, patient]) => {
+                                                        const isPatExpanded = expandedPatients.includes(`${docName}-${patName}`);
+                                                        return (
+                                                            <div key={`${docName}-${patName}`}>
+                                                                <div
+                                                                    onClick={() => togglePatientExpansion(`${docName}-${patName}`)}
+                                                                    className="px-10 py-3 flex items-center justify-between cursor-pointer hover:bg-gray-100/50 border-l-4 border-blue-400 bg-white ml-2"
+                                                                >
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div className="w-8 h-8 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center text-[10px] font-black">PT</div>
+                                                                        <p className="font-bold text-gray-800 text-xs">{patName}</p>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-4">
+                                                                        <p className="text-xs font-black text-gray-800">₹{patient.totalPayout.toLocaleString()}</p>
+                                                                        {isPatExpanded ? <ChevronDown className="w-3 h-3 text-gray-400" /> : <ChevronRight className="w-3 h-3 text-gray-400" />}
+                                                                    </div>
+                                                                </div>
+                                                                {isPatExpanded && (
+                                                                    <div className="bg-white ml-12 pb-2">
+                                                                        <table className="w-full text-[11px] text-gray-600">
+                                                                            <thead className="text-[9px] font-black text-gray-400 uppercase tracking-widest bg-gray-50/80">
+                                                                                <tr>
+                                                                                    <th className="px-6 py-2 text-left">Service Name</th>
+                                                                                    <th className="px-6 py-2 text-right">Cost</th>
+                                                                                    <th className="px-6 py-2 text-center">%</th>
+                                                                                    <th className="px-6 py-2 text-right">Payout</th>
+                                                                                </tr>
+                                                                            </thead>
+                                                                            <tbody className="divide-y divide-gray-50">
+                                                                                {patient.services.map((service, idx) => (
+                                                                                    <tr key={idx} className="hover:bg-blue-50/20">
+                                                                                        <td className="px-6 py-2">
+                                                                                            <span className="font-bold text-gray-700">{service.service_name}</span>
+                                                                                        </td>
+                                                                                        <td className="px-6 py-2 text-right text-gray-500 font-mono">₹{Number(service.service_cost).toLocaleString()}</td>
+                                                                                        <td className="px-6 py-2 text-center">
+                                                                                            <span className="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-bold">{service.referral_percentage}%</span>
+                                                                                        </td>
+                                                                                        <td className="px-6 py-2 text-right font-black text-blue-600 font-mono">₹{Number(service.referral_amount).toLocaleString()}</td>
+                                                                                    </tr>
+                                                                                ))}
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })
                             )}
-                        </tbody>
-                    </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="lg:col-span-4 space-y-6">
+                    <div className="sticky top-6 space-y-6">
+                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-[380px]">
+                            <div className="flex items-center gap-2 mb-6">
+                                <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
+                                    <BarChart3 className="w-4 h-4 text-blue-600" />
+                                </div>
+                                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-tight">Top Doctors by Payout</h3>
+                            </div>
+                            <div className="flex-1 w-full min-h-0">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={analyticsData.barData} layout="vertical" margin={{ left: -20, right: 20 }}>
+                                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                                        <XAxis type="number" hide />
+                                        <YAxis dataKey="name" type="category" width={80} style={{ fontSize: '10px', fontWeight: 600 }} stroke="#94a3b8" />
+                                        <RechartsTooltip cursor={{ fill: '#f8fafc' }} />
+                                        <Bar dataKey="value" fill="#2563eb" radius={[0, 4, 4, 0]} barSize={20} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+
+                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-[380px]">
+                            <div className="flex items-center gap-2 mb-6">
+                                <div className="w-8 h-8 bg-purple-50 rounded-lg flex items-center justify-center">
+                                    <PieChartIcon className="w-4 h-4 text-purple-600" />
+                                </div>
+                                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-tight">Service Wise Contribution</h3>
+                            </div>
+                            <div className="flex-1 w-full min-h-0">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie
+                                            data={analyticsData.pieData}
+                                            innerRadius={60}
+                                            outerRadius={90}
+                                            paddingAngle={5}
+                                            dataKey="value"
+                                            stroke="none"
+                                        >
+                                            {analyticsData.pieData.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                            ))}
+                                        </Pie>
+                                        <RechartsTooltip />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { createReferralDoctor, updateReferralDoctor } from '@/lib/api/marketing';
 import { ReferralDoctor } from '@/types/marketing';
-import { Save, MapPin, Upload, FileText, CreditCard, User, Building } from 'lucide-react';
+import { Save, MapPin, Upload, FileText, CreditCard, User, Building, CheckCircle2 } from 'lucide-react';
 
 interface DoctorFormProps {
     doctor?: ReferralDoctor;
@@ -233,25 +233,45 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ doctor, onSuccess, onCancel, re
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Profile Photo</label>
-                            <div className="flex items-center gap-2">
-                                <label className="cursor-pointer px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm hover:bg-gray-50 flex items-center gap-2 text-gray-600">
-                                    <Upload size={16} /> Choose File
-                                    <input type="file" name="photo" onChange={handleFileChange} className="hidden" accept="image/*" />
-                                </label>
-                                {files.photo && <span className="text-xs text-green-600 truncate max-w-[150px]">{files.photo.name}</span>}
+                            <div className="space-y-2">
+                                <div className="flex items-center gap-2">
+                                    <label className="cursor-pointer px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm hover:bg-gray-50 flex items-center gap-2 text-gray-600">
+                                        <Upload size={16} /> Choose File
+                                        <input type="file" name="photo" onChange={handleFileChange} className="hidden" accept="image/*" />
+                                    </label>
+                                    {files.photo && <span className="text-xs text-green-600 truncate max-w-[150px]">{files.photo.name}</span>}
+                                </div>
+                                {doctor?.photo_upload_path && !files.photo && (
+                                    <div className="text-xs text-gray-500 flex items-center gap-1">
+                                        <CheckCircle2 size={12} className="text-green-500" />
+                                        <span>Current: </span>
+                                        <a href={`http://localhost:5000/${doctor.photo_upload_path}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate max-w-[200px] inline-block align-bottom">
+                                            {doctor.photo_upload_path.split(/[\\/]/).pop()}
+                                        </a>
+                                    </div>
+                                )}
                             </div>
-
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Clinic/Hospital Photo</label>
-                            <div className="flex items-center gap-2">
-                                <label className="cursor-pointer px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm hover:bg-gray-50 flex items-center gap-2 text-gray-600">
-                                    <Building size={16} /> Choose File
-                                    <input type="file" name="clinic_photo" onChange={handleFileChange} className="hidden" accept="image/*" />
-                                </label>
-                                {files.clinic_photo && <span className="text-xs text-green-600 truncate max-w-[150px]">{files.clinic_photo.name}</span>}
+                            <div className="space-y-2">
+                                <div className="flex items-center gap-2">
+                                    <label className="cursor-pointer px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm hover:bg-gray-50 flex items-center gap-2 text-gray-600">
+                                        <Building size={16} /> Choose File
+                                        <input type="file" name="clinic_photo" onChange={handleFileChange} className="hidden" accept="image/*" />
+                                    </label>
+                                    {files.clinic_photo && <span className="text-xs text-green-600 truncate max-w-[150px]">{files.clinic_photo.name}</span>}
+                                </div>
+                                {doctor?.clinic_photo_path && !files.clinic_photo && (
+                                    <div className="text-xs text-gray-500 flex items-center gap-1">
+                                        <CheckCircle2 size={12} className="text-green-500" />
+                                        <span>Current: </span>
+                                        <a href={`http://localhost:5000/${doctor.clinic_photo_path}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate max-w-[200px] inline-block align-bottom">
+                                            {doctor.clinic_photo_path.split(/[\\/]/).pop()}
+                                        </a>
+                                    </div>
+                                )}
                             </div>
-
                         </div>
                     </div>
                 </section>
@@ -277,14 +297,24 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ doctor, onSuccess, onCancel, re
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">PAN Document</label>
-                            <div className="flex items-center gap-2">
-                                <label className="cursor-pointer px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm hover:bg-gray-50 flex items-center gap-2 text-gray-600">
-                                    <Upload size={16} /> Upload PAN
-                                    <input type="file" name="pan" onChange={handleFileChange} className="hidden" />
-                                </label>
-                                {files.pan && <span className="text-xs text-green-600 truncate max-w-[150px]">{files.pan.name}</span>}
+                            <div className="space-y-2">
+                                <div className="flex items-center gap-2">
+                                    <label className="cursor-pointer px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm hover:bg-gray-50 flex items-center gap-2 text-gray-600">
+                                        <Upload size={16} /> Upload PAN
+                                        <input type="file" name="pan" onChange={handleFileChange} className="hidden" />
+                                    </label>
+                                    {files.pan && <span className="text-xs text-green-600 truncate max-w-[150px]">{files.pan.name}</span>}
+                                </div>
+                                {doctor?.pan_upload_path && !files.pan && (
+                                    <div className="text-xs text-gray-500 flex items-center gap-1">
+                                        <CheckCircle2 size={12} className="text-green-500" />
+                                        <span>Current: </span>
+                                        <a href={`http://localhost:5000/${doctor.pan_upload_path}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate max-w-[200px] inline-block align-bottom">
+                                            {doctor.pan_upload_path.split(/[\\/]/).pop()}
+                                        </a>
+                                    </div>
+                                )}
                             </div>
-
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Aadhaar Number</label>
@@ -293,25 +323,45 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ doctor, onSuccess, onCancel, re
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Aadhaar Document</label>
-                            <div className="flex items-center gap-2">
-                                <label className="cursor-pointer px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm hover:bg-gray-50 flex items-center gap-2 text-gray-600">
-                                    <Upload size={16} /> Upload Aadhaar
-                                    <input type="file" name="aadhar" onChange={handleFileChange} className="hidden" />
-                                </label>
-                                {files.aadhar && <span className="text-xs text-green-600 truncate max-w-[150px]">{files.aadhar.name}</span>}
+                            <div className="space-y-2">
+                                <div className="flex items-center gap-2">
+                                    <label className="cursor-pointer px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm hover:bg-gray-50 flex items-center gap-2 text-gray-600">
+                                        <Upload size={16} /> Upload Aadhaar
+                                        <input type="file" name="aadhar" onChange={handleFileChange} className="hidden" />
+                                    </label>
+                                    {files.aadhar && <span className="text-xs text-green-600 truncate max-w-[150px]">{files.aadhar.name}</span>}
+                                </div>
+                                {doctor?.aadhar_upload_path && !files.aadhar && (
+                                    <div className="text-xs text-gray-500 flex items-center gap-1">
+                                        <CheckCircle2 size={12} className="text-green-500" />
+                                        <span>Current: </span>
+                                        <a href={`http://localhost:5000/${doctor.aadhar_upload_path}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate max-w-[200px] inline-block align-bottom">
+                                            {doctor.aadhar_upload_path.split(/[\\/]/).pop()}
+                                        </a>
+                                    </div>
+                                )}
                             </div>
-
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">KYC Document</label>
-                            <div className="flex items-center gap-2">
-                                <label className="cursor-pointer px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm hover:bg-gray-50 flex items-center gap-2 text-gray-600">
-                                    <Upload size={16} /> Upload Document
-                                    <input type="file" name="kyc_document" onChange={handleFileChange} className="hidden" />
-                                </label>
-                                {files.kyc_document && <span className="text-xs text-green-600 truncate max-w-[150px]">{files.kyc_document.name}</span>}
+                            <div className="space-y-2">
+                                <div className="flex items-center gap-2">
+                                    <label className="cursor-pointer px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm hover:bg-gray-50 flex items-center gap-2 text-gray-600">
+                                        <Upload size={16} /> Upload Document
+                                        <input type="file" name="kyc_document" onChange={handleFileChange} className="hidden" />
+                                    </label>
+                                    {files.kyc_document && <span className="text-xs text-green-600 truncate max-w-[150px]">{files.kyc_document.name}</span>}
+                                </div>
+                                {doctor?.kyc_upload_path && !files.kyc_document && (
+                                    <div className="text-xs text-gray-500 flex items-center gap-1">
+                                        <CheckCircle2 size={12} className="text-green-500" />
+                                        <span>Current: </span>
+                                        <a href={`http://localhost:5000/${doctor.kyc_upload_path}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate max-w-[200px] inline-block align-bottom">
+                                            {doctor.kyc_upload_path.split(/[\\/]/).pop()}
+                                        </a>
+                                    </div>
+                                )}
                             </div>
-
                         </div>
                     </div>
                 </section>

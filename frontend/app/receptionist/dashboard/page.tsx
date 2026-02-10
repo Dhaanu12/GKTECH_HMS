@@ -11,8 +11,51 @@ import UpcomingAppointments from './components/UpcomingAppointments';
 import MultiInputTags from './components/MultiInputTags';
 
 import { format } from 'date-fns';
+import BillingModal from '../../../components/billing/BillingModal';
 
 const API_URL = 'http://localhost:5000/api';
+
+interface OpdFormState {
+    first_name: string;
+    last_name: string;
+    age: string;
+    gender: string;
+    blood_group: string;
+    contact_number: string;
+    doctor_id: string;
+    visit_type: string;
+    visit_date: string;
+    visit_time: string;
+    chief_complaint: string;
+    symptoms: string;
+    vital_signs: {
+        bp_systolic: string;
+        bp_diastolic: string;
+        pulse: string;
+        temperature: string;
+        weight: string;
+        height: string;
+        spo2: string;
+        grbs: string;
+    };
+    consultation_fee: string;
+    payment_status: string;
+    payment_method: string;
+    is_mlc: boolean;
+    mlc_remarks: string;
+    attender_name: string;
+    attender_contact_number: string;
+    adhaar_number: string;
+    referral_hospital: string;
+    referral_doctor_name: string;
+    address_line1: string;
+    address_line2: string;
+    city: string;
+    state: string;
+    pincode: string;
+    appointment_id: string;
+    patient_id?: number | null;
+}
 
 export default function ReceptionistDashboard() {
     const { user } = useAuth();
@@ -84,10 +127,10 @@ export default function ReceptionistDashboard() {
         'Blood Pressure Check', 'Diabetes Follow-up', 'General Checkup'
     ];
 
-    const [opdForm, setOpdForm] = useState({
+    const [opdForm, setOpdForm] = useState<OpdFormState>({
         first_name: '', last_name: '', age: '', gender: '', blood_group: '',
         contact_number: '', doctor_id: '', visit_type: 'Walk-in',
-        visit_date: new Date().toISOString().split('T')[0],
+        visit_date: new Date().toLocaleDateString('en-CA'),
         visit_time: new Date().toTimeString().slice(0, 5),
         chief_complaint: '', symptoms: '',
         vital_signs: {
@@ -98,8 +141,10 @@ export default function ReceptionistDashboard() {
         is_mlc: false, mlc_remarks: '', attender_name: '', attender_contact_number: '',
         adhaar_number: '', referral_hospital: '', referral_doctor_name: '',
         address_line1: '', address_line2: '', city: '', state: '', pincode: '',
+        patient_id: null,
         appointment_id: '' // Linked Appointment ID
     });
+    const [paymentChoice, setPaymentChoice] = useState<'PayNow' | 'PayLater'>('PayNow');
 
     // Duplicate Check Logic
     useEffect(() => {
@@ -138,7 +183,7 @@ export default function ReceptionistDashboard() {
         setOpdForm({
             first_name: '', last_name: '', age: '', gender: '', blood_group: '',
             contact_number: '', doctor_id: '', visit_type: 'Walk-in',
-            visit_date: new Date().toISOString().split('T')[0],
+            visit_date: new Date().toLocaleDateString('en-CA'),
             visit_time: new Date().toTimeString().slice(0, 5),
             chief_complaint: '', symptoms: '',
             vital_signs: {
@@ -149,7 +194,8 @@ export default function ReceptionistDashboard() {
             is_mlc: false, mlc_remarks: '', attender_name: '', attender_contact_number: '',
             appointment_id: '', // Reset appointment_id
             adhaar_number: '', referral_hospital: '', referral_doctor_name: '',
-            address_line1: '', address_line2: '', city: '', state: '', pincode: ''
+            address_line1: '', address_line2: '', city: '', state: '', pincode: '',
+            patient_id: null
         });
         setSelectedPatient(null);
         setModalSearchQuery('');
@@ -188,7 +234,7 @@ export default function ReceptionistDashboard() {
         age: '',
         gender: '',
         doctor_id: '',
-        appointment_date: new Date().toISOString().split('T')[0],
+        appointment_date: new Date().toLocaleDateString('en-CA'),
         appointment_time: '',
         reason_for_visit: '',
         notes: ''
@@ -273,7 +319,7 @@ export default function ReceptionistDashboard() {
             setIsApptSearching(true);
             try {
                 const token = localStorage.getItem('token');
-                const response = await axios.get('http://localhost:5000/api/patients/search', {
+                const response = await axios.get(`${API_URL}/patients/search`, {
                     params: { q: appointmentForm.phone_number },
                     headers: { Authorization: `Bearer ${token}` }
                 });
@@ -428,6 +474,7 @@ export default function ReceptionistDashboard() {
                     visit_type: 'Appointment',
                     consultation_fee: consultationFee,
                     appointment_id: patient.appointment_id || '',
+                    patient_id: fullPatient.patient_id,
                     chief_complaint: patient.reason_for_visit || '',
                     visit_date: format(new Date(), 'yyyy-MM-dd'),
                     visit_time: format(new Date(), 'HH:mm')
@@ -480,6 +527,7 @@ export default function ReceptionistDashboard() {
                     visit_type: 'Appointment',
                     consultation_fee: consultationFee,
                     appointment_id: patient.appointment_id || '',
+                    patient_id: patient.patient_id,
                     chief_complaint: patient.reason_for_visit || '',
                     visit_date: format(new Date(), 'yyyy-MM-dd'),
                     visit_time: format(new Date(), 'HH:mm')
@@ -498,19 +546,44 @@ export default function ReceptionistDashboard() {
                 setShowModal(true);
             }
         } else {
-            // No patient_id - trigger phone search flow
+            // No patient_id - trigger phone search flow BUT pre-fill available details from appointment
+
+            // Get doctor info from appointment
+            let consultationFee = '';
+            if (patient.doctor_id) {
+                const doc = doctors.find((d: any) => d.doctor_id === parseInt(patient.doctor_id));
+                if (doc) {
+                    consultationFee = doc.consultation_fee?.toString() || '';
+                }
+            }
+
             setOpdForm({
                 ...opdForm,
+                first_name: patient.first_name || '',
+                last_name: patient.last_name || '',
+                age: patient.age?.toString() || '',
+                gender: patient.gender || '',
+                blood_group: patient.blood_group || '',
                 contact_number: patient.contact_number || '',
+                adhaar_number: patient.aadhar_number || patient.adhaar_number || '',
+                doctor_id: patient.doctor_id?.toString() || '',
+                visit_type: 'Appointment',
+                consultation_fee: consultationFee,
+                appointment_id: patient.appointment_id || '',
+                patient_id: '', // Explicitly empty as not linked
+                chief_complaint: patient.reason_for_visit || '',
+                visit_date: format(new Date(), 'yyyy-MM-dd'),
+                visit_time: format(new Date(), 'HH:mm')
             });
 
-            // Trigger search for the prefilled phone number to show existing patients dropdown
-            if (patient.contact_number && patient.contact_number.length >= 8) {
-                setModalSearchQuery(patient.contact_number);
-            } else {
-                setModalSearchQuery('');
-                setModalSearchResults([]);
+            if (patient.doctor_name) {
+                setAppointmentDoctorName(patient.doctor_name);
+                setHasAppointment(true);
             }
+
+            // Do NOT trigger search for Convert to OPD - just fill the form
+            setModalSearchQuery('');
+            setModalSearchResults([]);
 
             setCurrentStep('visitDetails');
             setCompletedSteps(['search']);
@@ -522,11 +595,36 @@ export default function ReceptionistDashboard() {
     const handleDropdownSelect = async (patient: any) => {
         setSelectedPatient(patient);
 
+        // If editing an existing OPD entry, only update patient details
+        // Do NOT reset visit_type, doctor_id, or consultation_fee
+        if (editingOpdId) {
+            setOpdForm(prev => ({
+                ...prev,
+                first_name: patient.first_name,
+                last_name: patient.last_name,
+                age: patient.age?.toString() || '',
+                gender: patient.gender || '',
+                blood_group: patient.blood_group || '',
+                contact_number: patient.contact_number || '',
+                adhaar_number: patient.aadhar_number || patient.adhaar_number || '', // Backend consistency check
+                address_line1: patient.address || '',
+                address_line2: patient.address_line2 || '',
+                city: patient.city || '',
+                state: patient.state || '',
+                pincode: patient.pincode || '',
+                patient_id: patient.patient_id // Ensure patient_id is linked
+            }));
+            // Clear search
+            setModalSearchQuery('');
+            setModalSearchResults([]);
+            return;
+        }
+
         // Get doctor info from pending appointment data if from Convert to OPD
         let doctorId = '';
         let consultationFee = '';
         let visitType = 'Walk-in'; // Default
-        let aptArgs = {}; // Object to hold appointment specific extra fields for opdForm
+        let aptArgs: any = {}; // Object to hold appointment specific extra fields for opdForm
 
         if (isFromConvertToOPD && pendingPatientData) {
             // For Convert to OPD: Use doctor info from the ORIGINAL appointment (pendingPatientData)
@@ -570,8 +668,11 @@ export default function ReceptionistDashboard() {
                 doctor_id: doctorId,
                 visit_type: visitType,
                 consultation_fee: consultationFee,
+                patient_id: patient.patient_id,
                 ...aptArgs // Add appointment_id if present
-            } : {})
+            } : {
+                patient_id: patient.patient_id
+            })
         }));
 
         // Clear search results after selection
@@ -623,14 +724,16 @@ export default function ReceptionistDashboard() {
             }
             const payload = {
                 ...formData,
-                patient_id: selectedPatient?.patient_id,
+                // Prioritize formData.patient_id (which is updated by handleDropdownSelect)
+                // Fallback to selectedPatient?.patient_id if formData one is missing/empty
+                patient_id: formData.patient_id || selectedPatient?.patient_id,
                 vital_signs: JSON.stringify(formData.vital_signs),
                 consultation_fee: totalFee.toString(),
                 mlc_fee: mlcFeeAmount.toString(), // Send separate MLC fee component
                 // Map frontend field names to backend expected names
                 address_line_1: formData.address_line1,
                 address_line_2: formData.address_line2,
-                // Ensure appointment_id is explicitly passed if present (though spread should cover it if in opdForm)
+                // Ensure appointment_id is explicitly passed if present
                 appointment_id: formData.appointment_id
             };
 
@@ -970,21 +1073,28 @@ export default function ReceptionistDashboard() {
         try {
             const savedId = await saveEntry();
             if (savedId) {
-                // If it was a conversion, we need to handle bill data if needed, but for now just close
-                // But wait, handleSubmit didn't show bill before.
-                // We should probably check if it was a conversion and maybe show something?
-                // For now, adhere to existing flow: Close and Refresh.
+                if (paymentChoice === 'PayNow') {
+                    // 1. Fetch full OPD data for the billing modal
+                    // We reuse handlePrintBill logic which fetches data and opens the modal
+                    await handlePrintBill(savedId);
 
-                // Fetch bill data just in case we need it for state, but don't show modal unless requested
-                // actually saveEntry returns ID.
+                    setShowModal(false);
+                    resetForm();
+                    // Refresh dashboard stats in background
+                    fetchStats();
+                    fetchFollowUps();
+                    setAppointmentsRefreshKey(prev => prev + 1);
+                } else {
+                    // Pay Later - Just close and refresh
+                    setShowModal(false);
+                    resetForm();
+                    fetchStats();
+                    fetchFollowUps();
+                    setAppointmentsRefreshKey(prev => prev + 1);
+                }
             }
-            setShowModal(false);
-            resetForm();
-            // Refresh dashboard stats
-            await fetchStats();
-            await fetchFollowUps();
-            setAppointmentsRefreshKey(prev => prev + 1); // Refresh appointments
         } catch (error) {
+            console.error(error);
         } finally {
             setLoading(false);
         }
@@ -1007,7 +1117,10 @@ export default function ReceptionistDashboard() {
 
     const handleSaveAndPrint = async (e: React.MouseEvent) => {
         e.preventDefault();
-        if (!opdForm.first_name || !opdForm.last_name || !opdForm.age || !opdForm.gender || !opdForm.contact_number) {
+        // Mandatory fields:
+        // Non-MLC: Name, Age, Gender, Phone
+        // MLC: All Patient fields optional (backend defaults to Unknown)
+        if (!opdForm.is_mlc && (!opdForm.first_name || !opdForm.contact_number || !opdForm.gender)) {
             alert('Please fill in all mandatory patient fields.');
             return;
         }
@@ -1718,11 +1831,11 @@ export default function ReceptionistDashboard() {
                                                 )}
                                             </div>
 
-                                            <div className={`md:col-span-4 ${(opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient ? 'opacity-50 pointer-events-none' : ''}`}>
-                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Name <span className="text-red-500">*</span></label>
+                                            <div className={`md:col-span-4 ${((opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && !opdForm.is_mlc) || (!!selectedPatient && !!selectedPatient.contact_number) ? 'opacity-50 pointer-events-none' : ''}`}>
+                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Name {opdForm.is_mlc ? '(Optional)' : <span className="text-red-500">*</span>}</label>
                                                 <input
                                                     type="text"
-                                                    required
+                                                    required={!opdForm.is_mlc}
                                                     value={opdForm.first_name + (opdForm.last_name ? ' ' + opdForm.last_name : '')}
                                                     onChange={(e) => {
                                                         const val = e.target.value;
@@ -1735,52 +1848,78 @@ export default function ReceptionistDashboard() {
                                                     placeholder="e.g. John Doe"
                                                 />
                                             </div>
-                                            {/* Row 2: Age | Gender | Blood Group */}
-                                            <div className={(opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient ? 'opacity-50 pointer-events-none' : ''}>
-                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Age <span className="text-red-500">*</span></label>
-                                                <input type="number" required value={opdForm.age} onChange={(e) => setOpdForm({ ...opdForm, age: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium" />
-                                            </div>
-                                            <div className={(opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient ? 'opacity-50 pointer-events-none' : ''}>
-                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Gender <span className="text-red-500">*</span></label>
-                                                <select required value={opdForm.gender} onChange={(e) => setOpdForm({ ...opdForm, gender: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium">
-                                                    <option value="">Select</option>
-                                                    <option value="Male">Male</option>
-                                                    <option value="Female">Female</option>
-                                                    <option value="Pediatric">Pediatric</option>
-                                                    <option value="Other">Other</option>
-                                                </select>
-                                            </div>
-                                            <div className={`md:col-span-2 ${(opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient ? 'opacity-50 pointer-events-none' : ''}`}>
-                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Blood Group</label>
-                                                <select value={opdForm.blood_group} onChange={(e) => setOpdForm({ ...opdForm, blood_group: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium">
-                                                    <option value="">Unknown</option>
-                                                    <option value="A+">A+</option>
-                                                    <option value="A-">A-</option>
-                                                    <option value="B+">B+</option>
-                                                    <option value="B-">B-</option>
-                                                    <option value="O+">O+</option>
-                                                    <option value="O-">O-</option>
-                                                    <option value="AB+">AB+</option>
-                                                    <option value="AB-">AB-</option>
-                                                </select>
-                                            </div>
-                                            <div className={`md:col-span-2 ${(opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient ? 'opacity-50 pointer-events-none' : ''}`}>
-                                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Aadhaar Number</label>
-                                                <input
-                                                    type="text"
-                                                    value={opdForm.adhaar_number}
-                                                    onChange={(e) => {
-                                                        const value = e.target.value.replace(/\D/g, "");
-                                                        if (value.length <= 12) setOpdForm({ ...opdForm, adhaar_number: value });
-                                                    }}
-                                                    maxLength={12}
-                                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
-                                                    placeholder="12-digit Aadhaar"
-                                                />
-                                            </div>
+                                            {/* Row 2: Age | Gender | Blood Group | Aadhaar */}
+                                            {(() => {
+                                                const isPatientDetailsLocked = ((opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && !opdForm.is_mlc) || (!!selectedPatient && !!selectedPatient.contact_number);
+                                                return (
+                                                    <>
+                                                        <div className={isPatientDetailsLocked ? 'opacity-50 pointer-events-none' : ''}>
+                                                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Age {opdForm.is_mlc ? '(Optional)' : <span className="text-red-500">*</span>}</label>
+                                                            <input
+                                                                type="number"
+                                                                required={!opdForm.is_mlc}
+                                                                value={opdForm.age}
+                                                                onChange={(e) => setOpdForm({ ...opdForm, age: e.target.value })}
+                                                                disabled={isPatientDetailsLocked}
+                                                                className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isPatientDetailsLocked ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`}
+                                                            />
+                                                        </div>
+                                                        <div className={isPatientDetailsLocked ? 'opacity-50 pointer-events-none' : ''}>
+                                                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Gender {opdForm.is_mlc ? '(Optional)' : <span className="text-red-500">*</span>}</label>
+                                                            <select
+                                                                required={!opdForm.is_mlc}
+                                                                value={opdForm.gender}
+                                                                onChange={(e) => setOpdForm({ ...opdForm, gender: e.target.value })}
+                                                                disabled={isPatientDetailsLocked}
+                                                                className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isPatientDetailsLocked ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`}
+                                                            >
+                                                                <option value="">Select</option>
+                                                                <option value="Male">Male</option>
+                                                                <option value="Female">Female</option>
+                                                                <option value="Pediatric">Pediatric</option>
+                                                                <option value="Other">Other</option>
+                                                            </select>
+                                                        </div>
+                                                        <div className={`md:col-span-2 ${isPatientDetailsLocked ? 'opacity-50 pointer-events-none' : ''}`}>
+                                                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Blood Group</label>
+                                                            <select
+                                                                value={opdForm.blood_group}
+                                                                onChange={(e) => setOpdForm({ ...opdForm, blood_group: e.target.value })}
+                                                                disabled={isPatientDetailsLocked}
+                                                                className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isPatientDetailsLocked ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`}
+                                                            >
+                                                                <option value="">Unknown</option>
+                                                                <option value="A+">A+</option>
+                                                                <option value="A-">A-</option>
+                                                                <option value="B+">B+</option>
+                                                                <option value="B-">B-</option>
+                                                                <option value="O+">O+</option>
+                                                                <option value="O-">O-</option>
+                                                                <option value="AB+">AB+</option>
+                                                                <option value="AB-">AB-</option>
+                                                            </select>
+                                                        </div>
+                                                        <div className={`md:col-span-2 ${isPatientDetailsLocked ? 'opacity-50 pointer-events-none' : ''}`}>
+                                                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Aadhaar Number</label>
+                                                            <input
+                                                                type="text"
+                                                                value={opdForm.adhaar_number}
+                                                                onChange={(e) => {
+                                                                    const value = e.target.value.replace(/\D/g, "");
+                                                                    if (value.length <= 12) setOpdForm({ ...opdForm, adhaar_number: value });
+                                                                }}
+                                                                maxLength={12}
+                                                                disabled={isPatientDetailsLocked}
+                                                                className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isPatientDetailsLocked ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`}
+                                                                placeholder="12-digit Aadhaar"
+                                                            />
+                                                        </div>
+                                                    </>
+                                                );
+                                            })()}
 
                                             {/* Address Details Section */}
-                                            <div className={`md:col-span-6 mt-4 ${(opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient ? 'opacity-50 pointer-events-none' : ''}`}>
+                                            <div className={`md:col-span-6 mt-4 ${((opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && !opdForm.is_mlc) || (!!selectedPatient && !!selectedPatient.contact_number) ? 'opacity-50 pointer-events-none' : ''}`}>
                                                 <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">ADDRESS DETAILS</h4>
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     <div>
@@ -1841,7 +1980,7 @@ export default function ReceptionistDashboard() {
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
+                                        </div >
                                     )}
 
                                     {/* Edit Mode - Show all fields */}
@@ -1860,18 +1999,18 @@ export default function ReceptionistDashboard() {
                                                         const last = parts.slice(1).join(' ');
                                                         setOpdForm({ ...opdForm, first_name: first, last_name: last });
                                                     }}
-                                                    disabled
-                                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium disabled:bg-slate-100 disabled:text-slate-500"
+                                                    disabled={!!opdForm.patient_id && (!opdForm.is_mlc || (!!opdForm.contact_number && opdForm.contact_number.length >= 10))}
+                                                    className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${!!opdForm.patient_id && (!opdForm.is_mlc || (!!opdForm.contact_number && opdForm.contact_number.length >= 10)) ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`}
                                                     placeholder="e.g. John Doe"
                                                 />
                                             </div>
                                             <div>
                                                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Age <span className="text-red-500">*</span></label>
-                                                <input type="number" required value={opdForm.age} onChange={(e) => setOpdForm({ ...opdForm, age: e.target.value })} disabled className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium disabled:bg-slate-100 disabled:text-slate-500" />
+                                                <input type="number" required={!opdForm.is_mlc} value={opdForm.age} onChange={(e) => setOpdForm({ ...opdForm, age: e.target.value })} disabled={!!opdForm.patient_id && (!opdForm.is_mlc || (!!opdForm.contact_number && opdForm.contact_number.length >= 10))} className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${!!opdForm.patient_id && (!opdForm.is_mlc || (!!opdForm.contact_number && opdForm.contact_number.length >= 10)) ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`} />
                                             </div>
                                             <div>
                                                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Gender <span className="text-red-500">*</span></label>
-                                                <select required value={opdForm.gender} onChange={(e) => setOpdForm({ ...opdForm, gender: e.target.value })} disabled className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium disabled:bg-slate-100 disabled:text-slate-500">
+                                                <select required={!opdForm.is_mlc} value={opdForm.gender} onChange={(e) => setOpdForm({ ...opdForm, gender: e.target.value })} disabled={!!opdForm.patient_id && (!opdForm.is_mlc || (!!opdForm.contact_number && opdForm.contact_number.length >= 10))} className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${!!opdForm.patient_id && (!opdForm.is_mlc || (!!opdForm.contact_number && opdForm.contact_number.length >= 10)) ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`}>
                                                     <option value="">Select</option>
                                                     <option value="Male">Male</option>
                                                     <option value="Female">Female</option>
@@ -1899,7 +2038,7 @@ export default function ReceptionistDashboard() {
                                                             ...opdForm,
                                                             is_mlc: checked,
                                                             visit_type: checked ? 'Emergency' : 'Walk-in',
-                                                            visit_date: new Date().toISOString().split('T')[0],
+                                                            visit_date: new Date().toLocaleDateString('en-CA'),
                                                             visit_time: new Date().toTimeString().slice(0, 5)
                                                         });
                                                     }}
@@ -1981,18 +2120,18 @@ export default function ReceptionistDashboard() {
                                                     >
                                                         <option value="">Select Doctor</option>
                                                         {doctors.map((doc: any) => {
-                                                            const todayIST = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
-                                                            const availableSlots = getDoctorAvailabilityCount(doc.doctor_id, todayIST);
-                                                            const isAvailable = availableSlots > 0;
+                                                            // const todayIST = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+                                                            // const availableSlots = getDoctorAvailabilityCount(doc.doctor_id, todayIST);
+                                                            // const isAvailable = availableSlots > 0;
 
                                                             return (
                                                                 <option
                                                                     key={doc.doctor_id}
                                                                     value={doc.doctor_id}
-                                                                    disabled={!isAvailable}
-                                                                    className={!isAvailable ? 'text-gray-400' : ''}
+                                                                // disabled={!isAvailable}
+                                                                // className={!isAvailable ? 'text-gray-400' : ''}
                                                                 >
-                                                                    Dr. {doc.first_name} {doc.last_name} ({doc.specialization}) {!isAvailable ? '* Unavailable' : ''}
+                                                                    Dr. {doc.first_name} {doc.last_name} ({doc.specialization}) {/* {!isAvailable ? '* Unavailable' : ''} */}
                                                                 </option>
                                                             );
                                                         })}
@@ -2246,20 +2385,27 @@ export default function ReceptionistDashboard() {
                                                     </div>
                                                 </div>
                                             )}
-                                            <div>
-                                                <label className="block text-xs font-semibold text-slate-500 mb-1">Payment Status <span className="text-red-500">*</span></label>
-                                                <select required value={opdForm.payment_status} onChange={(e) => setOpdForm({ ...opdForm, payment_status: e.target.value })} className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium">
-                                                    <option value="Pending">Pending</option>
-                                                    <option value="Paid">Paid</option>
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-semibold text-slate-500 mb-1">Method</label>
-                                                <select value={opdForm.payment_method} onChange={(e) => setOpdForm({ ...opdForm, payment_method: e.target.value })} className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium">
-                                                    <option value="Cash">Cash</option>
-                                                    <option value="UPI">UPI</option>
-                                                    <option value="Card">Card</option>
-                                                </select>
+
+                                            {/* Payment Preference Toggle */}
+                                            <div className="flex-1 min-w-[200px]">
+                                                <label className="block text-xs font-semibold text-slate-500 mb-2">Payment Preference <span className="text-red-500">*</span></label>
+                                                <div className="relative">
+                                                    <select
+                                                        value={paymentChoice}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value as 'PayNow' | 'PayLater';
+                                                            setPaymentChoice(val);
+                                                            setOpdForm(prev => ({ ...prev, payment_status: val === 'PayNow' ? 'Paid' : 'Pending' }));
+                                                        }}
+                                                        className="w-full pl-3 pr-10 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-700 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
+                                                    >
+                                                        <option value="PayNow">Pay Now</option>
+                                                        <option value="PayLater">Pay Later</option>
+                                                    </select>
+                                                    <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-500">
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -2300,7 +2446,7 @@ export default function ReceptionistDashboard() {
                                         </button>
                                         <button
                                             type="submit"
-                                            disabled={loading || ((opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient) || !!duplicateWarning}
+                                            disabled={loading || !!duplicateWarning || (!selectedPatient && (opdForm.is_mlc ? (opdForm.contact_number.length > 0 && opdForm.contact_number.length < 10) : (opdForm.contact_number.length < 10 || modalSearchResults.length > 0)))}
                                             className={`px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg hover:shadow-blue-500/30 transition-all font-bold flex items-center gap-2 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed ${duplicateWarning ? 'from-slate-400 to-slate-500 hover:shadow-none' : ''}`}
                                         >
                                             {loading ? 'Saving...' : 'Register Visit'}
@@ -2313,516 +2459,481 @@ export default function ReceptionistDashboard() {
                 )
             }
 
-            {/* Bill Modal */}
+            {/* Billing Modal (Replaces Custom Invoice Modal) */}
+            <BillingModal
+                isOpen={showBillModal}
+                onClose={() => setShowBillModal(false)}
+                opdData={billData}
+                onSuccess={() => {
+                    fetchStats();
+                    // Optionally close modal or keep open?
+                    // Usually we stay on invoice after payment or allow closing.
+                }}
+            />
+
+            {/* Appointment Modal */}
             {
-                showBillModal && billData && (
-                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4 print:p-0 print:bg-white print:fixed print:inset-0 print:z-[100] print-modal">
-                        <div className="bg-white rounded-lg shadow-2xl max-w-3xl w-full overflow-hidden print:shadow-none print:w-full print:max-w-none">
-                            <div className="bg-gray-100 px-6 py-3 flex justify-between items-center border-b border-gray-200 print:hidden">
-                                <h3 className="font-semibold text-gray-800">Bill Preview</h3>
-                                <div className="flex gap-3">
-                                    <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"><Printer className="w-4 h-4" /> Print</button>
-                                    <button onClick={() => setShowBillModal(false)} className="p-2 hover:bg-gray-200 rounded-lg text-gray-600"><X className="w-5 h-5" /></button>
-                                </div>
+                showApptModal && (
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                        <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto border border-white/20">
+                            <div className="sticky top-0 bg-gradient-to-r from-purple-600 to-purple-700 text-white px-6 py-4 flex justify-between items-center rounded-t-2xl">
+                                <h2 className="text-xl font-bold">New Appointment</h2>
+                                <button onClick={() => { setShowApptModal(false); resetAppointmentForm(); }} className="text-white hover:bg-white/20 p-2 rounded-lg transition">
+                                    <X className="w-6 h-6" />
+                                </button>
                             </div>
-                            <div className="p-8 print:p-0" id="printable-bill">
-                                <div className="flex justify-between items-start mb-6 border-b-2 border-gray-800 pb-4">
-                                    <div className="flex items-center gap-4">
-                                        <div>
-                                            <h1 className="text-2xl font-bold text-blue-900 uppercase tracking-wide">{billData.branch_name || 'New Life Hospital'}</h1>
-                                            <div className="text-sm font-bold bg-blue-800 text-white px-2 py-0.5 inline-block rounded-sm mt-1">ISO 9001:2015 Certified</div>
+
+                            <div className="p-6">
+                                {appointmentStep === 1 ? (
+                                    <div className="space-y-6">
+                                        {/* Step 1: Availability Check */}
+                                        <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200">
+                                            <h3 className="flex items-center gap-2 text-sm font-bold text-slate-800 mb-4 uppercase tracking-wider">
+                                                <Search className="w-4 h-4 text-purple-600" />
+                                                Find Availability
+                                            </h3>
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                <div>
+                                                    <label className="block text-sm font-medium text-slate-700 mb-1">Select Department</label>
+                                                    <select
+                                                        value={bookingDepartment}
+                                                        onChange={(e) => setBookingDepartment(e.target.value)}
+                                                        className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-purple-500 font-medium"
+                                                    >
+                                                        <option value="">-- All Departments --</option>
+                                                        {departments.map((dept: any) => (
+                                                            <option key={dept.department_id} value={dept.department_name}>{dept.department_name}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-slate-700 mb-1">Search Doctor</label>
+                                                    <div className="relative">
+                                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                                        <input
+                                                            type="text"
+                                                            value={doctorSearchQuery}
+                                                            onChange={(e) => setDoctorSearchQuery(e.target.value)}
+                                                            placeholder="Search by name..."
+                                                            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-purple-500 font-medium"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-slate-700 mb-1">Preferred Date</label>
+                                                    <input
+                                                        type="date"
+                                                        value={appointmentForm.appointment_date}
+                                                        onChange={(e) => setAppointmentForm({ ...appointmentForm, appointment_date: e.target.value })}
+                                                        className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-slate-700"
+                                                        min={new Date().toISOString().split('T')[0]}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Doctors List */}
+                                        <div className="space-y-3">
+                                            <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wide">Available Doctors</h4>
+                                            <div className="grid grid-cols-1 gap-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                                                {doctors
+                                                    .filter((doc: any) => {
+                                                        const matchesDept = !bookingDepartment || doc.specialization === bookingDepartment || doc.department_name === bookingDepartment;
+                                                        const matchesSearch = !doctorSearchQuery || `${doc.first_name} ${doc.last_name}`.toLowerCase().includes(doctorSearchQuery.toLowerCase());
+                                                        return matchesDept && matchesSearch;
+                                                    })
+                                                    .sort((a: any, b: any) => {
+                                                        // Sort by availability (more slots first)
+                                                        const slotsA = getDoctorAvailabilityCount(a.doctor_id, appointmentForm.appointment_date);
+                                                        const slotsB = getDoctorAvailabilityCount(b.doctor_id, appointmentForm.appointment_date);
+                                                        return slotsB - slotsA;
+                                                    })
+                                                    .map((doc: any) => {
+                                                        const availableCount = getDoctorAvailabilityCount(doc.doctor_id, appointmentForm.appointment_date);
+                                                        const isAvailable = availableCount > 0;
+
+                                                        // Logic to suggest this doctor if they have slots and are in same department
+                                                        const isSuggested = isAvailable && bookingDepartment && availableCount > 3;
+
+                                                        return (
+                                                            <div
+                                                                key={doc.doctor_id}
+                                                                className={`flex items-center justify-between p-4 rounded-xl border transition-all ${isAvailable
+                                                                    ? 'bg-white border-slate-200 hover:border-purple-300 hover:shadow-md'
+                                                                    : 'bg-slate-50 border-slate-100 opacity-60'
+                                                                    }`}
+                                                            >
+                                                                <div className="flex items-center gap-4">
+                                                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold border-2 ${isAvailable ? 'bg-purple-50 border-purple-100 text-purple-600' : 'bg-slate-100 border-slate-200 text-slate-400'
+                                                                        }`}>
+                                                                        {doc.first_name.charAt(0)}
+                                                                    </div>
+                                                                    <div>
+                                                                        <div className="flex items-center gap-2">
+                                                                            <h4 className={`font-bold ${isAvailable ? 'text-slate-800' : 'text-slate-500'}`}>
+                                                                                Dr. {doc.first_name} {doc.last_name}
+                                                                            </h4>
+                                                                            {isSuggested && (
+                                                                                <span className="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                                                                                    <Sparkles className="w-3 h-3" /> Suggested
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                        <p className="text-xs text-slate-500 font-medium">{doc.specialization}</p>
+                                                                        <div className="mt-1 flex items-center gap-2">
+                                                                            {isAvailable ? (
+                                                                                <span className="text-xs font-bold text-emerald-600 flex items-center gap-1">
+                                                                                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                                                                                    Available: {getDoctorShiftTimes(doc.doctor_id, appointmentForm.appointment_date)}
+                                                                                </span>
+                                                                            ) : (
+                                                                                <span className="text-xs font-bold text-red-500 flex items-center gap-1">
+                                                                                    <AlertCircle className="w-3 h-3" />
+                                                                                    Next Available: {getNextAvailability(doc.doctor_id, appointmentForm.appointment_date)}
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+
+                                                                <button
+                                                                    onClick={() => {
+                                                                        if (isAvailable) {
+                                                                            setAppointmentForm({ ...appointmentForm, doctor_id: doc.doctor_id });
+                                                                            setAppointmentStep(2);
+                                                                        }
+                                                                    }}
+                                                                    disabled={!isAvailable}
+                                                                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${isAvailable
+                                                                        ? 'bg-purple-600 text-white hover:bg-purple-700 shadow-lg shadow-purple-500/20'
+                                                                        : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                                                                        }`}
+                                                                >
+                                                                    {isAvailable ? 'Select' : 'Full'}
+                                                                </button>
+                                                            </div>
+                                                        );
+                                                    })}
+
+                                                {doctors.filter((doc: any) => !bookingDepartment || doc.specialization === bookingDepartment || doc.department_name === bookingDepartment).length === 0 && (
+                                                    <div className="text-center py-10 text-slate-400">
+                                                        <p>No doctors found for this department.</p>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
-                                    <div className="text-right text-sm">
-                                        <p className="font-medium text-gray-900 w-64">{billData.address_line1}, {billData.city}<br />{billData.state} - {billData.pincode}</p>
-                                        <p className="mt-1">Helpline: {billData.contact_number}</p>
-                                    </div>
-                                </div>
-                                <div className="text-center mb-6"><h2 className="text-lg font-bold underline uppercase tracking-wider">OPD Payment Receipt</h2></div>
-                                <div className="grid grid-cols-2 gap-x-12 gap-y-2 text-sm mb-6 font-medium">
-                                    <div className="flex"><span className="w-32 text-gray-600">Q.No / Receipt No.:</span><span className="text-gray-900">{billData.token_number} / {billData.opd_id}</span></div>
-                                    <div className="flex"><span className="w-32 text-gray-600">Date:</span><span className="text-gray-900">{new Date(billData.visit_date).toLocaleDateString()} {billData.visit_time}</span></div>
-                                    <div className="flex"><span className="w-32 text-gray-600">UHID / OPD ID:</span><span className="text-gray-900">{billData.mrn_number} / {billData.opd_number}</span></div>
-                                    <div className="flex"><span className="w-32 text-gray-600">Name:</span><span className="text-gray-900 font-bold uppercase">{billData.patient_first_name} {billData.patient_last_name}</span></div>
-                                </div>
-                                <table className="w-full mb-6 border-collapse">
-                                    <thead><tr className="border-y-2 border-gray-800"><th className="py-2 text-center text-sm font-bold w-16">S.No.</th><th className="py-2 text-left text-sm font-bold pl-4">Particular</th><th className="py-2 text-right text-sm font-bold w-32 pr-4">Amount(Rs)</th></tr></thead>
-                                    <tbody className="text-sm">
-                                        <tr className="border-b border-gray-200"><td className="py-3 text-center">1</td><td className="py-3 pl-4">Consultation Fee</td><td className="py-3 text-right pr-4">{parseFloat(billData.consultation_fee || '0').toFixed(2)}</td></tr>
-                                    </tbody>
-                                    <tfoot><tr className="border-y-2 border-gray-800 font-bold bg-gray-50 print:bg-transparent"><td colSpan={2} className="py-2 text-right pr-4">Paid Amount</td><td className="py-2 text-right pr-4">{parseFloat(billData.consultation_fee || '0').toFixed(2)}</td></tr></tfoot>
-                                </table>
-                                <div className="mt-8 pt-8 flex justify-between items-end">
-                                    <div className="text-sm"><p className="italic">Received with thanks <b>Rs. {parseFloat(billData.consultation_fee || '0').toFixed()} /-</b></p></div>
-                                    <div className="text-center"><p className="text-sm font-medium border-t border-gray-400 px-8 pt-1">Authorized Signature</p></div>
-                                </div>
+                                ) : (
+                                    <form onSubmit={handleCreateAppointment} className="space-y-6">
+                                        {/* Back Button */}
+                                        <button type="button" onClick={() => setAppointmentStep(1)} className="flex items-center gap-1 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors mb-2">
+                                            <ChevronLeft className="w-4 h-4" /> Change Doctor / Date
+                                        </button>
+
+                                        {/* Patient Info */}
+                                        <div className="bg-gradient-to-br from-gray-50 to-purple-50/30 rounded-2xl p-5 border border-purple-100">
+                                            <h3 className="text-sm font-black text-slate-800 mb-4 uppercase tracking-wider">Patient Information</h3>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                {/* Phone Number - First Field with Search */}
+                                                <div className="relative">
+                                                    <label className="block text-xs font-bold text-slate-500 mb-1 ml-1">Phone Number <span className="text-red-500">*</span></label>
+                                                    <input
+                                                        type="tel"
+                                                        required
+                                                        value={appointmentForm.phone_number}
+                                                        onChange={(e) => {
+                                                            const value = e.target.value.replace(/\D/g, "");
+                                                            if (value.length <= 10) {
+                                                                setAppointmentForm({ ...appointmentForm, phone_number: value, patient_id: null });
+                                                                setSelectedApptPatient(null);
+                                                                setIsAddingNewFamilyMember(false); // Reset family member flag on phone change
+                                                            }
+                                                        }}
+                                                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-slate-700"
+                                                        placeholder="10-digit number"
+                                                        maxLength={10}
+                                                    />
+
+                                                    {/* Existing Patients Dropdown */}
+                                                    {apptPhoneSearchResults.length > 0 && appointmentForm.phone_number.length >= 8 && (
+                                                        <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-50">
+                                                            <div className="flex items-center justify-between px-4 py-2 bg-slate-50 border-b border-slate-100">
+                                                                <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Existing Patients Found</span>
+                                                            </div>
+                                                            <div className="max-h-48 overflow-y-auto">
+                                                                {apptPhoneSearchResults.map((patient: any) => (
+                                                                    <div
+                                                                        key={patient.patient_id}
+                                                                        className="px-4 py-3 hover:bg-purple-50 border-b border-slate-100 last:border-0 flex items-center justify-between"
+                                                                    >
+                                                                        <div>
+                                                                            <p className="font-bold text-slate-800">{patient.first_name} {patient.last_name}</p>
+                                                                            <p className="text-sm text-slate-500">
+                                                                                {patient.gender}, {patient.age} yrs • ID: {patient.mrn_number}
+                                                                            </p>
+                                                                        </div>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleApptPatientSelect(patient)}
+                                                                            className="px-3 py-1.5 text-purple-600 border border-purple-200 rounded-lg text-xs font-bold hover:bg-purple-50 transition"
+                                                                        >
+                                                                            Select
+                                                                        </button>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                            <div
+                                                                className="px-4 py-3 bg-slate-50 border-t border-slate-100 flex items-center gap-2 cursor-pointer hover:bg-purple-50 transition"
+                                                                onClick={() => {
+                                                                    setApptPhoneSearchResults([]);
+                                                                    setAppointmentForm({ ...appointmentForm, patient_id: null, patient_name: '' });
+                                                                    setSelectedApptPatient(null);
+                                                                    setDuplicateApptWarning(null);
+                                                                    setIsAddingNewFamilyMember(true); // Skip duplicate check for family members
+                                                                }}
+                                                            >
+                                                                <div className="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center">
+                                                                    <Plus className="w-4 h-4" />
+                                                                </div>
+                                                                <span className="font-semibold text-purple-600 whitespace-nowrap text-sm">Add New Patient (Friends / Family)</span>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Loading indicator */}
+                                                    {isApptSearching && appointmentForm.phone_number.length >= 8 && (
+                                                        <div className="absolute right-3 top-1/2 translate-y-2">
+                                                            <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Patient Name */}
+                                                <div className="md:col-span-2">
+                                                    <div className="flex justify-between items-center mb-1 ml-1">
+                                                        <label className="block text-xs font-bold text-slate-500">Patient Name <span className="text-red-500">*</span></label>
+                                                        {selectedApptPatient && (
+                                                            <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                                                <User className="w-3 h-3" /> Selected
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <input
+                                                        type="text"
+                                                        required
+                                                        value={appointmentForm.patient_name}
+                                                        onChange={(e) => setAppointmentForm({ ...appointmentForm, patient_name: e.target.value })}
+                                                        disabled={appointmentForm.phone_number.length < 10 || (apptPhoneSearchResults.length > 0 && !selectedApptPatient)}
+                                                        className={`w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-slate-700 ${selectedApptPatient ? 'bg-purple-50 border-purple-200' : 'border-slate-200'
+                                                            } disabled:opacity-50 disabled:bg-slate-100 disabled:cursor-not-allowed`}
+                                                        placeholder="Enter Full Name"
+                                                    />
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-500 mb-1 ml-1">Email</label>
+                                                    <input
+                                                        type="email"
+                                                        value={appointmentForm.email}
+                                                        onChange={(e) => setAppointmentForm({ ...appointmentForm, email: e.target.value })}
+                                                        disabled={appointmentForm.phone_number.length < 10 || (apptPhoneSearchResults.length > 0 && !selectedApptPatient)}
+                                                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-slate-700 font-mono text-sm disabled:opacity-50 disabled:bg-slate-100 disabled:cursor-not-allowed"
+                                                        placeholder="email@example.com"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-500 mb-1 ml-1">Age</label>
+                                                    <input
+                                                        type="number"
+                                                        value={appointmentForm.age}
+                                                        onChange={(e) => {
+                                                            const value = e.target.value;
+                                                            if (value === '' || (parseInt(value) >= 0 && value.length <= 3)) {
+                                                                setAppointmentForm({ ...appointmentForm, age: value });
+                                                            }
+                                                        }}
+                                                        onInput={(e) => {
+                                                            const input = e.target as HTMLInputElement;
+                                                            if (input.value.length > 3) {
+                                                                input.value = input.value.slice(0, 3);
+                                                            }
+                                                        }}
+                                                        disabled={appointmentForm.phone_number.length < 10 || (apptPhoneSearchResults.length > 0 && !selectedApptPatient)}
+                                                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-slate-700 disabled:opacity-50 disabled:bg-slate-100 disabled:cursor-not-allowed"
+                                                        placeholder="Age"
+                                                        min="0"
+                                                        max="999"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-500 mb-1 ml-1">Gender</label>
+                                                    <select
+                                                        value={appointmentForm.gender}
+                                                        onChange={(e) => setAppointmentForm({ ...appointmentForm, gender: e.target.value })}
+                                                        disabled={appointmentForm.phone_number.length < 10 || (apptPhoneSearchResults.length > 0 && !selectedApptPatient)}
+                                                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-slate-700 disabled:opacity-50 disabled:bg-slate-100 disabled:cursor-not-allowed"
+                                                    >
+                                                        <option value="">Select</option>
+                                                        <option value="Male">Male</option>
+                                                        <option value="Female">Female</option>
+                                                        <option value="Others">Others</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Appointment Details */}
+                                        <div className="bg-gradient-to-br from-gray-50 to-blue-50/30 rounded-2xl p-5 border border-blue-100">
+                                            <h3 className="text-sm font-black text-slate-800 mb-4 uppercase tracking-wider">Appointment Details</h3>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                {/* Doctor & Date Readonly Display */}
+                                                <div className="md:col-span-2 flex items-center gap-4 bg-white p-3 rounded-xl border border-slate-200 mb-2">
+                                                    <div className="flex-1">
+                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Doctor</span>
+                                                        <p className="font-bold text-slate-800">
+                                                            {doctors.find((d: any) => d.doctor_id == appointmentForm.doctor_id) ?
+                                                                `Dr. ${doctors.find((d: any) => d.doctor_id == appointmentForm.doctor_id).first_name} ${doctors.find((d: any) => d.doctor_id == appointmentForm.doctor_id).last_name}`
+                                                                : 'Selected Doctor'}
+                                                        </p>
+                                                    </div>
+                                                    <div className="h-8 w-px bg-slate-200" />
+                                                    <div className="flex-1">
+                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Date</span>
+                                                        <p className="font-bold text-slate-800">
+                                                            {new Date(appointmentForm.appointment_date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="md:col-span-2">
+                                                    <label className="block text-xs font-bold text-slate-500 mb-2 ml-1">Select Time Slot <span className="text-red-500">*</span></label>
+                                                    {/* Category Tabs */}
+                                                    <div className="flex gap-2 mb-3 bg-slate-100/50 p-1 rounded-xl">
+                                                        {[
+                                                            { id: 'Morning', icon: Sun, label: 'Morning' },
+                                                            { id: 'Afternoon', icon: CloudSun, label: 'Afternoon' },
+                                                            { id: 'Evening', icon: Moon, label: 'Evening' }
+                                                        ]
+                                                            .filter(cat => {
+                                                                // Only show category if it has slots
+                                                                return availableTimeSlots.some((slot: any) => {
+                                                                    const timeVal = typeof slot === 'string' ? slot : slot.time;
+                                                                    if (!timeVal) return false;
+                                                                    const hour = parseInt(timeVal.split(':')[0]);
+                                                                    if (cat.id === 'Morning') return hour >= 6 && hour < 12;
+                                                                    if (cat.id === 'Afternoon') return hour >= 12 && hour < 17;
+                                                                    if (cat.id === 'Evening') return hour >= 17 && hour < 22;
+                                                                    return false;
+                                                                });
+                                                            })
+                                                            .map((cat) => (
+                                                                <button
+                                                                    key={cat.id}
+                                                                    type="button"
+                                                                    onClick={() => setTimeSlotCategory(cat.id as any)}
+                                                                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all ${timeSlotCategory === cat.id
+                                                                        ? 'bg-white text-purple-700 shadow-sm'
+                                                                        : 'text-slate-400 hover:text-slate-600'
+                                                                        }`}
+                                                                >
+                                                                    <cat.icon className="w-3.5 h-3.5" />
+                                                                    {cat.label}
+                                                                </button>
+                                                            ))}
+                                                    </div>
+
+                                                    {/* Time Grid - Dynamic based on doctor schedule */}
+                                                    <div className="grid grid-cols-4 md:grid-cols-6 gap-2 mb-2">
+                                                        {availableTimeSlots.length > 0 ? (
+                                                            availableTimeSlots
+                                                                .filter((slot: any) => {
+                                                                    const timeVal = typeof slot === 'string' ? slot : slot.time;
+                                                                    if (!timeVal) return false;
+                                                                    const hour = parseInt(timeVal.split(':')[0]);
+                                                                    if (timeSlotCategory === 'Morning') return hour >= 6 && hour < 12;
+                                                                    if (timeSlotCategory === 'Afternoon') return hour >= 12 && hour < 17;
+                                                                    if (timeSlotCategory === 'Evening') return hour >= 17 && hour < 22;
+                                                                    return false;
+                                                                })
+                                                                .map((slot: any) => {
+                                                                    const timeVal = typeof slot === 'string' ? slot : slot.time;
+                                                                    const isBooked = typeof slot === 'string' ? false : slot.status === 'booked';
+
+                                                                    return (
+                                                                        <button
+                                                                            key={timeVal}
+                                                                            type="button"
+                                                                            disabled={isBooked}
+                                                                            onClick={() => setAppointmentForm({ ...appointmentForm, appointment_time: timeVal })}
+                                                                            className={`py-2 px-1 text-xs font-bold rounded-lg border transition-all relative ${isBooked
+                                                                                ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed opacity-70'
+                                                                                : appointmentForm.appointment_time === timeVal
+                                                                                    ? 'bg-purple-600 border-purple-600 text-white ring-2 ring-purple-200'
+                                                                                    : 'border-slate-200 text-slate-600 hover:border-purple-300 hover:bg-purple-50'
+                                                                                }`}
+                                                                        >
+                                                                            {timeVal}
+                                                                            {isBooked && (
+                                                                                <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                                                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                                                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                                                                                </span>
+                                                                            )}
+                                                                        </button>
+                                                                    );
+                                                                })
+                                                        ) : (
+                                                            <div className="col-span-full text-center py-4 text-xs font-bold text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                                                                No {timeSlotCategory.toLowerCase()} slots available.
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+
+                                            </div>
+                                            <div className="md:col-span-2">
+                                                <label className="block text-xs font-bold text-slate-500 mb-1 ml-1">Reason for Visit</label>
+                                                <input type="text" value={appointmentForm.reason_for_visit} onChange={(e) => setAppointmentForm({ ...appointmentForm, reason_for_visit: e.target.value })} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 font-medium text-slate-700" placeholder="e.g., Routine checkup" />
+                                            </div>
+                                            <div className="md:col-span-2">
+                                                <label className="block text-xs font-bold text-slate-500 mb-1 ml-1">Notes</label>
+                                                <textarea rows={2} value={appointmentForm.notes} onChange={(e) => setAppointmentForm({ ...appointmentForm, notes: e.target.value })} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 font-medium text-slate-700" placeholder="Any additional notes..." />
+                                            </div>
+                                        </div>
+
+
+                                        {/* Submit */}
+                                        <div className="flex flex-col gap-3 pt-4 border-t border-slate-100">
+
+                                            {/* Duplicate Warning */}
+                                            {duplicateApptWarning && (
+                                                <div className="flex items-center gap-2 px-3 py-2 bg-red-50 text-red-700 text-xs font-bold rounded-lg border border-red-100 animate-in fade-in slide-in-from-left-2">
+                                                    <AlertCircle size={14} />
+                                                    {duplicateApptWarning}
+                                                </div>
+                                            )}
+
+                                            <div className="flex justify-end gap-3">
+                                                <button type="button" onClick={() => { setShowApptModal(false); resetAppointmentForm(); }} className="px-6 py-2.5 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition font-bold text-sm">
+                                                    Cancel
+                                                </button>
+                                                <button
+                                                    type="submit"
+                                                    disabled={loading || !!duplicateApptWarning || !appointmentForm.phone_number || !appointmentForm.patient_name || !appointmentForm.appointment_time}
+                                                    className={`flex items-center gap-2 px-8 py-2.5 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-xl hover:from-purple-700 hover:to-purple-800 transition font-bold text-sm shadow-lg shadow-purple-500/30 ${loading || !!duplicateApptWarning || !appointmentForm.phone_number || !appointmentForm.patient_name || !appointmentForm.appointment_time ? 'opacity-50 cursor-not-allowed from-slate-400 to-slate-500 hover:shadow-none' : ''}`}
+                                                >
+                                                    <Save className="w-4 h-4" />
+                                                    {loading ? 'Creating...' : 'Create Appointment'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </form>
+                                )}
                             </div>
                         </div>
                     </div>
                 )
-            }
-            {/* Appointment Modal */}
-            {showApptModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto border border-white/20">
-                        <div className="sticky top-0 bg-gradient-to-r from-purple-600 to-purple-700 text-white px-6 py-4 flex justify-between items-center rounded-t-2xl">
-                            <h2 className="text-xl font-bold">New Appointment</h2>
-                            <button onClick={() => { setShowApptModal(false); resetAppointmentForm(); }} className="text-white hover:bg-white/20 p-2 rounded-lg transition">
-                                <X className="w-6 h-6" />
-                            </button>
-                        </div>
-
-                        <div className="p-6">
-                            {appointmentStep === 1 ? (
-                                <div className="space-y-6">
-                                    {/* Step 1: Availability Check */}
-                                    <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200">
-                                        <h3 className="flex items-center gap-2 text-sm font-bold text-slate-800 mb-4 uppercase tracking-wider">
-                                            <Search className="w-4 h-4 text-purple-600" />
-                                            Find Availability
-                                        </h3>
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                            <div>
-                                                <label className="block text-sm font-medium text-slate-700 mb-1">Select Department</label>
-                                                <select
-                                                    value={bookingDepartment}
-                                                    onChange={(e) => setBookingDepartment(e.target.value)}
-                                                    className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-purple-500 font-medium"
-                                                >
-                                                    <option value="">-- All Departments --</option>
-                                                    {departments.map((dept: any) => (
-                                                        <option key={dept.department_id} value={dept.department_name}>{dept.department_name}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-slate-700 mb-1">Search Doctor</label>
-                                                <div className="relative">
-                                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                                                    <input
-                                                        type="text"
-                                                        value={doctorSearchQuery}
-                                                        onChange={(e) => setDoctorSearchQuery(e.target.value)}
-                                                        placeholder="Search by name..."
-                                                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-purple-500 font-medium"
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-slate-700 mb-1">Preferred Date</label>
-                                                <input
-                                                    type="date"
-                                                    value={appointmentForm.appointment_date}
-                                                    onChange={(e) => setAppointmentForm({ ...appointmentForm, appointment_date: e.target.value })}
-                                                    className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-slate-700"
-                                                    min={new Date().toISOString().split('T')[0]}
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Doctors List */}
-                                    <div className="space-y-3">
-                                        <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wide">Available Doctors</h4>
-                                        <div className="grid grid-cols-1 gap-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                                            {doctors
-                                                .filter((doc: any) => {
-                                                    const matchesDept = !bookingDepartment || doc.specialization === bookingDepartment || doc.department_name === bookingDepartment;
-                                                    const matchesSearch = !doctorSearchQuery || `${doc.first_name} ${doc.last_name}`.toLowerCase().includes(doctorSearchQuery.toLowerCase());
-                                                    return matchesDept && matchesSearch;
-                                                })
-                                                .sort((a: any, b: any) => {
-                                                    // Sort by availability (more slots first)
-                                                    const slotsA = getDoctorAvailabilityCount(a.doctor_id, appointmentForm.appointment_date);
-                                                    const slotsB = getDoctorAvailabilityCount(b.doctor_id, appointmentForm.appointment_date);
-                                                    return slotsB - slotsA;
-                                                })
-                                                .map((doc: any) => {
-                                                    const availableCount = getDoctorAvailabilityCount(doc.doctor_id, appointmentForm.appointment_date);
-                                                    const isAvailable = availableCount > 0;
-
-                                                    // Logic to suggest this doctor if they have slots and are in same department
-                                                    const isSuggested = isAvailable && bookingDepartment && availableCount > 3;
-
-                                                    return (
-                                                        <div
-                                                            key={doc.doctor_id}
-                                                            className={`flex items-center justify-between p-4 rounded-xl border transition-all ${isAvailable
-                                                                ? 'bg-white border-slate-200 hover:border-purple-300 hover:shadow-md'
-                                                                : 'bg-slate-50 border-slate-100 opacity-60'
-                                                                }`}
-                                                        >
-                                                            <div className="flex items-center gap-4">
-                                                                <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold border-2 ${isAvailable ? 'bg-purple-50 border-purple-100 text-purple-600' : 'bg-slate-100 border-slate-200 text-slate-400'
-                                                                    }`}>
-                                                                    {doc.first_name.charAt(0)}
-                                                                </div>
-                                                                <div>
-                                                                    <div className="flex items-center gap-2">
-                                                                        <h4 className={`font-bold ${isAvailable ? 'text-slate-800' : 'text-slate-500'}`}>
-                                                                            Dr. {doc.first_name} {doc.last_name}
-                                                                        </h4>
-                                                                        {isSuggested && (
-                                                                            <span className="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                                                                                <Sparkles className="w-3 h-3" /> Suggested
-                                                                            </span>
-                                                                        )}
-                                                                    </div>
-                                                                    <p className="text-xs text-slate-500 font-medium">{doc.specialization}</p>
-                                                                    <div className="mt-1 flex items-center gap-2">
-                                                                        {isAvailable ? (
-                                                                            <span className="text-xs font-bold text-emerald-600 flex items-center gap-1">
-                                                                                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                                                                                Available: {getDoctorShiftTimes(doc.doctor_id, appointmentForm.appointment_date)}
-                                                                            </span>
-                                                                        ) : (
-                                                                            <span className="text-xs font-bold text-red-500 flex items-center gap-1">
-                                                                                <AlertCircle className="w-3 h-3" />
-                                                                                Next Available: {getNextAvailability(doc.doctor_id, appointmentForm.appointment_date)}
-                                                                            </span>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-
-                                                            <button
-                                                                onClick={() => {
-                                                                    if (isAvailable) {
-                                                                        setAppointmentForm({ ...appointmentForm, doctor_id: doc.doctor_id });
-                                                                        setAppointmentStep(2);
-                                                                    }
-                                                                }}
-                                                                disabled={!isAvailable}
-                                                                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${isAvailable
-                                                                    ? 'bg-purple-600 text-white hover:bg-purple-700 shadow-lg shadow-purple-500/20'
-                                                                    : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                                                                    }`}
-                                                            >
-                                                                {isAvailable ? 'Select' : 'Full'}
-                                                            </button>
-                                                        </div>
-                                                    );
-                                                })}
-
-                                            {doctors.filter((doc: any) => !bookingDepartment || doc.specialization === bookingDepartment || doc.department_name === bookingDepartment).length === 0 && (
-                                                <div className="text-center py-10 text-slate-400">
-                                                    <p>No doctors found for this department.</p>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            ) : (
-                                <form onSubmit={handleCreateAppointment} className="space-y-6">
-                                    {/* Back Button */}
-                                    <button type="button" onClick={() => setAppointmentStep(1)} className="flex items-center gap-1 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors mb-2">
-                                        <ChevronLeft className="w-4 h-4" /> Change Doctor / Date
-                                    </button>
-
-                                    {/* Patient Info */}
-                                    <div className="bg-gradient-to-br from-gray-50 to-purple-50/30 rounded-2xl p-5 border border-purple-100">
-                                        <h3 className="text-sm font-black text-slate-800 mb-4 uppercase tracking-wider">Patient Information</h3>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            {/* Phone Number - First Field with Search */}
-                                            <div className="relative">
-                                                <label className="block text-xs font-bold text-slate-500 mb-1 ml-1">Phone Number <span className="text-red-500">*</span></label>
-                                                <input
-                                                    type="tel"
-                                                    required
-                                                    value={appointmentForm.phone_number}
-                                                    onChange={(e) => {
-                                                        const value = e.target.value.replace(/\D/g, "");
-                                                        if (value.length <= 10) {
-                                                            setAppointmentForm({ ...appointmentForm, phone_number: value, patient_id: null });
-                                                            setSelectedApptPatient(null);
-                                                            setIsAddingNewFamilyMember(false); // Reset family member flag on phone change
-                                                        }
-                                                    }}
-                                                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-slate-700"
-                                                    placeholder="10-digit number"
-                                                    maxLength={10}
-                                                />
-
-                                                {/* Existing Patients Dropdown */}
-                                                {apptPhoneSearchResults.length > 0 && appointmentForm.phone_number.length >= 8 && (
-                                                    <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-50">
-                                                        <div className="flex items-center justify-between px-4 py-2 bg-slate-50 border-b border-slate-100">
-                                                            <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Existing Patients Found</span>
-                                                        </div>
-                                                        <div className="max-h-48 overflow-y-auto">
-                                                            {apptPhoneSearchResults.map((patient: any) => (
-                                                                <div
-                                                                    key={patient.patient_id}
-                                                                    className="px-4 py-3 hover:bg-purple-50 border-b border-slate-100 last:border-0 flex items-center justify-between"
-                                                                >
-                                                                    <div>
-                                                                        <p className="font-bold text-slate-800">{patient.first_name} {patient.last_name}</p>
-                                                                        <p className="text-sm text-slate-500">
-                                                                            {patient.gender}, {patient.age} yrs • ID: {patient.mrn_number}
-                                                                        </p>
-                                                                    </div>
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => handleApptPatientSelect(patient)}
-                                                                        className="px-3 py-1.5 text-purple-600 border border-purple-200 rounded-lg text-xs font-bold hover:bg-purple-50 transition"
-                                                                    >
-                                                                        Select
-                                                                    </button>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                        <div
-                                                            className="px-4 py-3 bg-slate-50 border-t border-slate-100 flex items-center gap-2 cursor-pointer hover:bg-purple-50 transition"
-                                                            onClick={() => {
-                                                                setApptPhoneSearchResults([]);
-                                                                setAppointmentForm({ ...appointmentForm, patient_id: null, patient_name: '' });
-                                                                setSelectedApptPatient(null);
-                                                                setDuplicateApptWarning(null);
-                                                                setIsAddingNewFamilyMember(true); // Skip duplicate check for family members
-                                                            }}
-                                                        >
-                                                            <div className="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center">
-                                                                <Plus className="w-4 h-4" />
-                                                            </div>
-                                                            <span className="font-semibold text-purple-600 whitespace-nowrap text-sm">Add New Patient (Friends / Family)</span>
-                                                        </div>
-                                                    </div>
-                                                )}
-
-                                                {/* Loading indicator */}
-                                                {isApptSearching && appointmentForm.phone_number.length >= 8 && (
-                                                    <div className="absolute right-3 top-1/2 translate-y-2">
-                                                        <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            {/* Patient Name */}
-                                            <div className="md:col-span-2">
-                                                <div className="flex justify-between items-center mb-1 ml-1">
-                                                    <label className="block text-xs font-bold text-slate-500">Patient Name <span className="text-red-500">*</span></label>
-                                                    {selectedApptPatient && (
-                                                        <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                                            <User className="w-3 h-3" /> Selected
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <input
-                                                    type="text"
-                                                    required
-                                                    value={appointmentForm.patient_name}
-                                                    onChange={(e) => setAppointmentForm({ ...appointmentForm, patient_name: e.target.value })}
-                                                    disabled={appointmentForm.phone_number.length < 10 || (apptPhoneSearchResults.length > 0 && !selectedApptPatient)}
-                                                    className={`w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-slate-700 ${selectedApptPatient ? 'bg-purple-50 border-purple-200' : 'border-slate-200'
-                                                        } disabled:opacity-50 disabled:bg-slate-100 disabled:cursor-not-allowed`}
-                                                    placeholder="Enter Full Name"
-                                                />
-                                            </div>
-
-                                            <div>
-                                                <label className="block text-xs font-bold text-slate-500 mb-1 ml-1">Email</label>
-                                                <input
-                                                    type="email"
-                                                    value={appointmentForm.email}
-                                                    onChange={(e) => setAppointmentForm({ ...appointmentForm, email: e.target.value })}
-                                                    disabled={appointmentForm.phone_number.length < 10 || (apptPhoneSearchResults.length > 0 && !selectedApptPatient)}
-                                                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-slate-700 font-mono text-sm disabled:opacity-50 disabled:bg-slate-100 disabled:cursor-not-allowed"
-                                                    placeholder="email@example.com"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-bold text-slate-500 mb-1 ml-1">Age</label>
-                                                <input
-                                                    type="number"
-                                                    value={appointmentForm.age}
-                                                    onChange={(e) => {
-                                                        const value = e.target.value;
-                                                        if (value === '' || (parseInt(value) >= 0 && value.length <= 3)) {
-                                                            setAppointmentForm({ ...appointmentForm, age: value });
-                                                        }
-                                                    }}
-                                                    onInput={(e) => {
-                                                        const input = e.target as HTMLInputElement;
-                                                        if (input.value.length > 3) {
-                                                            input.value = input.value.slice(0, 3);
-                                                        }
-                                                    }}
-                                                    disabled={appointmentForm.phone_number.length < 10 || (apptPhoneSearchResults.length > 0 && !selectedApptPatient)}
-                                                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-slate-700 disabled:opacity-50 disabled:bg-slate-100 disabled:cursor-not-allowed"
-                                                    placeholder="Age"
-                                                    min="0"
-                                                    max="999"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-bold text-slate-500 mb-1 ml-1">Gender</label>
-                                                <select
-                                                    value={appointmentForm.gender}
-                                                    onChange={(e) => setAppointmentForm({ ...appointmentForm, gender: e.target.value })}
-                                                    disabled={appointmentForm.phone_number.length < 10 || (apptPhoneSearchResults.length > 0 && !selectedApptPatient)}
-                                                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-slate-700 disabled:opacity-50 disabled:bg-slate-100 disabled:cursor-not-allowed"
-                                                >
-                                                    <option value="">Select</option>
-                                                    <option value="Male">Male</option>
-                                                    <option value="Female">Female</option>
-                                                    <option value="Others">Others</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Appointment Details */}
-                                    <div className="bg-gradient-to-br from-gray-50 to-blue-50/30 rounded-2xl p-5 border border-blue-100">
-                                        <h3 className="text-sm font-black text-slate-800 mb-4 uppercase tracking-wider">Appointment Details</h3>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            {/* Doctor & Date Readonly Display */}
-                                            <div className="md:col-span-2 flex items-center gap-4 bg-white p-3 rounded-xl border border-slate-200 mb-2">
-                                                <div className="flex-1">
-                                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Doctor</span>
-                                                    <p className="font-bold text-slate-800">
-                                                        {doctors.find((d: any) => d.doctor_id == appointmentForm.doctor_id) ?
-                                                            `Dr. ${doctors.find((d: any) => d.doctor_id == appointmentForm.doctor_id).first_name} ${doctors.find((d: any) => d.doctor_id == appointmentForm.doctor_id).last_name}`
-                                                            : 'Selected Doctor'}
-                                                    </p>
-                                                </div>
-                                                <div className="h-8 w-px bg-slate-200" />
-                                                <div className="flex-1">
-                                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Date</span>
-                                                    <p className="font-bold text-slate-800">
-                                                        {new Date(appointmentForm.appointment_date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
-                                                    </p>
-                                                </div>
-                                            </div>
-
-                                            <div className="md:col-span-2">
-                                                <label className="block text-xs font-bold text-slate-500 mb-2 ml-1">Select Time Slot <span className="text-red-500">*</span></label>
-                                                {/* Category Tabs */}
-                                                <div className="flex gap-2 mb-3 bg-slate-100/50 p-1 rounded-xl">
-                                                    {[
-                                                        { id: 'Morning', icon: Sun, label: 'Morning' },
-                                                        { id: 'Afternoon', icon: CloudSun, label: 'Afternoon' },
-                                                        { id: 'Evening', icon: Moon, label: 'Evening' }
-                                                    ]
-                                                        .filter(cat => {
-                                                            // Only show category if it has slots
-                                                            return availableTimeSlots.some((slot: any) => {
-                                                                const timeVal = typeof slot === 'string' ? slot : slot.time;
-                                                                if (!timeVal) return false;
-                                                                const hour = parseInt(timeVal.split(':')[0]);
-                                                                if (cat.id === 'Morning') return hour >= 6 && hour < 12;
-                                                                if (cat.id === 'Afternoon') return hour >= 12 && hour < 17;
-                                                                if (cat.id === 'Evening') return hour >= 17 && hour < 22;
-                                                                return false;
-                                                            });
-                                                        })
-                                                        .map((cat) => (
-                                                            <button
-                                                                key={cat.id}
-                                                                type="button"
-                                                                onClick={() => setTimeSlotCategory(cat.id as any)}
-                                                                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all ${timeSlotCategory === cat.id
-                                                                    ? 'bg-white text-purple-700 shadow-sm'
-                                                                    : 'text-slate-400 hover:text-slate-600'
-                                                                    }`}
-                                                            >
-                                                                <cat.icon className="w-3.5 h-3.5" />
-                                                                {cat.label}
-                                                            </button>
-                                                        ))}
-                                                </div>
-
-                                                {/* Time Grid - Dynamic based on doctor schedule */}
-                                                <div className="grid grid-cols-4 md:grid-cols-6 gap-2 mb-2">
-                                                    {availableTimeSlots.length > 0 ? (
-                                                        availableTimeSlots
-                                                            .filter((slot: any) => {
-                                                                const timeVal = typeof slot === 'string' ? slot : slot.time;
-                                                                if (!timeVal) return false;
-                                                                const hour = parseInt(timeVal.split(':')[0]);
-                                                                if (timeSlotCategory === 'Morning') return hour >= 6 && hour < 12;
-                                                                if (timeSlotCategory === 'Afternoon') return hour >= 12 && hour < 17;
-                                                                if (timeSlotCategory === 'Evening') return hour >= 17 && hour < 22;
-                                                                return false;
-                                                            })
-                                                            .map((slot: any) => {
-                                                                const timeVal = typeof slot === 'string' ? slot : slot.time;
-                                                                const isBooked = typeof slot === 'string' ? false : slot.status === 'booked';
-
-                                                                return (
-                                                                    <button
-                                                                        key={timeVal}
-                                                                        type="button"
-                                                                        disabled={isBooked}
-                                                                        onClick={() => setAppointmentForm({ ...appointmentForm, appointment_time: timeVal })}
-                                                                        className={`py-2 px-1 text-xs font-bold rounded-lg border transition-all relative ${isBooked
-                                                                            ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed opacity-70'
-                                                                            : appointmentForm.appointment_time === timeVal
-                                                                                ? 'bg-purple-600 border-purple-600 text-white ring-2 ring-purple-200'
-                                                                                : 'border-slate-200 text-slate-600 hover:border-purple-300 hover:bg-purple-50'
-                                                                            }`}
-                                                                    >
-                                                                        {timeVal}
-                                                                        {isBooked && (
-                                                                            <span className="absolute -top-1 -right-1 flex h-2 w-2">
-                                                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                                                                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                                                                            </span>
-                                                                        )}
-                                                                    </button>
-                                                                );
-                                                            })
-                                                    ) : (
-                                                        <div className="col-span-full text-center py-4 text-xs font-bold text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                                                            No {timeSlotCategory.toLowerCase()} slots available.
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-
-
-                                        </div>
-                                        <div className="md:col-span-2">
-                                            <label className="block text-xs font-bold text-slate-500 mb-1 ml-1">Reason for Visit</label>
-                                            <input type="text" value={appointmentForm.reason_for_visit} onChange={(e) => setAppointmentForm({ ...appointmentForm, reason_for_visit: e.target.value })} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 font-medium text-slate-700" placeholder="e.g., Routine checkup" />
-                                        </div>
-                                        <div className="md:col-span-2">
-                                            <label className="block text-xs font-bold text-slate-500 mb-1 ml-1">Notes</label>
-                                            <textarea rows={2} value={appointmentForm.notes} onChange={(e) => setAppointmentForm({ ...appointmentForm, notes: e.target.value })} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 font-medium text-slate-700" placeholder="Any additional notes..." />
-                                        </div>
-                                    </div>
-
-
-                                    {/* Submit */}
-                                    <div className="flex flex-col gap-3 pt-4 border-t border-slate-100">
-
-                                        {/* Duplicate Warning */}
-                                        {duplicateApptWarning && (
-                                            <div className="flex items-center gap-2 px-3 py-2 bg-red-50 text-red-700 text-xs font-bold rounded-lg border border-red-100 animate-in fade-in slide-in-from-left-2">
-                                                <AlertCircle size={14} />
-                                                {duplicateApptWarning}
-                                            </div>
-                                        )}
-
-                                        <div className="flex justify-end gap-3">
-                                            <button type="button" onClick={() => { setShowApptModal(false); resetAppointmentForm(); }} className="px-6 py-2.5 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition font-bold text-sm">
-                                                Cancel
-                                            </button>
-                                            <button
-                                                type="submit"
-                                                disabled={loading || !!duplicateApptWarning || !appointmentForm.phone_number || !appointmentForm.patient_name || !appointmentForm.appointment_time}
-                                                className={`flex items-center gap-2 px-8 py-2.5 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-xl hover:from-purple-700 hover:to-purple-800 transition font-bold text-sm shadow-lg shadow-purple-500/30 ${loading || !!duplicateApptWarning || !appointmentForm.phone_number || !appointmentForm.patient_name || !appointmentForm.appointment_time ? 'opacity-50 cursor-not-allowed from-slate-400 to-slate-500 hover:shadow-none' : ''}`}
-                                            >
-                                                <Save className="w-4 h-4" />
-                                                {loading ? 'Creating...' : 'Create Appointment'}
-                                            </button>
-                                        </div>
-                                    </div>
-                                </form>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )
             }
 
             <style jsx global>{`

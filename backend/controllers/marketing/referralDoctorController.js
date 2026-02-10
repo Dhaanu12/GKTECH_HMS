@@ -12,10 +12,94 @@ const pool = new Pool({
     // Ensure connection uses IST if possible, though 'SET timezone' query on connect is safer for pool
 });
 
+// Helper to get assigned branch IDs for a user
+async function getAssignedBranchIds(user) {
+    const assignedBranchesQuery = `
+        SELECT branch_id FROM staff_branches sb
+        JOIN staff s ON sb.staff_id = s.staff_id
+        WHERE s.user_id = $1 AND sb.is_active = true
+    `;
+    const assignedBranches = await pool.query(assignedBranchesQuery, [user.user_id]);
+    return assignedBranches.rows.length > 0
+        ? assignedBranches.rows.map(row => row.branch_id)
+        : [user.branch_id].filter(Boolean);
+}
+
 // Helper to set timezone for pool connections? 
 // pg pool doesn't have a simple 'on connect' for every client easily without event listener.
 // But we relied on DEFAULT value in DB for inserts. For valid DATE object retrieval, node-pg converts based on local system time usually.
 // Let's focus on logic.
+
+// Helper to check status
+const calculateStatus = (data) => {
+    // Critical Fields (All must be present for 'Pending')
+    // Personal/Professional: doctor_name, mobile_number, speciality_type, department_id, medical_council_membership_number, council, clinic_name, address
+    // Identity: pan_card_number, aadhar_card_number (or their uploads? Requirement implied fields)
+    // Bank: bank_name, bank_branch, bank_address, bank_account_number, bank_ifsc_code
+    // Files: photo_upload_path, pan_upload_path, aadhar_upload_path, clinic_photo_path, kyc_upload_path
+
+    // Helper: is non-empty string or present
+    const isPresent = (val) => val && val.toString().trim() !== '';
+
+    const requiredFields = [
+        'doctor_name', 'mobile_number', 'speciality_type', 'department_id',
+        'medical_council_membership_number', 'council', 'clinic_name', 'address',
+        'pan_card_number', 'aadhar_card_number',
+        'bank_name', 'bank_branch', 'bank_address', 'bank_account_number', 'bank_ifsc_code',
+        'photo_upload_path', 'pan_upload_path', 'aadhar_upload_path', 'clinic_photo_path', 'kyc_upload_path'
+    ];
+
+    const missing = requiredFields.filter(field => !isPresent(data[field]));
+
+    // If NO missing fields, it's Pending. Otherwise Initialization.
+    // Note: 'Active' is set by Accountant later. We only toggle between Initialization and Pending here.
+    // If NO missing fields, it's Pending. Otherwise Initialization.
+    // Note: 'Active' is set by Accountant later. We only toggle between Initialization and Pending here.
+    return missing.length === 0 ? 'Pending' : 'Initialization';
+};
+
+const checkDuplicates = async (tenantId, data, excludeId = null) => {
+    const { mobile_number, medical_council_membership_number, pan_card_number, aadhar_card_number } = data;
+
+    // Optional: optimization - only check checks if we have at least one value to check
+    if (!mobile_number && !medical_council_membership_number && !pan_card_number && !aadhar_card_number) return { isDuplicate: false };
+
+    const result = await pool.query(
+        'SELECT id, mobile_number, medical_council_membership_number, pan_card_number, aadhar_card_number FROM referral_doctor_module WHERE tenant_id = $1',
+        [tenantId]
+    );
+
+    for (const row of result.rows) {
+        if (excludeId && row.id === parseInt(excludeId)) continue;
+
+        if (mobile_number && row.mobile_number === mobile_number) {
+            return { isDuplicate: true, field: 'Mobile Number' };
+        }
+        if (medical_council_membership_number && row.medical_council_membership_number === medical_council_membership_number) {
+            return { isDuplicate: true, field: 'Medical Council Number' };
+        }
+
+        if (pan_card_number && row.pan_card_number) {
+            try {
+                const dbPan = decrypt(row.pan_card_number);
+                if (dbPan && dbPan === pan_card_number) return { isDuplicate: true, field: 'PAN Number' };
+            } catch (e) {
+                // Ignore decryption errors on individual rows
+            }
+        }
+
+        if (aadhar_card_number && row.aadhar_card_number) {
+            try {
+                const dbAadhar = decrypt(row.aadhar_card_number);
+                if (dbAadhar && dbAadhar === aadhar_card_number) return { isDuplicate: true, field: 'Aadhaar Number' };
+            } catch (e) {
+                // Ignore decryption errors
+            }
+        }
+    }
+
+    return { isDuplicate: false };
+};
 
 exports.createReferralDoctor = async (req, res) => {
     const {
@@ -47,11 +131,36 @@ exports.createReferralDoctor = async (req, res) => {
     const clinic_photo_path = req.files && req.files['clinic_photo'] ? req.files['clinic_photo'][0].path : req.body.clinic_photo_path;
     const kyc_upload_path = req.files && req.files['kyc_document'] ? req.files['kyc_document'][0].path : req.body.kyc_upload_path;
 
-    // Encrypt sensitive data
-    const encryptedPan = encrypt(pan_card_number);
-    const encryptedAadhar = encrypt(aadhar_card_number);
-
     try {
+        // Validate Uniqueness
+        const uniquenessCheck = await checkDuplicates(effective_tenant_id, {
+            mobile_number,
+            medical_council_membership_number,
+            pan_card_number,
+            aadhar_card_number
+        });
+
+        if (uniquenessCheck.isDuplicate) {
+            // Delete uploaded files if validation fails to prevent orphan files
+            // (Implementation optional but good practice - skipping for brevity/safety unless specific requirement)
+            return res.status(400).json({ success: false, message: `${uniquenessCheck.field} already exists.` });
+        }
+
+        // Determine initial status based on completeness
+        const statusData = {
+            department_id, doctor_name, mobile_number, speciality_type,
+            medical_council_membership_number, council,
+            pan_card_number, aadhar_card_number,
+            bank_name, bank_branch, bank_address, bank_account_number, bank_ifsc_code,
+            address, clinic_name,
+            photo_upload_path, pan_upload_path, aadhar_upload_path, clinic_photo_path, kyc_upload_path
+        };
+        const status = calculateStatus(statusData);
+
+        // Encrypt sensitive data
+        const encryptedPan = encrypt(pan_card_number);
+        const encryptedAadhar = encrypt(aadhar_card_number);
+
         const query = `
             INSERT INTO referral_doctor_module (
                 department_id, doctor_name, mobile_number, speciality_type,
@@ -60,9 +169,9 @@ exports.createReferralDoctor = async (req, res) => {
                 bank_name, bank_branch, bank_address, bank_account_number, bank_ifsc_code,
                 photo_upload_path, pan_upload_path, aadhar_upload_path, clinic_photo_path, kyc_upload_path,
                 referral_pay, tenant_id, marketing_spoc, introduced_by, address,
-                geo_latitude, geo_longitude, geo_accuracy, created_by, clinic_name, branch_id
+                geo_latitude, geo_longitude, geo_accuracy, created_by, clinic_name, branch_id, status
             ) VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30
             ) RETURNING *`;
 
         const values = [
@@ -73,7 +182,8 @@ exports.createReferralDoctor = async (req, res) => {
             photo_upload_path, pan_upload_path, aadhar_upload_path, clinic_photo_path, kyc_upload_path,
             sanitizeNumeric(referral_pay), effective_tenant_id, marketing_spoc, introduced_by, address,
             sanitizeNumeric(geo_latitude), sanitizeNumeric(geo_longitude), sanitizeNumeric(geo_accuracy), created_by, clinic_name,
-            req.user ? req.user.branch_id : null
+            req.user ? req.user.branch_id : null,
+            status
         ];
 
         const result = await pool.query(query, values);
@@ -92,7 +202,7 @@ exports.updateReferralDoctor = async (req, res) => {
         medical_council_membership_number, council,
         pan_card_number, aadhar_card_number,
         bank_name, bank_branch, bank_address, bank_account_number, bank_ifsc_code,
-        referral_pay, status, address, clinic_name
+        referral_pay, address, clinic_name, status: requested_status
     } = req.body;
 
     const updated_by = req.user ? (req.user.username || req.user.user_id.toString()) : 'unknown';
@@ -109,6 +219,66 @@ exports.updateReferralDoctor = async (req, res) => {
     let encryptedAadhar = aadhar_card_number ? encrypt(aadhar_card_number) : undefined;
 
     try {
+        // 1. Fetch current doctor data for completeness check (we need merged state)
+        // We need decrypted values for checking completeness if not updating them
+        const currentDocResult = await pool.query('SELECT * FROM referral_doctor_module WHERE id = $1', [id]);
+        if (currentDocResult.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Doctor not found' });
+        }
+        const currentDoc = currentDocResult.rows[0];
+
+        // Decrypt current values to check presence if not being updated
+        // Use try-catch in case existing data is malformed (not encrypted)
+        let currentPan = currentDoc.pan_card_number;
+        let currentAadhar = currentDoc.aadhar_card_number;
+        try { currentPan = decrypt(currentDoc.pan_card_number); } catch (e) { }
+        try { currentAadhar = decrypt(currentDoc.aadhar_card_number); } catch (e) { }
+
+        // Merge for status calculation AND uniqueness check
+        const mergedData = {
+            department_id: department_id !== undefined ? department_id : currentDoc.department_id,
+            doctor_name: doctor_name !== undefined ? doctor_name : currentDoc.doctor_name,
+            mobile_number: mobile_number !== undefined ? mobile_number : currentDoc.mobile_number,
+            speciality_type: speciality_type !== undefined ? speciality_type : currentDoc.speciality_type,
+            medical_council_membership_number: medical_council_membership_number !== undefined ? medical_council_membership_number : currentDoc.medical_council_membership_number,
+            council: council !== undefined ? council : currentDoc.council,
+            pan_card_number: pan_card_number !== undefined ? pan_card_number : currentPan, // Unchanged ? Decrypted : New Input
+            aadhar_card_number: aadhar_card_number !== undefined ? aadhar_card_number : currentAadhar,
+            bank_name: bank_name !== undefined ? bank_name : currentDoc.bank_name,
+            bank_branch: bank_branch !== undefined ? bank_branch : currentDoc.bank_branch,
+            bank_address: bank_address !== undefined ? bank_address : currentDoc.bank_address,
+            bank_account_number: bank_account_number !== undefined ? bank_account_number : currentDoc.bank_account_number,
+            bank_ifsc_code: bank_ifsc_code !== undefined ? bank_ifsc_code : currentDoc.bank_ifsc_code,
+            address: address !== undefined ? address : currentDoc.address,
+            clinic_name: clinic_name !== undefined ? clinic_name : currentDoc.clinic_name,
+
+            photo_upload_path: photo_upload_path !== undefined ? photo_upload_path : currentDoc.photo_upload_path,
+            pan_upload_path: pan_upload_path !== undefined ? pan_upload_path : currentDoc.pan_upload_path,
+            aadhar_upload_path: aadhar_upload_path !== undefined ? aadhar_upload_path : currentDoc.aadhar_upload_path,
+            clinic_photo_path: clinic_photo_path !== undefined ? clinic_photo_path : currentDoc.clinic_photo_path,
+            kyc_upload_path: kyc_upload_path !== undefined ? kyc_upload_path : currentDoc.kyc_upload_path,
+        };
+
+        // Validate Uniqueness
+        const uniquenessCheck = await checkDuplicates(currentDoc.tenant_id, {
+            mobile_number: mergedData.mobile_number,
+            medical_council_membership_number: mergedData.medical_council_membership_number,
+            pan_card_number: mergedData.pan_card_number,
+            aadhar_card_number: mergedData.aadhar_card_number
+        }, id);
+
+        if (uniquenessCheck.isDuplicate) {
+            return res.status(400).json({ success: false, message: `${uniquenessCheck.field} already exists.` });
+        }
+
+        let finalStatus = currentDoc.status;
+
+        // Only auto-update status if not Active (Accountant control)
+        // OR if previously Initialization/Pending
+        if (currentDoc.status === 'Initialization' || currentDoc.status === 'Pending') {
+            finalStatus = calculateStatus(mergedData);
+        }
+
         const query = `
             UPDATE referral_doctor_module SET
                 department_id = COALESCE($1, department_id),
@@ -130,7 +300,7 @@ exports.updateReferralDoctor = async (req, res) => {
                 clinic_photo_path = COALESCE($17, clinic_photo_path),
                 referral_pay = COALESCE($18, referral_pay),
                 address = COALESCE($19, address),
-                status = COALESCE($20, status),
+                status = $20,
                 updated_by = $21,
                 clinic_name = COALESCE($22, clinic_name),
                 kyc_upload_path = COALESCE($23, kyc_upload_path),
@@ -144,7 +314,7 @@ exports.updateReferralDoctor = async (req, res) => {
             encryptedPan, encryptedAadhar,
             bank_name, bank_branch, bank_address, bank_account_number, bank_ifsc_code,
             photo_upload_path, pan_upload_path, aadhar_upload_path, clinic_photo_path,
-            referral_pay, address, status,
+            referral_pay, address, finalStatus,
             updated_by, clinic_name, kyc_upload_path, id
         ];
 
@@ -167,11 +337,18 @@ exports.getAllReferralDoctors = async (req, res) => {
         let query = 'SELECT * FROM referral_doctor_module WHERE 1=1';
         const params = [];
 
-        // Filter by branch_id if user belongs to a branch (and not just hospital-level admin without branch)
-        // If user is Super Admin, they might see all ?? For now, assume strict branch isolation if branch_id exists.
-        if (req.user && req.user.branch_id) {
-            query += ' AND branch_id = $1';
-            params.push(req.user.branch_id);
+        // Filter by assigned branch IDs
+        const branchIds = await getAssignedBranchIds(req.user);
+        if (branchIds.length > 0) {
+            query += ` AND branch_id = ANY($${params.length + 1})`;
+            params.push(branchIds);
+        }
+
+        // Accountant Flow: Filter out 'Initialization' state
+        // Use userRole from verified middleware if available, else fallback to req.user.role_code/role
+        const role = req.user.role_code || req.user.role;
+        if (role === 'ACCOUNTANT' || role === 'ACCOUNTANT_MANAGER') {
+            query += ` AND status != 'Initialization'`;
         }
 
         query += ' ORDER BY created_at DESC';
@@ -182,8 +359,16 @@ exports.getAllReferralDoctors = async (req, res) => {
 
         const processedData = result.rows.map(row => {
             // Decrypt
-            let pan = decrypt(row.pan_card_number);
-            let aadhar = decrypt(row.aadhar_card_number);
+            let pan = '';
+            let aadhar = '';
+
+            try {
+                pan = row.pan_card_number ? decrypt(row.pan_card_number) : '';
+            } catch (e) { pan = row.pan_card_number; }
+
+            try {
+                aadhar = row.aadhar_card_number ? decrypt(row.aadhar_card_number) : '';
+            } catch (e) { aadhar = row.aadhar_card_number; }
 
             // Mask if requested
             if (shouldMask) {

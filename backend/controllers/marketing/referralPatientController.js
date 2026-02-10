@@ -9,6 +9,23 @@ const pool = new Pool({
     password: process.env.DB_PASSWORD,
 });
 
+/**
+ * Helper to get assigned hospital IDs for a user
+ */
+async function getAssignedHospitalIds(user) {
+    const assignedHospitalsQuery = `
+        SELECT DISTINCT b.hospital_id
+        FROM staff s
+        JOIN staff_branches sb ON s.staff_id = sb.staff_id
+        JOIN branches b ON sb.branch_id = b.branch_id
+        WHERE s.user_id = $1 AND sb.is_active = true
+    `;
+    const assignedHospitals = await pool.query(assignedHospitalsQuery, [user.user_id]);
+    return assignedHospitals.rows.length > 0
+        ? assignedHospitals.rows.map(row => row.hospital_id)
+        : [user.hospital_id].filter(Boolean);
+}
+
 exports.createReferralPatient = async (req, res) => {
     const {
         patient_name, mobile_number, gender, age, place,
@@ -50,14 +67,17 @@ exports.createReferralPatient = async (req, res) => {
 
 exports.getAllReferralPatients = async (req, res) => {
     try {
+        const hospitalIds = await getAssignedHospitalIds(req.user);
+
         // Join with referral_doctor to get doctor name if needed
         const query = `
             SELECT rp.*, rd.doctor_name as referral_doctor_name
             FROM referral_patients rp
             LEFT JOIN referral_doctor_module rd ON rp.referral_doctor_id = rd.id
+            WHERE rd.tenant_id = ANY($1)
             ORDER BY rp.created_at DESC
         `;
-        const result = await pool.query(query);
+        const result = await pool.query(query, [hospitalIds]);
         res.status(200).json({ success: true, data: result.rows });
     } catch (error) {
         console.error('Error fetching referral patients:', error);

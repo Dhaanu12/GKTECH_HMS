@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { LayoutDashboard, Users, UserPlus, Building2, Hospital, Stethoscope, Activity, LogOut, Menu, X, Settings } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
+import { AIContextProvider, FloatingAIAssistant } from '@/components/ai';
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
     const { isAuthenticated, loading, user, logout } = useAuth();
@@ -169,7 +170,10 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
                 {/* Content */}
                 < main className="flex-1 overflow-auto p-8 bg-gray-50/50" >
-                    {children}
+                    <AIContextProvider role="client_admin" initialPage={pathname}>
+                        {children}
+                        <FloatingAIAssistant />
+                    </AIContextProvider>
                 </main >
             </div >
         </div >

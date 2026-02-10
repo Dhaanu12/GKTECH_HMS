@@ -17,7 +17,7 @@ exports.uploadClaims = async (req, res, next) => {
             });
         }
 
-        const { branch_id, hospital_id } = req.body;
+        let { branch_id, hospital_id } = req.body;
 
         console.log('uploadClaims - User:', {
             userId: req.user.user_id,
@@ -53,15 +53,19 @@ exports.uploadClaims = async (req, res, next) => {
                     });
                 }
 
-                const allowedHospitalIds = accessResult.rows.map(row => row.hospital_id);
+                // Find the branch in the user's allowed list
+                const allowedBranch = accessResult.rows.find(row => row.branch_id === parseInt(branch_id));
 
-                // Validate hospital_id is in allowed hospitals
-                if (!allowedHospitalIds.includes(parseInt(hospital_id))) {
+                if (!allowedBranch) {
                     return res.status(403).json({
                         status: 'fail',
-                        message: 'Access denied: You can only upload claims for your assigned hospital'
+                        message: 'Access denied: You do not have permission for this branch'
                     });
                 }
+
+                // Auto-set hospital_id from the verified branch relationship
+                hospital_id = allowedBranch.hospital_id;
+                req.body.hospital_id = hospital_id; // Update req.body for consistency if needed later matches accessResult logic
             } finally {
                 client.release();
             }
@@ -126,11 +130,18 @@ exports.uploadClaims = async (req, res, next) => {
         // Clean up file
         fs.unlinkSync(filePath);
 
+        let message = `Successfully uploaded ${result.created.length} claims.`;
+        if (result.skipped.length > 0) {
+            message += ` Skipped ${result.skipped.length} duplicates.`;
+        }
+
         res.status(200).json({
             status: 'success',
-            count: result.length,
-            message: 'Claims uploaded successfully',
-            data: result
+            count: result.created.length,
+            skipped_count: result.skipped.length,
+            skipped_approvals: result.skipped,
+            message: message,
+            data: result.created
         });
 
     } catch (err) {
@@ -1279,48 +1290,57 @@ exports.getDashboardStats = async (req, res, next) => {
             let recentReferralPayouts = [];
 
             try {
-                // Get all relevant hospital IDs (from assigned branches + user's primary hospital)
-                const allHospitalIds = [...new Set([...hospitalIds, req.user.hospital_id].filter(id => id != null))];
+                // Get assigned hospital IDs for referral stats
+                // For accountants, we MUST strictly use hospitalIds (from staff_branches)
+                // We only include req.user.hospital_id if the user has NO specific branch assignments (e.g. hospital-level admin)
+                // or if it's already in the assigned list.
+                const allHospitalIds = hospitalIds.length > 0 ? hospitalIds : [req.user.hospital_id].filter(Boolean);
 
-                const referralDoctorQuery = `
-                    SELECT COUNT(*) as count 
-                    FROM referral_doctor_module 
-                    WHERE tenant_id = ANY($1)
-                `;
-                const referralDoctorRes = await client.query(referralDoctorQuery, [allHospitalIds]);
-                referralDoctorCount = parseInt(referralDoctorRes.rows[0]?.count || 0);
+                if (allHospitalIds.length === 0) {
+                    referralDoctorCount = 0;
+                    referralPayoutTotal = 0;
+                    recentReferralPayouts = [];
+                } else {
+                    const referralDoctorQuery = `
+                        SELECT COUNT(*) as count 
+                        FROM referral_doctor_module 
+                        WHERE tenant_id = ANY($1)
+                    `;
+                    const referralDoctorRes = await client.query(referralDoctorQuery, [allHospitalIds]);
+                    referralDoctorCount = parseInt(referralDoctorRes.rows[0]?.count || 0);
 
-                // 6. Referral Payouts (current month for these hospitals)
-                const referralPayoutQuery = `
-                    SELECT COALESCE(SUM(rd.referral_amount), 0) as total_payout
-                    FROM referral_data rd
-                    JOIN referral_header rh ON rd.header_id = rh.header_id
-                    JOIN referral_doctor_module rdm ON rd.referral_doctor_id = rdm.id
-                    WHERE DATE_TRUNC('month', rh.upload_date) = DATE_TRUNC('month', CURRENT_DATE)
-                      AND rdm.tenant_id = ANY($1)
-                `;
-                const referralPayoutRes = await client.query(referralPayoutQuery, [allHospitalIds]);
-                referralPayoutTotal = parseFloat(referralPayoutRes.rows[0]?.total_payout || 0);
+                    // 6. Referral Payouts (current month for these hospitals)
+                    const referralPayoutQuery = `
+                        SELECT COALESCE(SUM(rd.referral_amount), 0) as total_payout
+                        FROM referral_payment_details rd
+                        JOIN referral_payment_header rh ON rd.payment_header_id = rh.id
+                        JOIN referral_payment_upload_batch rb ON rh.batch_id = rb.id
+                        WHERE DATE_TRUNC('month', rh.created_at) = DATE_TRUNC('month', CURRENT_DATE)
+                          AND rb.hospital_id = ANY($1)
+                    `;
+                    const referralPayoutRes = await client.query(referralPayoutQuery, [allHospitalIds]);
+                    referralPayoutTotal = parseFloat(referralPayoutRes.rows[0]?.total_payout || 0);
 
-                // 7. Recent Referral Payouts (last 30 days)
-                const recentPayoutsQuery = `
-                    SELECT 
-                        rdm.doctor_name,
-                        COALESCE(SUM(rd.referral_amount), 0) as total_amount
-                    FROM referral_data rd
-                    JOIN referral_header rh ON rd.header_id = rh.header_id
-                    JOIN referral_doctor_module rdm ON rd.referral_doctor_id = rdm.id
-                    WHERE rh.upload_date >= CURRENT_DATE - INTERVAL '30 days'
-                      AND rdm.tenant_id = ANY($1)
-                    GROUP BY rdm.doctor_name
-                    ORDER BY total_amount DESC
-                    LIMIT 5
-                `;
-                const recentPayoutsRes = await client.query(recentPayoutsQuery, [allHospitalIds]);
-                recentReferralPayouts = recentPayoutsRes.rows.map(row => ({
-                    doctor_name: row.doctor_name,
-                    amount: parseFloat(row.total_amount)
-                }));
+                    // 7. Recent Referral Payouts (last 30 days)
+                    const recentPayoutsQuery = `
+                        SELECT 
+                            rh.doctor_name,
+                            COALESCE(SUM(rd.referral_amount), 0) as total_amount
+                        FROM referral_payment_details rd
+                        JOIN referral_payment_header rh ON rd.payment_header_id = rh.id
+                        JOIN referral_payment_upload_batch rb ON rh.batch_id = rb.id
+                        WHERE rh.created_at >= CURRENT_DATE - INTERVAL '30 days'
+                          AND rb.hospital_id = ANY($1)
+                        GROUP BY rh.doctor_name
+                        ORDER BY total_amount DESC
+                        LIMIT 5
+                    `;
+                    const recentPayoutsRes = await client.query(recentPayoutsQuery, [allHospitalIds]);
+                    recentReferralPayouts = recentPayoutsRes.rows.map(row => ({
+                        doctor_name: row.doctor_name,
+                        amount: parseFloat(row.total_amount)
+                    }));
+                }
             } catch (err) {
                 // Referral tables might not exist, continue with defaults
                 console.log('Referral tables not found, using defaults');
@@ -1356,5 +1376,71 @@ exports.getDashboardStats = async (req, res, next) => {
         }
     } catch (err) {
         next(err);
+    }
+};
+
+exports.downloadClaimsTemplate = async (req, res, next) => {
+    try {
+        const headers = [
+            'S.NO',
+            'IP NO',
+            'PATIENT NAME',
+            'DR NAME',
+            'APPROVAL NO',
+            'FROM DATE ADMISSION',
+            'TO DATE DISCHARGE',
+            'DEPT',
+            'INSURANCE NAME',
+            'BILL AMOUNT',
+            'ADVANCE AMOUNT',
+            'CO PAY',
+            'DISCOUNT',
+            'APPROVAL AMOUNT',
+            'AMOUNT RECEIVED',
+            'PENDING AMOUNT',
+            'TDS',
+            'BANK NAME',
+            'DATE',
+            'UTR NO',
+            'REMARKS'
+        ];
+
+        const sampleData = [
+            {
+                'S.NO': 1,
+                'IP NO': 'IP12345',
+                'PATIENT NAME': 'John Doe',
+                'DR NAME': 'Dr. Smith',
+                'APPROVAL NO': 'APP001',
+                'FROM DATE ADMISSION': '2023-10-01',
+                'TO DATE DISCHARGE': '2023-10-05',
+                'DEPT': 'Cardiology',
+                'INSURANCE NAME': 'Star Health',
+                'BILL AMOUNT': 50000,
+                'ADVANCE AMOUNT': 10000,
+                'CO PAY': 0,
+                'DISCOUNT': 0,
+                'APPROVAL AMOUNT': 40000,
+                'AMOUNT RECEIVED': 0,
+                'PENDING AMOUNT': 40000,
+                'TDS': 0,
+                'BANK NAME': '',
+                'DATE': '',
+                'UTR NO': '',
+                'REMARKS': 'Initial Upload'
+            }
+        ];
+
+        const workbook = xlsx.utils.book_new();
+        const worksheet = xlsx.utils.json_to_sheet(sampleData, { header: headers });
+        xlsx.utils.book_append_sheet(workbook, worksheet, 'Template');
+
+        const buffer = xlsx.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+
+        res.setHeader('Content-Disposition', 'attachment; filename="Claims_Upload_Template.xlsx"');
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.send(buffer);
+    } catch (error) {
+        next(error);
     }
 };

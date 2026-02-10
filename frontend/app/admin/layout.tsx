@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Building2, Users, UserPlus, Stethoscope, Briefcase, LogOut, LayoutDashboard, Menu, X } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
+import { AIContextProvider, FloatingAIAssistant } from '@/components/ai';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
     const { isAuthenticated, loading, user, logout } = useAuth();
@@ -141,7 +142,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
                 {/* Content */}
                 <main className="flex-1 overflow-auto p-8 bg-gray-50/50">
-                    {children}
+                    <AIContextProvider role="admin" initialPage={pathname}>
+                        {children}
+                        <FloatingAIAssistant />
+                    </AIContextProvider>
                 </main>
             </div>
         </div>

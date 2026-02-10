@@ -31,8 +31,11 @@ import {
     Trash2,
     ExternalLink,
     Image,
-    History
+    History,
+    Sparkles
 } from 'lucide-react';
+import { AIInsightCard, AILoadingIndicator, useAI } from '@/components/ai';
+import { interpretLabResults } from '@/lib/api/ai';
 
 interface LabOrderDocument {
     document_id: number;
@@ -111,6 +114,11 @@ const statusColors = {
 
 export default function LabSchedulePage() {
     const { user } = useAuth();
+    
+    // AI context - clear patient context when on lab schedule
+    let aiContext: { setPageContext?: (page: string, patient?: string) => void } = {};
+    try { aiContext = useAI(); } catch { /* AIContextProvider not available */ }
+    
     const [orders, setOrders] = useState<LabOrder[]>([]);
     const [counts, setCounts] = useState<StatusCounts>({ Ordered: 0, 'In-Progress': 0, Completed: 0, Cancelled: 0 });
     const [loading, setLoading] = useState(true);
@@ -163,6 +171,18 @@ export default function LabSchedulePage() {
     useEffect(() => {
         fetchOrders();
     }, [fetchOrders]);
+    
+    // Set AI context for lab schedule page (clears patient-specific context)
+    useEffect(() => {
+        if (aiContext.setPageContext && !loading) {
+            const labContext = `Viewing Lab Schedule page. ` +
+                `Summary: ${counts.Ordered} ordered, ${counts['In-Progress']} in-progress, ${counts.Completed} completed. ` +
+                `Total orders displayed: ${orders.length}. ` +
+                `Note: This is a list of lab orders. No specific patient is currently selected. ` +
+                `To help with a specific patient, ask for the patient name or MRN, or use searchPatients tool.`;
+            aiContext.setPageContext('/nurse/lab-schedule', labContext);
+        }
+    }, [aiContext.setPageContext, loading, counts, orders.length]);
 
     const updateStatus = async (orderId: number, newStatus: string) => {
         try {
@@ -821,6 +841,36 @@ function ViewResultsModal({
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [downloading, setDownloading] = useState<number | null>(null);
+    
+    // AI interpretation state
+    const [aiInterpretation, setAiInterpretation] = useState<string | null>(null);
+    const [aiInterpretationLoading, setAiInterpretationLoading] = useState(false);
+    
+    const handleAIInterpret = async () => {
+        if (!order.result_summary && !order.test_name) return;
+        
+        setAiInterpretationLoading(true);
+        setAiInterpretation(null);
+        
+        try {
+            const result = await interpretLabResults(
+                order.test_name,
+                order.result_summary || undefined,
+                undefined,
+                undefined
+            );
+            
+            if (result.success) {
+                setAiInterpretation(result.message);
+            } else {
+                setAiInterpretation(result.message);
+            }
+        } catch (err) {
+            setAiInterpretation('Failed to interpret results. Please try again.');
+        } finally {
+            setAiInterpretationLoading(false);
+        }
+    };
 
     useEffect(() => {
         fetchDocuments();
@@ -937,13 +987,41 @@ function ViewResultsModal({
                     {/* Result Summary */}
                     {order.result_summary && (
                         <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
-                            <h3 className="text-sm font-bold text-emerald-800 mb-2 flex items-center gap-2">
-                                <FileText className="w-4 h-4" />
-                                Result Summary
-                            </h3>
+                            <div className="flex items-start justify-between mb-2">
+                                <h3 className="text-sm font-bold text-emerald-800 flex items-center gap-2">
+                                    <FileText className="w-4 h-4" />
+                                    Result Summary
+                                </h3>
+                                <button
+                                    onClick={handleAIInterpret}
+                                    disabled={aiInterpretationLoading}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors disabled:opacity-50"
+                                    title="Get AI interpretation of results"
+                                >
+                                    <Sparkles className="w-3.5 h-3.5" />
+                                    {aiInterpretationLoading ? 'Interpreting...' : 'AI Interpret'}
+                                </button>
+                            </div>
                             <p className="text-sm text-emerald-700 whitespace-pre-wrap">
                                 {order.result_summary}
                             </p>
+                        </div>
+                    )}
+                    
+                    {/* AI Interpretation */}
+                    {aiInterpretationLoading && (
+                        <div className="mb-6">
+                            <AILoadingIndicator text="Interpreting lab results..." />
+                        </div>
+                    )}
+                    {aiInterpretation && !aiInterpretationLoading && (
+                        <div className="mb-6">
+                            <AIInsightCard
+                                title="AI Interpretation"
+                                content={aiInterpretation}
+                                type="info"
+                                onDismiss={() => setAiInterpretation(null)}
+                            />
                         </div>
                     )}
 
