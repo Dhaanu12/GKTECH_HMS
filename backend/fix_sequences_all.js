@@ -16,7 +16,13 @@ async function fixSequences() {
         'referral_doctor_module',
         'referral_doctor_service_percentage_module',
         'patients', // assuming id
-        'appointment_requests' // assuming id
+        'appointment_requests', // assuming id
+        'opd_entries',
+        'prescriptions',
+        'consultation_outcomes',
+        'lab_orders',
+        'billing_master',
+        'bill_details'
     ];
 
     try {
