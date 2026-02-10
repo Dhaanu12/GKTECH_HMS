@@ -378,11 +378,9 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, opdData, o
 
                 {/* RIGHT COLUMN (35%) - Summary */}
                 <div className="w-[35%] bg-slate-50 border-l border-slate-200 flex flex-col relative z-10 shadow-[-1px_0_10px_rgba(0,0,0,0.02)]">
-                    <div className="flex justify-end p-4">
-                        <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-colors">
-                            <X className="w-5 h-5" />
-                        </button>
-                    </div>
+                    {/* Spacer to maintain layout consistency after removing the X button */}
+                    <div className="h-[68px]"></div>
+
 
                     <div className="flex-1 px-8 space-y-8 overflow-y-auto">
 
@@ -516,9 +514,9 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, opdData, o
                             )}
                         </button>
                         <button
-                            onClick={() => handleSubmit(true)}
-                            className="w-full py-3 text-slate-500 hover:text-slate-800 font-bold text-sm transition-colors hover:bg-slate-200 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
-                            disabled={loading || !contactNumber || contactNumber.length !== 10}
+                            onClick={onClose}
+                            className="w-full py-3 text-slate-500 hover:text-slate-800 font-bold text-sm transition-colors hover:underline rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled={loading}
                         >
                             Or Pay Later
                         </button>
