@@ -8,6 +8,54 @@ const axios = require('axios');
 const API_URL = process.env.API_URL || 'http://localhost:5000/api';
 
 /**
+ * Convert UTC timestamp to IST (UTC+5:30) formatted string
+ * @param {string|Date} timestamp - UTC timestamp
+ * @returns {string} Formatted IST string (e.g., "03 Feb 2026, 2:30 PM")
+ */
+function toIST(timestamp) {
+    if (!timestamp) return null;
+    
+    try {
+        const date = new Date(timestamp);
+        if (isNaN(date.getTime())) return timestamp; // Return original if invalid
+        
+        // Format in IST timezone
+        return date.toLocaleString('en-IN', {
+            timeZone: 'Asia/Kolkata',
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+        });
+    } catch {
+        return timestamp;
+    }
+}
+
+/**
+ * Convert to IST date only (no time)
+ */
+function toISTDate(timestamp) {
+    if (!timestamp) return null;
+    
+    try {
+        const date = new Date(timestamp);
+        if (isNaN(date.getTime())) return timestamp;
+        
+        return date.toLocaleDateString('en-IN', {
+            timeZone: 'Asia/Kolkata',
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric'
+        });
+    } catch {
+        return timestamp;
+    }
+}
+
+/**
  * Execute a tool call
  * @param {string} toolName - Name of the tool to execute
  * @param {object} args - Tool arguments
@@ -139,7 +187,7 @@ async function executeGetPatientDetails(args, headers) {
         id: patient.patient_id,
         name: `${patient.first_name} ${patient.last_name}`,
         mrn: patient.mrn,
-        dateOfBirth: patient.date_of_birth,
+        dateOfBirth: toISTDate(patient.date_of_birth),
         age: patient.age,
         gender: patient.gender,
         phone: patient.phone,
@@ -166,7 +214,7 @@ async function executeGetPatientVitals(args, headers) {
     return {
         count: vitals.length,
         vitals: vitals.slice(0, limit).map(v => ({
-            recordedAt: v.recorded_at,
+            recordedAt: toIST(v.recorded_at),
             pulseRate: v.pulse_rate ? `${v.pulse_rate} bpm` : null,
             bloodPressure: v.blood_pressure_systolic && v.blood_pressure_diastolic 
                 ? `${v.blood_pressure_systolic}/${v.blood_pressure_diastolic} mmHg` 
@@ -201,10 +249,10 @@ async function executeGetPatientLabOrders(args, headers) {
             id: o.lab_order_id,
             testName: o.test_name,
             status: o.status,
-            orderedAt: o.created_at,
+            orderedAt: toIST(o.created_at),
             orderedBy: o.doctor_name,
             resultSummary: o.result_summary || null,
-            completedAt: o.completed_at
+            completedAt: toIST(o.completed_at)
         }))
     };
 }
@@ -231,7 +279,7 @@ async function executeGetPatientNotes(args, headers) {
             id: n.note_id,
             type: n.note_type,
             content: n.content?.substring(0, 500) + (n.content?.length > 500 ? '...' : ''),
-            createdAt: n.created_at,
+            createdAt: toIST(n.created_at),
             createdBy: n.created_by_name,
             isPinned: n.is_pinned
         }))
@@ -264,7 +312,7 @@ async function executeGetAppointments(args, headers) {
             id: a.appointment_id,
             patientName: a.patient_name,
             doctorName: a.doctor_name,
-            date: a.appointment_date,
+            date: toISTDate(a.appointment_date),
             time: a.appointment_time,
             status: a.status,
             type: a.appointment_type,
@@ -287,7 +335,7 @@ async function executeGetPatientConsultations(args, headers) {
         count: consultations.length,
         consultations: consultations.slice(0, 10).map(c => ({
             id: c.consultation_id,
-            date: c.consultation_date || c.created_at,
+            date: toIST(c.consultation_date || c.created_at),
             doctorName: c.doctor_name,
             chiefComplaint: c.chief_complaint,
             diagnosis: c.diagnosis,
@@ -324,7 +372,7 @@ async function executeGetOpdEntries(args, headers) {
             id: e.opd_id,
             patientName: e.patient_name,
             doctorName: e.doctor_name,
-            visitDate: e.visit_date || e.created_at,
+            visitDate: toIST(e.visit_date || e.created_at),
             status: e.status,
             paymentStatus: e.payment_status,
             chiefComplaint: e.chief_complaint
@@ -371,7 +419,7 @@ async function executeGetPatientFeedback(args, headers) {
             rating: f.rating,
             comment: f.comment,
             category: f.category,
-            createdAt: f.created_at,
+            createdAt: toIST(f.created_at),
             isAddressed: f.is_addressed
         }))
     };

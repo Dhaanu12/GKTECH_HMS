@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { 
     Sparkles, 
     X, 
@@ -234,8 +235,8 @@ export function FloatingAIAssistant() {
                                                     )}
                                                     {message.content ? (
                                                         message.role === 'assistant' ? (
-                                                            <div className="text-sm leading-relaxed prose prose-sm prose-slate max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-headings:my-2 prose-strong:text-slate-800">
-                                                                <ReactMarkdown>
+                                                            <div className="ai-markdown">
+                                                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
                                                                     {message.content}
                                                                 </ReactMarkdown>
                                                             </div>
