@@ -140,8 +140,14 @@ export default function BillingPage() {
             patient: {
                 contact_number: item.contact_number,
                 gender: item.gender,
-                age: item.age
+                age: item.age,
+                address: item.address,
+                address_line2: item.address_line2,
+                city: item.city,
+                state: item.state,
+                pincode: item.pincode
             },
+            visit_type: item.visit_type || 'OPD',
             consultation_fee: 0
         });
         setShowBillingModal(true);

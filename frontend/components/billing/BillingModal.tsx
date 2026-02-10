@@ -31,6 +31,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, opdData, o
 
     const initializeData = async () => {
         let currentContact = opdData.patient_contact_number || opdData.patient?.contact_number || '';
+        if (currentContact === '0000000000') currentContact = '';
         setContactNumber(currentContact);
 
         if (opdData.opd_id) {
@@ -250,7 +251,10 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, opdData, o
                                 <div>
                                     <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                                         {opdData?.patient_first_name} {opdData?.patient_last_name}
-                                        <span className="text-xs font-normal text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
+                                        <span className={`text-xs font-normal px-2 py-0.5 rounded-full border ${opdData?.visit_type === 'Emergency'
+                                            ? 'text-red-600 bg-red-50 border-red-200 animate-pulse'
+                                            : 'text-slate-400 bg-slate-100 border-slate-200'
+                                            }`}>
                                             {opdData?.visit_type || 'Walk-in'}
                                         </span>
                                     </h3>
@@ -290,7 +294,13 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, opdData, o
                                     <div className="flex-1">
                                         <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-0.5">Address</p>
                                         <p className="font-bold text-slate-900 text-base truncate">
-                                            {[opdData?.address || opdData?.patient?.address || opdData?.address_line1, opdData?.city].filter(Boolean).join(', ') || 'No address provided'}
+                                            {[
+                                                opdData?.address || opdData?.patient?.address || opdData?.address_line1,
+                                                opdData?.address_line2 || opdData?.patient?.address_line2,
+                                                opdData?.city || opdData?.patient?.city
+                                            ].filter(Boolean).join(', ') +
+                                                (opdData?.state || opdData?.patient?.state ? `, ${opdData?.state || opdData?.patient?.state}` : '') +
+                                                (opdData?.pincode || opdData?.patient?.pincode ? ` - ${opdData?.pincode || opdData?.patient?.pincode}` : '') || 'No address provided'}
                                         </p>
                                     </div>
                                 </div>

@@ -319,7 +319,7 @@ export default function ReceptionistDashboard() {
             setIsApptSearching(true);
             try {
                 const token = localStorage.getItem('token');
-                const response = await axios.get('http://localhost:5000/api/patients/search', {
+                const response = await axios.get(`${API_URL}/patients/search`, {
                     params: { q: appointmentForm.phone_number },
                     headers: { Authorization: `Bearer ${token}` }
                 });
@@ -546,19 +546,44 @@ export default function ReceptionistDashboard() {
                 setShowModal(true);
             }
         } else {
-            // No patient_id - trigger phone search flow
+            // No patient_id - trigger phone search flow BUT pre-fill available details from appointment
+
+            // Get doctor info from appointment
+            let consultationFee = '';
+            if (patient.doctor_id) {
+                const doc = doctors.find((d: any) => d.doctor_id === parseInt(patient.doctor_id));
+                if (doc) {
+                    consultationFee = doc.consultation_fee?.toString() || '';
+                }
+            }
+
             setOpdForm({
                 ...opdForm,
+                first_name: patient.first_name || '',
+                last_name: patient.last_name || '',
+                age: patient.age?.toString() || '',
+                gender: patient.gender || '',
+                blood_group: patient.blood_group || '',
                 contact_number: patient.contact_number || '',
+                adhaar_number: patient.aadhar_number || patient.adhaar_number || '',
+                doctor_id: patient.doctor_id?.toString() || '',
+                visit_type: 'Appointment',
+                consultation_fee: consultationFee,
+                appointment_id: patient.appointment_id || '',
+                patient_id: '', // Explicitly empty as not linked
+                chief_complaint: patient.reason_for_visit || '',
+                visit_date: format(new Date(), 'yyyy-MM-dd'),
+                visit_time: format(new Date(), 'HH:mm')
             });
 
-            // Trigger search for the prefilled phone number to show existing patients dropdown
-            if (patient.contact_number && patient.contact_number.length >= 8) {
-                setModalSearchQuery(patient.contact_number);
-            } else {
-                setModalSearchQuery('');
-                setModalSearchResults([]);
+            if (patient.doctor_name) {
+                setAppointmentDoctorName(patient.doctor_name);
+                setHasAppointment(true);
             }
+
+            // Do NOT trigger search for Convert to OPD - just fill the form
+            setModalSearchQuery('');
+            setModalSearchResults([]);
 
             setCurrentStep('visitDetails');
             setCompletedSteps(['search']);
