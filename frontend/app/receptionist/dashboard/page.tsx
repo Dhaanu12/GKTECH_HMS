@@ -2112,18 +2112,20 @@ export default function ReceptionistDashboard() {
                                                     >
                                                         <option value="">Select Doctor</option>
                                                         {doctors.map((doc: any) => {
-                                                            // const todayIST = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
-                                                            // const availableSlots = getDoctorAvailabilityCount(doc.doctor_id, todayIST);
-                                                            // const isAvailable = availableSlots > 0;
+                                                            const todayIST = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+                                                            const availableSlots = getDoctorAvailabilityCount(doc.doctor_id, todayIST);
+                                                            const isAvailable = availableSlots > 0;
+                                                            // Temporarily commented out availability check - allow all doctors to be selectable
+                                                            // const isAvailable = true;
 
                                                             return (
                                                                 <option
                                                                     key={doc.doctor_id}
                                                                     value={doc.doctor_id}
-                                                                // disabled={!isAvailable}
-                                                                // className={!isAvailable ? 'text-gray-400' : ''}
+                                                                    disabled={!isAvailable}
+                                                                    className={!isAvailable ? 'text-gray-400' : ''}
                                                                 >
-                                                                    Dr. {doc.first_name} {doc.last_name} ({doc.specialization}) {/* {!isAvailable ? '* Unavailable' : ''} */}
+                                                                    Dr. {doc.first_name} {doc.last_name} ({doc.specialization}) {!isAvailable ? '* Unavailable' : ''}
                                                                 </option>
                                                             );
                                                         })}

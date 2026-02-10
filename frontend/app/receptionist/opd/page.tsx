@@ -891,7 +891,8 @@ export default function OpdEntryPage() {
         try {
             const savedEntry = await saveEntry();
 
-            if (paymentChoice === 'PayNow' && savedEntry) {
+            // Only show bill modal for NEW entries with PayNow, not for updates
+            if (paymentChoice === 'PayNow' && savedEntry && !editingOpdId) {
                 const opdId = typeof savedEntry === 'number' ? savedEntry : savedEntry.opd_id;
                 if (opdId) {
                     setNewOpdData(savedEntry); // Set this to trigger reset on modal close
@@ -899,13 +900,17 @@ export default function OpdEntryPage() {
                     setShowModal(false);
                 }
             } else {
+                alert(editingOpdId ? 'OPD entry updated successfully' : 'OPD entry saved successfully');
                 setShowModal(false);
                 resetForm();
+                fetchOpdEntries();
+                fetchDashboardStats();
+                if (fetchAppointments) {
+                    fetchAppointments();
+                }
             }
-            fetchOpdEntries();
-            fetchDashboardStats(); // Refresh stats
         } catch (error) {
-            // Error already handled in saveEntry
+            console.error('Error:', error);
         } finally {
             setLoading(false);
         }
@@ -2405,22 +2410,20 @@ export default function OpdEntryPage() {
                                                     >
                                                         <option value="">Select Doctor</option>
                                                         {doctors.map((doc: any) => {
-                                                            // Temporarily commented out availability check - allow all doctors to be selectable
-                                                            /*
                                                             const todayIST = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
                                                             const availableSlots = getDoctorAvailabilityCount(doc.doctor_id, todayIST);
                                                             const isAvailable = availableSlots > 0;
-                                                            */
-                                                            const isAvailable = true;
+                                                            // Temporarily commented out availability check - allow all doctors to be selectable
+                                                            // const isAvailable = true;
 
                                                             return (
                                                                 <option
                                                                     key={doc.doctor_id}
                                                                     value={doc.doctor_id}
-                                                                    // disabled={!isAvailable}
+                                                                    disabled={!isAvailable}
                                                                     className={!isAvailable ? 'text-gray-400' : ''}
                                                                 >
-                                                                    Dr. {doc.first_name} {doc.last_name} ({doc.specialization})
+                                                                    Dr. {doc.first_name} {doc.last_name} ({doc.specialization}) {!isAvailable ? '* Unavailable' : ''}
                                                                 </option>
                                                             );
                                                         })}
