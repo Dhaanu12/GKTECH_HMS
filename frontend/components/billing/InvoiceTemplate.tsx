@@ -182,14 +182,30 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({ billData }) => {
                         ))}
                     </tbody>
                     <tfoot>
-                        <tr className="bg-slate-50">
-                            <td colSpan={5} className="border border-slate-300 py-3 px-4 text-right font-bold text-slate-900">Sub Total</td>
-                            <td className="border border-slate-300 py-3 px-4 text-right font-black text-slate-900 text-sm">₹{parseFloat(billData?.total_amount).toFixed(2)}</td>
-                        </tr>
-                        <tr className="bg-slate-100">
-                            <td colSpan={5} className="border border-slate-300 py-3 px-4 text-right font-bold text-slate-900">Total Bill</td>
-                            <td className="border border-slate-300 py-3 px-4 text-right font-black text-slate-900 text-xl print:text-lg">₹{parseFloat(billData?.total_amount).toFixed(2)}</td>
-                        </tr>
+                        {(() => {
+                            const subtotal = billData?.items?.filter((i: any) => i.status !== 'Cancelled').reduce((sum: number, item: any) => sum + parseFloat(item.final_price), 0) || 0;
+                            const discountAmount = parseFloat(billData?.discount_amount || 0);
+                            const totalAmount = Math.max(0, subtotal - discountAmount);
+
+                            return (
+                                <>
+                                    <tr className="bg-slate-50">
+                                        <td colSpan={5} className="border border-slate-300 py-3 px-4 text-right font-bold text-slate-900">Sub Total</td>
+                                        <td className="border border-slate-300 py-3 px-4 text-right font-black text-slate-900 text-sm">₹{subtotal.toFixed(2)}</td>
+                                    </tr>
+                                    {discountAmount > 0 && (
+                                        <tr className="bg-slate-50">
+                                            <td colSpan={5} className="border border-slate-300 py-3 px-4 text-right font-bold text-slate-900">Discount</td>
+                                            <td className="border border-slate-300 py-3 px-4 text-right font-black text-red-600 text-sm">-₹{discountAmount.toFixed(2)}</td>
+                                        </tr>
+                                    )}
+                                    <tr className="bg-slate-100">
+                                        <td colSpan={5} className="border border-slate-300 py-3 px-4 text-right font-bold text-slate-900">Total Bill</td>
+                                        <td className="border border-slate-300 py-3 px-4 text-right font-black text-slate-900 text-xl print:text-lg">₹{totalAmount.toFixed(2)}</td>
+                                    </tr>
+                                </>
+                            );
+                        })()}
                     </tfoot>
                 </table>
             </div>

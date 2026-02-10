@@ -27,7 +27,7 @@ export default function BillingPage() {
 
     useEffect(() => {
         fetchAllData();
-    }, [search, selectedDate]);
+    }, [search, selectedDate, activeTab]);
 
     const fetchAllData = async () => {
         setLoading(true);
@@ -148,7 +148,7 @@ export default function BillingPage() {
                 pincode: item.pincode
             },
             visit_type: item.visit_type || 'OPD',
-            consultation_fee: 0
+            consultation_fee: item.total_pending_amount
         });
         setShowBillingModal(true);
     };
@@ -271,9 +271,15 @@ export default function BillingPage() {
                                                 <span className="bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-lg border border-emerald-100 shadow-sm flex items-center gap-1.5 text-sm">
                                                     <Phone className="w-4 h-4" /> {bill.contact_number}
                                                 </span>
-                                                <span className="bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-lg border border-indigo-100 shadow-sm flex items-center gap-1.5">
-                                                    <Tag className="w-3.5 h-3.5" /> {bill.invoice_type || 'OPD'}
-                                                </span>
+                                                {(bill.invoice_type === 'Emergency' || bill.is_mlc) ? (
+                                                    <span className="bg-rose-50 text-rose-700 px-3 py-1.5 rounded-lg border border-rose-100 shadow-sm flex items-center gap-1.5">
+                                                        <Tag className="w-3.5 h-3.5" /> MLC
+                                                    </span>
+                                                ) : (
+                                                    <span className="bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-lg border border-indigo-100 shadow-sm flex items-center gap-1.5">
+                                                        <Tag className="w-3.5 h-3.5" /> {bill.invoice_type || 'OPD'}
+                                                    </span>
+                                                )}
                                             </div>
                                             {(bill.doctor_name || bill.department_name) && (
                                                 <div className="flex items-center gap-4 text-slate-600 bg-slate-50 p-4 rounded-xl border border-slate-100">
@@ -343,9 +349,15 @@ export default function BillingPage() {
                                                 <span className="bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-lg border border-emerald-100 shadow-sm flex items-center gap-1.5 text-sm">
                                                     <Phone className="w-4 h-4" /> {bill.contact_number}
                                                 </span>
-                                                <span className="bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-lg border border-indigo-100 shadow-sm flex items-center gap-1.5">
-                                                    <Tag className="w-3.5 h-3.5" /> {bill.invoice_type || 'OPD'}
-                                                </span>
+                                                {(bill.invoice_type === 'Emergency' || bill.is_mlc) ? (
+                                                    <span className="bg-rose-50 text-rose-700 px-3 py-1.5 rounded-lg border border-rose-100 shadow-sm flex items-center gap-1.5">
+                                                        <Tag className="w-3.5 h-3.5" /> MLC
+                                                    </span>
+                                                ) : (
+                                                    <span className="bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-lg border border-indigo-100 shadow-sm flex items-center gap-1.5">
+                                                        <Tag className="w-3.5 h-3.5" /> {bill.invoice_type || 'OPD'}
+                                                    </span>
+                                                )}
                                             </div>
                                             {(bill.doctor_name || bill.department_name) && (
                                                 <div className="flex items-center gap-4 text-slate-600 bg-slate-50 p-4 rounded-xl border border-slate-100">
@@ -415,9 +427,15 @@ export default function BillingPage() {
                                                 <span className="bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-lg border border-emerald-100 shadow-sm flex items-center gap-1.5 text-sm">
                                                     <Phone className="w-4 h-4" /> {item.contact_number}
                                                 </span>
-                                                <span className="bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-lg border border-indigo-100 shadow-sm flex items-center gap-1.5">
-                                                    <Tag className="w-3.5 h-3.5" /> {item.invoice_type || 'OPD'}
-                                                </span>
+                                                {(item.invoice_type === 'Emergency' || item.is_mlc) ? (
+                                                    <span className="bg-rose-50 text-rose-700 px-3 py-1.5 rounded-lg border border-rose-100 shadow-sm flex items-center gap-1.5">
+                                                        <Tag className="w-3.5 h-3.5" /> MLC
+                                                    </span>
+                                                ) : (
+                                                    <span className="bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-lg border border-indigo-100 shadow-sm flex items-center gap-1.5">
+                                                        <Tag className="w-3.5 h-3.5" /> {item.invoice_type || 'OPD'}
+                                                    </span>
+                                                )}
                                                 {item.due_date && (
                                                     <span className="bg-amber-50 text-amber-700 px-3 py-1.5 rounded-lg border border-amber-100 shadow-sm flex items-center gap-1.5">
                                                         <Clock className="w-3.5 h-3.5" /> Due: {new Date(item.due_date).toLocaleDateString()}

@@ -337,10 +337,10 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, opdData, o
                                                 </td>
                                                 <td className="px-5 py-4">
                                                     {item.status !== 'Cancelled' ? (
-                                                        <div className={`flex items-center justify-center gap-1 bg-white border border-slate-200 rounded-lg p-1 w-fit mx-auto shadow-sm ${(item.service_type === 'consultation' || item.service_name?.toLowerCase().includes('consultation')) ? 'opacity-60 bg-slate-50' : ''}`}>
+                                                        <div className={`flex items-center justify-center gap-1 bg-white border border-slate-200 rounded-lg p-1 w-fit mx-auto shadow-sm ${(item.service_type === 'consultation' || item.service_name?.toLowerCase().includes('consultation') || item.service_name?.toLowerCase().includes('mlc fee')) ? 'opacity-60 bg-slate-50' : ''}`}>
                                                             <button
                                                                 onClick={() => updateQuantity(idx, -1)}
-                                                                disabled={item.service_type === 'consultation' || item.service_name?.toLowerCase().includes('consultation')}
+                                                                disabled={item.service_type === 'consultation' || item.service_name?.toLowerCase().includes('consultation') || item.service_name?.toLowerCase().includes('mlc fee')}
                                                                 className="w-6 h-6 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors flex items-center justify-center disabled:cursor-not-allowed disabled:opacity-50"
                                                             >
                                                                 <Minus className="w-3 h-3" />
@@ -348,7 +348,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, opdData, o
                                                             <span className="w-8 text-center font-bold text-slate-700">{item.quantity}</span>
                                                             <button
                                                                 onClick={() => updateQuantity(idx, 1)}
-                                                                disabled={item.service_type === 'consultation' || item.service_name?.toLowerCase().includes('consultation')}
+                                                                disabled={item.service_type === 'consultation' || item.service_name?.toLowerCase().includes('consultation') || item.service_name?.toLowerCase().includes('mlc fee')}
                                                                 className="w-6 h-6 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors flex items-center justify-center disabled:cursor-not-allowed disabled:opacity-50"
                                                             >
                                                                 <Plus className="w-3 h-3" />

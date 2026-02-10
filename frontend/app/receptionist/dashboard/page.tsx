@@ -8,10 +8,10 @@ import { useRouter } from 'next/navigation';
 import SearchableSelect from '../../../components/ui/SearchableSelect';
 import { Plus, Search, FileText, X, Save, User, Printer, Clock, AlertCircle, AlertTriangle, Calendar, Phone, ArrowRight, Bell, Sparkles, Activity, Users, ChevronLeft, Check, Sun, CloudSun, Moon } from 'lucide-react';
 import UpcomingAppointments from './components/UpcomingAppointments';
+import BillingModal from '../../../components/billing/BillingModal';
 import MultiInputTags from './components/MultiInputTags';
 
 import { format } from 'date-fns';
-import BillingModal from '../../../components/billing/BillingModal';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -88,6 +88,7 @@ export default function ReceptionistDashboard() {
     //     - [x] Verify Functionality
     const [showBillModal, setShowBillModal] = useState(false);
     const [billData, setBillData] = useState<any>(null);
+    const [newOpdData, setNewOpdData] = useState<any>(null);
     const [doctors, setDoctors] = useState<any[]>([]);
     const [branchDetails, setBranchDetails] = useState<any>(null);
 
@@ -137,7 +138,7 @@ export default function ReceptionistDashboard() {
             bp_systolic: '', bp_diastolic: '', pulse: '', temperature: '',
             weight: '', height: '', spo2: '', grbs: ''
         },
-        consultation_fee: '', payment_status: 'Pending', payment_method: 'Cash',
+        consultation_fee: '0', payment_status: 'Pending', payment_method: 'Cash',
         is_mlc: false, mlc_remarks: '', attender_name: '', attender_contact_number: '',
         adhaar_number: '', referral_hospital: '', referral_doctor_name: '',
         address_line1: '', address_line2: '', city: '', state: '', pincode: '',
@@ -190,7 +191,7 @@ export default function ReceptionistDashboard() {
                 bp_systolic: '', bp_diastolic: '', pulse: '', temperature: '',
                 weight: '', height: '', spo2: '', grbs: ''
             },
-            consultation_fee: '', payment_status: 'Pending', payment_method: 'Cash',
+            consultation_fee: '0', payment_status: 'Pending', payment_method: 'Cash',
             is_mlc: false, mlc_remarks: '', attender_name: '', attender_contact_number: '',
             appointment_id: '', // Reset appointment_id
             adhaar_number: '', referral_hospital: '', referral_doctor_name: '',
@@ -714,22 +715,14 @@ export default function ReceptionistDashboard() {
     const saveEntry = async (formData: any = opdForm) => {
         try {
             const token = localStorage.getItem('token');
-            // Calculate Total Fee (Doctor + MLC)
-            // handleEditOpd now loads BASE fee (subtracts MLC), so we always add MLC here
-            let totalFee = parseFloat(formData.consultation_fee || '0');
-            let mlcFeeAmount = 0;
-            if (formData.is_mlc && branchDetails?.mlc_fee) {
-                mlcFeeAmount = parseFloat(branchDetails.mlc_fee);
-                totalFee += mlcFeeAmount;
-            }
             const payload = {
                 ...formData,
                 // Prioritize formData.patient_id (which is updated by handleDropdownSelect)
                 // Fallback to selectedPatient?.patient_id if formData one is missing/empty
                 patient_id: formData.patient_id || selectedPatient?.patient_id,
                 vital_signs: JSON.stringify(formData.vital_signs),
-                consultation_fee: totalFee.toString(),
-                mlc_fee: mlcFeeAmount.toString(), // Send separate MLC fee component
+                consultation_fee: formData.consultation_fee || '0',
+                mlc_fee: formData.is_mlc ? (branchDetails?.mlc_fee || '0') : '0',
                 // Map frontend field names to backend expected names
                 address_line_1: formData.address_line1,
                 address_line_2: formData.address_line2,
@@ -1074,20 +1067,17 @@ export default function ReceptionistDashboard() {
             const savedId = await saveEntry();
             if (savedId) {
                 if (paymentChoice === 'PayNow') {
+                    setNewOpdData(savedId);
                     // 1. Fetch full OPD data for the billing modal
                     // We reuse handlePrintBill logic which fetches data and opens the modal
                     await handlePrintBill(savedId);
 
                     setShowModal(false);
-                    resetForm();
-                    // Refresh dashboard stats in background
-                    fetchStats();
-                    fetchFollowUps();
-                    setAppointmentsRefreshKey(prev => prev + 1);
                 } else {
                     // Pay Later - Just close and refresh
                     setShowModal(false);
                     resetForm();
+                    // Refresh dashboard stats in background
                     fetchStats();
                     fetchFollowUps();
                     setAppointmentsRefreshKey(prev => prev + 1);
@@ -1132,10 +1122,10 @@ export default function ReceptionistDashboard() {
         try {
             const savedId = await saveEntry();
             if (savedId) {
+                setNewOpdData(savedId); // Set for reset trigger
                 await handlePrintBill(savedId);
                 setShowModal(false);
-                resetForm();
-                await fetchStats();
+                // resetForm(); // handled in BillingModal onClose
                 await fetchStats();
                 await fetchFollowUps();
                 setAppointmentsRefreshKey(prev => prev + 1); // Refresh appointments
@@ -1501,14 +1491,14 @@ export default function ReceptionistDashboard() {
                                     )}
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    {opdForm.payment_status === 'Paid' && (
+                                    {opdForm.payment_status === 'Paid' && !editingOpdId && (
                                         <button
                                             type="button"
-                                            onClick={editingOpdId ? () => handlePrintBill(editingOpdId) : handleSaveAndPrint}
+                                            onClick={handleSaveAndPrint}
                                             className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition text-sm font-bold"
                                         >
                                             <Printer className="w-4 h-4" />
-                                            {editingOpdId ? 'Print Bill' : 'Save & Print'}
+                                            Save & Print
                                         </button>
                                     )}
                                     <button
@@ -2109,10 +2099,12 @@ export default function ReceptionistDashboard() {
                                                         onChange={(e) => {
                                                             const val = e.target.value;
                                                             const selectedDoc = doctors.find((d: any) => d.doctor_id === parseInt(val));
+                                                            const baseFee = selectedDoc?.consultation_fee?.toString() || '0';
+
                                                             setOpdForm({
                                                                 ...opdForm,
                                                                 doctor_id: val,
-                                                                consultation_fee: selectedDoc?.consultation_fee || ''
+                                                                consultation_fee: baseFee
                                                             });
                                                         }}
                                                         required
@@ -2365,8 +2357,8 @@ export default function ReceptionistDashboard() {
                                                     <input
                                                         type="number"
                                                         value={opdForm.consultation_fee}
-                                                        onChange={(e) => setOpdForm({ ...opdForm, consultation_fee: e.target.value })}
-                                                        className="w-32 pl-7 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                                        readOnly
+                                                        className="w-32 pl-7 pr-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-sm font-bold text-slate-700 cursor-not-allowed"
                                                         placeholder="0.00"
                                                     />
                                                 </div>
@@ -2954,6 +2946,30 @@ export default function ReceptionistDashboard() {
                     .print\\:shadow-none { box-shadow: none !important; }
                 }
             `}</style>
+
+            <BillingModal
+                isOpen={showBillModal}
+                onClose={() => {
+                    setShowBillModal(false);
+                    // If we just finished a Pay Now flow, we should reset the form
+                    if (newOpdData) {
+                        resetForm();
+                        setNewOpdData(null);
+                    }
+                    if (billData) setBillData(null);
+
+                    // Always refresh the list
+                    fetchStats();
+                    fetchFollowUps();
+                    setAppointmentsRefreshKey(prev => prev + 1);
+                }}
+                opdData={billData || newOpdData} // Prioritize full data from billData (GET) over partial data from newOpdData (POST)
+                onSuccess={() => {
+                    fetchStats();
+                    fetchFollowUps();
+                    setAppointmentsRefreshKey(prev => prev + 1);
+                }}
+            />
         </div >
     );
 }
