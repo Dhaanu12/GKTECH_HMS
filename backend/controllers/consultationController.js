@@ -220,11 +220,6 @@ class ConsultationController {
             // 2. Create Prescription if medications or labs are provided
             let prescription_id = null;
             if ((medications && medications.length > 0) || (labs && labs.length > 0)) {
-                // Determine status based on whether items exist
-                // If only labs, it's still an active prescription? Yes.
-            // 1. Create Prescription if medications provided
-            let prescription_id = null;
-            if (medications && medications.length > 0) {
                 // Fetch branch_id from OPD entry
                 const opdResult = await client.query('SELECT branch_id FROM opd_entries WHERE opd_id = $1', [opd_id]);
                 const branch_id = opdResult.rows[0]?.branch_id;
