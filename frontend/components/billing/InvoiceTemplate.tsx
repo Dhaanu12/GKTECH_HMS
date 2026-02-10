@@ -125,31 +125,31 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({ billData }) => {
 
                 {/* Right Column */}
                 <div className="space-y-2">
-                    <div className="grid grid-cols-[140px_1fr]">
+                    <div className="grid grid-cols-[140px_1fr] gap-x-4">
                         <span className="font-bold text-slate-500 uppercase">Bill No:</span>
                         <span className="font-bold text-slate-900 uppercase">{billData?.bill_number}</span>
                     </div>
-                    <div className="grid grid-cols-[140px_1fr]">
+                    <div className="grid grid-cols-[140px_1fr] gap-x-4">
                         <span className="font-bold text-slate-500 uppercase">Bill Date:</span>
                         <span className="font-bold text-slate-900">{formatDate(billData?.billing_date)}</span>
                     </div>
-                    <div className="grid grid-cols-[140px_1fr]">
+                    <div className="grid grid-cols-[140px_1fr] gap-x-4">
                         <span className="font-bold text-slate-500 uppercase">MR No:</span>
                         <span className="font-bold text-slate-900 uppercase">{billData?.mrn_number}</span>
                     </div>
-                    <div className="grid grid-cols-[140px_1fr]">
+                    <div className="grid grid-cols-[140px_1fr] gap-x-4">
                         <span className="font-bold text-slate-500 uppercase">Visit ID:</span>
                         <span className="font-bold text-slate-900 uppercase">{billData?.opd_number}</span>
                     </div>
-                    <div className="grid grid-cols-[140px_1fr]">
+                    <div className="grid grid-cols-[140px_1fr] gap-x-4">
                         <span className="font-bold text-slate-500 uppercase">Registered Date:</span>
                         <span className="font-bold text-slate-900">{formatDateTime(billData?.registered_date)}</span>
                     </div>
-                    <div className="grid grid-cols-[140px_1fr]">
+                    <div className="grid grid-cols-[140px_1fr] gap-x-4">
                         <span className="font-bold text-slate-500 uppercase">Patient's Phone:</span>
                         <span className="font-bold text-slate-900">{billData?.contact_number}</span>
                     </div>
-                    <div className="grid grid-cols-[140px_1fr]">
+                    <div className="grid grid-cols-[140px_1fr] gap-x-4">
                         <span className="font-bold text-slate-500 uppercase">Caretaker Phone:</span>
                         <span className="font-bold text-slate-900">N/A</span>
                     </div>
