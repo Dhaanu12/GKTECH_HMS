@@ -38,6 +38,7 @@ export interface LabOrder {
     notes: string | null;
     result_summary: string | null;
     assigned_nurse_id: number | null;
+    source: string; // 'billing_master' (in-house) or 'medical_service' (external)
 }
 
 export interface StatusCounts {
@@ -102,7 +103,7 @@ export const fetchLabOrders = async (filters: LabOrderFilters = {}) => {
 export const fetchOPDEntries = async (date?: string) => {
     const params = new URLSearchParams();
     if (date) params.append('date', date);
-    
+
     const response = await axios.get(`${API_BASE}/opd?${params.toString()}`, createAuthConfig());
     return response.data;
 };
@@ -112,7 +113,7 @@ export const searchPatients = async (query: string, type?: 'phone' | 'mrn' | 'co
     const params = new URLSearchParams();
     params.append('q', query);
     if (type) params.append('type', type);
-    
+
     const response = await axios.get(`${API_BASE}/patients/search?${params.toString()}`, createAuthConfig());
     return response.data;
 };

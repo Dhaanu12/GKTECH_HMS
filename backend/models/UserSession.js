@@ -17,7 +17,7 @@ class UserSession extends BaseModel {
         const tokenHash = PasswordUtils.hashToken(token);
         const refreshTokenHash = refreshToken ? PasswordUtils.hashToken(refreshToken) : null;
 
-        return await this.create({
+        const sessionRecord = {
             user_id: userId,
             token_hash: tokenHash,
             refresh_token_hash: refreshTokenHash,
@@ -27,7 +27,35 @@ class UserSession extends BaseModel {
             expires_at: expiresAt,
             refresh_expires_at: refreshExpiresAt,
             is_active: true
-        });
+        };
+
+        try {
+            return await this.create(sessionRecord);
+        } catch (error) {
+            // Handle duplicate key error (23505) by fixing sequence and retrying
+            if (error.code === '23505' && error.constraint === 'user_sessions_pkey') {
+                console.warn('Duplicate session_id detected. Fixing sequence and retrying...');
+
+                try {
+                    // Fix the sequence
+                    const fixQuery = `
+                        SELECT setval(
+                            pg_get_serial_sequence('user_sessions', 'session_id'),
+                            COALESCE((SELECT MAX(session_id) FROM user_sessions), 0) + 1,
+                            false
+                        )
+                    `;
+                    await this.executeQuery(fixQuery);
+
+                    // Retry the insert
+                    return await this.create(sessionRecord);
+                } catch (retryError) {
+                    console.error('Failed to fix sequence and retry:', retryError);
+                    throw retryError;
+                }
+            }
+            throw error;
+        }
     }
 
     /**

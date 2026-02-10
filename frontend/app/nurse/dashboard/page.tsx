@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../lib/AuthContext';
+import { useAI } from '../../../components/ai';
 import {
     fetchLabOrders,
     fetchOPDEntries,
@@ -53,6 +54,10 @@ const statusColors = {
 export default function NurseDashboard() {
     const { user } = useAuth();
     const router = useRouter();
+    
+    // AI context - clear patient context when on dashboard
+    let aiContext: { setPageContext?: (page: string, patient?: string) => void } = {};
+    try { aiContext = useAI(); } catch { /* AIContextProvider not available */ }
 
     // State
     const [shift, setShift] = useState<'Day' | 'Night'>('Day');
@@ -213,6 +218,20 @@ export default function NurseDashboard() {
         const entryDate = new Date(entry.visit_date).toISOString().split('T')[0];
         return entryDate === today;
     });
+    
+    // Set AI context for dashboard (clears any patient-specific context)
+    useEffect(() => {
+        if (aiContext.setPageContext && !loading) {
+            const dashboardContext = `Viewing Nurse Dashboard. ` +
+                `User: Nurse ${user?.first_name || user?.username || 'User'}. ` +
+                `Current shift: ${shift}. ` +
+                `Summary: ${myTasksCount} tasks assigned to me, ${pendingCount} pending orders, ${urgentCount} urgent/STAT orders, ${completedTodayCount} completed today. ` +
+                `Today's OPD: ${todayOPD.length} patients. ` +
+                `Note: This is the dashboard overview. No specific patient is currently selected. ` +
+                `To help with a specific patient, ask the user for the patient name or MRN, or use the searchPatients tool.`;
+            aiContext.setPageContext('/nurse/dashboard', dashboardContext);
+        }
+    }, [aiContext.setPageContext, loading, user, shift, myTasksCount, pendingCount, urgentCount, completedTodayCount, todayOPD.length]);
 
     // Handle quick actions
     const handleStartTask = async (orderId: number) => {
@@ -353,7 +372,7 @@ export default function NurseDashboard() {
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             <Activity className="w-5 h-5 text-blue-600" />
-                            <h2 className="text-lg font-bold text-slate-800">Lab Orders</h2>
+                            <h2 className="text-lg font-bold text-slate-800">Labs</h2>
                         </div>
                         <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
                             {[
@@ -607,7 +626,16 @@ function LabOrderCard({
 
     const isAssignedToMe = order.assigned_nurse_id === nurseId;
     const canStart = order.status === 'Ordered' && isAssignedToMe;
-    const canAssign = !order.assigned_nurse_id && nurseId;
+
+    // Only show assign button for in-house tests (billing_master)
+    // External tests (medical_service) should not be assigned to nurses
+    const isInHouse = order.source === 'billing_master';
+    const canAssign = !order.assigned_nurse_id && nurseId && isInHouse;
+
+    // Debug log
+    if (!order.assigned_nurse_id) {
+        console.log(`[LAB] ${order.test_name}: source="${order.source}", isInHouse=${isInHouse}, canAssign=${canAssign}`);
+    }
 
     return (
         <div

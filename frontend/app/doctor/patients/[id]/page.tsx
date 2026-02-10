@@ -78,7 +78,7 @@ export default function PatientDetails() {
         diagnosis: '',
         pathology_lab: '',
         notes: '',
-        labs: [] as { test_name: string; lab_name: string }[],
+        labs: [] as any[],
         medications: [] as any[],
         next_visit_date: '',
         next_visit_status: 'Follow-up Required',
@@ -261,9 +261,9 @@ export default function PatientDetails() {
             }
         } catch (error: any) {
             if (axios.isAxiosError(error) && error.response?.status === 401) {
-                localStorage.removeItem('token');
-                localStorage.removeItem('user');
-                router.push('/login');
+                const failedUrl = error.config?.url;
+                const pageUrl = typeof window !== 'undefined' ? window.location.href : 'unknown';
+                // Silent 401 handling - no logs
                 return;
             }
             console.error('Error fetching patient details:', error);
@@ -285,9 +285,9 @@ export default function PatientDetails() {
             setReferralDoctors(doctorsRes.data.data.referralDoctors || []);
         } catch (error: any) {
             if (axios.isAxiosError(error) && error.response?.status === 401) {
-                localStorage.removeItem('token');
-                localStorage.removeItem('user');
-                router.push('/login');
+                const failedUrl = error.config?.url;
+                const pageUrl = typeof window !== 'undefined' ? window.location.href : 'unknown';
+                // Silent 401 handling - no logs
                 return;
             }
             console.error('Error fetching referral data:', error);
@@ -318,9 +318,9 @@ export default function PatientDetails() {
                 });
             }
         } catch (error: any) {
-            console.error('Error loading draft:', error);
-            if (axios.isAxiosError(error) && error.response?.status === 401) {
-                router.push('/login');
+            // Silent handling for 401 errors
+            if (error.response?.status !== 401) {
+                console.error('Error loading draft:', error);
             }
         }
     };
@@ -976,8 +976,9 @@ export default function PatientDetails() {
 
         try {
             const token = localStorage.getItem('token');
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
             const activeOpd = opdHistory.find(opd => ['Registered', 'In-consultation'].includes(opd.visit_status)) || opdHistory[0];
-            const branchId = activeOpd?.branch_id;
+            const branchId = activeOpd?.branch_id || user.branch_id;
 
             // Use the unified billing setup search if branchId is available
             const endpoint = branchId
@@ -1013,7 +1014,15 @@ export default function PatientDetails() {
     const selectLabService = (service: any) => {
         setConsultationData(prev => ({
             ...prev,
-            labs: [...prev.labs, { ...newLab, test_name: service.service_name }]
+            labs: [...prev.labs, {
+                test_name: service.service_name,
+                lab_name: '', // User will enter this if external
+                source: service.source,
+                category: service.category,
+                price: service.price,
+                code: service.code,
+                service_id: service.id || service.service_id
+            }]
         }));
         setNewLab({ test_name: '', lab_name: '' });
         setShowLabDropdown(false);
@@ -1027,7 +1036,15 @@ export default function PatientDetails() {
             const service = labSearchResults[0];
             setConsultationData(prev => ({
                 ...prev,
-                labs: [...prev.labs, { ...newLab, test_name: service.service_name }]
+                labs: [...prev.labs, {
+                    test_name: service.service_name,
+                    lab_name: '', // User will enter this if external
+                    source: service.source,
+                    category: service.category,
+                    price: service.price,
+                    code: service.code,
+                    service_id: service.id || service.service_id
+                }]
             }));
             setNewLab({ test_name: '', lab_name: '' });
             setShowLabDropdown(false);
@@ -1163,7 +1180,7 @@ export default function PatientDetails() {
 
                  ${printedLabs.length > 0 ? `
                 <div class="section">
-                    <div class="section-title">Lab Orders</div>
+                    <div class="section-title">Labs</div>
                     <table>
                         <thead>
                             <tr>
@@ -1375,7 +1392,7 @@ export default function PatientDetails() {
 
                  ${printedLabs.length > 0 ? `
                 <div class="section">
-                    <div class="section-title">Lab Orders</div>
+                    <div class="section-title">Labs</div>
                     <table>
                         <thead>
                             <tr>
@@ -1548,8 +1565,34 @@ export default function PatientDetails() {
         }
     };
 
+    if (loading) {
+
+
+        return (
+
+
+            <div className="flex justify-center items-center min-h-screen">
+
+
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+
+
+            </div>
+
+
+        );
+
+
+    }
+
+
+
     if (!patient) {
+
+
         return <div>Patient not found</div>;
+
+
     }
 
     console.log('Rendering PatientDetails, patient:', patient);
@@ -1920,22 +1963,22 @@ export default function PatientDetails() {
                                                 </div>
 
                                                 {/* Conditional Pathology/Lab Field */}
-                                                {consultationData.diagnosis && (
+                                                {(consultationData.diagnosis || consultationData.labs.some((l: any) => l.source && l.source !== 'billing_master')) && (
                                                     <div className="mt-3 pt-3 border-t border-slate-200 animate-in fade-in slide-in-from-top-2">
                                                         <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Pathology/Lab (Diagnostic center)</label>
                                                         <input
                                                             type="text"
                                                             placeholder="Enter Diagnostic Center..."
                                                             className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 focus:ring-2 focus:ring-purple-500/10 focus:border-purple-300 transition-all outline-none"
-                                                            value={(consultationData as any).pathology_lab || ''}
-                                                            onChange={(e) => setConsultationData({ ...consultationData, pathology_lab: e.target.value } as any)}
+                                                            value={consultationData.pathology_lab || ''}
+                                                            onChange={(e) => setConsultationData({ ...consultationData, pathology_lab: e.target.value })}
                                                         />
                                                     </div>
                                                 )}
                                             </div>
 
                                             <div>
-                                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2 ml-1">Lab Orders</label>
+                                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2 ml-1">Labs</label>
                                                 <div className="bg-slate-50/50 rounded-xl border border-slate-200 p-3 min-h-[128px] flex flex-col">
                                                     <div className="relative z-10">
                                                         <div className="flex gap-2 mb-2">
@@ -1978,8 +2021,8 @@ export default function PatientDetails() {
                                                                                 </div>
                                                                                 {service.source && (
                                                                                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border ${service.source === 'billing_master'
-                                                                                            ? 'bg-blue-50 text-blue-600 border-blue-200'
-                                                                                            : 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                                                                                        ? 'bg-blue-50 text-blue-600 border-blue-200'
+                                                                                        : 'bg-emerald-50 text-emerald-600 border-emerald-200'
                                                                                         }`}>
                                                                                         {service.source === 'billing_master' ? 'In-House' : 'External'}
                                                                                     </span>
@@ -2031,16 +2074,19 @@ export default function PatientDetails() {
 
                                                 <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-blue-50/50">
                                                     <div className="flex items-center gap-3 text-xs">
-                                                        {['Mor', 'Noon', 'Night'].map((time) => (
-                                                            <label key={time} className="cursor-pointer flex items-center gap-1 hover:bg-blue-50 px-1.5 py-1 rounded transition">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={!!(newMedication as any)[time.toLowerCase()]}
-                                                                    onChange={(e) => setNewMedication({ ...newMedication, [time.toLowerCase()]: e.target.checked })}
-                                                                    className="rounded text-blue-600 w-3.5 h-3.5"
-                                                                /> {time}
-                                                            </label>
-                                                        ))}
+                                                        {['Mor', 'Noon', 'Night'].map((time) => {
+                                                            const key = time === 'Mor' ? 'morning' : time.toLowerCase();
+                                                            return (
+                                                                <label key={time} className="cursor-pointer flex items-center gap-1 hover:bg-blue-50 px-1.5 py-1 rounded transition">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={!!(newMedication as any)[key]}
+                                                                        onChange={(e) => setNewMedication({ ...newMedication, [key]: e.target.checked })}
+                                                                        className="rounded text-blue-600 w-3.5 h-3.5"
+                                                                    /> {time}
+                                                                </label>
+                                                            );
+                                                        })}
                                                     </div>
                                                     <div className="flex items-center gap-3">
                                                         <div className="flex bg-slate-100 rounded p-0.5">

@@ -36,8 +36,6 @@ module.exports = {
 
     // Billing Models
     Service: require('./Service'),
-    Billing: require('./Billing'),
-    BillingItem: require('./BillingItem'),
 
     // New Billing Models
     BillingMaster: require('./BillingMaster'),

@@ -1,0 +1,5 @@
+[
+  {
+    "definition": "CHECK (((test_category)::text = ANY (ARRAY[('Lab'::character varying)::text, ('Imaging'::character varying)::text, ('Procedure'::character varying)::text, ('Examination'::character varying)::text, ('Other'::character varying)::text])))"
+  }
+]

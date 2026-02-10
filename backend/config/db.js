@@ -8,9 +8,11 @@ const pool = new Pool({
   database: process.env.DB_NAME || 'hms_database_beta',
   user: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD || 'root',
-  max: 20, // Maximum number of clients in the pool
+  max: 30, // Maximum number of clients in the pool (increased from 20)
   idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
-  connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection could not be established
+  connectionTimeoutMillis: 10000, // Return an error after 10 seconds (increased from 2 seconds)
+  query_timeout: 30000, // Query timeout 30 seconds
+  statement_timeout: 30000, // Statement timeout 30 seconds
 });
 
 // Test the database connection

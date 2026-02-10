@@ -124,7 +124,7 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
                                 </div>
                             )}
                             <h2 className="text-lg font-semibold text-slate-700">
-                                {navItems.find(item => item.path === pathname)?.name || (pathname.startsWith('/doctor/patients') ? 'Patients' : 'Dashboard')}
+                                {navItems.find(item => item.path === pathname)?.name || 'Dashboard'}
                             </h2>
                         </div>
 

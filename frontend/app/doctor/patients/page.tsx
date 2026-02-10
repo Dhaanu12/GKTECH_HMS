@@ -38,8 +38,11 @@ export default function DoctorPatients() {
             });
             setPatients(response.data.data.patients || []);
             setFilteredPatients(response.data.data.patients || []);
-        } catch (error) {
-            console.error('Error fetching patients:', error);
+        } catch (error: any) {
+            // Silent handling for 401 errors
+            if (error.response?.status !== 401) {
+                console.error('Error fetching patients:', error);
+            }
         } finally {
             setLoading(false);
         }

@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 import Link from 'next/link';
 import { LayoutDashboard, Users, LogOut, HeartPulse, MessageSquare, Beaker } from 'lucide-react';
+import { AIContextProvider, FloatingAIAssistant } from '@/components/ai';
 
 export default function NurseLayout({ children }: { children: React.ReactNode }) {
     const { isAuthenticated, loading, user, logout } = useAuth();
@@ -135,7 +136,10 @@ export default function NurseLayout({ children }: { children: React.ReactNode })
                 </header>
 
                 <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-8">
-                    {children}
+                    <AIContextProvider role="nurse" initialPage={pathname}>
+                        {children}
+                        <FloatingAIAssistant />
+                    </AIContextProvider>
                 </main>
             </div>
         </div>

@@ -27,8 +27,11 @@ import {
     TrendingUp,
     ChevronLeft,
     ChevronRight,
-    AlertCircle
+    AlertCircle,
+    Sparkles
 } from 'lucide-react';
+import { AIInsightCard, AILoadingIndicator, useAI } from '@/components/ai';
+import { analyzeFeedback } from '@/lib/api/ai';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -61,6 +64,10 @@ interface Stats {
 }
 
 export default function NurseFeedbackPage() {
+    // AI context - clear patient context when on feedbacks page
+    let aiContext: { setPageContext?: (page: string, patient?: string) => void } = {};
+    try { aiContext = useAI(); } catch { /* AIContextProvider not available */ }
+    
     const [activeTab, setActiveTab] = useState('All');
     const [showModal, setShowModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState<Feedback | null>(null);
@@ -101,6 +108,32 @@ export default function NurseFeedbackPage() {
     const [trends, setTrends] = useState<any[]>([]);
     const [topTags, setTopTags] = useState<any[]>([]);
     const [showTrends, setShowTrends] = useState(false);
+    
+    // AI analysis state
+    const [aiAnalysis, setAiAnalysis] = useState<Record<number, string>>({});
+    const [aiAnalysisLoading, setAiAnalysisLoading] = useState<number | null>(null);
+    
+    const handleAIAnalyzeFeedback = async (feedback: Feedback) => {
+        setAiAnalysisLoading(feedback.id);
+        
+        try {
+            const result = await analyzeFeedback(
+                feedback.rating,
+                feedback.comment,
+                feedback.tags ? feedback.tags.split(',').map(t => t.trim()) : []
+            );
+            
+            if (result.success) {
+                setAiAnalysis(prev => ({ ...prev, [feedback.id]: result.message }));
+            } else {
+                setAiAnalysis(prev => ({ ...prev, [feedback.id]: result.message }));
+            }
+        } catch (err) {
+            setAiAnalysis(prev => ({ ...prev, [feedback.id]: 'Failed to analyze feedback.' }));
+        } finally {
+            setAiAnalysisLoading(null);
+        }
+    };
 
     const fetchFeedbacks = useCallback(async () => {
         try {
@@ -139,6 +172,18 @@ export default function NurseFeedbackPage() {
     useEffect(() => {
         fetchFeedbacks();
     }, [fetchFeedbacks]);
+    
+    // Set AI context for feedbacks page (clears patient-specific context)
+    useEffect(() => {
+        if (aiContext.setPageContext && !loading && stats) {
+            const feedbackContext = `Viewing Patient Feedbacks page. ` +
+                `Summary: ${stats.total} total feedbacks, ${stats.positive} positive, ${stats.negative} negative, ${stats.neutral} neutral. ` +
+                `Average rating: ${stats.avg_rating}/5. Addressed: ${stats.addressed}. ` +
+                `Note: This is a feedbacks list. No specific patient is currently selected. ` +
+                `To help with a specific patient, ask for the patient name or MRN, or use searchPatients tool.`;
+            aiContext.setPageContext('/nurse/feedbacks', feedbackContext);
+        }
+    }, [aiContext.setPageContext, loading, stats]);
 
     const fetchTrends = useCallback(async () => {
         try {
@@ -652,6 +697,34 @@ export default function NurseFeedbackPage() {
                                                     )}
                                                 </div>
                                             )}
+                                            
+                                            {/* AI Analysis Button & Display */}
+                                            <div className="mt-3">
+                                                {aiAnalysisLoading === item.id ? (
+                                                    <AILoadingIndicator text="Analyzing feedback..." variant="compact" />
+                                                ) : aiAnalysis[item.id] ? (
+                                                    <AIInsightCard
+                                                        title="AI Analysis"
+                                                        content={aiAnalysis[item.id]}
+                                                        type="info"
+                                                        onDismiss={() => setAiAnalysis(prev => {
+                                                            const newState = { ...prev };
+                                                            delete newState[item.id];
+                                                            return newState;
+                                                        })}
+                                                        className="mt-2"
+                                                    />
+                                                ) : (
+                                                    <button
+                                                        onClick={() => handleAIAnalyzeFeedback(item)}
+                                                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
+                                                        title="Get AI analysis and response suggestion"
+                                                    >
+                                                        <Sparkles className="w-3.5 h-3.5" />
+                                                        AI Analyze & Suggest Response
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                     <div className="flex flex-row md:flex-col items-center md:items-end gap-2">

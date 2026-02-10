@@ -62,7 +62,6 @@ export default function MarketingDashboard() {
                         doctor={selectedDoctor}
                         onSuccess={() => setView('list')}
                         onCancel={() => setView('list')}
-                        requireLocation={true}
                     />
                 </div>
             )}
