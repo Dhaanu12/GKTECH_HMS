@@ -1,5 +1,7 @@
 const { query } = require('../config/db');
 const { AppError } = require('../middleware/errorHandler');
+const fs = require('fs');
+const path = require('path');
 
 class PatientController {
     /**
@@ -71,9 +73,17 @@ class PatientController {
      * Get all patients (limited to recent, filtered by branch)
      * GET /api/patients
      */
+    /**
+     * Get all patients (limited to recent, filtered by branch)
+     * GET /api/patients
+     */
     static async getAllPatients(req, res, next) {
+        const logFile = path.join(__dirname, '../debug_log.txt');
+        const log = (msg) => fs.appendFileSync(logFile, `${new Date().toISOString()} - ${msg}\n`);
+
         try {
             const branch_id = req.user.branch_id;
+            log(`getAllPatients called. User: ${req.user.user_id}, Branch: ${branch_id}`);
 
             // If user has no branch (e.g. super admin), return all
             // But for receptionist, branch_id should be present
@@ -81,6 +91,7 @@ class PatientController {
             let params = [];
 
             if (branch_id) {
+                console.log(`[DEBUG] getAllPatients: Fetching for branch_id=${branch_id}`);
                 // Better approach for performance:
                 sql = `
                     WITH BranchPatients AS (
@@ -88,7 +99,7 @@ class PatientController {
                         FROM patients p
                         LEFT JOIN opd_entries o ON p.patient_id = o.patient_id
                         LEFT JOIN appointments a ON p.patient_id = a.patient_id
-                        WHERE (o.branch_id = $1 OR a.branch_id = $1) AND p.is_active = true
+                        WHERE ((o.branch_id = $1 OR a.branch_id = $1) OR (o.opd_id IS NULL AND a.appointment_id IS NULL)) AND p.is_active = true
                     ),
                     LatestOPD AS (
                         SELECT DISTINCT ON (patient_id) *
@@ -117,12 +128,20 @@ class PatientController {
                 `;
             }
 
-            const result = await query(sql, params);
+            if (sql) {
+                log(`Executing SQL: ${sql.replace(/\s+/g, ' ').substring(0, 100)}...`);
+                log(`Params: ${JSON.stringify(params)}`);
+                const result = await query(sql, params);
+                log(`Query returned ${result.rows.length} rows.`);
 
-            res.status(200).json({
-                status: 'success',
-                data: { patients: result.rows }
-            });
+                res.status(200).json({
+                    status: 'success',
+                    data: { patients: result.rows }
+                });
+            } else {
+                log('SQL is undefined!');
+                throw new Error('SQL is undefined');
+            }
         } catch (error) {
             console.error('Get all patients error:', error);
             next(new AppError('Failed to fetch patients', 500));
@@ -295,26 +314,30 @@ class PatientController {
      * GET /api/patients/my-patients
      */
     static async getMyPatients(req, res, next) {
+        const logFile = path.join(__dirname, '../debug_log.txt');
+        const log = (msg) => fs.appendFileSync(logFile, `${new Date().toISOString()} - ${msg}\n`);
+
         try {
             const userId = req.user.user_id;
             const { search } = req.query;
+            log(`getMyPatients called. User: ${userId}, Role: ${req.user.role_code || 'unknown'}`);
 
             let sql = `
-                SELECT p.*, 
+                SELECT p.*,
                        MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit,
                        BOOL_OR(o.is_mlc) as is_mlc
                 FROM patients p
-                LEFT JOIN appointments a ON p.patient_id = a.patient_id
-                LEFT JOIN opd_entries o ON p.patient_id = o.patient_id
-                JOIN doctors d ON (a.doctor_id = d.doctor_id OR o.doctor_id = d.doctor_id)
-                WHERE d.user_id = $1
+            LEFT JOIN appointments a ON p.patient_id = a.patient_id
+            LEFT JOIN opd_entries o ON p.patient_id = o.patient_id
+            LEFT JOIN doctors d ON (a.doctor_id = d.doctor_id OR o.doctor_id = d.doctor_id)
+            WHERE d.user_id = $1 AND d.user_id IS NOT NULL
             `;
             const params = [userId];
 
             if (search) {
                 sql += ` AND (
-                    p.first_name ILIKE $${params.length + 1} OR 
-                    p.last_name ILIKE $${params.length + 1} OR 
+                    p.first_name ILIKE $${params.length + 1} OR
+                    p.last_name ILIKE $${params.length + 1} OR
                     p.contact_number LIKE $${params.length + 1} OR
                     p.mrn_number ILIKE $${params.length + 1}
                 )`;
@@ -323,7 +346,10 @@ class PatientController {
 
             sql += ` GROUP BY p.patient_id ORDER BY last_visit DESC`;
 
+            log(`Executing SQL: ${sql.replace(/\s+/g, ' ').substring(0, 150)}...`);
+            log(`Params: ${JSON.stringify(params)}`);
             const result = await query(sql, params);
+            log(`Query returned ${result.rows.length} rows.`);
 
             res.status(200).json({
                 status: 'success',
@@ -334,6 +360,7 @@ class PatientController {
             next(new AppError('Failed to fetch patients', 500));
         }
     }
+
 }
 
 module.exports = PatientController;

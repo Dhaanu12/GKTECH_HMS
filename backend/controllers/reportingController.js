@@ -114,7 +114,9 @@ class ReportingController {
                             +
                             (SELECT COUNT(*) FROM opd_entries o 
                              WHERE o.visit_date >= $2::date AND o.visit_date <= $3::date 
-                             AND o.checked_in_by = s.user_id)
+                             AND o.checked_in_by IS NOT NULL 
+                             AND o.checked_in_by ~ '^[0-9]+$'
+                             AND o.checked_in_by::INTEGER = s.user_id)
                         ) as task_count,
                         -- Primary Performance Metric (Cancellations + No-shows handled/recorded)
                         (SELECT COUNT(*) FROM appointments a 
@@ -123,7 +125,7 @@ class ReportingController {
                          
                          -- Detailed Breakdown
                          (SELECT COUNT(*) FROM appointments a WHERE a.confirmed_by = s.user_id AND a.appointment_date >= $2::date AND a.appointment_date <= $3::date) as total_confirmed,
-                         (SELECT COUNT(*) FROM opd_entries o WHERE o.checked_in_by = s.user_id AND o.visit_date >= $2::date AND o.visit_date <= $3::date) as opd_checkins,
+                         (SELECT COUNT(*) FROM opd_entries o WHERE o.checked_in_by IS NOT NULL AND o.checked_in_by ~ '^[0-9]+$' AND o.checked_in_by::INTEGER = s.user_id AND o.visit_date >= $2::date AND o.visit_date <= $3::date) as opd_checkins,
                          (SELECT COUNT(*) FROM appointments a WHERE a.confirmed_by = s.user_id AND a.appointment_status = 'No-show' AND a.appointment_date >= $2::date AND a.appointment_date <= $3::date) as no_show_count,
                          (SELECT COUNT(*) FROM appointments a WHERE a.cancelled_by = s.user_id AND a.appointment_date >= $2::date AND a.appointment_date <= $3::date) as cancellations_handled
                     FROM staff s

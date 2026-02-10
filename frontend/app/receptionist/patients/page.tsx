@@ -30,14 +30,17 @@ export default function ReceptionistPatients() {
 
     const fetchPatients = async () => {
         try {
+            console.log('Fetching patients...');
             const token = localStorage.getItem('token');
             let url = `${API_URL}/patients/search`;
             if (searchTerm) {
                 url += `?q=${searchTerm}`;
             }
+            console.log('API URL:', url);
             const response = await axios.get(url, {
                 headers: { Authorization: `Bearer ${token}` }
             });
+            console.log('API Response:', response.data);
             setPatients(response.data.data.patients || []);
         } catch (error) {
             console.error('Error fetching patients:', error);
