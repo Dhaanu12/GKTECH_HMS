@@ -54,13 +54,91 @@ export default function DoctorDashboard() {
             if (response.data.status === 'success') {
                 setStats(response.data.data);
             }
-        } catch (error) {
-            console.error('Error fetching dashboard stats:', error);
+        } catch (error: any) {
+            // Silent handling for 401 errors
+            if (error.response?.status !== 401) {
+                console.error('Error fetching dashboard stats:', error);
+            }
         } finally {
             setLoading(false);
         }
     };
 
+    // const fetchWaitingQueue = async () => {
+    //     try {
+    //         const token = localStorage.getItem('token');
+    //         const today = new Date().toISOString().split('T')[0];
+
+    //         // Use the same API as My Appointments page - returns pre-filtered data for this doctor
+    //         const response = await axios.get(`${API_URL}/doctors/schedule?date=${today}`, {
+    //             headers: { Authorization: `Bearer ${token}` }
+    //         });
+
+    //         if (response.data.status === 'success') {
+    //             const data = response.data.data;
+
+    //             // Waiting queue from API (already filtered for this doctor)
+    //             const queue = data.waitingQueue || [];
+    //             // Sort: MLC first, then by token/time
+    //             const sortedQueue = queue.sort((a: any, b: any) => {
+    //                 if (a.is_mlc && !b.is_mlc) return -1;
+    //                 if (!a.is_mlc && b.is_mlc) return 1;
+    //                 return 0;
+    //             });
+    //             setWaitingPatients(sortedQueue);
+
+    //             // Completed today
+    //             setCompletedToday((data.completedConsultations || []).length);
+
+    //             // Pending prescriptions = waiting patients that need Rx (approximate)
+    //             const inProgress = (data.waitingQueue || []).filter((p: any) =>
+    //                 p.visit_status === 'In-consultation'
+    //             );
+    //             setPendingPrescriptions(inProgress);
+
+    //             // Calculate today's revenue from completed consultations
+    //             const revenue = (data.completedConsultations || [])
+    //                 .reduce((sum: number, c: any) => sum + (parseFloat(c.consultation_fee) || 0), 0);
+    //             setTodayRevenue(revenue);
+    //         }
+    //     } catch (error) {
+    //         console.error('Error fetching waiting queue:', error);
+    //     }
+    // };
+
+    // // Fetch doctor's pending follow-ups
+    // const fetchFollowUpData = async () => {
+    //     try {
+    //         const token = localStorage.getItem('token');
+    //         const [statsRes, dueRes] = await Promise.all([
+    //             axios.get(`${API_URL}/follow-ups/stats`, {
+    //                 headers: { Authorization: `Bearer ${token}` }
+    //             }),
+    //             axios.get(`${API_URL}/follow-ups/due?range=all`, {
+    //                 headers: { Authorization: `Bearer ${token}` }
+    //             })
+    //         ]);
+
+    //         if (statsRes.data.status === 'success') {
+    //             setFollowUpStats(statsRes.data.data);
+    //         }
+    //         if (dueRes.data.status === 'success') {
+    //             // Combine overdue and due_today for display
+    //             const allDue = [
+    //                 ...(dueRes.data.data.overdue || []),
+    //                 ...(dueRes.data.data.due_today || [])
+    //             ].slice(0, 3); // Show top 3
+    //             setFollowUpPatients(allDue);
+    //         }
+    //     } catch (error) {
+    //         console.error('Error fetching follow-up data:', error);
+    //         // Set default empty values to prevent UI errors
+    //         setFollowUpStats({ overdue_count: 0, due_today_count: 0, upcoming_week_count: 0 });
+    //         setFollowUpPatients([]);
+    //     }
+    // };
+
+    // Handle "Next Patient" click - Navigate to first waiting patient
     const fetchWaitingQueue = async () => {
         try {
             const token = localStorage.getItem('token');
@@ -98,8 +176,11 @@ export default function DoctorDashboard() {
                     .reduce((sum: number, c: any) => sum + (parseFloat(c.consultation_fee) || 0), 0);
                 setTodayRevenue(revenue);
             }
-        } catch (error) {
-            console.error('Error fetching waiting queue:', error);
+        } catch (error: any) {
+            // Silent handling for 401 errors
+            if (error.response?.status !== 401) {
+                console.error('Error fetching waiting queue:', error);
+            }
         }
     };
 
@@ -127,12 +208,14 @@ export default function DoctorDashboard() {
                 ].slice(0, 3); // Show top 3
                 setFollowUpPatients(allDue);
             }
-        } catch (error) {
-            console.error('Error fetching follow-up data:', error);
+        } catch (error: any) {
+            // Silent handling for 401 errors
+            if (error.response?.status !== 401) {
+                console.error('Error fetching follow-up data:', error);
+            }
         }
     };
 
-    // Handle "Next Patient" click - Navigate to first waiting patient
     const handleNextPatient = () => {
         if (waitingPatients.length > 0) {
             const nextPatient = waitingPatients[0];

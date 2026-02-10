@@ -76,3 +76,6 @@
 - **Cause:** The search was strictly filtering `medical_services` by `branch_medical_services` mapping. If a branch hadn't explicitly mapped all common tests, they wouldn't appear.
 - **Fix:** Modified `billingSetupController.js` to search the **global** `medical_services` table for the "Medical Services" (External) category.
     - **Result:** Common tests now appear as "External" services even if not explicitly mapped to the branch, while "In-House" billing setups remain branch-specific.
+- **Cleanup:** Removed "General Services" (administrative items) from the search results to strictly show only Lab/Medical items (External) and Custom Billing Setups (In-House) as requested.
+- **Robustness:** Added a fallback mechanism for the doctor's search. If the current patient visit record is missing branch information, the system now defaults to the logged-in doctor's branch ID. This ensures "In-House" items (like packages) remain searchable even for new or incomplete patient records.
+- **Cross-Branch Visibility:** Updated the backend search (Query 3) to include items from **Branch 1 (Head Office)** in addition to the user's current branch. This resolves the issue where doctors logged into subsidiary branches (e.g., Branch 55) could not find global packages like "Full Body Checkup" created in the main branch.

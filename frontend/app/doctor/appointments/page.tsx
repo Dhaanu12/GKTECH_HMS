@@ -104,10 +104,10 @@ export default function DoctorAppointments() {
                         <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600 animate-pulse">
                             <Sparkles className="w-5 h-5" />
                         </div>
-                        <div>
+                        {/* <div>
                             <h3 className="font-bold text-indigo-900 text-sm uppercase tracking-wide">AI Assistant Insight</h3>
                             <p className="text-indigo-800 font-medium mt-1">{aiInsight}</p>
-                        </div>
+                        </div> */}
                     </motion.div>
                 )}
             </AnimatePresence>

@@ -1,0 +1,14 @@
+[
+  {
+    "conname": "bill_details_item_discount_type_check",
+    "definition": "CHECK (((item_discount_type)::text = ANY (ARRAY[('percentage'::character varying)::text, ('fixed'::character varying)::text, ('none'::character varying)::text])))"
+  },
+  {
+    "conname": "bill_details_service_type_check",
+    "definition": "CHECK (((service_type)::text = ANY (ARRAY[('consultation'::character varying)::text, ('lab_order'::character varying)::text, ('procedure'::character varying)::text, ('pharmacy'::character varying)::text, ('scan'::character varying)::text, ('surgery'::character varying)::text, ('bed_charge'::character varying)::text, ('other'::character varying)::text])))"
+  },
+  {
+    "conname": "bill_details_status_check",
+    "definition": "CHECK (((status)::text = ANY (ARRAY[('Pending'::character varying)::text, ('Billed'::character varying)::text, ('Paid'::character varying)::text, ('Cancelled'::character varying)::text])))"
+  }
+]

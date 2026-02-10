@@ -53,43 +53,13 @@ class BillingSetupController {
                     console.error('Error searching medical services:', err);
                 }
 
-                // 2. General Services
-                try {
-                    const serviceLimitPlaceholder = category ? '$4' : '$3';
-                    const serviceQuery = `
-                        SELECT s.service_id, s.service_name, s.service_category as category
-                        FROM branch_services bs
-                        JOIN services s ON bs.service_id = s.service_id
-                        WHERE bs.branch_id = $1 
-                        AND bs.is_active = true
-                        AND s.service_name ILIKE $2
-                        ${category ? 'AND s.service_category ILIKE $3' : ''}
-                        ORDER BY s.service_name ASC
-                        LIMIT ${serviceLimitPlaceholder}
-                    `;
-                    const serviceParams = category
-                        ? [branchId, `%${term}%`, `%${category}%`, limit]
-                        : [branchId, `%${term}%`, limit];
-
-                    const serviceRes = await db.query(serviceQuery, serviceParams);
-                    services.push(...serviceRes.rows.map(row => ({
-                        id: row.service_id,
-                        service_name: row.service_name,
-                        category: row.category,
-                        source: 'service',
-                        price: null
-                    })));
-                } catch (err) {
-                    console.error('Error searching branch services:', err);
-                }
-
                 // 3. Billing Setup Master (In-House)
                 try {
                     const billingLimitPlaceholder = category ? '$4' : '$3';
                     const billingQuery = `
                         SELECT bsm.billing_setup_id, bsm.service_name, bsm.type_of_service as category, bsm.patient_charge
                         FROM billing_setup_master bsm
-                        WHERE bsm.branch_id = $1
+                        WHERE (bsm.branch_id = $1 OR bsm.branch_id = 1)
                         AND bsm.is_active = true
                         AND bsm.service_name ILIKE $2
                         ${category ? 'AND bsm.type_of_service ILIKE $3' : ''}

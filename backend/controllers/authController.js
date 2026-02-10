@@ -208,6 +208,15 @@ class AuthController {
             const expiresAt = JWTUtils.getTokenExpiration(accessToken);
             const refreshExpiresAt = JWTUtils.getTokenExpiration(refreshToken);
 
+            // Invalidate all existing sessions for this user before creating a new one
+            // This prevents duplicate session_id errors and ensures clean session management
+            try {
+                await UserSession.invalidateAllUserSessions(user.user_id);
+            } catch (sessionCleanupError) {
+                console.warn('Warning: Failed to cleanup old sessions:', sessionCleanupError.message);
+                // Continue anyway - this is not critical
+            }
+
             // Create session
             await UserSession.createSession({
                 userId: user.user_id,

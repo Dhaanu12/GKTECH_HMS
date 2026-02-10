@@ -353,7 +353,7 @@ export default function NurseDashboard() {
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             <Activity className="w-5 h-5 text-blue-600" />
-                            <h2 className="text-lg font-bold text-slate-800">Lab Orders</h2>
+                            <h2 className="text-lg font-bold text-slate-800">Labs</h2>
                         </div>
                         <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
                             {[
@@ -607,7 +607,16 @@ function LabOrderCard({
 
     const isAssignedToMe = order.assigned_nurse_id === nurseId;
     const canStart = order.status === 'Ordered' && isAssignedToMe;
-    const canAssign = !order.assigned_nurse_id && nurseId;
+
+    // Only show assign button for in-house tests (billing_master)
+    // External tests (medical_service) should not be assigned to nurses
+    const isInHouse = order.source === 'billing_master';
+    const canAssign = !order.assigned_nurse_id && nurseId && isInHouse;
+
+    // Debug log
+    if (!order.assigned_nurse_id) {
+        console.log(`[LAB] ${order.test_name}: source="${order.source}", isInHouse=${isInHouse}, canAssign=${canAssign}`);
+    }
 
     return (
         <div
