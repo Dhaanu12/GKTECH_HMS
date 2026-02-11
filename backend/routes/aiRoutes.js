@@ -435,4 +435,103 @@ function calculateAge(dateOfBirth) {
     return age;
 }
 
+/**
+ * POST /api/ai/execute-action
+ * Execute a confirmed write action from the AI agent
+ */
+router.post('/execute-action', async (req, res) => {
+    try {
+        const { action, params } = req.body;
+
+        if (!action || !params) {
+            return res.status(400).json({ status: 'error', message: 'Action and params are required' });
+        }
+
+        const authToken = req.headers.authorization;
+        const headers = { Authorization: authToken };
+        const axios = require('axios');
+        const API_URL = 'http://localhost:5000/api';
+
+        let result;
+
+        switch (action) {
+            case 'createAppointment':
+                result = await axios.post(`${API_URL}/appointments`, {
+                    patient_id: params.patientId,
+                    doctor_id: params.doctorId,
+                    appointment_date: params.date,
+                    appointment_time: params.time,
+                    type: params.type || 'New Visit'
+                }, { headers });
+                break;
+
+            case 'updateAppointmentStatus':
+                result = await axios.patch(`${API_URL}/appointments/${params.appointmentId}/status`, {
+                    status: params.status
+                }, { headers });
+                break;
+
+            case 'rescheduleAppointment':
+                result = await axios.patch(`${API_URL}/appointments/${params.appointmentId}/reschedule`, {
+                    new_date: params.newDate,
+                    new_time: params.newTime
+                }, { headers });
+                break;
+
+            case 'createClinicalNote':
+                result = await axios.post(`${API_URL}/clinical-notes`, {
+                    patient_id: params.patientId,
+                    note_type: params.noteType,
+                    content: params.content,
+                    opd_id: params.opdId || null
+                }, { headers });
+                break;
+
+            case 'pinNote':
+                result = await axios.patch(`${API_URL}/clinical-notes/${params.noteId}/pin`, {}, { headers });
+                break;
+
+            case 'updateLabOrderStatus':
+                result = await axios.patch(`${API_URL}/lab-orders/${params.labOrderId}/status`, {
+                    status: params.status
+                }, { headers });
+                break;
+
+            case 'assignLabOrder':
+                result = await axios.patch(`${API_URL}/lab-orders/${params.labOrderId}/assign`, {
+                    nurse_id: params.nurseId || req.user.id
+                }, { headers });
+                break;
+
+            case 'updateOpdPayment':
+                result = await axios.patch(`${API_URL}/opd/${params.opdId}/payment`, {
+                    payment_method: params.paymentMethod,
+                    amount: params.amount
+                }, { headers });
+                break;
+
+            case 'updateOpdStatus':
+                result = await axios.patch(`${API_URL}/opd/${params.opdId}/status`, {
+                    status: params.status
+                }, { headers });
+                break;
+
+            default:
+                return res.status(400).json({ status: 'error', message: `Unknown action: ${action}` });
+        }
+
+        res.json({
+            status: 'success',
+            message: `${action} executed successfully`,
+            data: result.data
+        });
+    } catch (error) {
+        console.error('Execute action error:', error.response?.data || error.message);
+        res.status(error.response?.status || 500).json({
+            status: 'error',
+            message: error.response?.data?.message || error.message || 'Failed to execute action'
+        });
+    }
+});
+
 module.exports = router;

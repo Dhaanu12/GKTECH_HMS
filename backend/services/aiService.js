@@ -60,18 +60,58 @@ async function agentChat(messages, options = {}) {
         });
 
         // Execute each tool call
+        let confirmationPayload = null;
         for (const toolCall of response.toolCalls) {
             console.log(`Executing tool: ${toolCall.name}`, toolCall.arguments);
             
             const toolResult = await executeTool(toolCall.name, toolCall.arguments, authToken);
             
-            // Add tool result to conversation
-            conversationMessages.push({
-                role: 'tool',
-                tool_call_id: toolCall.id,
-                name: toolCall.name,
-                content: JSON.stringify(toolResult)
-            });
+            // Check if this is a write tool proposal requiring confirmation
+            if (toolResult && toolResult.requiresConfirmation) {
+                confirmationPayload = {
+                    action: toolResult.action,
+                    label: toolResult.label,
+                    params: toolResult.params,
+                    summary: toolResult.summary
+                };
+                // Tell the AI it proposed an action needing confirmation
+                conversationMessages.push({
+                    role: 'tool',
+                    tool_call_id: toolCall.id,
+                    name: toolCall.name,
+                    content: JSON.stringify({ status: 'pending_confirmation', summary: toolResult.summary })
+                });
+            } else {
+                // Add tool result to conversation
+                conversationMessages.push({
+                    role: 'tool',
+                    tool_call_id: toolCall.id,
+                    name: toolCall.name,
+                    content: JSON.stringify(toolResult)
+                });
+            }
+        }
+
+        // If a confirmation is needed, get the AI's description and embed the payload
+        if (confirmationPayload) {
+            if (provider.continueWithToolResult) {
+                response = await provider.continueWithToolResult(conversationMessages, {
+                    ...options,
+                    systemPrompt,
+                    tools
+                });
+            } else {
+                response = await provider.chat(conversationMessages, {
+                    ...options,
+                    systemPrompt,
+                    tools
+                });
+            }
+            // Append the confirmation payload to the message
+            const aiText = response.message || '';
+            response.message = aiText + `\n[CONFIRM_ACTION]${JSON.stringify(confirmationPayload)}[/CONFIRM_ACTION]`;
+            response.toolCalls = null; // Stop the loop
+            break;
         }
 
         // Continue conversation with tool results
@@ -149,11 +189,13 @@ Provide a plain-language interpretation highlighting key findings.`;
  * Assist with clinical notes
  */
 async function suggestNotes(noteData) {
-    const action = noteData.action || 'improve'; // 'improve', 'summarize', 'expand'
+    const action = noteData.action || 'improve';
     
     let prompt;
-    if (action === 'improve') {
-        prompt = `Improve the following clinical note for clarity and professionalism:\n\n"${noteData.content}"`;
+    if (action === 'generate') {
+        prompt = `Based on the following patient information, generate a concise clinical note. Use only the facts provided — do not fabricate any details.\n\n${noteData.content}`;
+    } else if (action === 'improve') {
+        prompt = `Improve the following clinical note for clarity, completeness, and professionalism. Use the patient context provided to fill in relevant clinical details.\n\n${noteData.content}`;
     } else if (action === 'summarize') {
         prompt = `Summarize the following clinical note concisely:\n\n"${noteData.content}"`;
     } else if (action === 'expand') {
@@ -172,24 +214,32 @@ async function suggestNotes(noteData) {
  * Generate patient summary
  */
 async function summarizePatient(patientData) {
-    const prompt = `Generate a concise patient summary for handoff:
+    // Build a compact data block to minimize token usage
+    const parts = [`${patientData.name}, ${patientData.age || '?'}y ${patientData.gender || ''}, MRN: ${patientData.mrn || 'N/A'}`];
 
-Patient: ${patientData.name || 'Unknown'}, ${patientData.age || 'Unknown'} years old, ${patientData.gender || 'Unknown'}
-MRN: ${patientData.mrn || 'N/A'}
+    if (patientData.vitals?.length) {
+        const v = patientData.vitals[0];
+        const vParts = [];
+        if (v.blood_pressure_systolic) vParts.push(`BP ${v.blood_pressure_systolic}/${v.blood_pressure_diastolic}`);
+        if (v.pulse_rate) vParts.push(`HR ${v.pulse_rate}`);
+        if (v.temperature) vParts.push(`Temp ${v.temperature}°F`);
+        if (v.spo2) vParts.push(`SpO2 ${v.spo2}%`);
+        if (vParts.length) parts.push(`Vitals: ${vParts.join(', ')}`);
+    }
 
-Recent Vitals:
-${JSON.stringify(patientData.vitals || [], null, 2)}
+    if (patientData.labs?.length) {
+        parts.push(`Labs: ${patientData.labs.map(l => `${l.test_name} (${l.status})`).join(', ')}`);
+    }
 
-Recent Lab Results:
-${JSON.stringify(patientData.labs || [], null, 2)}
+    if (patientData.notes) {
+        parts.push(`Notes: ${patientData.notes.substring(0, 300)}`);
+    }
 
-Recent Clinical Notes:
-${patientData.notes || 'None available'}
+    if (patientData.conditions) {
+        parts.push(`History: ${patientData.conditions.substring(0, 150)}`);
+    }
 
-Active Conditions:
-${patientData.conditions || 'None listed'}
-
-Create a brief, handoff-ready summary.`;
+    const prompt = `Patient snapshot — reply in 3-4 lines max:\n${parts.join('\n')}`;
 
     return chat(
         [{ role: 'user', content: prompt }],

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { useParams, useRouter } from 'next/navigation';
 import {
@@ -108,6 +108,78 @@ export default function NursePatientDetails() {
     const [aiVitalsLoading, setAiVitalsLoading] = useState(false);
     const [aiPatientSummary, setAiPatientSummary] = useState<string | null>(null);
     const [aiPatientSummaryLoading, setAiPatientSummaryLoading] = useState(false);
+    const summaryFingerprintRef = useRef<string>('');
+    const [summaryRefreshKey, setSummaryRefreshKey] = useState(0);
+
+    // Auto-generate patient summary on load with caching
+    useEffect(() => {
+        if (!patient || loading) return;
+
+        // Build a fingerprint from data that matters
+        const fingerprint = [
+            'v2', // bump this to invalidate all old caches
+            patient.patient_id,
+            patient.mrn_number || patient.mrn || '',
+            vitalsHistory.length,
+            vitalsHistory[0]?.recorded_at || '',
+            labOrders.length,
+            labOrders[0]?.created_at || labOrders[0]?.ordered_at || '',
+            clinicalNotes.length,
+            clinicalNotes[0]?.created_at || '',
+            opdHistory.length,
+        ].join('|');
+
+        // Skip if fingerprint hasn't changed (data unchanged)
+        if (fingerprint === summaryFingerprintRef.current) return;
+
+        // Check sessionStorage cache
+        const cacheKey = `patient:${patient.patient_id}:summary`;
+        const cached = sessionStorage.getItem(cacheKey);
+        if (cached) {
+            try {
+                const { fp, summary } = JSON.parse(cached);
+                if (fp === fingerprint) {
+                    summaryFingerprintRef.current = fingerprint;
+                    setAiPatientSummary(summary);
+                    return;
+                }
+            } catch { /* corrupted cache, regenerate */ }
+        }
+
+        // Generate fresh summary
+        summaryFingerprintRef.current = fingerprint;
+        setAiPatientSummaryLoading(true);
+        setAiPatientSummary(null);
+
+        const patientInfo: AIPatientInfo = {
+            first_name: patient.first_name,
+            last_name: patient.last_name,
+            age: patient.age,
+            gender: patient.gender,
+            mrn: patient.mrn_number || patient.mrn,
+            medical_history: patient.medical_history,
+        };
+        const vitalsData = vitalsHistory.slice(0, 3);
+        const labData = labOrders.slice(0, 3).map((l: any) => ({
+            test_name: l.test_name || l.service_name,
+            status: l.status,
+            result_summary: l.result_summary || l.results,
+        }));
+        const notesData = clinicalNotes.slice(0, 2).map((n: any) => `[${n.note_type}] ${(n.content || '').substring(0, 100)}`).join('\n');
+
+        summarizePatient(patientInfo, vitalsData, labData, notesData, patient.medical_history)
+            .then(result => {
+                if (result.success && result.message) {
+                    setAiPatientSummary(result.message);
+                    // Cache it
+                    try {
+                        sessionStorage.setItem(cacheKey, JSON.stringify({ fp: fingerprint, summary: result.message }));
+                    } catch { /* storage full, skip */ }
+                }
+            })
+            .catch(() => {})
+            .finally(() => setAiPatientSummaryLoading(false));
+    }, [patient, loading, vitalsHistory, labOrders, clinicalNotes, opdHistory, summaryRefreshKey]);
 
     // AI Context - to provide patient info to the chat assistant
     let aiContext: { setPageContext?: (page: string, patient?: string) => void } = {};
@@ -614,49 +686,13 @@ export default function NursePatientDetails() {
         }
     };
 
-    const handleGeneratePatientSummary = async () => {
+    const handleGeneratePatientSummary = () => {
         if (!patient) return;
-        
-        setAiPatientSummaryLoading(true);
+        // Clear cache and force the auto-summary useEffect to regenerate
+        sessionStorage.removeItem(`patient:${patient.patient_id}:summary`);
+        summaryFingerprintRef.current = '';
         setAiPatientSummary(null);
-        
-        try {
-            const patientInfo: AIPatientInfo = {
-                first_name: patient.first_name,
-                last_name: patient.last_name,
-                age: patient.age,
-                gender: patient.gender,
-                mrn: patient.mrn,
-                medical_history: patient.medical_history,
-            };
-            
-            const vitalsData = vitalsHistory.slice(0, 5);
-            const labData = labOrders.slice(0, 5).map(l => ({
-                test_name: l.test_name,
-                status: l.status,
-                result_summary: l.result_summary,
-                ordered_at: l.ordered_at,
-            }));
-            const notesData = clinicalNotes.slice(0, 3).map(n => n.content).join('\n');
-            
-            const result = await summarizePatient(
-                patientInfo,
-                vitalsData,
-                labData,
-                notesData,
-                patient.medical_history
-            );
-            
-            if (result.success) {
-                setAiPatientSummary(result.message);
-            } else {
-                setAiPatientSummary(result.message);
-            }
-        } catch (error) {
-            setAiPatientSummary('Failed to generate summary. Please try again.');
-        } finally {
-            setAiPatientSummaryLoading(false);
-        }
+        setSummaryRefreshKey(k => k + 1);
     };
 
     // Filter notes
@@ -782,7 +818,7 @@ export default function NursePatientDetails() {
                                 title="Generate AI patient summary for handoff"
                             >
                                 <Sparkles className="w-4 h-4" />
-                                {aiPatientSummaryLoading ? 'Generating...' : 'AI Summary'}
+                                {aiPatientSummaryLoading ? 'Generating...' : aiPatientSummary ? 'Refresh Summary' : 'AI Summary'}
                             </button>
                         </div>
                     </div>
@@ -818,12 +854,46 @@ export default function NursePatientDetails() {
                 <AILoadingIndicator text="Generating patient summary..." />
             )}
             {aiPatientSummary && !aiPatientSummaryLoading && (
-                <AIInsightCard
-                    title="AI Patient Summary"
-                    content={aiPatientSummary}
-                    type="info"
-                    onDismiss={() => setAiPatientSummary(null)}
-                />
+                <div className="bg-gradient-to-r from-blue-50 via-indigo-50/50 to-purple-50/30 border border-blue-200/60 rounded-2xl shadow-sm overflow-hidden">
+                    <div className="flex items-center justify-between px-5 py-3 border-b border-blue-100/60">
+                        <div className="flex items-center gap-2.5">
+                            <div className="p-1.5 rounded-lg bg-white shadow-sm">
+                                <Sparkles className="w-4 h-4 text-blue-600" />
+                            </div>
+                            <div>
+                                <h4 className="text-sm font-semibold text-slate-800">AI Patient Summary</h4>
+                                <p className="text-[11px] text-slate-500">{patient?.first_name} {patient?.last_name} · {patient?.mrn_number || patient?.mrn || 'N/A'}</p>
+                            </div>
+                        </div>
+                        <button onClick={() => setAiPatientSummary(null)} className="p-1 rounded-md hover:bg-white/60 transition-colors">
+                            <X className="w-4 h-4 text-slate-400 hover:text-slate-600" />
+                        </button>
+                    </div>
+                    <div className="px-5 py-3 space-y-1.5">
+                        {aiPatientSummary.split('\n').filter(l => l.trim()).map((line, i) => {
+                            const trimmed = line.trim();
+                            // Detect line types by leading emoji/symbol
+                            const isWarning = /^[⚠️🔸]/.test(trimmed) || trimmed.toLowerCase().startsWith('concern');
+                            const isAction = /^[→➡]/.test(trimmed) || trimmed.toLowerCase().startsWith('pending') || trimmed.toLowerCase().startsWith('plan');
+                            const isGood = /^[✓✅]/.test(trimmed);
+                            const isHeader = /^[📋🏥]/.test(trimmed);
+
+                            if (isHeader) {
+                                return <p key={i} className="text-[13px] font-semibold text-slate-800">{trimmed}</p>;
+                            }
+                            if (isWarning) {
+                                return <p key={i} className="text-[13px] text-amber-700 bg-amber-50 rounded-lg px-3 py-1.5 border border-amber-100">{trimmed}</p>;
+                            }
+                            if (isAction) {
+                                return <p key={i} className="text-[13px] text-blue-700 bg-blue-50/60 rounded-lg px-3 py-1.5 border border-blue-100">{trimmed}</p>;
+                            }
+                            if (isGood) {
+                                return <p key={i} className="text-[13px] text-emerald-700">{trimmed}</p>;
+                            }
+                            return <p key={i} className="text-[13px] text-slate-700 leading-relaxed">{trimmed}</p>;
+                        })}
+                    </div>
+                </div>
             )}
 
             {/* Latest Vitals Summary */}
@@ -1726,6 +1796,30 @@ export default function NursePatientDetails() {
                         opdHistory={opdHistory}
                         defaultOpdId={latestOpdId}
                         patientName={`${patient?.first_name} ${patient?.last_name}`}
+                        patientContext={{
+                            age: patient.age,
+                            gender: patient.gender,
+                            bloodGroup: patient.blood_group,
+                            latestVitals: vitalsHistory?.[0] ? {
+                                bp: vitalsHistory[0].blood_pressure_systolic && vitalsHistory[0].blood_pressure_diastolic ? `${vitalsHistory[0].blood_pressure_systolic}/${vitalsHistory[0].blood_pressure_diastolic} mmHg` : null,
+                                pulse: vitalsHistory[0].pulse_rate ? `${vitalsHistory[0].pulse_rate} bpm` : null,
+                                temp: vitalsHistory[0].temperature ? `${vitalsHistory[0].temperature}°F` : null,
+                                spo2: vitalsHistory[0].spo2 ? `${vitalsHistory[0].spo2}%` : null,
+                                weight: vitalsHistory[0].weight ? `${vitalsHistory[0].weight} kg` : null,
+                                recordedAt: vitalsHistory[0].recorded_at,
+                            } : null,
+                            recentLabOrders: labOrders.slice(0, 3).map((l: any) => ({
+                                test: l.test_name || l.service_name,
+                                status: l.status,
+                                result: l.results || l.result_data,
+                            })),
+                            recentNotes: clinicalNotes.slice(0, 3).map((n: any) => ({
+                                type: n.note_type,
+                                content: (n.content || '').substring(0, 150),
+                                date: n.created_at,
+                            })),
+                            chiefComplaint: opdHistory?.[0]?.chief_complaint,
+                        }}
                         onClose={() => setShowNotesModal(false)}
                         onSuccess={() => {
                             setShowNotesModal(false);
@@ -2205,6 +2299,7 @@ function AddNoteModal({
     opdHistory,
     defaultOpdId,
     patientName,
+    patientContext,
     onClose,
     onSuccess
 }: {
@@ -2212,6 +2307,15 @@ function AddNoteModal({
     opdHistory: any[];
     defaultOpdId: number | null;
     patientName: string;
+    patientContext?: {
+        age?: number;
+        gender?: string;
+        bloodGroup?: string;
+        latestVitals?: any;
+        recentLabOrders?: any[];
+        recentNotes?: any[];
+        chiefComplaint?: string;
+    };
     onClose: () => void;
     onSuccess: () => void;
 }) {
@@ -2222,6 +2326,54 @@ function AddNoteModal({
     const [isPinned, setIsPinned] = useState(false);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [aiSuggesting, setAiSuggesting] = useState(false);
+    const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
+
+    const handleAiSuggest = async () => {
+        setAiSuggesting(true);
+        setAiSuggestion(null);
+        try {
+            // Build context string from patient data
+            let contextParts: string[] = [];
+            contextParts.push(`Patient: ${patientName}`);
+            if (patientContext?.age) contextParts.push(`Age: ${patientContext.age}`);
+            if (patientContext?.gender) contextParts.push(`Gender: ${patientContext.gender}`);
+            if (patientContext?.chiefComplaint) contextParts.push(`Chief complaint: ${patientContext.chiefComplaint}`);
+            if (patientContext?.latestVitals) {
+                const v = patientContext.latestVitals;
+                const vitals = [v.bp, v.pulse, v.temp, v.spo2, v.weight].filter(Boolean).join(', ');
+                if (vitals) contextParts.push(`Latest vitals: ${vitals}`);
+            }
+            if (patientContext?.recentLabOrders?.length) {
+                const labs = patientContext.recentLabOrders.map(l => `${l.test} (${l.status})`).join(', ');
+                contextParts.push(`Recent labs: ${labs}`);
+            }
+            if (patientContext?.recentNotes?.length) {
+                const notes = patientContext.recentNotes.map(n => `[${n.type}] ${n.content}`).join(' | ');
+                contextParts.push(`Recent notes: ${notes}`);
+            }
+
+            const patientSummary = contextParts.join('. ');
+            let inputContent: string;
+
+            if (content) {
+                inputContent = `Patient context: ${patientSummary}\n\nNote type: ${noteType}\nNurse's draft:\n"${content}"`;
+            } else {
+                inputContent = `Patient context: ${patientSummary}\n\nGenerate a ${noteType} note for this patient.`;
+            }
+
+            const result = await suggestNotes(inputContent, content ? 'improve' : 'generate');
+            if (result.success && result.message) {
+                setAiSuggestion(result.message);
+            } else {
+                setError('AI suggestion unavailable');
+            }
+        } catch {
+            setError('AI suggestion failed');
+        } finally {
+            setAiSuggesting(false);
+        }
+    };
 
     const handleSubmit = async () => {
         if (!content.trim()) {
@@ -2313,7 +2465,22 @@ function AddNoteModal({
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">Content *</label>
+                        <div className="flex items-center justify-between mb-2">
+                            <label className="block text-sm font-medium text-slate-700">Content *</label>
+                            <button
+                                type="button"
+                                onClick={handleAiSuggest}
+                                disabled={aiSuggesting}
+                                className="flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg text-xs font-medium text-blue-700 hover:from-blue-100 hover:to-indigo-100 transition-all disabled:opacity-50"
+                            >
+                                {aiSuggesting ? (
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : (
+                                    <Sparkles className="w-3 h-3" />
+                                )}
+                                {aiSuggesting ? 'Suggesting...' : 'AI Suggest'}
+                            </button>
+                        </div>
                         <textarea
                             value={content}
                             onChange={(e) => setContent(e.target.value)}
@@ -2321,6 +2488,26 @@ function AddNoteModal({
                             rows={6}
                             className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
                         />
+                        {aiSuggestion && (
+                            <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                <div className="flex items-center justify-between mb-1">
+                                    <span className="text-xs font-medium text-blue-700 flex items-center gap-1">
+                                        <Sparkles className="w-3 h-3" /> AI Suggestion
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setContent(prev => prev ? prev + '\n\n' + aiSuggestion : aiSuggestion);
+                                            setAiSuggestion(null);
+                                        }}
+                                        className="text-xs font-medium text-blue-600 hover:text-blue-800 underline"
+                                    >
+                                        Apply
+                                    </button>
+                                </div>
+                                <p className="text-xs text-slate-700 whitespace-pre-wrap">{aiSuggestion}</p>
+                            </div>
+                        )}
                     </div>
 
                     <label className="flex items-center gap-2 cursor-pointer">

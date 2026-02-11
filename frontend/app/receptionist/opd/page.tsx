@@ -9,6 +9,8 @@ import { useAuth } from '../../../lib/AuthContext';
 import SearchableSelect from '../../../components/ui/SearchableSelect';
 import MultiInputTags from '../dashboard/components/MultiInputTags';
 import BillingModal from '../../../components/billing/BillingModal';
+import { useAI } from '@/components/ai';
+import { chat } from '@/lib/api/ai';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -153,6 +155,10 @@ export default function OpdEntryPage() {
         'Throat Pain', 'Ear Pain', 'Eye Problem', 'Urinary Problem',
         'Blood Pressure Check', 'Diabetes Follow-up', 'General Checkup'
     ];
+    
+    // AI-powered chief complaint suggestions
+    const [aiComplaintSuggestions, setAiComplaintSuggestions] = useState<string[]>([]);
+    const [aiComplaintLoading, setAiComplaintLoading] = useState(false);
 
     // Cancel Modal State
     const [showCancelModal, setShowCancelModal] = useState(false);
@@ -380,6 +386,47 @@ export default function OpdEntryPage() {
         // Debounce or just fetch? Since date picker might fire rapidly, simple fetch is fine for now.
         fetchOpdEntries(searchQuery);
     }, [dateRange.from, dateRange.to]);
+
+    // AI page context
+    let aiContext: { setPageContext?: (page: string, context?: string) => void } = {};
+    try { aiContext = useAI(); } catch { /* AIContextProvider not available */ }
+
+    useEffect(() => {
+        if (aiContext.setPageContext) {
+            const ctx = `Viewing OPD Management page. ` +
+                `Today: ${dashboardStats.todayVisits} visits, ${dashboardStats.completedVisits} completed, ${dashboardStats.newPatients || 0} new patients. ` +
+                `Pending: Rs.${dashboardStats.pendingAmount} (${dashboardStats.pendingCount} bills). Collected: Rs.${dashboardStats.collectedAmount}. ` +
+                `OPD entries displayed: ${opdEntries.length}. Date range: ${dateRange.from} to ${dateRange.to}. ` +
+                `No specific patient selected. Use searchPatients tool to help with a specific patient.`;
+            aiContext.setPageContext('/receptionist/opd', ctx);
+        }
+    }, [aiContext.setPageContext, dashboardStats, opdEntries.length, dateRange]);
+
+    // AI chief complaint suggestions when patient is selected
+    useEffect(() => {
+        if (selectedPatient?.patient_id) {
+            setAiComplaintLoading(true);
+            setAiComplaintSuggestions([]);
+            chat(
+                [{ role: 'user', content: `Patient ${selectedPatient.first_name} ${selectedPatient.last_name} (ID: ${selectedPatient.patient_id}) is visiting for an OPD entry. Based on their history, suggest 3-5 relevant chief complaints as a JSON array of strings. Return ONLY the JSON array, no other text. Example: ["Fever","Follow-up for diabetes","Blood pressure check"]` }],
+                { page: '/receptionist/opd', role: 'receptionist' }
+            ).then(result => {
+                if (result.success && result.message) {
+                    try {
+                        const jsonMatch = result.message.match(/\[[\s\S]*?\]/);
+                        if (jsonMatch) {
+                            const suggestions = JSON.parse(jsonMatch[0]);
+                            if (Array.isArray(suggestions)) {
+                                setAiComplaintSuggestions(suggestions.slice(0, 5));
+                            }
+                        }
+                    } catch { /* parse error, skip */ }
+                }
+            }).catch(() => {}).finally(() => setAiComplaintLoading(false));
+        } else {
+            setAiComplaintSuggestions([]);
+        }
+    }, [selectedPatient?.patient_id]);
 
     const fetchAppointments = async () => {
         try {
@@ -2588,6 +2635,36 @@ export default function OpdEntryPage() {
                                                     rows={2}
                                                     placeholder="Type or click suggestions below..."
                                                 />
+                                                {/* AI-Powered Suggestions */}
+                                                {(aiComplaintLoading || aiComplaintSuggestions.length > 0) && (
+                                                    <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                                                        <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-wider flex items-center gap-1">
+                                                            {aiComplaintLoading ? (
+                                                                <span className="animate-pulse">✨ AI suggesting...</span>
+                                                            ) : (
+                                                                <>✨ AI Suggested</>
+                                                            )}
+                                                        </span>
+                                                        {aiComplaintSuggestions.map((suggestion) => (
+                                                            <button
+                                                                key={suggestion}
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const current = opdForm.chief_complaint || '';
+                                                                    const newValue = current ? current + ', ' + suggestion : suggestion;
+                                                                    setOpdForm({ ...opdForm, chief_complaint: newValue });
+                                                                }}
+                                                                className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-all hover:scale-105 ${
+                                                                    opdForm.chief_complaint?.includes(suggestion)
+                                                                        ? 'bg-indigo-100 text-indigo-700 border-indigo-300'
+                                                                        : 'bg-indigo-50 text-indigo-600 border-indigo-200 hover:bg-indigo-100 hover:border-indigo-300'
+                                                                }`}
+                                                            >
+                                                                {suggestion}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                )}
                                                 {/* Quick Suggestion Chips */}
                                                 <div className="flex flex-wrap gap-1.5 mt-2">
                                                     {commonComplaints

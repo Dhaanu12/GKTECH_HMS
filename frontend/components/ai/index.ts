@@ -1,4 +1,5 @@
 export { AIContextProvider, useAI } from './AIContextProvider';
+export type { PendingAction } from './AIContextProvider';
 export { FloatingAIAssistant } from './FloatingAIAssistant';
 export { AIInsightCard } from './AIInsightCard';
 export type { InsightType } from './AIInsightCard';

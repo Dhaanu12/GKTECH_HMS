@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../lib/AuthContext';
-import { useAI } from '../../../components/ai';
+import { useAI, AIInsightCard } from '../../../components/ai';
+import { getDashboardInsights } from '@/lib/api/ai';
 import {
     fetchLabOrders,
     fetchOPDEntries,
@@ -233,6 +234,30 @@ export default function NurseDashboard() {
         }
     }, [aiContext.setPageContext, loading, user, shift, myTasksCount, pendingCount, urgentCount, completedTodayCount, todayOPD.length]);
 
+    // AI Shift Summary
+    const [shiftInsight, setShiftInsight] = useState<string>('');
+    const [shiftInsightLoading, setShiftInsightLoading] = useState(false);
+    const [shiftInsightDismissed, setShiftInsightDismissed] = useState(false);
+
+    useEffect(() => {
+        if (!loading && !shiftInsightDismissed && !shiftInsight && (myTasksCount > 0 || pendingCount > 0 || todayOPD.length > 0)) {
+            setShiftInsightLoading(true);
+            getDashboardInsights({
+                role: 'nurse',
+                shift,
+                myTasks: myTasksCount,
+                pendingOrders: pendingCount,
+                urgentOrders: urgentCount,
+                completedToday: completedTodayCount,
+                todayOPDCount: todayOPD.length,
+            }).then(result => {
+                if (result.success && result.message) {
+                    setShiftInsight(result.message);
+                }
+            }).catch(() => {}).finally(() => setShiftInsightLoading(false));
+        }
+    }, [loading, myTasksCount, pendingCount]);
+
     // Handle quick actions
     const handleStartTask = async (orderId: number) => {
         try {
@@ -328,6 +353,17 @@ export default function NurseDashboard() {
                         Retry
                     </button>
                 </div>
+            )}
+
+            {/* AI Shift Summary */}
+            {!shiftInsightDismissed && (shiftInsightLoading || shiftInsight) && (
+                <AIInsightCard
+                    title="Shift Summary"
+                    content={shiftInsight || 'Analyzing shift workload...'}
+                    type={urgentCount > 0 ? 'warning' : 'info'}
+                    isLoading={shiftInsightLoading}
+                    onDismiss={() => setShiftInsightDismissed(true)}
+                />
             )}
 
             {/* Metrics Cards */}
