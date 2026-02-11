@@ -3,12 +3,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../../lib/AuthContext';
 import axios from 'axios';
-import { 
-    Beaker, 
-    Clock, 
-    AlertTriangle, 
-    CheckCircle2, 
-    XCircle, 
+import {
+    Beaker,
+    Clock,
+    AlertTriangle,
+    CheckCircle2,
+    XCircle,
     Play,
     Upload,
     RefreshCw,
@@ -70,6 +70,7 @@ interface LabOrder {
     instructions: string | null;
     notes: string | null;
     result_summary: string | null;
+    is_external: boolean; // TRUE = external (medical_services), FALSE = in-house (billing_master)
 }
 
 interface StatusCounts {
@@ -114,11 +115,11 @@ const statusColors = {
 
 export default function LabSchedulePage() {
     const { user } = useAuth();
-    
+
     // AI context - clear patient context when on lab schedule
     let aiContext: { setPageContext?: (page: string, patient?: string) => void } = {};
     try { aiContext = useAI(); } catch { /* AIContextProvider not available */ }
-    
+
     const [orders, setOrders] = useState<LabOrder[]>([]);
     const [counts, setCounts] = useState<StatusCounts>({ Ordered: 0, 'In-Progress': 0, Completed: 0, Cancelled: 0 });
     const [loading, setLoading] = useState(true);
@@ -138,7 +139,7 @@ export default function LabSchedulePage() {
             setLoading(true);
             setError(null);
             const token = localStorage.getItem('token');
-            
+
             const params: Record<string, string> = {};
             if (activeTab !== 'All') {
                 params.status = activeTab;
@@ -171,7 +172,7 @@ export default function LabSchedulePage() {
     useEffect(() => {
         fetchOrders();
     }, [fetchOrders]);
-    
+
     // Set AI context for lab schedule page (clears patient-specific context)
     useEffect(() => {
         if (aiContext.setPageContext && !loading) {
@@ -188,7 +189,7 @@ export default function LabSchedulePage() {
         try {
             setUpdatingOrderId(orderId);
             const token = localStorage.getItem('token');
-            
+
             await axios.patch(
                 `http://localhost:5000/api/lab-orders/${orderId}/status`,
                 { status: newStatus },
@@ -208,7 +209,7 @@ export default function LabSchedulePage() {
         try {
             setUpdatingOrderId(orderId);
             const token = localStorage.getItem('token');
-            
+
             await axios.patch(
                 `http://localhost:5000/api/lab-orders/${orderId}/assign`,
                 {},
@@ -329,16 +330,14 @@ export default function LabSchedulePage() {
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id as typeof activeTab)}
-                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                                    activeTab === tab.id
-                                        ? 'bg-blue-600 text-white'
-                                        : 'text-slate-600 hover:bg-slate-100'
-                                }`}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === tab.id
+                                    ? 'bg-blue-600 text-white'
+                                    : 'text-slate-600 hover:bg-slate-100'
+                                    }`}
                             >
                                 {tab.label}
-                                <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
-                                    activeTab === tab.id ? 'bg-blue-500' : 'bg-slate-200'
-                                }`}>
+                                <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${activeTab === tab.id ? 'bg-blue-500' : 'bg-slate-200'
+                                    }`}>
                                     {tab.count}
                                 </span>
                             </button>
@@ -417,8 +416,8 @@ export default function LabSchedulePage() {
                             const overdue = isOverdue(order);
 
                             return (
-                                <div 
-                                    key={order.order_id} 
+                                <div
+                                    key={order.order_id}
                                     className={`p-4 hover:bg-slate-50 transition-all ${overdue ? 'bg-red-50/50' : ''}`}
                                 >
                                     <div className="flex flex-col lg:flex-row lg:items-center gap-4">
@@ -476,7 +475,8 @@ export default function LabSchedulePage() {
 
                                         {/* Right: Actions */}
                                         <div className="flex items-center gap-2">
-                                            {order.status === 'Ordered' && (
+                                            {/* Only show Start/Assign buttons for IN-HOUSE services (is_external = FALSE) */}
+                                            {order.status === 'Ordered' && !order.is_external && (
                                                 <>
                                                     <button
                                                         onClick={() => updateStatus(order.order_id, 'In-Progress')}
@@ -501,7 +501,14 @@ export default function LabSchedulePage() {
                                                     )}
                                                 </>
                                             )}
-                                            {order.status === 'In-Progress' && (
+                                            {/* Show badge for external services */}
+                                            {order.status === 'Ordered' && order.is_external && (
+                                                <span className="px-3 py-1.5 bg-amber-50 text-amber-700 rounded-lg text-xs font-semibold border border-amber-200">
+                                                    External Service
+                                                </span>
+                                            )}
+                                            {/* Only show Upload/Complete buttons for IN-HOUSE services */}
+                                            {order.status === 'In-Progress' && !order.is_external && (
                                                 <>
                                                     <button
                                                         onClick={() => setShowUploadModal(order)}
@@ -523,6 +530,12 @@ export default function LabSchedulePage() {
                                                         Complete
                                                     </button>
                                                 </>
+                                            )}
+                                            {/* Show badge for external services in progress */}
+                                            {order.status === 'In-Progress' && order.is_external && (
+                                                <span className="px-3 py-1.5 bg-amber-50 text-amber-700 rounded-lg text-xs font-semibold border border-amber-200">
+                                                    External Service - In Progress
+                                                </span>
                                             )}
                                             {order.status === 'Completed' && (
                                                 <div className="flex items-center gap-2">
@@ -570,8 +583,8 @@ export default function LabSchedulePage() {
 
             {/* Upload Result Modal */}
             {showUploadModal && (
-                <UploadResultModal 
-                    order={showUploadModal} 
+                <UploadResultModal
+                    order={showUploadModal}
                     onClose={() => setShowUploadModal(null)}
                     onSuccess={() => {
                         setShowUploadModal(null);
@@ -582,16 +595,16 @@ export default function LabSchedulePage() {
 
             {/* View Results Modal */}
             {showViewResultsModal && (
-                <ViewResultsModal 
-                    order={showViewResultsModal} 
+                <ViewResultsModal
+                    order={showViewResultsModal}
                     onClose={() => setShowViewResultsModal(null)}
                 />
             )}
 
             {/* Add More Documents Modal */}
             {showAddMoreModal && (
-                <AddMoreModal 
-                    order={showAddMoreModal} 
+                <AddMoreModal
+                    order={showAddMoreModal}
                     onClose={() => setShowAddMoreModal(null)}
                     onSuccess={() => {
                         setShowAddMoreModal(null);
@@ -602,8 +615,8 @@ export default function LabSchedulePage() {
 
             {/* View Status History Modal */}
             {showHistoryModal && (
-                <ViewHistoryModal 
-                    order={showHistoryModal} 
+                <ViewHistoryModal
+                    order={showHistoryModal}
                     onClose={() => setShowHistoryModal(null)}
                 />
             )}
@@ -612,13 +625,13 @@ export default function LabSchedulePage() {
 }
 
 // Upload Result Modal Component
-function UploadResultModal({ 
-    order, 
-    onClose, 
-    onSuccess 
-}: { 
-    order: LabOrder; 
-    onClose: () => void; 
+function UploadResultModal({
+    order,
+    onClose,
+    onSuccess
+}: {
+    order: LabOrder;
+    onClose: () => void;
     onSuccess: () => void;
 }) {
     const [file, setFile] = useState<File | null>(null);
@@ -642,7 +655,7 @@ function UploadResultModal({
         e.preventDefault();
         e.stopPropagation();
         setDragActive(false);
-        
+
         if (e.dataTransfer.files && e.dataTransfer.files[0]) {
             setFile(e.dataTransfer.files[0]);
         }
@@ -724,13 +737,12 @@ function UploadResultModal({
                             onDragLeave={handleDrag}
                             onDragOver={handleDrag}
                             onDrop={handleDrop}
-                            className={`border-2 border-dashed rounded-xl p-8 text-center transition-all ${
-                                dragActive 
-                                    ? 'border-blue-500 bg-blue-50' 
-                                    : file 
-                                        ? 'border-emerald-300 bg-emerald-50' 
-                                        : 'border-slate-200 hover:border-slate-300'
-                            }`}
+                            className={`border-2 border-dashed rounded-xl p-8 text-center transition-all ${dragActive
+                                ? 'border-blue-500 bg-blue-50'
+                                : file
+                                    ? 'border-emerald-300 bg-emerald-50'
+                                    : 'border-slate-200 hover:border-slate-300'
+                                }`}
                         >
                             {file ? (
                                 <div className="flex items-center justify-center gap-3">
@@ -830,28 +842,28 @@ function UploadResultModal({
 }
 
 // View Results Modal Component
-function ViewResultsModal({ 
-    order, 
-    onClose 
-}: { 
-    order: LabOrder; 
-    onClose: () => void; 
+function ViewResultsModal({
+    order,
+    onClose
+}: {
+    order: LabOrder;
+    onClose: () => void;
 }) {
     const [documents, setDocuments] = useState<LabOrderDocument[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [downloading, setDownloading] = useState<number | null>(null);
-    
+
     // AI interpretation state
     const [aiInterpretation, setAiInterpretation] = useState<string | null>(null);
     const [aiInterpretationLoading, setAiInterpretationLoading] = useState(false);
-    
+
     const handleAIInterpret = async () => {
         if (!order.result_summary && !order.test_name) return;
-        
+
         setAiInterpretationLoading(true);
         setAiInterpretation(null);
-        
+
         try {
             const result = await interpretLabResults(
                 order.test_name,
@@ -859,7 +871,7 @@ function ViewResultsModal({
                 undefined,
                 undefined
             );
-            
+
             if (result.success) {
                 setAiInterpretation(result.message);
             } else {
@@ -901,12 +913,12 @@ function ViewResultsModal({
             const token = localStorage.getItem('token');
             const response = await axios.get(
                 `http://localhost:5000/api/patient-documents/${doc.document_id}/download`,
-                { 
+                {
                     headers: { Authorization: `Bearer ${token}` },
                     responseType: 'blob'
                 }
             );
-            
+
             // Create download link
             const url = window.URL.createObjectURL(new Blob([response.data]));
             const link = document.createElement('a');
@@ -929,12 +941,12 @@ function ViewResultsModal({
             const token = localStorage.getItem('token');
             const response = await axios.get(
                 `http://localhost:5000/api/patient-documents/${doc.document_id}/view`,
-                { 
+                {
                     headers: { Authorization: `Bearer ${token}` },
                     responseType: 'blob'
                 }
             );
-            
+
             // Open in new tab
             const url = window.URL.createObjectURL(new Blob([response.data], { type: doc.file_mime_type }));
             window.open(url, '_blank');
@@ -1007,7 +1019,7 @@ function ViewResultsModal({
                             </p>
                         </div>
                     )}
-                    
+
                     {/* AI Interpretation */}
                     {aiInterpretationLoading && (
                         <div className="mb-6">
@@ -1051,18 +1063,17 @@ function ViewResultsModal({
                         ) : (
                             <div className="space-y-3">
                                 {documents.map(doc => (
-                                    <div 
+                                    <div
                                         key={doc.document_id}
                                         className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors"
                                     >
                                         <div className="flex items-center gap-3 flex-1 min-w-0">
-                                            <div className={`p-2 rounded-lg ${
-                                                isPdf(doc.file_mime_type) 
-                                                    ? 'bg-red-100 text-red-600' 
-                                                    : isImage(doc.file_mime_type)
-                                                        ? 'bg-blue-100 text-blue-600'
-                                                        : 'bg-slate-200 text-slate-600'
-                                            }`}>
+                                            <div className={`p-2 rounded-lg ${isPdf(doc.file_mime_type)
+                                                ? 'bg-red-100 text-red-600'
+                                                : isImage(doc.file_mime_type)
+                                                    ? 'bg-blue-100 text-blue-600'
+                                                    : 'bg-slate-200 text-slate-600'
+                                                }`}>
                                                 {isPdf(doc.file_mime_type) ? (
                                                     <FileText className="w-5 h-5" />
                                                 ) : isImage(doc.file_mime_type) ? (
@@ -1130,13 +1141,13 @@ function ViewResultsModal({
 }
 
 // Add More Documents Modal Component
-function AddMoreModal({ 
-    order, 
-    onClose, 
-    onSuccess 
-}: { 
-    order: LabOrder; 
-    onClose: () => void; 
+function AddMoreModal({
+    order,
+    onClose,
+    onSuccess
+}: {
+    order: LabOrder;
+    onClose: () => void;
     onSuccess: () => void;
 }) {
     const [file, setFile] = useState<File | null>(null);
@@ -1160,7 +1171,7 @@ function AddMoreModal({
         e.preventDefault();
         e.stopPropagation();
         setDragActive(false);
-        
+
         if (e.dataTransfer.files && e.dataTransfer.files[0]) {
             setFile(e.dataTransfer.files[0]);
         }
@@ -1237,13 +1248,12 @@ function AddMoreModal({
                             onDragLeave={handleDrag}
                             onDragOver={handleDrag}
                             onDrop={handleDrop}
-                            className={`border-2 border-dashed rounded-xl p-6 text-center transition-all ${
-                                dragActive 
-                                    ? 'border-blue-500 bg-blue-50' 
-                                    : file 
-                                        ? 'border-emerald-300 bg-emerald-50' 
-                                        : 'border-slate-200 hover:border-slate-300'
-                            }`}
+                            className={`border-2 border-dashed rounded-xl p-6 text-center transition-all ${dragActive
+                                ? 'border-blue-500 bg-blue-50'
+                                : file
+                                    ? 'border-emerald-300 bg-emerald-50'
+                                    : 'border-slate-200 hover:border-slate-300'
+                                }`}
                         >
                             {file ? (
                                 <div className="flex items-center justify-center gap-3">
@@ -1349,10 +1359,10 @@ function AddMoreModal({
 }
 
 // View Status History Modal Component
-function ViewHistoryModal({ 
-    order, 
-    onClose 
-}: { 
+function ViewHistoryModal({
+    order,
+    onClose
+}: {
     order: LabOrder;
     onClose: () => void;
 }) {
@@ -1366,11 +1376,11 @@ function ViewHistoryModal({
                 setLoading(true);
                 setError(null);
                 const token = localStorage.getItem('token');
-                
+
                 const response = await axios.get(`http://localhost:5000/api/lab-orders/${order.order_id}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
-                
+
                 setHistory(response.data.data.statusHistory || []);
             } catch (err) {
                 console.error('Error fetching status history:', err);
@@ -1426,7 +1436,7 @@ function ViewHistoryModal({
                                 <p className="text-sm text-slate-500">{order.order_number} - {order.test_name}</p>
                             </div>
                         </div>
-                        <button 
+                        <button
                             onClick={onClose}
                             className="p-2 hover:bg-slate-100 rounded-lg transition-all"
                         >
@@ -1455,20 +1465,20 @@ function ViewHistoryModal({
                         <div className="relative">
                             {/* Timeline line */}
                             <div className="absolute left-[18px] top-6 bottom-6 w-0.5 bg-slate-200" />
-                            
+
                             {/* Timeline entries */}
                             <div className="space-y-6">
                                 {history.map((entry, index) => {
                                     const StatusIcon = getStatusIcon(entry.new_status);
                                     const { date, time } = formatDateTime(entry.changed_at);
-                                    
+
                                     return (
                                         <div key={entry.history_id} className="relative flex gap-4">
                                             {/* Timeline dot */}
                                             <div className={`relative z-10 w-9 h-9 rounded-full ${getStatusColor(entry.new_status)} flex items-center justify-center shadow-md`}>
                                                 <StatusIcon className="w-4 h-4 text-white" />
                                             </div>
-                                            
+
                                             {/* Content */}
                                             <div className="flex-1 pb-2">
                                                 <div className="flex items-start justify-between gap-2">

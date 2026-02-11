@@ -258,13 +258,14 @@ class ConsultationController {
                     const normalizedCat = normalizeCategory(lab.category);
                     console.log(`[LAB ORDER] Category: "${lab.category}" -> "${normalizedCat}"`);
 
-                    // Determine source: billing_master (in-house) or medical_service (external)
-                    const labSource = lab.source || 'medical_service'; // Default to external if not specified
+
+                    // Determine if external: TRUE for medical_service, FALSE for billing_master
+                    const isExternal = lab.source !== 'billing_master'; // Default to TRUE (external) if not specified
 
                     await client.query(`
                         INSERT INTO lab_orders (
                             order_number, patient_id, doctor_id, branch_id, opd_id, prescription_id,
-                            test_name, test_category, priority, status, ordered_at, notes, test_code, source
+                            test_name, test_category, priority, status, ordered_at, notes, test_code, is_external
                         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'Routine', 'Ordered', NOW(), $9, $10, $11)
                     `, [
                         orderNumber,
@@ -277,7 +278,7 @@ class ConsultationController {
                         normalizedCat,
                         lab.notes || '',
                         lab.code || null,
-                        labSource
+                        isExternal
                     ]);
 
                     // Prepare Billing Item (ONLY FOR IN_HOUSE LABS)

@@ -125,31 +125,31 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({ billData }) => {
 
                 {/* Right Column */}
                 <div className="space-y-2">
-                    <div className="grid grid-cols-[140px_1fr]">
+                    <div className="grid grid-cols-[140px_1fr] gap-x-4">
                         <span className="font-bold text-slate-500 uppercase">Bill No:</span>
                         <span className="font-bold text-slate-900 uppercase">{billData?.bill_number}</span>
                     </div>
-                    <div className="grid grid-cols-[140px_1fr]">
+                    <div className="grid grid-cols-[140px_1fr] gap-x-4">
                         <span className="font-bold text-slate-500 uppercase">Bill Date:</span>
                         <span className="font-bold text-slate-900">{formatDate(billData?.billing_date)}</span>
                     </div>
-                    <div className="grid grid-cols-[140px_1fr]">
+                    <div className="grid grid-cols-[140px_1fr] gap-x-4">
                         <span className="font-bold text-slate-500 uppercase">MR No:</span>
                         <span className="font-bold text-slate-900 uppercase">{billData?.mrn_number}</span>
                     </div>
-                    <div className="grid grid-cols-[140px_1fr]">
+                    <div className="grid grid-cols-[140px_1fr] gap-x-4">
                         <span className="font-bold text-slate-500 uppercase">Visit ID:</span>
                         <span className="font-bold text-slate-900 uppercase">{billData?.opd_number}</span>
                     </div>
-                    <div className="grid grid-cols-[140px_1fr]">
+                    <div className="grid grid-cols-[140px_1fr] gap-x-4">
                         <span className="font-bold text-slate-500 uppercase">Registered Date:</span>
                         <span className="font-bold text-slate-900">{formatDateTime(billData?.registered_date)}</span>
                     </div>
-                    <div className="grid grid-cols-[140px_1fr]">
+                    <div className="grid grid-cols-[140px_1fr] gap-x-4">
                         <span className="font-bold text-slate-500 uppercase">Patient's Phone:</span>
                         <span className="font-bold text-slate-900">{billData?.contact_number}</span>
                     </div>
-                    <div className="grid grid-cols-[140px_1fr]">
+                    <div className="grid grid-cols-[140px_1fr] gap-x-4">
                         <span className="font-bold text-slate-500 uppercase">Caretaker Phone:</span>
                         <span className="font-bold text-slate-900">N/A</span>
                     </div>
@@ -182,14 +182,30 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({ billData }) => {
                         ))}
                     </tbody>
                     <tfoot>
-                        <tr className="bg-slate-50">
-                            <td colSpan={5} className="border border-slate-300 py-3 px-4 text-right font-bold text-slate-900">Sub Total</td>
-                            <td className="border border-slate-300 py-3 px-4 text-right font-black text-slate-900 text-sm">₹{parseFloat(billData?.total_amount).toFixed(2)}</td>
-                        </tr>
-                        <tr className="bg-slate-100">
-                            <td colSpan={5} className="border border-slate-300 py-3 px-4 text-right font-bold text-slate-900">Total Bill</td>
-                            <td className="border border-slate-300 py-3 px-4 text-right font-black text-slate-900 text-xl print:text-lg">₹{parseFloat(billData?.total_amount).toFixed(2)}</td>
-                        </tr>
+                        {(() => {
+                            const subtotal = billData?.items?.filter((i: any) => i.status !== 'Cancelled').reduce((sum: number, item: any) => sum + parseFloat(item.final_price), 0) || 0;
+                            const discountAmount = parseFloat(billData?.discount_amount || 0);
+                            const totalAmount = Math.max(0, subtotal - discountAmount);
+
+                            return (
+                                <>
+                                    <tr className="bg-slate-50">
+                                        <td colSpan={5} className="border border-slate-300 py-3 px-4 text-right font-bold text-slate-900">Sub Total</td>
+                                        <td className="border border-slate-300 py-3 px-4 text-right font-black text-slate-900 text-sm">₹{subtotal.toFixed(2)}</td>
+                                    </tr>
+                                    {discountAmount > 0 && (
+                                        <tr className="bg-slate-50">
+                                            <td colSpan={5} className="border border-slate-300 py-3 px-4 text-right font-bold text-slate-900">Discount</td>
+                                            <td className="border border-slate-300 py-3 px-4 text-right font-black text-red-600 text-sm">-₹{discountAmount.toFixed(2)}</td>
+                                        </tr>
+                                    )}
+                                    <tr className="bg-slate-100">
+                                        <td colSpan={5} className="border border-slate-300 py-3 px-4 text-right font-bold text-slate-900">Total Bill</td>
+                                        <td className="border border-slate-300 py-3 px-4 text-right font-black text-slate-900 text-xl print:text-lg">₹{totalAmount.toFixed(2)}</td>
+                                    </tr>
+                                </>
+                            );
+                        })()}
                     </tfoot>
                 </table>
             </div>

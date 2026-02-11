@@ -80,6 +80,13 @@ class BillingController {
             } else {
                 // CREATE New Bill (Fallback for old entries or direct billing)
 
+                // Fetch is_mlc from opd_entries if opd_id is provided
+                let is_mlc = false;
+                if (opd_id) {
+                    const opdRes = await client.query(`SELECT is_mlc FROM opd_entries WHERE opd_id = $1`, [opd_id]);
+                    is_mlc = opdRes.rows[0]?.is_mlc || false;
+                }
+
                 // 1. Generate Bill Number & Invoice Number
                 const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
                 const randomSuffix = Math.floor(1000 + Math.random() * 9000);
@@ -108,13 +115,13 @@ class BillingController {
                         patient_id, mrn_number, patient_name, patient_address, contact_number,
                         billing_date, total_amount, paid_amount, pending_amount,
                         payment_mode, payment_status, status,
-                        discount_type, discount_value, created_by
+                        discount_type, discount_value, created_by, invoice_type
                     ) VALUES (
                         $1, $2, $3, $4, $5,
                         $6, $7, $8, $9, $10,
                         $11, $12, $13, $14,
                         $15, $16, 'Paid',
-                        $17, $18, $19
+                        $17, $18, $19, $20
                     ) RETURNING bill_master_id
                 `;
 
@@ -123,7 +130,8 @@ class BillingController {
                     patient_id, mrn_number, patient_name, patient_address, contact_number,
                     billing_date || new Date(), total_amount, paid_amount || total_amount, pending_amount,
                     payment_mode, payment_status,
-                    discount_type || 'none', discount_value || 0, staffCode // created_by
+                    discount_type || 'none', discount_value || 0, staffCode, // created_by
+                    is_mlc ? 'Emergency' : 'OPD' // invoice_type
                 ];
 
                 const masterResult = await client.query(masterQuery, masterValues);
@@ -218,8 +226,11 @@ class BillingController {
                     bm.*,
                     p.age,
                     p.gender,
+                    p.first_name || ' ' || p.last_name as patient_name,
+                    p.contact_number,
                     d.first_name || ' ' || d.last_name as doctor_name,
-                    dep.department_name
+                    dep.department_name,
+                    oe.is_mlc
                 FROM billing_master bm
                 JOIN patients p ON bm.patient_id = p.patient_id
                 LEFT JOIN opd_entries oe ON bm.opd_id = oe.opd_id
@@ -286,8 +297,8 @@ class BillingController {
                     bm.opd_number,
                     bm.patient_id,
                     bm.mrn_number,
-                    bm.patient_name,
-                    bm.contact_number,
+                    p.first_name || ' ' || p.last_name as patient_name,
+                    p.contact_number,
                     bm.total_amount as total_pending_amount,
                     bm.billing_date,
                     bm.due_date,
@@ -296,6 +307,7 @@ class BillingController {
                     oe.token_number,
                     oe.visit_date,
                     oe.visit_type,
+                    oe.is_mlc,
                     p.age,
                     p.gender,
                     p.address,

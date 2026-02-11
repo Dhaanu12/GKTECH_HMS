@@ -1,21 +1,21 @@
-const db = require('./config/db');
+const { pool } = require('./config/db');
 
-async function checkBillDetailsSchema() {
+async function checkSchema() {
     try {
-        const client = await db.getClient();
-        const res = await client.query(`
+        console.log('Checking bill_details schema...\n');
+        const res = await pool.query(`
             SELECT column_name, data_type, is_nullable, column_default
             FROM information_schema.columns 
             WHERE table_name = 'bill_details'
-            ORDER BY ordinal_position
+            ORDER BY ordinal_position;
         `);
-        console.log(JSON.stringify(res.rows, null, 2));
-        client.release();
-        process.exit(0);
+        console.table(res.rows);
+
     } catch (err) {
-        console.error(err);
-        process.exit(1);
+        console.error('Error:', err);
+    } finally {
+        await pool.end();
     }
 }
 
-checkBillDetailsSchema();
+checkSchema();

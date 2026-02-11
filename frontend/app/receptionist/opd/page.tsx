@@ -191,7 +191,7 @@ export default function OpdEntryPage() {
             spo2: '',
             grbs: ''
         },
-        consultation_fee: '',
+        consultation_fee: '0',
         payment_status: 'Pending',
         payment_method: 'Cash',
         is_mlc: false,
@@ -819,13 +819,11 @@ export default function OpdEntryPage() {
 
         try {
             const token = localStorage.getItem('token');
-            // Calculate Total Fee (Doctor + MLC)
-            // handleEditOpd now loads BASE fee (subtracts MLC), so we always add MLC here
-            let totalFee = parseFloat(formData.consultation_fee || '0');
+            // Ensure we send only the base fee to the backend
+            let baseFee = parseFloat(formData.consultation_fee || '0');
             let mlcFeeAmount = 0;
             if (formData.is_mlc && branchDetails?.mlc_fee) {
                 mlcFeeAmount = parseFloat(branchDetails.mlc_fee);
-                totalFee += mlcFeeAmount;
             }
 
             // Clinical Hours Validation
@@ -853,7 +851,7 @@ export default function OpdEntryPage() {
                 // Fallback to selectedPatient?.patient_id if formData one is missing/empty
                 patient_id: formData.patient_id || selectedPatient?.patient_id,
                 vital_signs: JSON.stringify(formData.vital_signs),
-                consultation_fee: totalFee.toString(), // Send Total Fee to backend
+                consultation_fee: baseFee.toString(), // Send Base Fee to backend
                 mlc_fee: mlcFeeAmount.toString(), // Send separate MLC fee component
                 // Map frontend field names to backend expected names
                 address_line_1: formData.address_line1,
@@ -893,28 +891,26 @@ export default function OpdEntryPage() {
         try {
             const savedEntry = await saveEntry();
 
-            if (paymentChoice === 'PayNow' && savedEntry) {
-                // Determine MRN - might be from response or selectedPatient
-                const mrn = savedEntry.mrn_number || selectedPatient?.mrn_number;
-
-                setNewOpdData({
-                    ...savedEntry,
-                    // Ensure we have patient details for the modal
-                    patient_first_name: opdForm.first_name,
-                    patient_last_name: opdForm.last_name,
-                    patient_contact_number: opdForm.contact_number,
-                    mrn_number: mrn
-                });
-                setShowModal(false); // Close OPD Modal
-                setShowBillModal(true); // Open Billing Modal
+            // Only show bill modal for NEW entries with PayNow, not for updates
+            if (paymentChoice === 'PayNow' && savedEntry && !editingOpdId) {
+                const opdId = typeof savedEntry === 'number' ? savedEntry : savedEntry.opd_id;
+                if (opdId) {
+                    setNewOpdData(savedEntry); // Set this to trigger reset on modal close
+                    await handlePrintBill(opdId);
+                    setShowModal(false);
+                }
             } else {
+                alert(editingOpdId ? 'OPD entry updated successfully' : 'OPD entry saved successfully');
                 setShowModal(false);
                 resetForm();
+                fetchOpdEntries();
+                fetchDashboardStats();
+                if (fetchAppointments) {
+                    fetchAppointments();
+                }
             }
-            fetchOpdEntries();
-            fetchDashboardStats(); // Refresh stats
         } catch (error) {
-            // Error already handled in saveEntry
+            console.error('Error:', error);
         } finally {
             setLoading(false);
         }
@@ -941,7 +937,12 @@ export default function OpdEntryPage() {
                 fetchOpdEntries();
 
                 // Now trigger print
-                await handlePrintBill(savedId);
+                setNewOpdData(savedId); // Set this to trigger reset on modal close
+
+                const opdId = typeof savedId === 'number' ? savedId : savedId.opd_id;
+                if (opdId) {
+                    await handlePrintBill(opdId);
+                }
 
                 // Keep modal open or close? User usually wants to see the bill, then close.
                 // The handlePrintBill opens detailed bill modal.
@@ -950,8 +951,8 @@ export default function OpdEntryPage() {
                 // Or maybe better: Switch to edit mode so they can see what they just saved under the bill modal?
                 // Decision: Close the entry form modal so only the Bill modal is visible on top of list.
                 // Decision: Close the entry form modal so only the Bill modal is visible on top of list.
-                // setShowModal(false);
-                // resetForm();
+                setShowModal(false);
+                // resetForm(); // handeled in BillingModal onClose
             }
         } catch (error) {
             // Error handled in saveEntry
@@ -1031,21 +1032,13 @@ export default function OpdEntryPage() {
             }
         } catch (e) { }
 
-        // Calculate base consultation fee for MLC entries
-        // DB stores total (consultation + MLC), so we need to subtract MLC for display
-        let baseConsultationFee = entry.consultation_fee || '';
-        const doc = doctors.find((d: any) => d.doctor_id === entry.doctor_id);
-
-        if (entry.is_mlc && entry.consultation_fee) {
-            const total = parseFloat(entry.consultation_fee);
-            const mlcFee = branchDetails?.mlc_fee ? parseFloat(branchDetails.mlc_fee) : 0;
-
-            // If we have MLC fee, subtract it
-            if (mlcFee > 0) {
-                baseConsultationFee = (total - mlcFee).toString();
-            } else if (doc?.consultation_fee) {
-                // Fallback: If we don't know MLC fee but know doctor fee, assume doctor fee is the base
-                baseConsultationFee = doc.consultation_fee.toString();
+        // Initialize form with base fee by subtracting MLC fee if it was stored as total
+        let baseConsultationFee = entry.consultation_fee || '0';
+        if (entry.is_mlc) {
+            const mlcFee = parseFloat(branchDetails?.mlc_fee || '0');
+            const totalStored = parseFloat(baseConsultationFee);
+            if (totalStored >= mlcFee) {
+                baseConsultationFee = (totalStored - mlcFee).toString();
             }
         }
 
@@ -1851,14 +1844,14 @@ export default function OpdEntryPage() {
                                     )}
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    {opdForm.payment_status === 'Paid' && (
+                                    {opdForm.payment_status === 'Paid' && !editingOpdId && (
                                         <button
                                             type="button"
-                                            onClick={editingOpdId ? () => handlePrintBill(editingOpdId) : handleSaveAndPrint}
+                                            onClick={handleSaveAndPrint}
                                             className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition text-sm font-bold"
                                         >
                                             <Printer className="w-4 h-4" />
-                                            {editingOpdId ? 'Print Bill' : 'Save & Print'}
+                                            Save & Print
                                         </button>
                                     )}
                                     <button
@@ -2329,23 +2322,12 @@ export default function OpdEntryPage() {
                                                 disabled={!!editingOpdId && opdForm.is_mlc}
                                                 onChange={(e) => {
                                                     const isChecked = e.target.checked;
-
-                                                    // Reset fee to doctor's default when unchecking MLC
-                                                    let newFee = opdForm.consultation_fee;
-                                                    if (!isChecked && opdForm.doctor_id) {
-                                                        const doc = doctors.find((d: any) => d.doctor_id == opdForm.doctor_id); // Loose comparison for string/number
-                                                        if (doc) {
-                                                            newFee = doc.consultation_fee?.toString() || '';
-                                                        }
-                                                    }
-
                                                     setOpdForm({
                                                         ...opdForm,
                                                         is_mlc: isChecked,
                                                         visit_type: isChecked ? 'Emergency' : 'Walk-in',
                                                         visit_date: isChecked ? new Date().toLocaleDateString('en-CA') : opdForm.visit_date,
-                                                        visit_time: isChecked ? new Date().toTimeString().slice(0, 5) : opdForm.visit_time,
-                                                        consultation_fee: newFee
+                                                        visit_time: isChecked ? new Date().toTimeString().slice(0, 5) : opdForm.visit_time
                                                     });
                                                 }}
                                                 className={`w-5 h-5 text-red-600 border-gray-300 rounded focus:ring-red-500 transition-all cursor-pointer ${!!editingOpdId && opdForm.is_mlc ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -2415,10 +2397,12 @@ export default function OpdEntryPage() {
                                                         onChange={(e) => {
                                                             const val = e.target.value;
                                                             const selectedDoc = doctors.find((d: any) => d.doctor_id === parseInt(val));
+                                                            const baseFee = parseFloat(selectedDoc?.consultation_fee?.toString() || '0');
+
                                                             setOpdForm({
                                                                 ...opdForm,
                                                                 doctor_id: val,
-                                                                consultation_fee: selectedDoc?.consultation_fee || ''
+                                                                consultation_fee: baseFee.toString()
                                                             });
                                                         }}
                                                         required
@@ -2426,22 +2410,20 @@ export default function OpdEntryPage() {
                                                     >
                                                         <option value="">Select Doctor</option>
                                                         {doctors.map((doc: any) => {
-                                                            // Temporarily commented out availability check - allow all doctors to be selectable
-                                                            /*
                                                             const todayIST = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
                                                             const availableSlots = getDoctorAvailabilityCount(doc.doctor_id, todayIST);
                                                             const isAvailable = availableSlots > 0;
-                                                            */
-                                                            const isAvailable = true;
+                                                            // Temporarily commented out availability check - allow all doctors to be selectable
+                                                            // const isAvailable = true;
 
                                                             return (
                                                                 <option
                                                                     key={doc.doctor_id}
                                                                     value={doc.doctor_id}
-                                                                    // disabled={!isAvailable}
+                                                                    disabled={!isAvailable}
                                                                     className={!isAvailable ? 'text-gray-400' : ''}
                                                                 >
-                                                                    Dr. {doc.first_name} {doc.last_name} ({doc.specialization})
+                                                                    Dr. {doc.first_name} {doc.last_name} ({doc.specialization}) {!isAvailable ? '* Unavailable' : ''}
                                                                 </option>
                                                             );
                                                         })}
@@ -2675,8 +2657,8 @@ export default function OpdEntryPage() {
                                                     <input
                                                         type="number"
                                                         value={opdForm.consultation_fee}
-                                                        onChange={(e) => setOpdForm({ ...opdForm, consultation_fee: e.target.value })}
-                                                        className="w-32 pl-7 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                                        readOnly
+                                                        className="w-32 pl-7 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium focus:outline-none cursor-not-allowed text-slate-500"
                                                         placeholder="0.00"
                                                     />
                                                 </div>
@@ -2698,21 +2680,30 @@ export default function OpdEntryPage() {
                                             <div className="flex-1 min-w-[200px]">
                                                 <label className="block text-xs font-semibold text-slate-500 mb-2">Payment Preference <span className="text-red-500">*</span></label>
                                                 <div className="relative">
-                                                    <select
-                                                        value={paymentChoice}
-                                                        onChange={(e) => {
-                                                            const val = e.target.value as 'PayNow' | 'PayLater';
-                                                            setPaymentChoice(val);
-                                                            setOpdForm(prev => ({ ...prev, payment_status: val === 'PayNow' ? 'Paid' : 'Pending' }));
-                                                        }}
-                                                        className="w-full pl-3 pr-10 py-2.5 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-700 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
-                                                    >
-                                                        <option value="PayNow">Pay Now</option>
-                                                        <option value="PayLater">Pay Later</option>
-                                                    </select>
-                                                    <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-500">
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                                                    </div>
+                                                    {opdForm.payment_status === 'Paid' && !!editingOpdId ? (
+                                                        <div className="w-full px-4 py-2.5 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
+                                                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                                                            <span className="font-bold text-green-700">Paid</span>
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <select
+                                                                value={paymentChoice}
+                                                                onChange={(e) => {
+                                                                    const val = e.target.value as 'PayNow' | 'PayLater';
+                                                                    setPaymentChoice(val);
+                                                                    setOpdForm(prev => ({ ...prev, payment_status: val === 'PayNow' ? 'Paid' : 'Pending' }));
+                                                                }}
+                                                                className="w-full pl-3 pr-10 py-2.5 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-700 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
+                                                            >
+                                                                <option value="PayNow">Pay Now</option>
+                                                                <option value="PayLater">Pay Later</option>
+                                                            </select>
+                                                            <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-500">
+                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                                                            </div>
+                                                        </>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -2766,12 +2757,11 @@ export default function OpdEntryPage() {
                     </div >
                 )
             }
-            {/* Bill Modal */}
-            {
+            {/* Redundant old Bill Modal - Commented out to use standard BillingModal */}
+            {/* 
                 showBillModal && billData && (
                     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4 print:p-0 print:bg-white print:fixed print:inset-0 print:z-[100] print-modal">
                         <div className="bg-white rounded-lg shadow-2xl max-w-3xl w-full overflow-hidden print:shadow-none print:w-full print:max-w-none">
-                            {/* Print Controls - Hidden in Print */}
                             <div className="bg-gray-100 px-6 py-3 flex justify-between items-center border-b border-gray-200 print:hidden">
                                 <h3 className="font-semibold text-gray-800">Bill Preview</h3>
                                 <div className="flex gap-3">
@@ -2790,9 +2780,7 @@ export default function OpdEntryPage() {
                                 </div>
                             </div>
 
-                            {/* Bill Content */}
                             <div className="p-8 print:p-0" id="printable-bill">
-                                {/* Header */}
                                 <div className="flex justify-between items-start mb-6 border-b-2 border-gray-800 pb-4">
                                     <div className="flex items-center gap-4">
                                         <div>
@@ -2817,7 +2805,6 @@ export default function OpdEntryPage() {
                                     <h2 className="text-lg font-bold underline uppercase tracking-wider">OPD Payment Receipt</h2>
                                 </div>
 
-                                {/* Patient Info Grid */}
                                 <div className="grid grid-cols-2 gap-x-12 gap-y-2 text-sm mb-6 font-medium">
                                     <div className="flex">
                                         <span className="w-32 text-gray-600">Q.No / Receipt No.:</span>
@@ -2857,7 +2844,6 @@ export default function OpdEntryPage() {
                                     </div>
                                 </div>
 
-                                {/* Bill Items Table */}
                                 <table className="w-full mb-6 border-collapse">
                                     <thead>
                                         <tr className="border-y-2 border-gray-800">
@@ -2868,7 +2854,6 @@ export default function OpdEntryPage() {
                                         </tr>
                                     </thead>
                                     <tbody className="text-sm">
-                                        {/* Consultation Fee */}
                                         <tr className="border-b border-gray-200">
                                             <td className="py-3 text-center">1</td>
                                             <td className="py-3 pl-4">Consultation Fee</td>
@@ -2880,7 +2865,6 @@ export default function OpdEntryPage() {
                                                 ).toFixed(2)}
                                             </td>
                                         </tr>
-                                        {/* MLC Fee (if applicable) */}
                                         {billData.is_mlc && billData.mlc_fee > 0 && (
                                             <tr className="border-b border-gray-200">
                                                 <td className="py-3 text-center">2</td>
@@ -2900,13 +2884,12 @@ export default function OpdEntryPage() {
                                     </tfoot>
                                 </table>
 
-                                {/* Footer */}
                                 <div className="mt-8 pt-8 flex justify-between items-end">
                                     <div className="text-sm">
                                         <p className="italic">Received with thanks <b>Rs. {parseFloat(billData.consultation_fee || '0').toFixed()} /-</b> from {billData.patient_first_name} {billData.patient_last_name}.</p>
                                     </div>
                                     <div className="text-center">
-                                        <div className="h-12"></div> {/* Space for signature */}
+                                        <div className="h-12"></div>
                                         <p className="text-sm font-medium border-t border-gray-400 px-8 pt-1">Authorized Signature</p>
                                     </div>
                                 </div>
@@ -2914,7 +2897,7 @@ export default function OpdEntryPage() {
                         </div>
                     </div>
                 )
-            }
+             */}
 
             {/* Cancel Confirmation Modal */}
             {
@@ -3155,7 +3138,7 @@ export default function OpdEntryPage() {
                     fetchOpdEntries();
                     fetchDashboardStats();
                 }}
-                opdData={newOpdData || billData} // Use newOpdData for Pay Now, billData for Reprint
+                opdData={billData || newOpdData} // Prioritize full data from billData (GET) over partial data from newOpdData (POST)
                 onSuccess={() => {
                     fetchOpdEntries();
                     fetchDashboardStats();

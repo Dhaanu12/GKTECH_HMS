@@ -310,6 +310,14 @@ class OpdController {
             }
 
             // 3. Create OPD Entry
+            let actualMlcFee = 0;
+            if (is_mlc) {
+                const branchRes = await client.query(`SELECT mlc_fee FROM branches WHERE branch_id = $1`, [branch_id]);
+                actualMlcFee = parseFloat(branchRes.rows[0]?.mlc_fee || '0');
+            }
+            const consultationFeeNum = parseFloat(finalConsultationFee || '0');
+            const totalOpdFee = consultationFeeNum + actualMlcFee;
+
             const result = await client.query(`
                 INSERT INTO opd_entries (
                     opd_number, patient_id, branch_id, doctor_id, department_id,
@@ -333,7 +341,7 @@ class OpdController {
                 opd_number, finalPatientId, branch_id, finalDoctorId,
                 visit_type, visit_date, visit_time, token_number,
                 reason_for_visit, symptoms, vital_signs, chief_complaint,
-                finalConsultationFee, payment_status,
+                totalOpdFee, payment_status, // Store base + MLC for backward compatibility
                 payment_method || 'Cash', // Default to Cash if not provided
                 staffCode,
                 is_mlc || false, attender_name, sanitizedAttenderContact, sanitizedMlcRemarks,
@@ -345,73 +353,99 @@ class OpdController {
             const newOpdId = newOpdEntry.opd_id;
 
             // 3.5. Auto-create Billing Master & Details (Pending Status)
-            if (finalConsultationFee && parseFloat(finalConsultationFee) > 0) {
-                const patientRes = await client.query(`SELECT mrn_number, first_name, last_name, address, contact_number FROM patients WHERE patient_id = $1`, [finalPatientId]);
-                const patientData = patientRes.rows[0];
-                const patientMrn = patientData?.mrn_number;
-                const patientName = `${patientData?.first_name} ${patientData?.last_name}`.trim();
+            if (consultationFeeNum > 0 || is_mlc) {
+                const consultationFeeForBill = consultationFeeNum;
+                const totalBillAmount = consultationFeeNum + actualMlcFee;
 
-                const dateStrBill = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-                const randomSuffixBill = Math.floor(1000 + Math.random() * 9000);
-                const bill_number = `BILL-${dateStrBill}-${randomSuffixBill}`;
+                if (totalBillAmount > 0) {
+                    const patientRes = await client.query(`SELECT mrn_number, first_name, last_name, address, contact_number FROM patients WHERE patient_id = $1`, [finalPatientId]);
+                    const patientData = patientRes.rows[0];
+                    const patientMrn = patientData?.mrn_number;
+                    const patientName = `${patientData?.first_name} ${patientData?.last_name}`.trim();
 
-                const lastInvQuery = await client.query(
-                    `SELECT invoice_number FROM billing_master WHERE invoice_number LIKE $1 ORDER BY bill_master_id DESC LIMIT 1`,
-                    [`INV-${dateStrBill}-%`]
-                );
+                    const dateStrBill = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+                    const randomSuffixBill = Math.floor(1000 + Math.random() * 9000);
+                    const bill_number = `BILL-${dateStrBill}-${randomSuffixBill}`;
 
-                let nextInvSuffix = 1;
-                if (lastInvQuery.rows.length > 0) {
-                    const lastInv = lastInvQuery.rows[0].invoice_number;
-                    const parts = lastInv.split('-');
-                    if (parts.length === 3) {
-                        const numPart = parseInt(parts[2]);
-                        if (!isNaN(numPart)) nextInvSuffix = numPart + 1;
+                    const lastInvQuery = await client.query(
+                        `SELECT invoice_number FROM billing_master WHERE invoice_number LIKE $1 ORDER BY bill_master_id DESC LIMIT 1`,
+                        [`INV-${dateStrBill}-%`]
+                    );
+
+                    let nextInvSuffix = 1;
+                    if (lastInvQuery.rows.length > 0) {
+                        const lastInv = lastInvQuery.rows[0].invoice_number;
+                        const parts = lastInv.split('-');
+                        if (parts.length === 3) {
+                            const numPart = parseInt(parts[2]);
+                            if (!isNaN(numPart)) nextInvSuffix = numPart + 1;
+                        }
+                    }
+                    const invoice_number = `INV-${dateStrBill}-${nextInvSuffix.toString().padStart(4, '0')}`;
+
+                    const masterResult = await client.query(`
+                        INSERT INTO billing_master (
+                            bill_number, invoice_number, opd_id, opd_number, branch_id,
+                            patient_id, mrn_number, patient_name, patient_address, contact_number,
+                            billing_date, 
+                            subtotal_amount, total_amount, paid_amount, pending_amount,
+                            payment_mode, payment_status, status,
+                            created_by, invoice_type
+                        ) VALUES (
+                            $1, $2, $3, $4, $5,
+                            $6, $7, $8, $9, $10,
+                            CURRENT_DATE,
+                            $11, $11, 0, $11,
+                            $12, 'Unpaid', 'Pending',
+                            $13, $14
+                        ) RETURNING bill_master_id
+                    `, [
+                        bill_number, invoice_number, newOpdId, opd_number, branch_id,
+                        finalPatientId, patientMrn, patientName, patientData?.address || 'N/A', patientData?.contact_number || '0000000000',
+                        totalBillAmount,
+                        payment_method || 'Cash',
+                        staffCode,
+                        is_mlc ? 'Emergency' : 'OPD'
+                    ]);
+
+                    const bill_master_id = masterResult.rows[0].bill_master_id;
+
+                    // Insert Consultation Fee Line Item
+                    if (consultationFeeNum > 0) {
+                        await client.query(`
+                            INSERT INTO bill_details (
+                                bill_master_id, branch_id, department_id, patient_id, mrn_number, opd_id,
+                                service_type, service_name, quantity, unit_price, subtotal, final_price, status,
+                                is_cancellable, created_by
+                            ) VALUES (
+                                $1, $2, $3, $4, $5, $6,
+                                'consultation', 'OPD Consultation', 1, $7, $7, $7, 'Pending',
+                                false, $8
+                            )
+                        `, [
+                            bill_master_id, branch_id, departmentId || 0, finalPatientId, patientMrn, newOpdId,
+                            consultationFeeNum, staffCode
+                        ]);
+                    }
+
+                    // Insert MLC Fee Line Item
+                    if (actualMlcFee > 0) {
+                        await client.query(`
+                            INSERT INTO bill_details (
+                                bill_master_id, branch_id, department_id, patient_id, mrn_number, opd_id,
+                                service_type, service_name, quantity, unit_price, subtotal, final_price, status,
+                                is_cancellable, created_by
+                            ) VALUES (
+                                $1, $2, $3, $4, $5, $6,
+                                'other', 'MLC Fee', 1, $7, $7, $7, 'Pending',
+                                false, $8
+                            )
+                        `, [
+                            bill_master_id, branch_id, departmentId || 0, finalPatientId, patientMrn, newOpdId,
+                            actualMlcFee, staffCode
+                        ]);
                     }
                 }
-                const invoice_number = `INV-${dateStrBill}-${nextInvSuffix.toString().padStart(4, '0')}`;
-
-                const masterResult = await client.query(`
-                    INSERT INTO billing_master (
-                        bill_number, invoice_number, opd_id, opd_number, branch_id,
-                        patient_id, mrn_number, patient_name, patient_address, contact_number,
-                        billing_date, 
-                        subtotal_amount, total_amount, paid_amount, pending_amount,
-                        payment_mode, payment_status, status,
-                        created_by
-                    ) VALUES (
-                        $1, $2, $3, $4, $5,
-                        $6, $7, $8, $9, $10,
-                        CURRENT_DATE,
-                        $11, $11, 0, $11,
-                        $12, 'Unpaid', 'Pending',
-                        $13
-                    ) RETURNING bill_master_id
-                `, [
-                    bill_number, invoice_number, newOpdId, opd_number, branch_id,
-                    finalPatientId, patientMrn, patientName, patientData?.address || 'N/A', patientData?.contact_number || '0000000000',
-                    finalConsultationFee,
-                    payment_method || 'Cash',
-                    staffCode
-                ]);
-
-                const bill_master_id = masterResult.rows[0].bill_master_id;
-
-                // Insert Bill Details
-                await client.query(`
-                    INSERT INTO bill_details (
-                        bill_master_id, branch_id, department_id, patient_id, mrn_number, opd_id,
-                        service_type, service_name, quantity, unit_price, subtotal, final_price, status,
-                        is_cancellable, created_by
-                    ) VALUES (
-                        $1, $2, $3, $4, $5, $6,
-                        'consultation', 'OPD Consultation', 1, $7, $7, $7, 'Pending',
-                        false, $8
-                    )
-                `, [
-                    bill_master_id, branch_id, departmentId || 0, finalPatientId, patientMrn, newOpdId,
-                    finalConsultationFee, staffCode
-                ]);
             }
 
             // 4. Sync Appointment Status
@@ -925,6 +959,40 @@ class OpdController {
                 'first_name', 'last_name', 'age', 'gender', 'contact_number', 'blood_group',
                 'address_line_1', 'address_line_2', 'city', 'state', 'pincode', 'adhaar_number'
             ];
+
+            // Intercept consultation_fee to store total (base + MLC) in database
+            if (updates.consultation_fee !== undefined || updates.is_mlc !== undefined) {
+                // Fetch current values to fill gaps
+                const currentEntry = await query(`SELECT consultation_fee, is_mlc FROM opd_entries WHERE opd_id = $1`, [id]);
+                if (currentEntry.rows.length > 0) {
+                    const existingIsMlc = currentEntry.rows[0].is_mlc;
+                    // Note: existing consultation_fee in DB is TOTAL. 
+                    // But we expect frontend to send BASE fee in updates.consultation_fee.
+
+                    const newIsMlc = updates.is_mlc !== undefined ? updates.is_mlc : existingIsMlc;
+                    let baseFee = updates.consultation_fee !== undefined ? parseFloat(updates.consultation_fee || '0') : null;
+
+                    if (baseFee === null) {
+                        // If we are only updating is_mlc, we need the old base fee.
+                        // We have to extract base fee from old total fee.
+                        const oldTotal = parseFloat(currentEntry.rows[0].consultation_fee || '0');
+                        let oldMlcFee = 0;
+                        if (existingIsMlc) {
+                            const branchRes = await query(`SELECT mlc_fee FROM branches WHERE branch_id = $1`, [branch_id]);
+                            oldMlcFee = parseFloat(branchRes.rows[0]?.mlc_fee || '0');
+                        }
+                        baseFee = oldTotal - oldMlcFee;
+                    }
+
+                    let mlcFee = 0;
+                    if (newIsMlc) {
+                        const branchRes = await query(`SELECT mlc_fee FROM branches WHERE branch_id = $1`, [branch_id]);
+                        mlcFee = parseFloat(branchRes.rows[0]?.mlc_fee || '0');
+                    }
+
+                    updates.consultation_fee = (baseFee + mlcFee).toString();
+                }
+            }
 
             // 1. Update OPD Entry
             const opdUpdateValues = [];
