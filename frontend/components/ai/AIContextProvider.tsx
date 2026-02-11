@@ -1,7 +1,15 @@
 'use client';
 
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import axios from 'axios';
 import { ChatMessage, AIContext as AICtx, chat, streamChat, getAIStatus, RateLimitInfo } from '@/lib/api/ai';
+
+export interface PendingAction {
+    action: string;
+    label: string;
+    params: Record<string, any>;
+    summary: string;
+}
 
 interface AIContextType {
     // Chat state
@@ -18,6 +26,11 @@ interface AIContextType {
     // Rate limiting
     rateLimit: RateLimitInfo | null;
     isAvailable: boolean;
+
+    // Confirmation flow
+    pendingAction: PendingAction | null;
+    confirmAction: () => Promise<void>;
+    cancelAction: () => void;
     
     // Actions
     sendMessage: (content: string) => Promise<void>;
@@ -52,6 +65,7 @@ export function AIContextProvider({ children, role, initialPage = '' }: AIContex
     const [patientInfo, setPatientInfo] = useState<string | null>(null);
     const [rateLimit, setRateLimit] = useState<RateLimitInfo | null>(null);
     const [isAvailable, setIsAvailable] = useState(true);
+    const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
 
     // Refresh AI status on mount
     useEffect(() => {
@@ -119,7 +133,19 @@ export function AIContextProvider({ children, role, initialPage = '' }: AIContex
                 getContext(),
                 (chunk) => {
                     streamedContent += chunk;
-                    setMessages([...newMessages, { role: 'assistant', content: streamedContent }]);
+                    // Detect confirmation payload in the streamed response
+                    const confirmMatch = streamedContent.match(/\[CONFIRM_ACTION\]([\s\S]*?)\[\/CONFIRM_ACTION\]/);
+                    if (confirmMatch) {
+                        try {
+                            const actionData = JSON.parse(confirmMatch[1]);
+                            setPendingAction(actionData);
+                            // Remove the confirmation block from visible text
+                            const cleanContent = streamedContent.replace(/\[CONFIRM_ACTION\][\s\S]*?\[\/CONFIRM_ACTION\]/, '').trim();
+                            setMessages([...newMessages, { role: 'assistant', content: cleanContent }]);
+                        } catch { /* ignore parse errors */ }
+                    } else {
+                        setMessages([...newMessages, { role: 'assistant', content: streamedContent }]);
+                    }
                 },
                 () => {
                     setIsStreaming(false);
@@ -135,6 +161,43 @@ export function AIContextProvider({ children, role, initialPage = '' }: AIContex
             setIsStreaming(false);
         }
     }, [messages, getContext, refreshStatus]);
+
+    const confirmAction = useCallback(async () => {
+        if (!pendingAction) return;
+        
+        setIsLoading(true);
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.post('http://localhost:5000/api/ai/execute-action', {
+                action: pendingAction.action,
+                params: pendingAction.params
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            
+            const successMsg: ChatMessage = {
+                role: 'assistant',
+                content: `✅ ${pendingAction.label} completed successfully.`
+            };
+            setMessages(prev => [...prev, successMsg]);
+            setPendingAction(null);
+        } catch (err: any) {
+            const errorMsg = err.response?.data?.message || err.message || 'Action failed';
+            setError(`Failed: ${errorMsg}`);
+            setPendingAction(null);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [pendingAction]);
+
+    const cancelAction = useCallback(() => {
+        const cancelMsg: ChatMessage = {
+            role: 'assistant',
+            content: '❌ Action cancelled.'
+        };
+        setMessages(prev => [...prev, cancelMsg]);
+        setPendingAction(null);
+    }, []);
 
     const clearChat = useCallback(() => {
         setMessages([]);
@@ -158,6 +221,9 @@ export function AIContextProvider({ children, role, initialPage = '' }: AIContex
         patientInfo,
         rateLimit,
         isAvailable,
+        pendingAction,
+        confirmAction,
+        cancelAction,
         sendMessage,
         sendMessageStreaming,
         clearChat,

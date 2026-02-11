@@ -6,6 +6,7 @@ import { Search, Calendar, Filter, Printer, Eye, CreditCard, Clock, CheckCircle,
 import { useAuth } from '@/lib/AuthContext';
 import InvoiceTemplate from '@/components/billing/InvoiceTemplate';
 import BillingModal from '@/components/billing/BillingModal';
+import { useAI } from '@/components/ai';
 
 export default function BillingPage() {
     const { user } = useAuth();
@@ -25,9 +26,25 @@ export default function BillingPage() {
     const [selectedPendingOpd, setSelectedPendingOpd] = useState<any>(null);
     const [showBillingModal, setShowBillingModal] = useState(false);
 
+    // AI page context
+    let aiContext: { setPageContext?: (page: string, context?: string) => void } = {};
+    try { aiContext = useAI(); } catch { /* AIContextProvider not available */ }
+
     useEffect(() => {
         fetchAllData();
     }, [search, selectedDate, activeTab]);
+
+    useEffect(() => {
+        if (aiContext.setPageContext && !loading) {
+            const totalPending = pendingItems.reduce((sum: number, item: any) => sum + (parseFloat(item.total_amount) || 0), 0);
+            const ctx = `Viewing Billing page. Active tab: ${activeTab}. ` +
+                `Pending: ${pendingItems.length} bills, total Rs.${totalPending.toFixed(2)}. ` +
+                `Paid: ${bills.length} bills. Cancelled: ${cancelledBills.length} bills. ` +
+                `Date filter: ${selectedDate || 'all'}. ` +
+                `No specific patient selected. Use searchPatients or getPendingBills tool for details.`;
+            aiContext.setPageContext('/receptionist/billing', ctx);
+        }
+    }, [aiContext.setPageContext, loading, activeTab, pendingItems, bills, cancelledBills, selectedDate]);
 
     const fetchAllData = async () => {
         setLoading(true);
@@ -161,6 +178,32 @@ export default function BillingPage() {
                     <p className="text-gray-500">Manage patient bills, payments and clearances</p>
                 </div>
             </div>
+
+            {/* Pending Payment Summary */}
+            {!loading && activeTab === 'pending' && pendingItems.length > 0 && (
+                <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-3 flex items-center gap-3">
+                    <div className="p-1.5 rounded-lg bg-white/60 shadow-sm">
+                        <CreditCard className="w-4 h-4 text-amber-600" />
+                    </div>
+                    <p className="text-sm text-slate-700 font-medium">
+                        <span className="font-bold text-amber-700">{pendingItems.length}</span> pending {pendingItems.length === 1 ? 'bill' : 'bills'} totaling{' '}
+                        <span className="font-bold text-amber-700">
+                            ₹{pendingItems.reduce((sum: number, item: any) => sum + (parseFloat(item.total_amount || item.amount) || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </span>
+                        {(() => {
+                            const threeDaysAgo = new Date();
+                            threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+                            const overdue = pendingItems.filter((item: any) => {
+                                const visitDate = new Date(item.visit_date || item.created_at);
+                                return visitDate < threeDaysAgo;
+                            });
+                            return overdue.length > 0 ? (
+                                <span className="text-red-600"> — {overdue.length} overdue by 3+ days</span>
+                            ) : null;
+                        })()}
+                    </p>
+                </div>
+            )}
 
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col lg:flex-row gap-4 justify-between items-center">
                 <div className="flex bg-slate-100 p-1 rounded-xl self-start lg:self-center">

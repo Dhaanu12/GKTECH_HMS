@@ -5,7 +5,7 @@ import axios from 'axios';
 import { Plus, Calendar, FileText, X, Save, User, ArrowRight, Sun, CloudSun, Moon, Clock, CalendarClock, Check, Stethoscope, MapPin, Activity, Search, ChevronLeft, AlertCircle, Sparkles, Phone } from 'lucide-react';
 import { useAuth } from '../../../lib/AuthContext';
 import SearchableSelect from '../../../components/ui/SearchableSelect';
-import { AIInsightCard, AILoadingIndicator } from '@/components/ai';
+import { AIInsightCard, AILoadingIndicator, useAI } from '@/components/ai';
 import { optimizeSchedule } from '@/lib/api/ai';
 import { format } from 'date-fns';
 
@@ -48,6 +48,10 @@ export default function AppointmentsPage() {
     // AI scheduling state
     const [aiSchedulingSuggestion, setAiSchedulingSuggestion] = useState<string | null>(null);
     const [aiSchedulingLoading, setAiSchedulingLoading] = useState(false);
+    
+    // AI scheduling for new appointments
+    const [newApptAiSuggestion, setNewApptAiSuggestion] = useState<string | null>(null);
+    const [newApptAiLoading, setNewApptAiLoading] = useState(false);
 
     const [appointmentForm, setAppointmentForm] = useState({
         patient_id: null as number | null,
@@ -157,6 +161,23 @@ export default function AppointmentsPage() {
         fetchAppointments();
         fetchDepartments();
     }, []);
+
+    // AI page context
+    let aiContext: { setPageContext?: (page: string, context?: string) => void } = {};
+    try { aiContext = useAI(); } catch { /* AIContextProvider not available */ }
+
+    useEffect(() => {
+        if (aiContext.setPageContext) {
+            const scheduled = appointments.filter((a: any) => a.status === 'Scheduled' || a.status === 'Confirmed').length;
+            const completed = appointments.filter((a: any) => a.status === 'Completed').length;
+            const cancelled = appointments.filter((a: any) => a.status === 'Cancelled').length;
+            const ctx = `Viewing Appointments page. Tab: ${activeTab}. Department: ${selectedDepartment}. ` +
+                `Total: ${appointments.length} appointments. Scheduled: ${scheduled}, Completed: ${completed}, Cancelled: ${cancelled}. ` +
+                `${doctors.length} doctors available. ${departments.length} departments. ` +
+                `Use getAppointments, getDoctorAvailability, or checkDuplicateAppointment tools for details.`;
+            aiContext.setPageContext('/receptionist/appointments', ctx);
+        }
+    }, [aiContext.setPageContext, appointments, activeTab, selectedDepartment, doctors.length, departments.length]);
 
     // Phone search useEffect - triggers when phone number has 8+ digits
     useEffect(() => {
@@ -537,6 +558,36 @@ export default function AppointmentsPage() {
             setAiSchedulingSuggestion('Failed to get scheduling suggestions.');
         } finally {
             setAiSchedulingLoading(false);
+        }
+    };
+
+    const handleGetNewApptAISuggestion = async () => {
+        if (!appointmentForm.doctor_id || !appointmentForm.appointment_date) return;
+        
+        setNewApptAiLoading(true);
+        setNewApptAiSuggestion(null);
+        
+        try {
+            const selectedDoctor = doctors.find((d: any) => d.doctor_id === parseInt(appointmentForm.doctor_id));
+            const result = await optimizeSchedule({
+                doctorName: selectedDoctor ? `${selectedDoctor.first_name} ${selectedDoctor.last_name}` : 'Selected doctor',
+                requestedTime: `${appointmentForm.appointment_date} ${appointmentForm.appointment_time || 'any'}`,
+                patientName: appointmentForm.patient_name || 'New patient',
+                availableSlots: availableTimeSlots.map(slot => ({
+                    time: slot,
+                    date: appointmentForm.appointment_date
+                })),
+            });
+            
+            if (result.success) {
+                setNewApptAiSuggestion(result.message);
+            } else {
+                setNewApptAiSuggestion(result.message || 'Unable to generate suggestion.');
+            }
+        } catch {
+            setNewApptAiSuggestion('Failed to get scheduling suggestion.');
+        } finally {
+            setNewApptAiLoading(false);
         }
     };
 
@@ -1262,7 +1313,31 @@ export default function AppointmentsPage() {
                                             </div>
 
                                             <div className="md:col-span-2">
-                                                <label className="block text-xs font-bold text-slate-500 mb-2 ml-1">Select Time Slot *</label>
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <label className="block text-xs font-bold text-slate-500 ml-1">Select Time Slot *</label>
+                                                    {appointmentForm.doctor_id && appointmentForm.appointment_date && availableTimeSlots.length > 0 && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={handleGetNewApptAISuggestion}
+                                                            disabled={newApptAiLoading}
+                                                            className="flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg text-xs font-bold text-purple-700 hover:from-purple-100 hover:to-indigo-100 transition-all disabled:opacity-50"
+                                                        >
+                                                            <Sparkles className="w-3 h-3" />
+                                                            {newApptAiLoading ? 'Analyzing...' : 'Suggest best slot'}
+                                                        </button>
+                                                    )}
+                                                </div>
+
+                                                {/* AI Suggestion for new appointment */}
+                                                {newApptAiSuggestion && (
+                                                    <div className="mb-3 p-3 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-xl">
+                                                        <div className="flex items-center gap-1.5 mb-1">
+                                                            <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                                                            <span className="text-xs font-bold text-purple-700">AI Suggestion</span>
+                                                        </div>
+                                                        <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap">{newApptAiSuggestion}</p>
+                                                    </div>
+                                                )}
 
                                                 {/* Category Tabs */}
                                                 <div className="flex gap-2 mb-3 bg-slate-100/50 p-1 rounded-xl">

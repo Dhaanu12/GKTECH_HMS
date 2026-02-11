@@ -12,6 +12,8 @@ import BillingModal from '../../../components/billing/BillingModal';
 import MultiInputTags from './components/MultiInputTags';
 
 import { format } from 'date-fns';
+import { useAI, AIInsightCard } from '@/components/ai';
+import { getDashboardInsights } from '@/lib/api/ai';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -1148,6 +1150,48 @@ export default function ReceptionistDashboard() {
         fetchAppointments();
     }, [appointmentsRefreshKey]);
 
+    // AI page context
+    let aiContext: { setPageContext?: (page: string, context?: string) => void } = {};
+    try { aiContext = useAI(); } catch { /* AIContextProvider not available */ }
+
+    useEffect(() => {
+        if (aiContext.setPageContext) {
+            const ctx = `Viewing Receptionist Dashboard. ` +
+                `Queue: ${dashboardStats.queueCount} waiting. Today: ${dashboardStats.todayVisits} visits, ${dashboardStats.completedVisits} completed. ` +
+                `Payments: Rs.${dashboardStats.pendingAmount} pending (${dashboardStats.pendingCount} bills), Rs.${dashboardStats.collectedAmount} collected. ` +
+                `Follow-ups: ${followUpData.summary?.overdue_count || 0} overdue, ${followUpData.summary?.due_today_count || 0} due today, ${followUpData.summary?.upcoming_count || 0} upcoming. ` +
+                `No specific patient selected. Use searchPatients tool to help with a specific patient.`;
+            aiContext.setPageContext('/receptionist/dashboard', ctx);
+        }
+    }, [aiContext.setPageContext, dashboardStats, followUpData]);
+
+    // AI Dashboard Insights
+    const [aiInsight, setAiInsight] = useState<string>('');
+    const [aiInsightLoading, setAiInsightLoading] = useState(false);
+    const [aiInsightDismissed, setAiInsightDismissed] = useState(false);
+
+    useEffect(() => {
+        if (dashboardStats.todayVisits > 0 && !aiInsightDismissed && !aiInsight) {
+            setAiInsightLoading(true);
+            getDashboardInsights({
+                queueCount: dashboardStats.queueCount,
+                todayVisits: dashboardStats.todayVisits,
+                completedVisits: dashboardStats.completedVisits,
+                pendingPayments: dashboardStats.pendingCount,
+                pendingAmount: dashboardStats.pendingAmount,
+                collectedAmount: dashboardStats.collectedAmount,
+                followUpsOverdue: followUpData.summary?.overdue_count || 0,
+                followUpsDueToday: followUpData.summary?.due_today_count || 0,
+                appointments: allAppointments.length,
+                opdEntries: todayOpdEntries.length,
+            }).then(result => {
+                if (result.success && result.message) {
+                    setAiInsight(result.message);
+                }
+            }).catch(() => {}).finally(() => setAiInsightLoading(false));
+        }
+    }, [dashboardStats.todayVisits]);
+
     // Effect to update time slots when appointment doctor/date changes
     useEffect(() => {
         if (appointmentForm.doctor_id && appointmentForm.appointment_date) {
@@ -1228,6 +1272,17 @@ export default function ReceptionistDashboard() {
                     {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                 </div>
             </div>
+
+            {/* AI Dashboard Insights */}
+            {!aiInsightDismissed && (aiInsightLoading || aiInsight) && (
+                <AIInsightCard
+                    title="Dashboard Insights"
+                    content={aiInsight || 'Analyzing dashboard metrics...'}
+                    type="info"
+                    isLoading={aiInsightLoading}
+                    onDismiss={() => setAiInsightDismissed(true)}
+                />
+            )}
 
             {/* Reference Layout: Top Stats Row + Bottom Split Content */}
             <div className="flex flex-col flex-1 min-h-0 space-y-4 w-full">

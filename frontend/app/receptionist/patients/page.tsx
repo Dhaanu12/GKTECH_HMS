@@ -16,6 +16,7 @@ import {
     Edit
 } from 'lucide-react';
 import Link from 'next/link';
+import { useAI } from '@/components/ai';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -24,9 +25,24 @@ export default function ReceptionistPatients() {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
 
+    // AI page context
+    let aiContext: { setPageContext?: (page: string, context?: string) => void } = {};
+    try { aiContext = useAI(); } catch { /* AIContextProvider not available */ }
+
     useEffect(() => {
         fetchPatients();
     }, [searchTerm]);
+
+    useEffect(() => {
+        if (aiContext.setPageContext && !loading) {
+            const ctx = `Viewing Patients list page. ` +
+                `${patients.length} patients displayed. ` +
+                (searchTerm ? `Search filter: "${searchTerm}". ` : '') +
+                `No specific patient selected. Click a patient to view details. ` +
+                `Use searchPatients tool to help find a specific patient.`;
+            aiContext.setPageContext('/receptionist/patients', ctx);
+        }
+    }, [aiContext.setPageContext, loading, patients.length, searchTerm]);
 
     const fetchPatients = async () => {
         try {

@@ -18,6 +18,11 @@ import {
     FileText,
     ClipboardList,
     Minimize2,
+    CheckCircle,
+    XCircle,
+    DollarSign,
+    CalendarPlus,
+    Stethoscope,
 } from 'lucide-react';
 import { useAI } from './AIContextProvider';
 
@@ -46,9 +51,15 @@ const pageQuickActions: Record<string, QuickAction[]> = {
     ],
     'appointments': [
         { label: 'Schedule optimization', prompt: 'Are there any scheduling conflicts or optimization opportunities for today\'s appointments?', icon: <ClipboardList className="w-3.5 h-3.5" /> },
+        { label: 'Doctor availability', prompt: 'Which doctors are available today?', icon: <Stethoscope className="w-3.5 h-3.5" /> },
     ],
     'opd': [
         { label: 'Patient lookup', prompt: 'Help me find a patient in the system.', icon: <User className="w-3.5 h-3.5" /> },
+        { label: 'Today\'s OPD', prompt: 'Show me today\'s OPD summary.', icon: <Activity className="w-3.5 h-3.5" /> },
+    ],
+    'billing': [
+        { label: 'Pending summary', prompt: 'Summarize pending payments and bills.', icon: <DollarSign className="w-3.5 h-3.5" /> },
+        { label: 'Overdue bills', prompt: 'Are there any long-overdue bills?', icon: <AlertCircle className="w-3.5 h-3.5" /> },
     ],
     'default': [
         { label: 'How can I help?', prompt: 'What can you help me with in the hospital management system?', icon: <Sparkles className="w-3.5 h-3.5" /> },
@@ -70,6 +81,9 @@ export function FloatingAIAssistant() {
         currentPage,
         rateLimit,
         isAvailable,
+        pendingAction,
+        confirmAction,
+        cancelAction,
         sendMessageStreaming,
         clearChat,
     } = useAI();
@@ -235,8 +249,30 @@ export function FloatingAIAssistant() {
                                                     )}
                                                     {message.content ? (
                                                         message.role === 'assistant' ? (
-                                                            <div className="ai-markdown">
-                                                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                                            <div className="text-[13px] leading-relaxed">
+                                                                <ReactMarkdown
+                                                                    remarkPlugins={[remarkGfm]}
+                                                                    components={{
+                                                                        p: ({ children }) => <p className="my-1 leading-relaxed">{children}</p>,
+                                                                        strong: ({ children }) => <span className="font-semibold text-slate-900">{children}</span>,
+                                                                        em: ({ children }) => <em className="italic text-slate-600">{children}</em>,
+                                                                        ul: ({ children }) => <ul className="my-1 space-y-0.5 pl-1">{children}</ul>,
+                                                                        ol: ({ children }) => <ol className="my-1 space-y-0.5 list-decimal pl-5">{children}</ol>,
+                                                                        li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+                                                                        h1: ({ children }) => <h1 className="font-semibold text-sm mt-2 mb-1 text-slate-900">{children}</h1>,
+                                                                        h2: ({ children }) => <h2 className="font-semibold text-sm mt-2 mb-1 text-slate-900">{children}</h2>,
+                                                                        h3: ({ children }) => <h3 className="font-semibold text-[13px] mt-2 mb-1 text-slate-900">{children}</h3>,
+                                                                        h4: ({ children }) => <h4 className="font-semibold text-[13px] mt-1.5 mb-0.5 text-slate-800">{children}</h4>,
+                                                                        code: ({ children }) => <code className="bg-slate-100 text-indigo-700 px-1 py-0.5 rounded text-xs font-mono">{children}</code>,
+                                                                        pre: ({ children }) => <pre className="bg-slate-100 p-2 rounded-lg my-1.5 overflow-x-auto text-xs">{children}</pre>,
+                                                                        blockquote: ({ children }) => <blockquote className="border-l-2 border-blue-400 pl-2.5 my-1.5 text-slate-600 italic">{children}</blockquote>,
+                                                                        a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline hover:text-blue-800">{children}</a>,
+                                                                        hr: () => <hr className="my-2 border-slate-200" />,
+                                                                        table: ({ children }) => <div className="overflow-x-auto my-1.5"><table className="text-xs border-collapse w-full">{children}</table></div>,
+                                                                        th: ({ children }) => <th className="border border-slate-200 px-2 py-1 bg-slate-50 font-semibold text-left">{children}</th>,
+                                                                        td: ({ children }) => <td className="border border-slate-200 px-2 py-1">{children}</td>,
+                                                                    }}
+                                                                >
                                                                     {message.content}
                                                                 </ReactMarkdown>
                                                             </div>
@@ -260,6 +296,42 @@ export function FloatingAIAssistant() {
                                         ))
                                     )}
                                     
+                                    {/* Confirmation Card */}
+                                    {pendingAction && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            className="bg-amber-50 border border-amber-200 rounded-xl p-3 shadow-sm"
+                                        >
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <div className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center">
+                                                    <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                                                </div>
+                                                <span className="text-sm font-semibold text-amber-800">Confirm Action</span>
+                                            </div>
+                                            <p className="text-sm font-medium text-slate-800 mb-1">{pendingAction.label}</p>
+                                            <p className="text-xs text-slate-600 mb-3">{pendingAction.summary}</p>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={cancelAction}
+                                                    disabled={isLoading}
+                                                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                                                >
+                                                    <XCircle className="w-3.5 h-3.5" />
+                                                    Cancel
+                                                </button>
+                                                <button
+                                                    onClick={confirmAction}
+                                                    disabled={isLoading}
+                                                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-600 rounded-lg text-xs font-medium text-white hover:bg-blue-700 transition-colors disabled:opacity-50"
+                                                >
+                                                    <CheckCircle className="w-3.5 h-3.5" />
+                                                    {isLoading ? 'Executing...' : 'Confirm'}
+                                                </button>
+                                            </div>
+                                        </motion.div>
+                                    )}
+
                                     {/* Error display */}
                                     {error && (
                                         <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">

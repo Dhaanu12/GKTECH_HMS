@@ -102,6 +102,76 @@ async function executeTool(toolName, args, authToken) {
             case 'getPatientFeedback':
                 result = await executeGetPatientFeedback(args, headers);
                 break;
+            // New read-only tools
+            case 'getFollowUps':
+                result = await executeGetFollowUps(args, headers);
+                break;
+            case 'getPatientFollowUp':
+                result = await executeGetPatientFollowUp(args, headers);
+                break;
+            case 'getPendingBills':
+                result = await executeGetPendingBills(args, headers);
+                break;
+            case 'getBillDetails':
+                result = await executeGetBillDetails(args, headers);
+                break;
+            case 'getPendingBillItems':
+                result = await executeGetPendingBillItems(args, headers);
+                break;
+            case 'getDoctorAvailability':
+                result = await executeGetDoctorAvailability(args, headers);
+                break;
+            case 'getDoctorSchedule':
+                result = await executeGetDoctorSchedule(args, headers);
+                break;
+            case 'getBranchDoctors':
+                result = await executeGetBranchDoctors(args, headers);
+                break;
+            case 'getDepartments':
+                result = await executeGetDepartments(args, headers);
+                break;
+            case 'getLatestVitals':
+                result = await executeGetLatestVitals(args, headers);
+                break;
+            case 'getVitalsStats':
+                result = await executeGetVitalsStats(args, headers);
+                break;
+            case 'searchNotes':
+                result = await executeSearchNotes(args, headers);
+                break;
+            case 'getAllLabOrders':
+                result = await executeGetAllLabOrders(args, headers);
+                break;
+            case 'getLabOrderDetail':
+                result = await executeGetLabOrderDetail(args, headers);
+                break;
+            case 'searchServices':
+                result = await executeSearchServices(args, headers);
+                break;
+            case 'getPatientDocuments':
+                result = await executeGetPatientDocuments(args, headers);
+                break;
+            case 'getMlcDetails':
+                result = await executeGetMlcDetails(args, headers);
+                break;
+            case 'checkDuplicateOPD':
+                result = await executeCheckDuplicateOPD(args, headers);
+                break;
+            case 'checkDuplicateAppointment':
+                result = await executeCheckDuplicateAppointment(args, headers);
+                break;
+            // Write tools (return confirmation proposals)
+            case 'createAppointment':
+            case 'updateAppointmentStatus':
+            case 'rescheduleAppointment':
+            case 'createClinicalNote':
+            case 'pinNote':
+            case 'updateLabOrderStatus':
+            case 'assignLabOrder':
+            case 'updateOpdPayment':
+            case 'updateOpdStatus':
+                result = createWriteProposal(toolName, args);
+                break;
             default:
                 return { error: `Unknown tool: ${toolName}` };
         }
@@ -423,6 +493,458 @@ async function executeGetPatientFeedback(args, headers) {
             isAddressed: f.is_addressed
         }))
     };
+}
+
+// ============ NEW READ-ONLY TOOL IMPLEMENTATIONS ============
+
+async function executeGetFollowUps(args, headers) {
+    try {
+        const response = await axios.get(`${API_URL}/follow-ups/due`, { headers });
+        const data = response.data.data || response.data;
+        return {
+            overdue: (data.overdue || []).slice(0, 10).map(f => ({
+                patientName: `${f.patient_first_name || ''} ${f.patient_last_name || ''}`.trim(),
+                patientId: f.patient_id,
+                followUpDate: toISTDate(f.follow_up_date),
+                reason: f.reason || f.notes,
+                doctorName: `${f.doctor_first_name || ''} ${f.doctor_last_name || ''}`.trim()
+            })),
+            dueToday: (data.due_today || []).slice(0, 10).map(f => ({
+                patientName: `${f.patient_first_name || ''} ${f.patient_last_name || ''}`.trim(),
+                patientId: f.patient_id,
+                followUpDate: toISTDate(f.follow_up_date),
+                reason: f.reason || f.notes,
+                doctorName: `${f.doctor_first_name || ''} ${f.doctor_last_name || ''}`.trim()
+            })),
+            upcoming: (data.upcoming || []).slice(0, 10).map(f => ({
+                patientName: `${f.patient_first_name || ''} ${f.patient_last_name || ''}`.trim(),
+                patientId: f.patient_id,
+                followUpDate: toISTDate(f.follow_up_date),
+                reason: f.reason || f.notes,
+                doctorName: `${f.doctor_first_name || ''} ${f.doctor_last_name || ''}`.trim()
+            })),
+            summary: data.summary || { overdue_count: (data.overdue || []).length, due_today_count: (data.due_today || []).length, upcoming_count: (data.upcoming || []).length }
+        };
+    } catch (error) {
+        return { error: `Failed to fetch follow-ups: ${error.response?.data?.message || error.message}` };
+    }
+}
+
+async function executeGetPatientFollowUp(args, headers) {
+    try {
+        const response = await axios.get(`${API_URL}/follow-ups/patient/${args.patientId}`, { headers });
+        const data = response.data.data || response.data;
+        const followUps = Array.isArray(data) ? data : (data.followUps || []);
+        return {
+            count: followUps.length,
+            followUps: followUps.map(f => ({
+                followUpDate: toISTDate(f.follow_up_date),
+                reason: f.reason || f.notes,
+                status: f.status,
+                doctorName: `${f.doctor_first_name || ''} ${f.doctor_last_name || ''}`.trim(),
+                createdAt: toIST(f.created_at)
+            }))
+        };
+    } catch (error) {
+        return { error: `Failed to fetch patient follow-ups: ${error.response?.data?.message || error.message}` };
+    }
+}
+
+async function executeGetPendingBills(args, headers) {
+    try {
+        const response = await axios.get(`${API_URL}/billing/pending-clearances`, { headers });
+        const items = response.data.data?.pendingItems || response.data.data || [];
+        return {
+            count: items.length,
+            totalPending: items.reduce((sum, i) => sum + (parseFloat(i.total_amount) || 0), 0),
+            bills: items.slice(0, 15).map(b => ({
+                opdId: b.opd_id,
+                patientName: b.patient_name || `${b.first_name || ''} ${b.last_name || ''}`.trim(),
+                amount: b.total_amount,
+                visitDate: toISTDate(b.visit_date),
+                doctor: b.doctor_name,
+                items: b.items || b.service_name
+            }))
+        };
+    } catch (error) {
+        return { error: `Failed to fetch pending bills: ${error.response?.data?.message || error.message}` };
+    }
+}
+
+async function executeGetBillDetails(args, headers) {
+    try {
+        const response = await axios.get(`${API_URL}/billing/${args.billId}`, { headers });
+        const bill = response.data.data?.bill || response.data.data || response.data;
+        return {
+            billId: bill.bill_id || bill.id,
+            patientName: bill.patient_name,
+            totalAmount: bill.total_amount,
+            paidAmount: bill.paid_amount,
+            paymentStatus: bill.payment_status,
+            paymentMethod: bill.payment_method,
+            createdAt: toIST(bill.created_at),
+            items: (bill.items || bill.details || []).map(item => ({
+                serviceName: item.service_name,
+                amount: item.amount,
+                quantity: item.quantity
+            }))
+        };
+    } catch (error) {
+        return { error: `Failed to fetch bill details: ${error.response?.data?.message || error.message}` };
+    }
+}
+
+async function executeGetPendingBillItems(args, headers) {
+    try {
+        const response = await axios.get(`${API_URL}/billing/pending/${args.opdId}`, { headers });
+        const data = response.data.data || response.data;
+        const items = Array.isArray(data) ? data : (data.items || data.pendingItems || []);
+        return {
+            opdId: args.opdId,
+            count: items.length,
+            totalPending: items.reduce((sum, i) => sum + (parseFloat(i.amount || i.total_amount) || 0), 0),
+            items: items.map(i => ({
+                serviceName: i.service_name,
+                amount: i.amount || i.total_amount,
+                status: i.payment_status || i.status
+            }))
+        };
+    } catch (error) {
+        return { error: `Failed to fetch pending bill items: ${error.response?.data?.message || error.message}` };
+    }
+}
+
+async function executeGetDoctorAvailability(args, headers) {
+    try {
+        const response = await axios.get(`${API_URL}/doctor-schedules/available`, {
+            params: { date: args.date },
+            headers
+        });
+        const doctors = response.data.data?.doctors || response.data.data || [];
+        return {
+            date: args.date,
+            availableDoctors: (Array.isArray(doctors) ? doctors : []).map(d => ({
+                doctorId: d.doctor_id || d.id,
+                name: `Dr. ${d.first_name || ''} ${d.last_name || ''}`.trim(),
+                department: d.department_name || d.department,
+                specialization: d.specialization,
+                availableSlots: d.available_slots || d.slots
+            }))
+        };
+    } catch (error) {
+        return { error: `Failed to fetch doctor availability: ${error.response?.data?.message || error.message}` };
+    }
+}
+
+async function executeGetDoctorSchedule(args, headers) {
+    try {
+        const response = await axios.get(`${API_URL}/doctor-schedules/doctor/${args.doctorId}/${args.branchId}`, { headers });
+        const schedule = response.data.data?.schedule || response.data.data || [];
+        return {
+            doctorId: args.doctorId,
+            schedule: (Array.isArray(schedule) ? schedule : []).map(s => ({
+                day: s.day_of_week || s.day,
+                startTime: s.start_time,
+                endTime: s.end_time,
+                slotDuration: s.slot_duration_minutes || s.slot_duration,
+                maxPatients: s.max_patients
+            }))
+        };
+    } catch (error) {
+        return { error: `Failed to fetch doctor schedule: ${error.response?.data?.message || error.message}` };
+    }
+}
+
+async function executeGetBranchDoctors(args, headers) {
+    try {
+        const response = await axios.get(`${API_URL}/doctors/my-branch`, { headers });
+        const doctors = response.data.data?.doctors || response.data.data || [];
+        return {
+            count: doctors.length,
+            doctors: (Array.isArray(doctors) ? doctors : []).map(d => ({
+                doctorId: d.doctor_id || d.user_id || d.id,
+                name: `Dr. ${d.first_name || ''} ${d.last_name || ''}`.trim(),
+                department: d.department_name || d.department,
+                specialization: d.specialization,
+                phone: d.contact_number || d.phone
+            }))
+        };
+    } catch (error) {
+        return { error: `Failed to fetch branch doctors: ${error.response?.data?.message || error.message}` };
+    }
+}
+
+async function executeGetDepartments(args, headers) {
+    try {
+        const response = await axios.get(`${API_URL}/departments/hospital`, { headers });
+        const depts = response.data.data?.departments || response.data.data || [];
+        return {
+            count: depts.length,
+            departments: (Array.isArray(depts) ? depts : []).map(d => ({
+                id: d.department_id || d.id,
+                name: d.name || d.department_name,
+                description: d.description
+            }))
+        };
+    } catch (error) {
+        return { error: `Failed to fetch departments: ${error.response?.data?.message || error.message}` };
+    }
+}
+
+async function executeGetLatestVitals(args, headers) {
+    try {
+        const response = await axios.get(`${API_URL}/vitals/patient/${args.patientId}/latest`, { headers });
+        const v = response.data.data?.vitals || response.data.data || {};
+        if (!v || Object.keys(v).length === 0) {
+            return { message: 'No vitals recorded for this patient.' };
+        }
+        return {
+            recordedAt: toIST(v.recorded_at),
+            pulseRate: v.pulse_rate ? `${v.pulse_rate} bpm` : null,
+            bloodPressure: v.blood_pressure_systolic && v.blood_pressure_diastolic
+                ? `${v.blood_pressure_systolic}/${v.blood_pressure_diastolic} mmHg` : null,
+            temperature: v.temperature ? `${v.temperature}°F` : null,
+            spO2: v.spo2 ? `${v.spo2}%` : null,
+            respiratoryRate: v.respiratory_rate ? `${v.respiratory_rate} /min` : null,
+            weight: v.weight ? `${v.weight} kg` : null,
+            height: v.height ? `${v.height} cm` : null,
+            bloodGlucose: v.blood_glucose ? `${v.blood_glucose} mg/dL` : null
+        };
+    } catch (error) {
+        return { error: `Failed to fetch latest vitals: ${error.response?.data?.message || error.message}` };
+    }
+}
+
+async function executeGetVitalsStats(args, headers) {
+    try {
+        const response = await axios.get(`${API_URL}/vitals/patient/${args.patientId}/stats`, { headers });
+        const stats = response.data.data || response.data;
+        return stats;
+    } catch (error) {
+        return { error: `Failed to fetch vitals stats: ${error.response?.data?.message || error.message}` };
+    }
+}
+
+async function executeSearchNotes(args, headers) {
+    try {
+        const response = await axios.get(`${API_URL}/clinical-notes/patient/${args.patientId}/search`, {
+            params: { query: args.query },
+            headers
+        });
+        const notes = response.data.data?.notes || response.data.data || [];
+        if (notes.length === 0) {
+            return { message: `No notes found matching "${args.query}".` };
+        }
+        return {
+            count: notes.length,
+            notes: notes.slice(0, 10).map(n => ({
+                id: n.note_id || n.id,
+                type: n.note_type,
+                content: (n.content || '').substring(0, 200),
+                createdAt: toIST(n.created_at),
+                author: n.author_name || `${n.first_name || ''} ${n.last_name || ''}`.trim()
+            }))
+        };
+    } catch (error) {
+        return { error: `Failed to search notes: ${error.response?.data?.message || error.message}` };
+    }
+}
+
+async function executeGetAllLabOrders(args, headers) {
+    try {
+        const params = {};
+        if (args.status) params.status = args.status;
+        if (args.priority) params.priority = args.priority;
+        const response = await axios.get(`${API_URL}/lab-orders`, { params, headers });
+        const orders = response.data.data?.orders || response.data.data || [];
+        return {
+            count: orders.length,
+            orders: (Array.isArray(orders) ? orders : []).slice(0, 15).map(o => ({
+                id: o.order_id || o.id,
+                patientName: o.patient_name || `${o.first_name || ''} ${o.last_name || ''}`.trim(),
+                testName: o.test_name || o.service_name,
+                status: o.status,
+                priority: o.priority,
+                orderedAt: toIST(o.ordered_at || o.created_at),
+                assignedNurse: o.assigned_nurse_name || o.nurse_name
+            }))
+        };
+    } catch (error) {
+        return { error: `Failed to fetch lab orders: ${error.response?.data?.message || error.message}` };
+    }
+}
+
+async function executeGetLabOrderDetail(args, headers) {
+    try {
+        const response = await axios.get(`${API_URL}/lab-orders/${args.labOrderId}`, { headers });
+        const order = response.data.data?.order || response.data.data || {};
+        return {
+            id: order.order_id || order.id,
+            patientName: order.patient_name,
+            testName: order.test_name || order.service_name,
+            status: order.status,
+            priority: order.priority,
+            orderedAt: toIST(order.ordered_at || order.created_at),
+            completedAt: order.completed_at ? toIST(order.completed_at) : null,
+            results: order.results || order.result_data,
+            notes: order.notes,
+            assignedNurse: order.assigned_nurse_name
+        };
+    } catch (error) {
+        return { error: `Failed to fetch lab order detail: ${error.response?.data?.message || error.message}` };
+    }
+}
+
+async function executeSearchServices(args, headers) {
+    try {
+        const response = await axios.get(`${API_URL}/services/search`, {
+            params: { q: args.query },
+            headers
+        });
+        const services = response.data.data?.services || response.data.data || [];
+        if (services.length === 0) {
+            return { message: `No services found matching "${args.query}".` };
+        }
+        return {
+            count: services.length,
+            services: (Array.isArray(services) ? services : []).slice(0, 10).map(s => ({
+                id: s.service_id || s.id,
+                name: s.name || s.service_name,
+                category: s.category,
+                price: s.price || s.amount,
+                description: s.description
+            }))
+        };
+    } catch (error) {
+        return { error: `Failed to search services: ${error.response?.data?.message || error.message}` };
+    }
+}
+
+async function executeGetPatientDocuments(args, headers) {
+    try {
+        const response = await axios.get(`${API_URL}/patient-documents/patient/${args.patientId}`, { headers });
+        const docs = response.data.data?.documents || response.data.data || [];
+        if (docs.length === 0) {
+            return { message: 'No documents found for this patient.' };
+        }
+        return {
+            count: docs.length,
+            documents: docs.map(d => ({
+                id: d.document_id || d.id,
+                name: d.document_name || d.name || d.file_name,
+                type: d.document_type || d.type,
+                uploadedAt: toIST(d.uploaded_at || d.created_at),
+                uploadedBy: d.uploaded_by_name
+            }))
+        };
+    } catch (error) {
+        return { error: `Failed to fetch patient documents: ${error.response?.data?.message || error.message}` };
+    }
+}
+
+async function executeGetMlcDetails(args, headers) {
+    try {
+        const response = await axios.get(`${API_URL}/mlc/opd/${args.opdId}`, { headers });
+        const mlc = response.data.data?.mlc || response.data.data || {};
+        if (!mlc || Object.keys(mlc).length === 0) {
+            return { message: 'No MLC record found for this OPD visit.' };
+        }
+        return {
+            mlcId: mlc.mlc_id || mlc.id,
+            mlcNumber: mlc.mlc_number,
+            type: mlc.type || mlc.case_type,
+            status: mlc.status,
+            policeStation: mlc.police_station,
+            firNumber: mlc.fir_number,
+            broughtBy: mlc.brought_by,
+            incidentDetails: mlc.incident_details,
+            createdAt: toIST(mlc.created_at)
+        };
+    } catch (error) {
+        return { error: `Failed to fetch MLC details: ${error.response?.data?.message || error.message}` };
+    }
+}
+
+async function executeCheckDuplicateOPD(args, headers) {
+    try {
+        const params = { patientId: args.patientId };
+        if (args.doctorId) params.doctorId = args.doctorId;
+        const response = await axios.get(`${API_URL}/opd/check-duplicate`, { params, headers });
+        const data = response.data.data || response.data;
+        return {
+            isDuplicate: data.isDuplicate || data.exists || false,
+            existingEntry: data.existingEntry || data.opd || null,
+            message: (data.isDuplicate || data.exists) ? 'A duplicate OPD entry exists for this patient today.' : 'No duplicate OPD entry found.'
+        };
+    } catch (error) {
+        return { error: `Failed to check duplicate OPD: ${error.response?.data?.message || error.message}` };
+    }
+}
+
+async function executeCheckDuplicateAppointment(args, headers) {
+    try {
+        const response = await axios.get(`${API_URL}/appointments/check-duplicate`, {
+            params: { patientId: args.patientId, date: args.date },
+            headers
+        });
+        const data = response.data.data || response.data;
+        return {
+            isDuplicate: data.isDuplicate || data.exists || false,
+            existingAppointment: data.existingAppointment || data.appointment || null,
+            message: (data.isDuplicate || data.exists) ? `Patient already has an appointment on ${args.date}.` : 'No duplicate appointment found.'
+        };
+    } catch (error) {
+        return { error: `Failed to check duplicate appointment: ${error.response?.data?.message || error.message}` };
+    }
+}
+
+// ============ WRITE TOOL PROPOSAL (confirmation flow) ============
+
+const WRITE_TOOL_LABELS = {
+    createAppointment: 'Create Appointment',
+    updateAppointmentStatus: 'Update Appointment Status',
+    rescheduleAppointment: 'Reschedule Appointment',
+    createClinicalNote: 'Create Clinical Note',
+    pinNote: 'Pin/Unpin Note',
+    updateLabOrderStatus: 'Update Lab Order Status',
+    assignLabOrder: 'Assign Lab Order',
+    updateOpdPayment: 'Update OPD Payment',
+    updateOpdStatus: 'Update OPD Status'
+};
+
+function createWriteProposal(toolName, args) {
+    return {
+        requiresConfirmation: true,
+        action: toolName,
+        label: WRITE_TOOL_LABELS[toolName] || toolName,
+        params: args,
+        summary: buildProposalSummary(toolName, args)
+    };
+}
+
+function buildProposalSummary(toolName, args) {
+    switch (toolName) {
+        case 'createAppointment':
+            return `Book appointment for patient #${args.patientId} with doctor #${args.doctorId} on ${args.date} at ${args.time}`;
+        case 'updateAppointmentStatus':
+            return `Change appointment #${args.appointmentId} status to "${args.status}"`;
+        case 'rescheduleAppointment':
+            return `Reschedule appointment #${args.appointmentId} to ${args.newDate} at ${args.newTime}`;
+        case 'createClinicalNote':
+            return `Add ${args.noteType} note for patient #${args.patientId}: "${(args.content || '').substring(0, 80)}"`;
+        case 'pinNote':
+            return `Toggle pin on note #${args.noteId}`;
+        case 'updateLabOrderStatus':
+            return `Update lab order #${args.labOrderId} status to "${args.status}"`;
+        case 'assignLabOrder':
+            return `Assign lab order #${args.labOrderId}${args.nurseId ? ` to nurse #${args.nurseId}` : ' to current user'}`;
+        case 'updateOpdPayment':
+            return `Mark OPD #${args.opdId} payment as received via ${args.paymentMethod}${args.amount ? ` (Rs.${args.amount})` : ''}`;
+        case 'updateOpdStatus':
+            return `Update OPD #${args.opdId} status to "${args.status}"`;
+        default:
+            return `Execute ${toolName} with ${JSON.stringify(args)}`;
+    }
 }
 
 module.exports = {
