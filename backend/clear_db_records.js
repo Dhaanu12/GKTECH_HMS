@@ -17,11 +17,18 @@ const tables = [
     'billing_items',
     'billing_master',
     'bill_details',
+    'payment_transactions',
+    'refund_transactions',
+    'mlc_entries',
     'patient_vitals',
     'clinical_notes',
     'prescriptions',
     'lab_orders',
-    'insurance_claims'
+    'lab_order_status_history',
+    'insurance_claims',
+    'patient_documents',
+    'patient_feedback',
+    'referral_patients'
 ];
 
 async function getCounts(client) {
