@@ -6,10 +6,11 @@ import { useAuth } from '@/lib/AuthContext';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import SearchableSelect from '../../../components/ui/SearchableSelect';
-import { Plus, Search, FileText, X, Save, User, Printer, Clock, AlertCircle, AlertTriangle, Calendar, Phone, ArrowRight, Bell, Sparkles, Activity, Users, ChevronLeft, ChevronDown, Check, Sun, CloudSun, Moon } from 'lucide-react';
+import { Plus, Search, FileText, X, Save, User, Printer, Clock, AlertCircle, AlertTriangle, Calendar, Phone, ArrowRight, Bell, Sparkles, Activity, Users, ChevronLeft, ChevronDown, Check, Sun, CloudSun, Moon, Info, Filter } from 'lucide-react';
 import UpcomingAppointments from './components/UpcomingAppointments';
 import BillingModal from '../../../components/billing/BillingModal';
 import MultiInputTags from './components/MultiInputTags';
+import QueueDetailsModal from './components/QueueDetailsModal';
 
 import { format } from 'date-fns';
 import { useAI, AIInsightCard } from '@/components/ai';
@@ -59,12 +60,17 @@ interface OpdFormState {
     patient_id?: number | null;
 }
 
+
+
+
+
 export default function ReceptionistDashboard() {
     const { user } = useAuth();
     const router = useRouter();
     const [dashboardStats, setDashboardStats] = useState({
         queueCount: 0,
         todayVisits: 0,
+        yesterdayVisits: 0,
         completedVisits: 0,
         pendingAmount: 0,
         pendingCount: 0,
@@ -125,6 +131,15 @@ export default function ReceptionistDashboard() {
 
     // Chief Complaint Auto-Suggest
     const [showComplaintSuggestions, setShowComplaintSuggestions] = useState(false);
+    const [showQueueModal, setShowQueueModal] = useState(false);
+
+    useEffect(() => {
+        if (showQueueModal) {
+            fetchTodayOpdEntries();
+            fetchStats();
+        }
+    }, [showQueueModal]);
+
     const commonComplaints = [
         'Fever', 'Cold & Cough', 'Body Pain', 'Headache', 'Stomach Pain',
         'Vomiting', 'Loose Motions', 'Chest Pain', 'Breathing Difficulty',
@@ -789,6 +804,7 @@ export default function ReceptionistDashboard() {
             setDashboardStats({
                 queueCount: stats.pendingOpd || 0,
                 todayVisits: stats.todayOpd || 0,
+                yesterdayVisits: stats.yesterdayOpd || 0,
                 completedVisits: 0,
                 pendingAmount: stats.pendingAmount || 0,
                 pendingCount: stats.pendingCount || 0,
@@ -1359,14 +1375,25 @@ export default function ReceptionistDashboard() {
                 {/* Top Row: Stats Cards (4 Columns) */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 w-full">
                     {/* Today's Queue - Patients waiting right now */}
-                    <div className="bg-gradient-to-br from-amber-50 to-orange-50 p-6 rounded-3xl border border-amber-100 shadow-sm hover:shadow-md transition-shadow group cursor-pointer"
-                        onClick={() => { }}
+                    <div className="bg-gradient-to-br from-amber-50 to-orange-50 p-6 rounded-3xl border border-amber-100 shadow-sm hover:shadow-md transition-shadow group relative overflow-hidden h-full flex flex-col justify-between"
                     >
                         <div className="flex items-center justify-between mb-3">
                             <div className="w-12 h-12 bg-amber-500 rounded-2xl flex items-center justify-center text-white group-hover:scale-110 transition-transform shadow-lg shadow-amber-500/30">
                                 <Clock className="w-6 h-6" />
                             </div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 bg-amber-100 px-2 py-1 rounded-full">RIGHT NOW</span>
+                            <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 bg-amber-100 px-2 py-1 rounded-full">RIGHT NOW</span>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setShowQueueModal(true);
+                                    }}
+                                    className="p-1.5 hover:bg-amber-200/50 rounded-full transition-colors text-amber-600 group/info"
+                                    title="View Queue Details"
+                                >
+                                    <Info className="w-4 h-4 group-hover/info:scale-110 transition-transform" />
+                                </button>
+                            </div>
                         </div>
                         <p className="text-4xl font-bold text-amber-700">{dashboardStats.queueCount}</p>
                         <p className="text-sm font-medium text-amber-600 mt-1">Patients in Queue</p>
@@ -3174,6 +3201,16 @@ export default function ReceptionistDashboard() {
                     fetchFollowUps();
                     setAppointmentsRefreshKey(prev => prev + 1);
                 }}
+            />
+
+            <QueueDetailsModal
+                isOpen={showQueueModal}
+                onClose={() => setShowQueueModal(false)}
+                entries={todayOpdEntries}
+                doctors={doctors}
+                departments={branchDepartments}
+                yesterdayTotal={dashboardStats.yesterdayVisits}
+                todayTotal={dashboardStats.todayVisits}
             />
         </div >
     );
