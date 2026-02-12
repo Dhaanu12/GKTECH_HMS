@@ -155,7 +155,7 @@ export default function OpdEntryPage() {
         'Throat Pain', 'Ear Pain', 'Eye Problem', 'Urinary Problem',
         'Blood Pressure Check', 'Diabetes Follow-up', 'General Checkup'
     ];
-    
+
     // AI-powered chief complaint suggestions
     const [aiComplaintSuggestions, setAiComplaintSuggestions] = useState<string[]>([]);
     const [aiComplaintLoading, setAiComplaintLoading] = useState(false);
@@ -422,7 +422,7 @@ export default function OpdEntryPage() {
                         }
                     } catch { /* parse error, skip */ }
                 }
-            }).catch(() => {}).finally(() => setAiComplaintLoading(false));
+            }).catch(() => { }).finally(() => setAiComplaintLoading(false));
         } else {
             setAiComplaintSuggestions([]);
         }
@@ -538,6 +538,65 @@ export default function OpdEntryPage() {
     const getDoctorAvailabilityCount = (doctorId: number, dateStr: string) => {
         const slots = generateTimeSlotsFromSchedule(doctorId.toString(), dateStr);
         return slots ? slots.length : 0;
+    };
+
+    // Format 24h time to 12h (e.g. "17:00" -> "5:00 PM")
+    const formatTime12Hour = (time24: string) => {
+        const [hours, minutes] = time24.split(':').map(Number);
+        const period = hours >= 12 ? 'PM' : 'AM';
+        const displayHours = hours % 12 || 12;
+        return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
+    };
+
+    // Get formatted shift times for a doctor on a given date
+    const getDoctorShiftTimes = (doctorId: number, dateStr: string) => {
+        const date = new Date(dateStr);
+        const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
+        const schedules = doctorSchedules.filter((s: any) =>
+            s.doctor_id === doctorId && s.day_of_week === dayOfWeek
+        );
+        if (schedules.length === 0) return null;
+        return schedules.map((s: any) =>
+            `${formatTime12Hour(s.start_time)} - ${formatTime12Hour(s.end_time)}`
+        );
+    };
+
+    // Compute availability info for a doctor: available / next shift / unavailable
+    const getDoctorAvailabilityInfo = (doctorId: number, dateStr: string): { status: 'available' | 'next' | 'unavailable'; text: string } => {
+        const shiftTimes = getDoctorShiftTimes(doctorId, dateStr);
+        if (!shiftTimes) return { status: 'unavailable', text: 'Unavailable today' };
+
+        // Check if there are remaining bookable slots
+        const remainingSlots = generateTimeSlotsFromSchedule(doctorId.toString(), dateStr);
+        if (remainingSlots && remainingSlots.length > 0) {
+            return { status: 'available', text: shiftTimes.join(', ') };
+        }
+
+        // No remaining slots — check if a later shift exists today
+        const date = new Date(dateStr);
+        const isToday = date.toDateString() === new Date().toDateString();
+        if (isToday) {
+            const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
+            const now = new Date();
+            const nowMinutes = now.getHours() * 60 + now.getMinutes();
+            const futureShifts = doctorSchedules.filter((s: any) => {
+                if (s.doctor_id !== doctorId || s.day_of_week !== dayOfWeek) return false;
+                const [h, m] = s.start_time.split(':').map(Number);
+                return (h * 60 + m) > nowMinutes;
+            });
+            if (futureShifts.length > 0) {
+                const nextShift = futureShifts.sort((a: any, b: any) => {
+                    const [ah, am] = a.start_time.split(':').map(Number);
+                    const [bh, bm] = b.start_time.split(':').map(Number);
+                    return (ah * 60 + am) - (bh * 60 + bm);
+                })[0];
+                return { status: 'next', text: `Next: ${formatTime12Hour(nextShift.start_time)} - ${formatTime12Hour(nextShift.end_time)}` };
+            }
+            return { status: 'unavailable', text: 'Unavailable today' };
+        }
+
+        // Future date with schedule but generateTimeSlots returned 0 — still show shifts
+        return { status: 'available', text: shiftTimes.join(', ') };
     };
 
     const handleSearch = async () => {
@@ -2550,12 +2609,31 @@ export default function OpdEntryPage() {
                                                 <>
                                                     <label className="block text-sm font-bold text-slate-500 uppercase tracking-widest mb-2">Assign Doctor <span className="text-red-500">*</span></label>
                                                     <SearchableSelect
-                                                        options={doctors.map(doc => ({
-                                                            value: doc.doctor_id.toString(),
-                                                            label: `Dr. ${doc.first_name} ${doc.last_name}`,
-                                                            code: doc.specialization,
-                                                            category: doc.department_name
-                                                        }))}
+                                                        options={doctors.map(doc => {
+                                                            const availInfo = getDoctorAvailabilityInfo(doc.doctor_id, opdForm.visit_date);
+                                                            const today = new Date().toISOString().split('T')[0];
+                                                            const queueCount = opdEntries.filter((e: any) =>
+                                                                e.doctor_id === doc.doctor_id && e.visit_status !== 'Completed'
+                                                            ).length;
+                                                            const apptCount = allAppointments.filter((a: any) => {
+                                                                if (!a.appointment_date) return false;
+                                                                const apptDate = new Date(a.appointment_date).toISOString().split('T')[0];
+                                                                return a.doctor_id === doc.doctor_id &&
+                                                                    apptDate === today &&
+                                                                    ['Scheduled', 'Confirmed'].includes(a.appointment_status);
+                                                            }).length;
+                                                            return {
+                                                                value: doc.doctor_id.toString(),
+                                                                label: `Dr. ${doc.first_name} ${doc.last_name}`,
+                                                                code: doc.specialization,
+                                                                category: doc.department_name,
+                                                                availability: availInfo,
+                                                                stats: [
+                                                                    { label: 'Queue', value: queueCount, color: queueCount > 0 ? 'blue' as const : 'slate' as const },
+                                                                    { label: 'Appts', value: apptCount, color: apptCount > 0 ? 'amber' as const : 'slate' as const }
+                                                                ]
+                                                            };
+                                                        })}
                                                         categories={['All', ...branchDepartments.map(d => d.department_name)]}
                                                         selectedCategory={selectedDepartment}
                                                         onCategoryChange={setSelectedDepartment}
@@ -2654,11 +2732,10 @@ export default function OpdEntryPage() {
                                                                     const newValue = current ? current + ', ' + suggestion : suggestion;
                                                                     setOpdForm({ ...opdForm, chief_complaint: newValue });
                                                                 }}
-                                                                className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-all hover:scale-105 ${
-                                                                    opdForm.chief_complaint?.includes(suggestion)
-                                                                        ? 'bg-indigo-100 text-indigo-700 border-indigo-300'
-                                                                        : 'bg-indigo-50 text-indigo-600 border-indigo-200 hover:bg-indigo-100 hover:border-indigo-300'
-                                                                }`}
+                                                                className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-all hover:scale-105 ${opdForm.chief_complaint?.includes(suggestion)
+                                                                    ? 'bg-indigo-100 text-indigo-700 border-indigo-300'
+                                                                    : 'bg-indigo-50 text-indigo-600 border-indigo-200 hover:bg-indigo-100 hover:border-indigo-300'
+                                                                    }`}
                                                             >
                                                                 {suggestion}
                                                             </button>

@@ -1,14 +1,36 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Check, ChevronsUpDown, X, Search, Filter } from 'lucide-react';
+import { Check, ChevronsUpDown, X, Search, Filter, Users, Calendar } from 'lucide-react';
 
 interface Option {
-    // ... existing interface ...
+    value: any;
+    label: string;
+    code?: string;
+    category?: string;
+    availability?: {
+        status: 'available' | 'next' | 'unavailable';
+        text: string;
+    };
+    stats?: {
+        label: string;
+        value: number;
+        color: 'blue' | 'amber' | 'emerald' | 'slate';
+    }[];
 }
 
 interface SearchableSelectProps {
-    // ... existing interface ...
+    options: Option[];
+    value: any;
+    onChange: (value: any) => void;
+    placeholder?: string;
+    label?: string;
+    error?: string;
+    multiple?: boolean;
+    disabled?: boolean;
+    categories?: string[];
+    selectedCategory?: string;
+    onCategoryChange?: (category: string) => void;
 }
 
 export default function SearchableSelect({
@@ -234,16 +256,90 @@ export default function SearchableSelect({
                                         <div
                                             key={option.value}
                                             className={`
-                                            px-4 py-3 text-sm cursor-pointer flex items-center justify-between transition-colors
-                                            ${isSelected ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-slate-50'}
+                                            px-4 py-3.5 cursor-pointer flex items-stretch justify-between gap-3 transition-all border-b border-slate-100/60 last:border-0
+                                            ${isSelected ? 'bg-blue-50/70' : 'hover:bg-slate-50/80'}
                                         `}
                                             onClick={() => handleSelect(option.value)}
                                         >
-                                            <div className="flex flex-col">
-                                                <span className={`font-bold ${isSelected ? 'text-blue-700' : 'text-slate-700'}`}>{option.label}</span>
-                                                {option.code && <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mt-0.5">{option.code}</span>}
+                                            {/* Left: Doctor info */}
+                                            <div className="flex flex-col justify-center min-w-0 flex-1">
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`text-[14px] font-bold truncate ${isSelected ? 'text-blue-700' : 'text-slate-800'}`}>{option.label}</span>
+                                                    {isSelected && <Check className="w-3.5 h-3.5 text-blue-600 shrink-0" />}
+                                                </div>
+                                                {option.code && (
+                                                    <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500 mt-0.5">{option.code}</span>
+                                                )}
+                                                {option.availability && (
+                                                    <div className={`flex items-center gap-1.5 mt-1 text-[11px] font-semibold ${option.availability.status === 'available'
+                                                        ? 'text-emerald-600'
+                                                        : option.availability.status === 'next'
+                                                            ? 'text-amber-600'
+                                                            : 'text-red-400'
+                                                        }`}>
+                                                        <span className={`w-[5px] h-[5px] rounded-full shrink-0 ${option.availability.status === 'available'
+                                                            ? 'bg-emerald-500'
+                                                            : option.availability.status === 'next'
+                                                                ? 'bg-amber-500'
+                                                                : 'bg-red-400'
+                                                            }`} />
+                                                        <span>{option.availability.text}</span>
+                                                    </div>
+                                                )}
                                             </div>
-                                            {isSelected && <Check className="w-4 h-4 text-blue-600" />}
+
+                                            {/* Right: Stats */}
+                                            {option.stats && option.stats.length > 0 && (
+                                                <div className="flex items-center gap-2 shrink-0">
+                                                    {option.stats.map((stat, idx) => {
+                                                        const isActive = stat.value > 0;
+                                                        const styles = {
+                                                            blue: {
+                                                                bg: isActive ? 'bg-blue-50 border-blue-200' : 'bg-slate-50 border-slate-200/60',
+                                                                icon: isActive ? 'text-blue-600' : 'text-slate-400',
+                                                                num: isActive ? 'text-blue-800' : 'text-slate-600',
+                                                                label: isActive ? 'text-blue-700/90' : 'text-slate-500',
+                                                            },
+                                                            amber: {
+                                                                bg: isActive ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-200/60',
+                                                                icon: isActive ? 'text-amber-600' : 'text-slate-400',
+                                                                num: isActive ? 'text-amber-800' : 'text-slate-600',
+                                                                label: isActive ? 'text-amber-700/90' : 'text-slate-500',
+                                                            },
+                                                            emerald: {
+                                                                bg: isActive ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200/60',
+                                                                icon: isActive ? 'text-emerald-600' : 'text-slate-400',
+                                                                num: isActive ? 'text-emerald-800' : 'text-slate-600',
+                                                                label: isActive ? 'text-emerald-700/90' : 'text-slate-500',
+                                                            },
+                                                            slate: {
+                                                                bg: 'bg-slate-50 border-slate-200/60',
+                                                                icon: 'text-slate-400',
+                                                                num: 'text-slate-600',
+                                                                label: 'text-slate-500',
+                                                            },
+                                                        };
+                                                        const s = styles[stat.color];
+                                                        const isQueue = stat.label.toLowerCase().includes('queue');
+                                                        return (
+                                                            <div
+                                                                key={idx}
+                                                                className={`flex flex-col items-center justify-center rounded-xl border px-3 py-1.5 min-w-[54px] ${s.bg}`}
+                                                            >
+                                                                <div className="flex items-center gap-1">
+                                                                    {isQueue ? (
+                                                                        <Users className={`w-3.5 h-3.5 ${s.icon}`} />
+                                                                    ) : (
+                                                                        <Calendar className={`w-3.5 h-3.5 ${s.icon}`} />
+                                                                    )}
+                                                                    <span className={`text-sm font-bold tabular-nums leading-none ${s.num}`}>{stat.value}</span>
+                                                                </div>
+                                                                <span className={`text-[9px] font-bold uppercase tracking-[0.05em] mt-0.5 ${s.label}`}>{stat.label}</span>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
                                         </div>
                                     );
                                 })

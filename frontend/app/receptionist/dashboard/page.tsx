@@ -1014,6 +1014,49 @@ export default function ReceptionistDashboard() {
         ).join(', ');
     };
 
+    // Compute availability info for a doctor: available / next shift / unavailable
+    const getDoctorAvailabilityInfo = (doctorId: number, dateStr: string): { status: 'available' | 'next' | 'unavailable'; text: string } => {
+        const date = new Date(dateStr);
+        const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
+        const schedules = doctorSchedules.filter((s: any) =>
+            s.doctor_id === doctorId && s.day_of_week === dayOfWeek
+        );
+        if (schedules.length === 0) return { status: 'unavailable', text: 'Unavailable today' };
+
+        const shiftText = schedules.map((s: any) =>
+            `${formatTime12Hour(s.start_time)} - ${formatTime12Hour(s.end_time)}`
+        ).join(', ');
+
+        // Check if there are remaining bookable slots
+        const remainingSlots = generateTimeSlotsFromSchedule(doctorId.toString(), dateStr);
+        if (remainingSlots && remainingSlots.length > 0) {
+            return { status: 'available', text: shiftText };
+        }
+
+        // No remaining slots — check if a later shift exists today
+        const isToday = date.toDateString() === new Date().toDateString();
+        if (isToday) {
+            const now = new Date();
+            const nowMinutes = now.getHours() * 60 + now.getMinutes();
+            const futureShifts = schedules.filter((s: any) => {
+                const [h, m] = s.start_time.split(':').map(Number);
+                return (h * 60 + m) > nowMinutes;
+            });
+            if (futureShifts.length > 0) {
+                const nextShift = futureShifts.sort((a: any, b: any) => {
+                    const [ah, am] = a.start_time.split(':').map(Number);
+                    const [bh, bm] = b.start_time.split(':').map(Number);
+                    return (ah * 60 + am) - (bh * 60 + bm);
+                })[0];
+                return { status: 'next', text: `Next: ${formatTime12Hour(nextShift.start_time)} - ${formatTime12Hour(nextShift.end_time)}` };
+            }
+            return { status: 'unavailable', text: 'Unavailable today' };
+        }
+
+        // Future date with schedule but no slots — still show shifts
+        return { status: 'available', text: shiftText };
+    };
+
     const handleCreateAppointment = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
@@ -1214,7 +1257,7 @@ export default function ReceptionistDashboard() {
                 if (result.success && result.message) {
                     setAiInsight(result.message);
                 }
-            }).catch(() => {}).finally(() => setAiInsightLoading(false));
+            }).catch(() => { }).finally(() => setAiInsightLoading(false));
         }
     }, [dashboardStats.todayVisits]);
 
@@ -1930,7 +1973,8 @@ export default function ReceptionistDashboard() {
                                                         const last = parts.slice(1).join(' ');
                                                         setOpdForm({ ...opdForm, first_name: first, last_name: last });
                                                     }}
-                                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                                                    disabled={((opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && !opdForm.is_mlc) || (!!selectedPatient && !!selectedPatient.contact_number)}
+                                                    className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${((opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && !opdForm.is_mlc) || (!!selectedPatient && !!selectedPatient.contact_number) ? 'bg-slate-50/80 text-slate-900 font-bold cursor-not-allowed border-slate-300' : ''}`}
                                                     placeholder="e.g. John Doe"
                                                 />
                                             </div>
@@ -2035,7 +2079,8 @@ export default function ReceptionistDashboard() {
                                                             type="text"
                                                             value={opdForm.address_line2}
                                                             onChange={(e) => setOpdForm({ ...opdForm, address_line2: e.target.value })}
-                                                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                                                            disabled={((opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && !opdForm.is_mlc) || (!!selectedPatient && !!selectedPatient.contact_number)}
+                                                            className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${((opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && !opdForm.is_mlc) || (!!selectedPatient && !!selectedPatient.contact_number) ? 'bg-slate-50/80 text-slate-900 font-bold cursor-not-allowed border-slate-300' : ''}`}
                                                             placeholder="Area, Landmark"
                                                         />
                                                     </div>
@@ -2047,7 +2092,8 @@ export default function ReceptionistDashboard() {
                                                             type="text"
                                                             value={opdForm.city}
                                                             onChange={(e) => setOpdForm({ ...opdForm, city: e.target.value })}
-                                                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                                                            disabled={((opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && !opdForm.is_mlc) || (!!selectedPatient && !!selectedPatient.contact_number)}
+                                                            className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${((opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && !opdForm.is_mlc) || (!!selectedPatient && !!selectedPatient.contact_number) ? 'bg-slate-50/80 text-slate-900 font-bold cursor-not-allowed border-slate-300' : ''}`}
                                                             placeholder=""
                                                         />
                                                     </div>
@@ -2057,7 +2103,8 @@ export default function ReceptionistDashboard() {
                                                             type="text"
                                                             value={opdForm.state}
                                                             onChange={(e) => setOpdForm({ ...opdForm, state: e.target.value })}
-                                                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                                                            disabled={((opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && !opdForm.is_mlc) || (!!selectedPatient && !!selectedPatient.contact_number)}
+                                                            className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${((opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && !opdForm.is_mlc) || (!!selectedPatient && !!selectedPatient.contact_number) ? 'bg-slate-50/80 text-slate-900 font-bold cursor-not-allowed border-slate-300' : ''}`}
                                                             placeholder=""
                                                         />
                                                     </div>
@@ -2071,7 +2118,8 @@ export default function ReceptionistDashboard() {
                                                                 if (value.length <= 6) setOpdForm({ ...opdForm, pincode: value });
                                                             }}
                                                             maxLength={6}
-                                                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                                                            disabled={((opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && !opdForm.is_mlc) || (!!selectedPatient && !!selectedPatient.contact_number)}
+                                                            className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${((opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && !opdForm.is_mlc) || (!!selectedPatient && !!selectedPatient.contact_number) ? 'bg-slate-50/80 text-slate-900 font-bold cursor-not-allowed border-slate-300' : ''}`}
                                                             placeholder=""
                                                         />
                                                     </div>
@@ -2241,12 +2289,31 @@ export default function ReceptionistDashboard() {
                                                 <>
                                                     <label className="block text-sm font-bold text-slate-500 uppercase tracking-widest mb-2">Assign Doctor <span className="text-red-500">*</span></label>
                                                     <SearchableSelect
-                                                        options={doctors.map(doc => ({
-                                                            value: doc.doctor_id.toString(),
-                                                            label: `Dr. ${doc.first_name} ${doc.last_name}`,
-                                                            code: doc.specialization,
-                                                            category: doc.department_name
-                                                        }))}
+                                                        options={doctors.map(doc => {
+                                                            const availInfo = getDoctorAvailabilityInfo(doc.doctor_id, opdForm.visit_date);
+                                                            const today = format(new Date(), 'yyyy-MM-dd');
+                                                            const queueCount = todayOpdEntries.filter((e: any) =>
+                                                                e.doctor_id === doc.doctor_id && e.visit_status !== 'Completed'
+                                                            ).length;
+                                                            const apptCount = allAppointments.filter((a: any) => {
+                                                                if (!a.appointment_date) return false;
+                                                                const apptDate = format(new Date(a.appointment_date), 'yyyy-MM-dd');
+                                                                return a.doctor_id === doc.doctor_id &&
+                                                                    apptDate === today &&
+                                                                    ['Scheduled', 'Confirmed'].includes(a.appointment_status);
+                                                            }).length;
+                                                            return {
+                                                                value: doc.doctor_id.toString(),
+                                                                label: `Dr. ${doc.first_name} ${doc.last_name}`,
+                                                                code: doc.specialization,
+                                                                category: doc.department_name,
+                                                                availability: availInfo,
+                                                                stats: [
+                                                                    { label: 'Queue', value: queueCount, color: queueCount > 0 ? 'blue' as const : 'slate' as const },
+                                                                    { label: 'Appts', value: apptCount, color: apptCount > 0 ? 'amber' as const : 'slate' as const }
+                                                                ]
+                                                            };
+                                                        })}
                                                         categories={['All', ...branchDepartments.map(d => d.department_name)]}
                                                         selectedCategory={selectedDepartment}
                                                         onCategoryChange={setSelectedDepartment}
