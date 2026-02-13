@@ -228,40 +228,32 @@ export default function DoctorDashboard() {
             title: 'Waiting Now',
             value: waitingPatients.length,
             icon: Clock,
-            color: 'from-amber-400 to-orange-500',
-            bg: 'bg-amber-50',
-            text: 'text-amber-600',
-            border: 'border-amber-200',
+            color: 'bg-[#D97706]',
+            subLabel: 'Patients in queue',
             action: waitingPatients.length > 0 ? handleNextPatient : undefined,
-            actionLabel: 'Start Next →'
+            actionLabel: 'NEXT →'
         },
         {
             title: 'Completed Today',
             value: completedToday,
             icon: UserCheck,
-            color: 'from-emerald-500 to-teal-600',
-            bg: 'bg-emerald-50',
-            text: 'text-emerald-600',
-            border: 'border-emerald-200'
+            color: 'bg-[#009A66]',
+            subLabel: 'Consultations done'
         },
         {
             title: 'Pending Rx',
             value: pendingPrescriptions.length,
             icon: Pill,
-            color: 'from-rose-400 to-red-500',
-            bg: 'bg-rose-50',
-            text: 'text-rose-600',
-            border: 'border-rose-200',
+            color: 'bg-[#D11C5F]',
+            subLabel: 'Prescriptions pending',
             urgent: pendingPrescriptions.length > 0
         },
         {
             title: 'Revenue Today',
             value: `₹${todayRevenue.toLocaleString()}`,
             icon: DollarSign,
-            color: 'from-blue-500 to-indigo-600',
-            bg: 'bg-blue-50',
-            text: 'text-blue-600',
-            border: 'border-blue-200'
+            color: 'bg-[#146AF5]',
+            subLabel: 'Total earnings today'
         },
     ];
 
@@ -291,31 +283,36 @@ export default function DoctorDashboard() {
                     return (
                         <div
                             key={stat.title}
-                            className={`glass-card p-6 rounded-2xl relative overflow-hidden group hover:-translate-y-1 transition-all duration-300 ${stat.urgent ? 'ring-2 ring-rose-300 animate-pulse' : ''} ${stat.action ? 'cursor-pointer' : ''}`}
+                            className={`${stat.color} p-6 rounded-[2rem] text-white relative overflow-hidden group hover:-translate-y-2 transition-all duration-300 shadow-xl shadow-slate-200/50 flex flex-col justify-between h-48 ${stat.action ? 'cursor-pointer active:scale-95' : ''}`}
                             onClick={stat.action}
                         >
-                            <div className="flex justify-between items-start mb-4 relative z-10">
-                                <div className={`p-3 rounded-xl ${stat.bg} ${stat.text} transition-colors`}>
-                                    <Icon className="w-6 h-6" />
+                            <div className="flex justify-between items-start relative z-10">
+                                <div className="p-3 bg-white/20 backdrop-blur-md rounded-2xl ring-1 ring-white/30 border border-white/20">
+                                    <Icon className="w-6 h-6 text-white" />
                                 </div>
-                                {stat.action && (
-                                    <button className="text-xs font-bold px-3 py-1.5 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:shadow-lg hover:shadow-blue-500/30 transition-all">
-                                        {stat.actionLabel}
-                                    </button>
-                                )}
-                                {stat.urgent && (
-                                    <span className="text-xs font-bold px-2 py-1 rounded-full bg-rose-100 text-rose-600 animate-pulse">
-                                        Action Needed
-                                    </span>
-                                )}
+                                <div className="flex flex-col items-end gap-2">
+                                    <div className="w-2 h-2 bg-white rounded-full shadow-[0_0_8px_rgba(255,255,255,0.8)]"></div>
+                                    {stat.action && (
+                                        <button className="text-[10px] font-black px-3 py-1.5 rounded-full bg-white text-slate-900 shadow-lg transition-all animate-pulse">
+                                            {stat.actionLabel}
+                                        </button>
+                                    )}
+                                </div>
                             </div>
+
                             <div className="relative z-10">
-                                <h4 className="text-slate-500 text-sm font-semibold mb-1">{stat.title}</h4>
-                                <p className="text-3xl font-bold text-slate-800 tracking-tight">
-                                    {loading ? <Loader2 className="w-6 h-6 animate-spin text-slate-400" /> : stat.value}
-                                </p>
+                                <h4 className="text-white/90 text-sm font-semibold mb-1">{stat.title}</h4>
+                                <div className="flex items-baseline gap-2">
+                                    <p className="text-3xl font-bold tracking-tight">
+                                        {loading ? <Loader2 className="w-8 h-8 animate-spin" /> : stat.value}
+                                    </p>
+                                </div>
+                                <p className="text-white/70 text-xs font-medium mt-2">{stat.subLabel}</p>
                             </div>
-                            <div className={`absolute -right-6 -bottom-6 w-32 h-32 rounded-full bg-gradient-to-br ${stat.color} opacity-10 blur-2xl group-hover:opacity-20 transition-opacity duration-500`}></div>
+
+                            {/* Decorative background shapes */}
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl pointer-events-none"></div>
+                            <div className="absolute bottom-0 left-0 w-24 h-24 bg-black/5 rounded-full -ml-12 -mb-12 blur-2xl pointer-events-none"></div>
                         </div>
                     );
                 })}
@@ -339,7 +336,7 @@ export default function DoctorDashboard() {
                         {waitingPatients.length > 0 && (
                             <button
                                 onClick={handleNextPatient}
-                                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold text-sm hover:shadow-lg hover:shadow-blue-500/30 transition-all hover:-translate-y-0.5"
+                                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#FF5E00] to-[#FF21A0] text-white rounded-xl font-bold text-sm hover:shadow-lg hover:shadow-orange-500/30 transition-all hover:-translate-y-0.5"
                             >
                                 <PlayCircle className="w-4 h-4" />
                                 Start Next
@@ -441,7 +438,7 @@ export default function DoctorDashboard() {
                     {waitingPatients.length > 0 && (
                         <button
                             onClick={handleNextPatient}
-                            className="w-full p-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-2xl text-white shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 transition-all hover:-translate-y-1 group"
+                            className="w-full p-6 bg-gradient-to-r from-[#FF5E00] to-[#FF21A0] hover:saturate-150 rounded-2xl text-white shadow-lg shadow-orange-500/20 hover:shadow-xl hover:shadow-orange-500/30 transition-all hover:-translate-y-1 group"
                         >
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-4">

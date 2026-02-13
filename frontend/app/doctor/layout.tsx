@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { LayoutDashboard, Calendar, Users, FileText, Stethoscope, Activity, LogOut, BarChart3, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Calendar, Users, FileText, Stethoscope, Activity, LogOut, BarChart3, Menu, X, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 
 export default function DoctorLayout({ children }: { children: React.ReactNode }) {
@@ -11,6 +11,8 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
     const router = useRouter();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const pathname = usePathname();
+
+    const isPatientDetail = pathname.startsWith('/doctor/patients/') && pathname !== '/doctor/patients';
 
     useEffect(() => {
         if (!loading && !isAuthenticated) {
@@ -110,21 +112,31 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
                             >
                                 <Menu className="w-5 h-5" />
                             </button>
-                            {user?.hospital_logo ? (
-                                <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden bg-white border border-gray-200 shadow-sm">
-                                    <img
-                                        src={`http://localhost:5000/${user.hospital_logo.replace(/\\/g, '/')}`}
-                                        alt="Hospital Logo"
-                                        className="w-full h-full object-contain p-1"
-                                    />
-                                </div>
+                            {isPatientDetail ? (
+                                <Link
+                                    href="/doctor/patients"
+                                    className="w-10 h-10 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center justify-center shadow-sm transition-colors text-slate-600"
+                                    title="Back to Patient List"
+                                >
+                                    <ArrowLeft className="w-5 h-5" />
+                                </Link>
                             ) : (
-                                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center shadow-sm">
-                                    <Stethoscope className="w-5 h-5 text-blue-900" />
-                                </div>
+                                user?.hospital_logo ? (
+                                    <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden bg-white border border-gray-200 shadow-sm">
+                                        <img
+                                            src={`http://localhost:5000/${user.hospital_logo.replace(/\\/g, '/')}`}
+                                            alt="Hospital Logo"
+                                            className="w-full h-full object-contain p-1"
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center shadow-sm">
+                                        <Stethoscope className="w-5 h-5 text-blue-900" />
+                                    </div>
+                                )
                             )}
                             <h2 className="text-lg font-semibold text-slate-700">
-                                {navItems.find(item => item.path === pathname)?.name || 'Dashboard'}
+                                {isPatientDetail ? 'Patient List' : (navItems.find(item => item.path === pathname)?.name || 'Dashboard')}
                             </h2>
                         </div>
 
@@ -163,7 +175,7 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
                 </header>
 
                 {/* Content */}
-                <main className="flex-1 overflow-auto p-6 bg-gray-50/50">
+                <main className={`flex-1 overflow-auto p-6 ${isPatientDetail ? 'bg-[#EBF5FF]' : 'bg-gray-50/50'}`}>
                     {children}
                 </main>
             </div>

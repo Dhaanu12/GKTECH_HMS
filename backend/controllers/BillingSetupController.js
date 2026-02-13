@@ -5,97 +5,105 @@ const db = require('../config/db');
 
 class BillingSetupController {
     /**
-     * Search medical services
+     * Search medical services from both In-House and External sources
      * @param {Object} req 
      * @param {Object} res 
      */
     async searchServices(req, res) {
         try {
             const { term, category, branchId } = req.query;
+            const cleanedTerm = (term || '').trim();
+            console.log(`[Diagnostic] Search Request: term="${cleanedTerm}", category="${category}", branchId="${branchId}"`);
 
-            if (!term) {
+            if (!cleanedTerm) {
                 return res.status(400).json({ message: 'Search term is required' });
             }
 
-            let services;
+            let services = [];
+            const limit = 50;
+            let parsedBranchId = parseInt(branchId);
+            const actualBranchId = (!isNaN(parsedBranchId) && branchId !== 'undefined' && branchId !== 'null') ? parsedBranchId : 1;
 
-            // If branchId is provided, filter by branch's assigned medical services + In-House Billing Setups
-            if (branchId) {
-                services = [];
-                const limit = 50; // Limit results per category to avoid huge responses
+            // 1. In-House (Billing Master) - Global Search
+            try {
+                let billingQuery = `
+                    SELECT bsm.billing_setup_id as id, bsm.service_name, bsm.type_of_service as category, bsm.patient_charge as price, bsm.branch_id, bsm.is_active
+                    FROM billing_setup_master bsm
+                    WHERE (bsm.is_active = true OR bsm.is_active IS NULL OR bsm.is_active = false)
+                    AND bsm.service_name ILIKE $1
+                `;
+                const billingParams = [`%${cleanedTerm}%`];
 
-                // 1. Medical Services (Global Search for External Labs)
-                try {
-                    const medicalLimitPlaceholder = category ? '$3' : '$2';
-                    const medicalQuery = `
-                        SELECT ms.service_id, ms.service_name, ms.category
-                        FROM medical_services ms
-                        WHERE ms.is_active = true
-                        AND ms.service_name ILIKE $1
-                        ${category ? 'AND ms.category ILIKE $2' : ''}
-                        ORDER BY ms.service_name ASC
-                        LIMIT ${medicalLimitPlaceholder}
-                    `;
-                    // Remove branchId from params for this query as it uses global table
-                    const medicalParams = category
-                        ? [`%${term}%`, `%${category}%`, limit]
-                        : [`%${term}%`, limit];
-
-                    const medicalRes = await db.query(medicalQuery, medicalParams);
-                    services.push(...medicalRes.rows.map(row => ({
-                        id: row.service_id,
-                        service_name: row.service_name,
-                        category: row.category,
-                        source: 'medical_service', // Will show as 'External'
-                        price: null
-                    })));
-                } catch (err) {
-                    console.error('Error searching medical services:', err);
-                }
-
-                // 3. Billing Setup Master (In-House)
-                try {
-                    const billingLimitPlaceholder = category ? '$4' : '$3';
-                    const billingQuery = `
-                        SELECT bsm.billing_setup_id, bsm.service_name, bsm.type_of_service as category, bsm.patient_charge
-                        FROM billing_setup_master bsm
-                        WHERE (bsm.branch_id = $1 OR bsm.branch_id = 1)
-                        AND bsm.is_active = true
-                        AND bsm.service_name ILIKE $2
-                        ${category ? 'AND bsm.type_of_service ILIKE $3' : ''}
-                        ORDER BY bsm.service_name ASC
-                        LIMIT ${billingLimitPlaceholder}
-                    `;
-                    const billingParams = category
-                        ? [branchId, `%${term}%`, `%${category}%`, limit]
-                        : [branchId, `%${term}%`, limit];
-
-                    const billingRes = await db.query(billingQuery, billingParams);
-                    services.push(...billingRes.rows.map(row => ({
-                        id: row.billing_setup_id,
-                        service_name: row.service_name,
-                        category: row.category,
-                        source: 'billing_master',
-                        price: row.patient_charge
-                    })));
-                } catch (err) {
-                    console.error('Error searching billing setup:', err);
-                }
-
-                // Sort combined results by name
-                services.sort((a, b) => a.service_name.localeCompare(b.service_name));
-            } else {
-                // Fallback to all medical services if no branchId (backward compatibility)
                 if (category) {
-                    services = await MedicalService.searchByNameAndCategory(term, category);
-                } else {
-                    services = await MedicalService.searchByName(term);
+                    // Use ILIKE for category to be resilient to case/space issues
+                    billingQuery += ` AND bsm.type_of_service ILIKE $2`;
+                    billingParams.push(category);
                 }
+
+                // Order: 0:Current Branch, 1:Global(1), 2:Others
+                billingQuery += ` ORDER BY 
+                    CASE 
+                        WHEN bsm.branch_id = $${billingParams.length + 1} THEN 0 
+                        WHEN bsm.branch_id = 1 THEN 1 
+                        ELSE 2 
+                    END, bsm.service_name ASC LIMIT $${billingParams.length + 2}`;
+
+                billingParams.push(actualBranchId);
+                billingParams.push(limit);
+
+                const billingRes = await db.query(billingQuery, billingParams);
+                console.log(`[Diagnostic] In-House matches: ${billingRes.rows.length}`);
+
+                services.push(...billingRes.rows.map(row => ({
+                    ...row,
+                    source: 'billing_setup_master'
+                })));
+            } catch (err) {
+                console.error('[Diagnostic] In-House Search Error:', err);
             }
+
+            // 2. External (Medical Services) - Global Search
+            try {
+                let medicalQuery = `
+                    SELECT ms.service_id as id, ms.service_name, ms.category
+                    FROM medical_services ms
+                    WHERE (ms.is_active = true OR ms.is_active IS NULL)
+                    AND ms.service_name ILIKE $1
+                `;
+                const medicalParams = [`%${cleanedTerm}%`];
+
+                if (category) {
+                    medicalQuery += ` AND ms.category ILIKE $2`;
+                    medicalParams.push(category);
+                }
+
+                medicalQuery += ` ORDER BY ms.service_name ASC LIMIT $${medicalParams.length + 1}`;
+                medicalParams.push(limit);
+
+                const medicalRes = await db.query(medicalQuery, medicalParams);
+                console.log(`[Diagnostic] External matches: ${medicalRes.rows.length}`);
+
+                services.push(...medicalRes.rows.map(row => ({
+                    ...row,
+                    source: 'medical_service',
+                    price: null
+                })));
+            } catch (err) {
+                console.error('[Diagnostic] External Search Error:', err);
+            }
+
+            // 3. Final Sort: In-House first, then alphabetical
+            services.sort((a, b) => {
+                const isAInHouse = a.source === 'billing_setup_master';
+                const isBInHouse = b.source === 'billing_setup_master';
+                if (isAInHouse && !isBInHouse) return -1;
+                if (!isAInHouse && isBInHouse) return 1;
+                return (a.service_name || '').localeCompare(b.service_name || '');
+            });
 
             res.json(services);
         } catch (error) {
-            console.error('Error searching services:', error);
+            console.error('[Diagnostic] Fatal search error:', error);
             res.status(500).json({ message: 'Internal server error' });
         }
     }
@@ -142,33 +150,20 @@ class BillingSetupController {
             // Handle Package Details if type is package
             if (type_of_service === 'package' && Array.isArray(package_details) && package_details.length > 0) {
                 for (const detail of package_details) {
-                    // Start transaction for details? No, outer transaction handles it.
-
-                    const detailData = {
-                        package_uuid: createdMaster.uuid,
-                        type_of_service: detail.type, // Map 'type' from frontend to 'type_of_service' in DB
-                        service_name: detail.service_name,
-                        patient_charge: detail.patient_charge || 0,
-                        b2b_charge: detail.b2b_charge || 0,
-                        special_charge: detail.special_charge || 0,
-                        created_by: req.user ? req.user.id : null,
-                        updated_by: req.user ? req.user.id : null
-                    };
-
                     // Use raw insert to include type_of_service
                     await client.query(`
                         INSERT INTO billing_setup_package_details 
                         (package_uuid, type_of_service, service_name, patient_charge, b2b_charge, special_charge, created_at, updated_at, created_by, updated_by)
                         VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW(), $7, $8)
                     `, [
-                        detailData.package_uuid,
-                        detailData.type_of_service,
-                        detailData.service_name,
-                        detailData.patient_charge,
-                        detailData.b2b_charge,
-                        detailData.special_charge,
-                        detailData.created_by,
-                        detailData.updated_by
+                        createdMaster.uuid,
+                        detail.type,
+                        detail.service_name,
+                        detail.patient_charge || 0,
+                        detail.b2b_charge || 0,
+                        detail.special_charge || 0,
+                        req.user ? req.user.id : null,
+                        req.user ? req.user.id : null
                     ]);
                 }
             }
@@ -239,45 +234,20 @@ class BillingSetupController {
                 // Insert new details
                 if (Array.isArray(package_details) && package_details.length > 0) {
                     for (const detail of package_details) {
-                        const detailData = {
-                            package_uuid: updatedMaster.uuid,
-                            service_name: detail.service_name,
-                            // Store the 'type' in service_name or separate column? 
-                            // Wait, user added 'type' (Lab/Scan) to package details.
-                            // The model `BillingSetupPackageDetail` doesn't seem to have a `type` column based on my memory.
-                            // I should verify if I need to add a column or just concatenate it/ignore it?
-                            // User said: "in componen it shud be there tyoe lab procedure scan...".
-                            // If I don't store it, when I fetch back for EDIT, I can't populate the dropdown.
-                            // I NEED TO ADD `type` column to `billing_setup_package_details`.
-                            // For now, I will proceed with creating the method, but I must add a migration for `type`.
-                            // Let's assume I will add `service_type` column.
-                            service_type: detail.type,
-                            patient_charge: detail.patient_charge || 0,
-                            b2b_charge: detail.b2b_charge || 0,
-                            special_charge: detail.special_charge || 0,
-                            created_by: req.user ? req.user.id : null,
-                            updated_by: req.user ? req.user.id : null
-                        };
-                        // NOTE: I need to update BillingSetupPackageDetail.create to handle 'type_of_service' 
-                        // or just writing raw query here might be safer if model is rigid.
-                        // Let's use raw query for details insertion to be sure.
                         await client.query(`
                             INSERT INTO billing_setup_package_details 
                             (package_uuid, type_of_service, service_name, patient_charge, b2b_charge, special_charge, created_at, updated_at, created_by, updated_by)
                             VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW(), $7, $8)
                          `, [
                             updatedMaster.uuid,
-                            detail.type, // Frontend sends 'type'
+                            detail.type,
                             detail.service_name,
-                            detail.patient_charge,
-                            detail.b2b_charge,
-                            detail.special_charge,
+                            detail.patient_charge || 0,
+                            detail.b2b_charge || 0,
+                            detail.special_charge || 0,
                             req.user ? req.user.id : null,
                             req.user ? req.user.id : null
                         ]);
-                        // I will pause the controller update related to 'type' column and just do standard fields for now,
-                        // but then the Edit flow will be incomplete.
-                        // Actually, I should do the migration first.
                     }
                 }
             }

@@ -781,8 +781,8 @@ class OpdController {
 
             const result = await query(`
                 SELECT o.*, 
-                       d.first_name as doctor_first_name, d.last_name as doctor_last_name, d.specialization,
-                       b.branch_name, CONCAT(b.address_line1, ', ', b.city) as branch_address, h.hospital_name
+                       d.first_name as doctor_first_name, d.last_name as doctor_last_name, d.specialization, d.registration_number as doctor_registration_number,
+                       b.branch_name, CONCAT(b.address_line1, ', ', b.city) as branch_address, b.contact_number as branch_contact_number, b.email as branch_email, h.hospital_name
                 FROM opd_entries o
                 JOIN doctors d ON o.doctor_id = d.doctor_id
                 JOIN branches b ON o.branch_id = b.branch_id

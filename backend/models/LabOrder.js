@@ -36,7 +36,7 @@ class LabOrder extends BaseModel {
             LEFT JOIN opd_entries o ON lo.opd_id = o.opd_id
             WHERE lo.patient_id = $1
         `;
-        
+
         if (!options.includeCompleted) {
             query += ` AND lo.status NOT IN ('Completed', 'Cancelled')`;
         }
@@ -45,9 +45,9 @@ class LabOrder extends BaseModel {
             query += ` AND lo.opd_id = $${paramCount++}`;
             values.push(options.opdId);
         }
-        
+
         query += ` ORDER BY lo.ordered_at DESC`;
-        
+
         const result = await this.executeQuery(query, values);
         return result.rows;
     }
@@ -61,7 +61,7 @@ class LabOrder extends BaseModel {
     async findByBranch(branchId, filters = {}) {
         const values = [branchId];
         let paramCount = 2;
-        
+
         let query = `
             SELECT lo.*, 
                    p.first_name || ' ' || p.last_name as patient_name,
@@ -77,37 +77,42 @@ class LabOrder extends BaseModel {
             LEFT JOIN branches b ON lo.branch_id = b.branch_id
             WHERE lo.branch_id = $1
         `;
-        
+
         if (filters.status) {
             query += ` AND lo.status = $${paramCount++}`;
             values.push(filters.status);
         }
-        
+
         if (filters.priority) {
             query += ` AND lo.priority = $${paramCount++}`;
             values.push(filters.priority);
         }
-        
+
         if (filters.category) {
             query += ` AND lo.test_category = $${paramCount++}`;
             values.push(filters.category);
         }
-        
+
         if (filters.date) {
             query += ` AND DATE(lo.ordered_at) = $${paramCount++}`;
             values.push(filters.date);
         }
-        
+
         if (filters.nurseId) {
             query += ` AND lo.assigned_nurse_id = $${paramCount++}`;
             values.push(filters.nurseId);
         }
-        
+
+        if (filters.isExternal !== undefined) {
+            query += ` AND lo.is_external = $${paramCount++}`;
+            values.push(filters.isExternal);
+        }
+
         // Default: exclude completed unless specifically requested
         if (!filters.includeCompleted && !filters.status) {
             query += ` AND lo.status NOT IN ('Completed', 'Cancelled')`;
         }
-        
+
         query += ` ORDER BY 
             CASE lo.priority 
                 WHEN 'STAT' THEN 1 
@@ -116,7 +121,7 @@ class LabOrder extends BaseModel {
             END,
             lo.scheduled_for ASC NULLS LAST,
             lo.ordered_at DESC`;
-        
+
         const result = await this.executeQuery(query, values);
         return result.rows;
     }
@@ -154,24 +159,24 @@ class LabOrder extends BaseModel {
         if (!current) {
             throw new Error('Lab order not found');
         }
-        
+
         const previousStatus = current.status;
-        
+
         // Update the order
         const updateData = { status: newStatus };
         if (newStatus === 'Completed') {
             updateData.completed_at = new Date();
         }
-        
+
         const updated = await this.update(orderId, updateData);
-        
+
         // Record status change in history
         await this.executeQuery(`
             INSERT INTO lab_order_status_history 
             (order_id, previous_status, new_status, changed_by, notes)
             VALUES ($1, $2, $3, $4, $5)
         `, [orderId, previousStatus, newStatus, userId, notes]);
-        
+
         return updated;
     }
 
@@ -210,7 +215,7 @@ class LabOrder extends BaseModel {
             LEFT JOIN hospitals h ON b.hospital_id = h.hospital_id
             WHERE lo.order_id = $1
         `;
-        
+
         const result = await this.executeQuery(query, [orderId]);
         return result.rows[0] || null;
     }
@@ -230,7 +235,7 @@ class LabOrder extends BaseModel {
             WHERE losh.order_id = $1
             ORDER BY losh.changed_at DESC
         `;
-        
+
         const result = await this.executeQuery(query, [orderId]);
         return result.rows;
     }
@@ -249,20 +254,20 @@ class LabOrder extends BaseModel {
             WHERE branch_id = $1
             GROUP BY status
         `;
-        
+
         const result = await this.executeQuery(query, [branchId]);
-        
+
         const counts = {
             'Ordered': 0,
             'In-Progress': 0,
             'Completed': 0,
             'Cancelled': 0
         };
-        
+
         result.rows.forEach(row => {
             counts[row.status] = parseInt(row.count);
         });
-        
+
         return counts;
     }
 }

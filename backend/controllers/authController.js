@@ -324,11 +324,19 @@ class AuthController {
             }
 
             // Generate new access token
+            // Generate new access token
             const tokenPayload = {
                 userId: decoded.userId,
+                user_id: decoded.user_id,
                 email: decoded.email,
                 username: decoded.username,
-                roleId: decoded.roleId
+                roleId: decoded.roleId,
+                role: decoded.role,
+                branch_id: decoded.branch_id,
+                doctor_id: decoded.doctor_id,
+                nurse_id: decoded.nurse_id,
+                hospital_id: decoded.hospital_id,
+                hospital_logo: decoded.hospital_logo
             };
 
             const newAccessToken = JWTUtils.generateAccessToken(tokenPayload);
