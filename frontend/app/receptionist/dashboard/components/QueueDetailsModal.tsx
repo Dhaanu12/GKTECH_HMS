@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Search, Calendar, ChevronDown, Users, Clock, AlertCircle } from 'lucide-react';
+import { X, Search, Calendar, ChevronDown, Users, Clock, AlertCircle, Eye } from 'lucide-react';
 import { format } from 'date-fns';
+import { useRouter } from 'next/navigation';
 
 interface QueueDetailsModalProps {
     isOpen: boolean;
@@ -30,6 +31,7 @@ const QueueDetailsModal: React.FC<QueueDetailsModalProps> = ({
     const [selectedDocId, setSelectedDocId] = useState('All');
     const [currentTime, setCurrentTime] = useState(new Date());
     const [activeTab, setActiveTab] = useState<'priority' | 'up-next' | 'in-consultation'>('up-next');
+    const router = useRouter();
 
     useEffect(() => {
         if (isOpen) {
@@ -349,6 +351,7 @@ const QueueDetailsModal: React.FC<QueueDetailsModalProps> = ({
                         <th className="text-right py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-widest pr-8">
                             {activeTab === 'in-consultation' ? 'Consultation Time' : (activeTab === 'priority' ? 'Active Time' : 'Wait Time')}
                         </th>
+                        <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-widest text-center pr-8 w-[100px]">Actions</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -426,6 +429,18 @@ const QueueDetailsModal: React.FC<QueueDetailsModalProps> = ({
                                             </span>
                                         </div>
                                     </div>
+                                </td>
+                                <td className="py-5 px-6 text-center pr-8">
+                                    <button
+                                        onClick={() => {
+                                            onClose();
+                                            router.push(`/receptionist/opd?highlight=${entry.opd_id}`);
+                                        }}
+                                        className="p-2.5 rounded-xl bg-slate-50 text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-all duration-300 border border-slate-100 hover:border-blue-100 group/btn shadow-sm active:scale-90"
+                                        title="View in OPD Table"
+                                    >
+                                        <Eye className="w-5 h-5 group-hover/btn:scale-110 transition-transform" />
+                                    </button>
                                 </td>
                             </tr>
                         );
