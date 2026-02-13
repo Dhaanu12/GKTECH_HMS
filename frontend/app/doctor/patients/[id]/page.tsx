@@ -13,6 +13,7 @@ export default function PatientDetails() {
     const router = useRouter();
     const [patient, setPatient] = useState<any>(null);
     const [opdHistory, setOpdHistory] = useState<any[]>([]);
+    const [patientDocuments, setPatientDocuments] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'consultation' | 'profile'>('consultation');
 
@@ -358,15 +359,17 @@ export default function PatientDetails() {
             // Verify params.id exists before making requests
             if (!params.id) return;
 
-            const [patientRes, opdRes, consultRes] = await Promise.all([
+            const [patientRes, opdRes, consultRes, docRes] = await Promise.all([
                 axios.get(`${API_URL}/patients/${params.id}`, { headers: { Authorization: `Bearer ${token}` } }),
                 axios.get(`${API_URL}/opd/patient/${params.id}`, { headers: { Authorization: `Bearer ${token}` } }),
-                axios.get(`${API_URL}/consultations/patient/${params.id}`, { headers: { Authorization: `Bearer ${token}` } })
+                axios.get(`${API_URL}/consultations/patient/${params.id}`, { headers: { Authorization: `Bearer ${token}` } }),
+                axios.get(`${API_URL}/patient-documents/patient/${params.id}`, { headers: { Authorization: `Bearer ${token}` } })
             ]);
 
             setPatient(patientRes.data.data.patient);
             setOpdHistory(opdRes.data.data.opdHistory || []);
             setConsultationHistory(consultRes.data.data.consultations || []);
+            setPatientDocuments(docRes.data.data.documents || []);
 
             // Check for completed visit to hide placeholder
             const history = opdRes.data.data.opdHistory || [];
@@ -2078,6 +2081,52 @@ export default function PatientDetails() {
                                 }
                                 return null;
                             })()}
+
+                            {/* Reports Section */}
+                            <div className="bg-white py-4 px-5 rounded-3xl border border-slate-200 shadow-xl shadow-blue-900/5">
+                                <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2 text-lg">
+                                    <div className="w-4 h-4 bg-indigo-900 rounded-sm shadow-sm shadow-indigo-900/20"></div> Reports
+                                </h3>
+
+                                {patientDocuments && patientDocuments.length > 0 ? (
+                                    <div className="space-y-3">
+                                        {patientDocuments.map((doc, idx) => (
+                                            <div key={idx} className="flex justify-between items-center p-2.5 bg-slate-50 rounded-xl border border-slate-100/50 hover:bg-slate-100 transition-colors group">
+                                                <div className="flex items-center gap-3 overflow-hidden">
+                                                    <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-400 flex-shrink-0">
+                                                        <FileText className="w-4 h-4" />
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <p className="text-xs font-bold text-slate-700 truncate" title={doc.original_file_name}>{doc.original_file_name}</p>
+                                                        <p className="text-[10px] text-slate-400">{new Date(doc.created_at).toLocaleDateString()}</p>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={() => {
+                                                        const token = localStorage.getItem('token');
+                                                        // Use fetch to get the file blob with auth header, then open blob URL
+                                                        fetch(`${API_URL}/patient-documents/${doc.document_id}/view`, {
+                                                            headers: { Authorization: `Bearer ${token}` }
+                                                        })
+                                                            .then(response => response.blob())
+                                                            .then(blob => {
+                                                                const url = window.URL.createObjectURL(blob);
+                                                                window.open(url, '_blank');
+                                                            })
+                                                            .catch(err => console.error('Error viewing document:', err));
+                                                    }}
+                                                    className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors opacity-0 group-hover:opacity-100"
+                                                    title="View Document"
+                                                >
+                                                    <Eye className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-slate-400 italic text-center py-4">No documents uploaded</p>
+                                )}
+                            </div>
 
                             {/* Quick Contact & History Info */}
                             <div className="bg-white py-4 px-5 rounded-3xl border border-slate-200 shadow-xl shadow-blue-900/5">
