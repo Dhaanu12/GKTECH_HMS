@@ -1946,13 +1946,13 @@ export default function OpdEntryPage() {
                                             <div className="flex items-center gap-1.5 w-full">
                                                 {/* Edit Button */}
                                                 <button
-                                                    onClick={() => entry.visit_status !== 'Completed' && handleEditOpd(entry)}
-                                                    className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg transition-all font-bold text-xs ${entry.visit_status === 'Completed'
+                                                    onClick={() => (entry.visit_status !== 'Completed' || entry.is_mlc) && handleEditOpd(entry)}
+                                                    className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg transition-all font-bold text-xs ${entry.visit_status === 'Completed' && !entry.is_mlc
                                                         ? 'bg-slate-50 text-slate-300 cursor-not-allowed pointer-events-none'
                                                         : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-800'
                                                         }`}
-                                                    title={entry.visit_status === 'Completed' ? "Cannot edit completed visit" : "Edit OPD Entry"}
-                                                    disabled={entry.visit_status === 'Completed'}
+                                                    title={entry.visit_status === 'Completed' && !entry.is_mlc ? "Cannot edit completed visit" : "Edit OPD Entry"}
+                                                    disabled={entry.visit_status === 'Completed' && !entry.is_mlc}
                                                 >
                                                     Edit
                                                 </button>

@@ -736,7 +736,11 @@ class OpdController {
             const yesterdayOpdResult = await query(`
                 SELECT COUNT(*) as count 
                 FROM opd_entries 
-                WHERE branch_id = $1 AND visit_date = CURRENT_DATE - INTERVAL '1 day'
+                WHERE branch_id = $1 AND visit_date = (
+                    SELECT MAX(visit_date) 
+                    FROM opd_entries 
+                    WHERE branch_id = $1 AND visit_date < CURRENT_DATE
+                )
             `, [branch_id]);
 
             const finStats = financialResult.rows[0];
