@@ -12,16 +12,21 @@ import {
     getReferralDoctorsWithPercentages,
     getHospitalServices,
     upsertServicePercentage,
-    bulkInsertServicePercentages
+    bulkInsertServicePercentages,
+    exportDoctorConfigs,
+    importCSV
 } from '@/lib/api/accounts';
 import { ReferralDoctor, HospitalService, ServicePercentage } from '@/types/accounts';
+import { ReferralAgent } from '@/types/marketing';
+import { getReferralAgents, updateReferralAgent, bulkUpdateReferralAgents } from '@/lib/api/marketing';
 
-type TabType = 'individual' | 'bulk';
+type TabType = 'individual' | 'bulk' | 'agents';
 
 export default function ReferralConfigHub() {
     const [activeTab, setActiveTab] = useState<TabType>('individual');
     const [doctors, setDoctors] = useState<ReferralDoctor[]>([]);
     const [services, setServices] = useState<HospitalService[]>([]);
+    const [agents, setAgents] = useState<ReferralAgent[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -31,13 +36,15 @@ export default function ReferralConfigHub() {
     const fetchData = async (silent?: boolean) => {
         if (!silent) setLoading(true);
         try {
-            const [doctorsRes, servicesRes] = await Promise.all([
+            const [doctorsRes, servicesRes, agentsRes] = await Promise.all([
                 getReferralDoctorsWithPercentages(),
-                getHospitalServices()
+                getHospitalServices(),
+                getReferralAgents()
             ]);
 
             if (doctorsRes.success) setDoctors(doctorsRes.data);
             if (servicesRes.success) setServices(servicesRes.data);
+            if (agentsRes && agentsRes.success) setAgents(agentsRes.data);
         } catch (error: any) {
             console.error('Error fetching data:', error);
         } finally {
@@ -46,8 +53,9 @@ export default function ReferralConfigHub() {
     };
 
     const tabs = [
-        { id: 'individual' as TabType, name: 'Individual Setup', icon: Users, description: 'Manage doctor percentages one by one' },
-        { id: 'bulk' as TabType, name: 'Bulk Setup', icon: FileSpreadsheet, description: 'Configure multiple doctors at once' },
+        { id: 'individual' as TabType, name: 'Doctors (Individual)', icon: Users, description: 'Manage doctor percentages one by one' },
+        { id: 'bulk' as TabType, name: 'Doctors (Bulk)', icon: FileSpreadsheet, description: 'Configure multiple doctors at once' },
+        { id: 'agents' as TabType, name: 'Agents', icon: User, description: 'Manage referral agent commissions' },
     ];
 
     // Stats - compute unique hospitals
@@ -109,7 +117,7 @@ export default function ReferralConfigHub() {
 
             {/* Tabs */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="grid grid-cols-2 gap-0 border-b border-gray-200">
+                <div className="grid grid-cols-3 gap-0 border-b border-gray-200">
                     {tabs.map((tab) => {
                         const Icon = tab.icon;
                         return (
@@ -140,6 +148,9 @@ export default function ReferralConfigHub() {
                     )}
                     {activeTab === 'bulk' && (
                         <BulkSetupWizard doctors={doctors} services={services} onSuccess={() => fetchData(true)} />
+                    )}
+                    {activeTab === 'agents' && (
+                        <AgentSetup agents={agents} onUpdate={() => fetchData(true)} />
                     )}
                 </div>
             </div>
@@ -294,7 +305,7 @@ function IndividualSetup({ doctors, services, onUpdate }: { doctors: ReferralDoc
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <span className="text-sm font-medium text-gray-600">
-                                                {Array.isArray(doctor.percentages) ? doctor.percentages.length : 0} configured
+                                                {Array.isArray(doctor.percentages) ? doctor.percentages.filter((p: any) => p.referral_pay === 'Y').length : 0} active
                                             </span>
                                         </td>
                                     </tr>
@@ -722,16 +733,132 @@ function BulkSetupWizard({ doctors, services, onSuccess }: { doctors: ReferralDo
         inpatient_percentage: number | string;
     }>>({});
     const [submitting, setSubmitting] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-    // Get doctors without percentages
-    const doctorsWithoutPercentages = doctors.filter(d => {
-        if (!d.percentages) return true;
-        if (Array.isArray(d.percentages) && d.percentages.length === 0) return true;
-        if (typeof d.percentages === 'string' && (d.percentages === '[]' || d.percentages === '')) return true;
-        return false;
+    // Filter state
+    const [viewFilter, setViewFilter] = useState<'all' | 'configured' | 'unconfigured'>('unconfigured');
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+    // Confirmation state
+    const [importSummary, setImportSummary] = useState<{
+        to_insert: number;
+        to_update: number;
+        unchanged: number;
+        errors: number;
+        details: any[];
+    } | null>(null);
+    const [pendingFileData, setPendingFileData] = useState<any[] | null>(null);
+
+    // Filter doctors based on viewFilter
+    const filteredDoctors = doctors.filter(d => {
+        const hasConfig = d.percentages && Array.isArray(d.percentages) && d.percentages.length > 0;
+
+        if (viewFilter === 'configured') return hasConfig;
+        if (viewFilter === 'unconfigured') return !hasConfig;
+        return true;
     });
+
+    // Handle file upload
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsUploading(true);
+        setErrorMessage(null);
+        setSuccessMessage(null);
+        setImportSummary(null);
+
+        try {
+            const reader = new FileReader();
+            reader.onload = async (evt) => {
+                try {
+                    const bstr = evt.target?.result;
+                    const wb = XLSX.read(bstr, { type: 'binary' });
+                    const wsname = wb.SheetNames[0];
+                    const ws = wb.Sheets[wsname];
+                    const data = XLSX.utils.sheet_to_json(ws);
+
+                    // Map Excel columns to API expected format
+                    const mappedData = data.map((row: any) => ({
+                        doctor_id: row['Doctor ID'],
+                        service_type: row['Service Type'],
+                        referral_pay: row['Referral Pay (Y/N)'] === 'Y' ? 'Y' : 'N',
+                        cash_percentage: parseFloat(row['Cash Percentage']) || 0,
+                        inpatient_percentage: parseFloat(row['Insurance Percentage']) || 0
+                    })).filter((item: any) => item.doctor_id && item.service_type);
+
+                    if (mappedData.length === 0) {
+                        throw new Error('No valid data found in file. Please check column headers.');
+                    }
+
+                    // 1. Dry Run
+                    const dryRunResult = await importCSV(mappedData, true);
+
+                    if (dryRunResult.success) {
+                        setImportSummary(dryRunResult.summary);
+                        setPendingFileData(mappedData);
+                    }
+                } catch (error: any) {
+                    console.error('Error parsing/uploading file:', error);
+                    setErrorMessage('Failed to upload: ' + error.message);
+                } finally {
+                    setIsUploading(false);
+                    if (fileInputRef.current) fileInputRef.current.value = '';
+                }
+            };
+            reader.readAsBinaryString(file);
+        } catch (error: any) {
+            setIsUploading(false);
+            setErrorMessage('Error reading file');
+        }
+    };
+
+    const confirmImport = async () => {
+        if (!pendingFileData) return;
+
+        setIsUploading(true);
+        try {
+            const result = await importCSV(pendingFileData, false);
+            if (result.success) {
+                setSuccessMessage(`Successfully imported ${result.data.inserted} configurations!`);
+                setImportSummary(null);
+                setPendingFileData(null);
+                onSuccess(); // Refresh parent data
+            }
+        } catch (error: any) {
+            setErrorMessage('Failed to confirm upload: ' + error.message);
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    const cancelImport = () => {
+        setImportSummary(null);
+        setPendingFileData(null);
+    };
+
+    const handleDownload = async () => {
+        try {
+            setSuccessMessage('Downloading configuration...');
+            const blob = await exportDoctorConfigs(viewFilter === 'all' ? undefined : viewFilter);
+
+            // Create download link
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `referral_configuration_${viewFilter}_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            setSuccessMessage(null);
+        } catch (error: any) {
+            console.error('Download error:', error);
+            setErrorMessage('Failed to download configuration');
+        }
+    };
 
     const toggleService = (serviceName: string, isChecked: boolean) => {
         if (isChecked) {
@@ -812,6 +939,86 @@ function BulkSetupWizard({ doctors, services, onSuccess }: { doctors: ReferralDo
 
     return (
         <div>
+            {/* Confirmation Dialog */}
+            {importSummary && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl">
+                        <h3 className="text-lg font-bold mb-4">Confirm Bulk Update</h3>
+
+                        <div className="space-y-3 mb-6">
+                            <div className="flex justify-between items-center p-2 bg-blue-50 rounded">
+                                <span className="text-blue-700">Records to Update:</span>
+                                <span className="font-bold text-blue-700">{importSummary.to_update}</span>
+                            </div>
+                            <div className="flex justify-between items-center p-2 bg-green-50 rounded">
+                                <span className="text-green-700">New Records to Insert:</span>
+                                <span className="font-bold text-green-700">{importSummary.to_insert}</span>
+                            </div>
+                            <div className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                                <span className="text-gray-600">Unchanged Records:</span>
+                                <span className="font-bold text-gray-600">{importSummary.unchanged}</span>
+                            </div>
+                            {importSummary.errors > 0 && (
+                                <div className="bg-red-50 rounded p-2">
+                                    <div className="flex justify-between items-center mb-1">
+                                        <span className="text-red-700 font-medium">Errors (will be skipped):</span>
+                                        <span className="font-bold text-red-700">{importSummary.errors}</span>
+                                    </div>
+                                    <div className="text-xs text-red-600 max-h-32 overflow-y-auto space-y-1 pl-2 border-l-2 border-red-200">
+                                        {importSummary.details.filter(d => d.error).slice(0, 5).map((detail, idx) => (
+                                            <div key={idx}>
+                                                Row {detail.row}: {detail.error}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Debug Info for Unchanged Rows */}
+                            {importSummary.unchanged > 0 && (
+                                <div className="bg-gray-50 rounded p-2 mt-2">
+                                    <div className="text-xs font-semibold text-gray-500 mb-1">Debug Info (Unchanged Rows):</div>
+                                    <div className="text-xs text-gray-500 max-h-32 overflow-y-auto space-y-1">
+                                        {importSummary.details.filter(d => d.status === 'Unchanged').slice(0, 3).map((detail, idx) => (
+                                            <div key={idx} className="border-b border-gray-100 pb-1 mb-1">
+                                                <div className="font-medium">Row {detail.row} ({detail.diff?.service}):</div>
+                                                <div className="grid grid-cols-2 gap-2 pl-2">
+                                                    <div>
+                                                        <span className="block text-[10px] uppercase">Current (DB):</span>
+                                                        Cash: {detail.diff?.old?.cash}, Ins: {detail.diff?.old?.inpatient}, Pay: {detail.diff?.old?.pay}
+                                                    </div>
+                                                    <div>
+                                                        <span className="block text-[10px] uppercase">New (Upload):</span>
+                                                        Cash: {detail.diff?.new?.cash}, Ins: {detail.diff?.new?.inpatient}, Pay: {detail.diff?.new?.pay}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={cancelImport}
+                                className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmImport}
+                                className="px-4 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded flex items-center gap-2"
+                                disabled={isUploading}
+                            >
+                                {isUploading && <Loader2 className="w-4 h-4 animate-spin" />}
+                                Confirm Update
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Notifications */}
             {successMessage && (
                 <div className="bg-green-50 border-l-4 border-green-500 p-4 mb-6 rounded-md">
@@ -848,61 +1055,111 @@ function BulkSetupWizard({ doctors, services, onSuccess }: { doctors: ReferralDo
 
             {step === 1 && (
                 <div>
-                    <h3 className="text-lg font-semibold mb-4">Step 1: Select Doctors</h3>
-                    <p className="text-sm text-gray-600 mb-4">
-                        Showing {doctorsWithoutPercentages.length} doctors without service configurations
-                    </p>
+                    <div className="flex justify-between items-center mb-6">
+                        <div className="flex bg-gray-100 p-1 rounded-lg">
+                            {(['unconfigured', 'configured', 'all'] as const).map((filter) => (
+                                <button
+                                    key={filter}
+                                    onClick={() => setViewFilter(filter)}
+                                    className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${viewFilter === filter
+                                        ? 'bg-white text-blue-600 shadow-sm'
+                                        : 'text-gray-500 hover:text-gray-700'
+                                        }`}
+                                >
+                                    {filter.charAt(0).toUpperCase() + filter.slice(1)}
+                                </button>
+                            ))}
+                        </div>
 
-                    <div className="space-y-2 max-h-80 overflow-y-auto border border-gray-200 rounded-lg p-4">
-                        <label className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded cursor-pointer border-b border-gray-100">
+                        <div className="flex gap-3">
                             <input
-                                type="checkbox"
-                                checked={selectedDoctors.length === doctorsWithoutPercentages.length && doctorsWithoutPercentages.length > 0}
-                                onChange={(e) => {
-                                    if (e.target.checked) {
-                                        setSelectedDoctors(doctorsWithoutPercentages.map(d => d.id));
-                                    } else {
-                                        setSelectedDoctors([]);
-                                    }
-                                }}
-                                className="w-5 h-5 text-blue-600 rounded"
+                                type="file"
+                                ref={fileInputRef}
+                                onChange={handleFileUpload}
+                                accept=".csv,.xlsx,.xls"
+                                className="hidden"
                             />
-                            <span className="font-semibold">Select All ({doctorsWithoutPercentages.length})</span>
-                        </label>
-
-                        {doctorsWithoutPercentages.length === 0 ? (
-                            <p className="text-center text-gray-500 py-4">All doctors already have configurations</p>
-                        ) : (
-                            doctorsWithoutPercentages.map((doctor) => (
-                                <label key={doctor.id} className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={selectedDoctors.includes(doctor.id)}
-                                        onChange={(e) => {
-                                            if (e.target.checked) {
-                                                setSelectedDoctors([...selectedDoctors, doctor.id]);
-                                            } else {
-                                                setSelectedDoctors(selectedDoctors.filter(id => id !== doctor.id));
-                                            }
-                                        }}
-                                        className="w-5 h-5 text-blue-600 rounded mt-1"
-                                    />
-                                    <div className="flex-1">
-                                        <p className="font-medium text-gray-900">{doctor.doctor_name}</p>
-                                        <p className="text-sm text-gray-500">{doctor.speciality_type} • {doctor.mobile_number}</p>
-                                    </div>
-                                </label>
-                            ))
-                        )}
+                            <button
+                                onClick={handleDownload}
+                                className="flex items-center gap-2 px-4 py-2 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200"
+                            >
+                                <Download className="w-4 h-4" />
+                                <span className="text-sm font-medium">Download</span>
+                            </button>
+                            <button
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={isUploading}
+                                className="flex items-center gap-2 px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm disabled:opacity-50"
+                            >
+                                {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                                <span className="text-sm font-medium">Upload Changes</span>
+                            </button>
+                        </div>
                     </div>
 
-                    <div className="mt-6 flex justify-end">
+                    <p className="text-gray-500 mb-6">
+                        Select doctors to configure manually, or download the configuration file to edit in Excel and upload changes.
+                    </p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8 max-h-[500px] overflow-y-auto p-1">
+                        {filteredDoctors.map((doc) => (
+                            <div
+                                key={doc.id}
+                                onClick={() => {
+                                    if (selectedDoctors.includes(doc.id!)) {
+                                        setSelectedDoctors(prev => prev.filter(id => id !== doc.id));
+                                    } else {
+                                        setSelectedDoctors(prev => [...prev, doc.id!]);
+                                    }
+                                }}
+                                className={`p-4 rounded-xl border cursor-pointer transition-all ${selectedDoctors.includes(doc.id!)
+                                    ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500'
+                                    : 'border-gray-200 hover:border-blue-300 hover:shadow-sm'
+                                    }`}
+                            >
+                                <div className="flex items-start gap-3">
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${selectedDoctors.includes(doc.id!) ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'
+                                        }`}>
+                                        {selectedDoctors.includes(doc.id!) ? <CheckCircle2 className="w-6 h-6" /> : <User className="w-6 h-6" />}
+                                    </div>
+                                    <div>
+                                        <p className="font-semibold text-gray-900">{doc.doctor_name}</p>
+                                        <div className="flex flex-col gap-1 mt-1">
+                                            <span className="text-xs text-gray-500 flex items-center gap-1">
+                                                <Hospital className="w-3 h-3" />
+                                                {doc.clinic_name || 'No Clinic'}
+                                            </span>
+                                            <span className="text-xs text-gray-500 flex items-center gap-1">
+                                                <Phone className="w-3 h-3" />
+                                                {doc.mobile_number}
+                                            </span>
+                                            {doc.percentages && Array.isArray(doc.percentages) && doc.percentages.length > 0 ? (
+                                                <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full w-fit">
+                                                    {doc.percentages.filter((p: any) => p.referral_pay === 'Y').length} Active
+                                                </span>
+                                            ) : (
+                                                <span className="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full w-fit">
+                                                    Unconfigured
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="flex justify-between items-center border-t pt-4">
+                        <div className="text-sm text-gray-500">
+                            {selectedDoctors.length} doctors selected
+                        </div>
                         <button
                             onClick={() => setStep(2)}
                             disabled={selectedDoctors.length === 0}
-                            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2 font-medium"
+                            className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
-                            Next <ArrowRight className="w-4 h-4" />
+                            Next Step
+                            <ArrowRight className="w-4 h-4" />
                         </button>
                     </div>
                 </div>
@@ -1070,6 +1327,255 @@ function BulkSetupWizard({ doctors, services, onSuccess }: { doctors: ReferralDo
                     </div>
                 </div>
             )}
+        </div>
+    );
+}
+
+// ============================================
+// Agent Setup Component
+// ============================================
+// ============================================
+// Agent Setup Component
+// ============================================
+function AgentSetup({ agents, onUpdate }: { agents: ReferralAgent[], onUpdate: () => void }) {
+    const [searchTerm, setSearchTerm] = useState('');
+    const [editingId, setEditingId] = useState<number | null>(null);
+    const [editValues, setEditValues] = useState<{ patient: number, doc: number }>({ patient: 0, doc: 0 });
+    const [saving, setSaving] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
+
+    const filteredAgents = agents.filter(agent =>
+        agent.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (agent.company || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        agent.mobile.includes(searchTerm)
+    );
+
+    const startEditing = (agent: ReferralAgent) => {
+        setEditingId(agent.id);
+        setEditValues({
+            patient: typeof agent.referral_patient_commission === 'string' ? parseFloat(agent.referral_patient_commission) : (agent.referral_patient_commission || 0),
+            doc: typeof agent.referral_doc_commission === 'string' ? parseFloat(agent.referral_doc_commission) : (agent.referral_doc_commission || 0)
+        });
+    };
+
+    const cancelEditing = () => {
+        setEditingId(null);
+    };
+
+    const saveAgent = async (id: number) => {
+        setSaving(true);
+        try {
+            await updateReferralAgent(id, {
+                referral_patient_commission: editValues.patient,
+                referral_doc_commission: editValues.doc
+            });
+            onUpdate();
+            setEditingId(null);
+        } catch (error) {
+            console.error('Failed to update agent commissions', error);
+            alert('Failed to update. Please try again.');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleDownloadExcel = () => {
+        const data = agents.map(agent => ({
+            'Agent ID': agent.id,
+            'Name': agent.name,
+            'Mobile': agent.mobile,
+            'Company': agent.company || '',
+            'Patient Commission': agent.referral_patient_commission || 0,
+            'Doctor Commission': agent.referral_doc_commission || 0
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Agents");
+        XLSX.writeFile(wb, "Referral_Agents_Commission.xlsx");
+    };
+
+    const handleUploadExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsUploading(true);
+        try {
+            const reader = new FileReader();
+            reader.onload = async (evt) => {
+                try {
+                    const bstr = evt.target?.result;
+                    const wb = XLSX.read(bstr, { type: 'binary' });
+                    const wsname = wb.SheetNames[0];
+                    const ws = wb.Sheets[wsname];
+                    const data = XLSX.utils.sheet_to_json(ws);
+
+                    const updates = data.map((row: any) => ({
+                        id: row['Agent ID'],
+                        referral_patient_commission: parseFloat(row['Patient Commission'] || 0),
+                        referral_doc_commission: parseFloat(row['Doctor Commission'] || 0)
+                    })).filter((item: any) => item.id);
+
+                    if (updates.length > 0) {
+                        const response = await bulkUpdateReferralAgents(updates);
+                        alert(`Process completed. Actually updated ${response.updatedCount} agents.`);
+                        onUpdate();
+                    } else {
+                        alert('No valid data found in Excel.');
+                    }
+                } catch (error) {
+                    console.error('Error processing Excel:', error);
+                    alert('Failed to process Excel file.');
+                } finally {
+                    setIsUploading(false);
+                    e.target.value = ''; // Reset input
+                }
+            };
+            reader.readAsBinaryString(file);
+        } catch (error) {
+            console.error('Upload failed:', error);
+            setIsUploading(false);
+            e.target.value = '';
+        }
+    };
+
+    return (
+        <div className="space-y-4">
+            {/* Header Actions */}
+            <div className="flex flex-col md:flex-row justify-between gap-4">
+                {/* Search */}
+                <div className="relative max-w-md flex-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                        type="text"
+                        placeholder="Search agents by name, company, mobile..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-gray-50 focus:bg-white transition-all"
+                    />
+                </div>
+
+                {/* Excel Actions */}
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={handleDownloadExcel}
+                        className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition text-sm font-medium"
+                    >
+                        <Download className="w-4 h-4" />
+                        Download Template
+                    </button>
+                    <div className="relative">
+                        <input
+                            type="file"
+                            accept=".xlsx, .xls"
+                            className="absolute inset-0 cursor-pointer w-full h-full opacity-0 z-10"
+                            onChange={handleUploadExcel}
+                            disabled={isUploading}
+                            title="Upload Excel"
+                        />
+                        <button
+                            disabled={isUploading}
+                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium disabled:opacity-50"
+                        >
+                            {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                            {isUploading ? 'Uploading...' : 'Upload Excel'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Agents Table */}
+            <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                        <tr>
+                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Agent Name</th>
+                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Company</th>
+                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Mobile</th>
+                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Patient Commission (₹)</th>
+                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Dr. Commission (₹)</th>
+                            <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-100">
+                        {filteredAgents.length > 0 ? (
+                            filteredAgents.map((agent) => (
+                                <tr key={agent.id} className="hover:bg-gray-50 transition-colors">
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <div className="text-sm font-semibold text-gray-900">{agent.name}</div>
+                                        <div className="text-xs text-gray-500">{agent.role || 'Agent'}</div>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{agent.company || '-'}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{agent.mobile}</td>
+
+                                    {/* Inline Editing Fields */}
+                                    {editingId === agent.id ? (
+                                        <>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <input
+                                                    type="number"
+                                                    value={editValues.patient}
+                                                    onChange={(e) => setEditValues({ ...editValues, patient: parseFloat(e.target.value) || 0 })}
+                                                    className="w-24 px-2 py-1 border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                />
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <input
+                                                    type="number"
+                                                    value={editValues.doc}
+                                                    onChange={(e) => setEditValues({ ...editValues, doc: parseFloat(e.target.value) || 0 })}
+                                                    className="w-24 px-2 py-1 border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                />
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-right">
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <button
+                                                        onClick={() => saveAgent(agent.id)}
+                                                        disabled={saving}
+                                                        className="p-1.5 bg-green-100 text-green-700 rounded hover:bg-green-200"
+                                                    >
+                                                        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                                                    </button>
+                                                    <button
+                                                        onClick={cancelEditing}
+                                                        disabled={saving}
+                                                        className="p-1.5 bg-red-100 text-red-700 rounded hover:bg-red-200"
+                                                    >
+                                                        <X className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                                ₹ {agent.referral_patient_commission || 0}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                                ₹ {agent.referral_doc_commission || 0}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-right">
+                                                <button
+                                                    onClick={() => startEditing(agent)}
+                                                    className="text-blue-600 hover:text-blue-800 font-medium text-sm"
+                                                >
+                                                    Edit
+                                                </button>
+                                            </td>
+                                        </>
+                                    )}
+                                </tr>
+                            ))
+                        ) : (
+                            <tr>
+                                <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                                    No agents found matching your criteria
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
         </div>
     );
 }

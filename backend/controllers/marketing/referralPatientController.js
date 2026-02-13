@@ -44,16 +44,18 @@ exports.createReferralPatient = async (req, res) => {
             INSERT INTO referral_patients (
                 patient_name, mobile_number, gender, age, place,
                 referral_doctor_id, service_required, remarks,
-                created_by, marketing_spoc, referral_patient_id, payment_type
+                created_by, marketing_spoc, referral_patient_id, payment_type,
+                referral_means, means_id
             ) VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
             ) RETURNING *
         `;
 
         const values = [
             patient_name, mobile_number, gender === '' ? null : gender, age === '' ? null : age, place,
             referral_doctor_id, service_required, remarks,
-            created_by, marketing_spoc, referral_patient_id, final_payment_type
+            created_by, marketing_spoc, referral_patient_id, final_payment_type,
+            req.body.referral_means, req.body.means_id
         ];
 
         const result = await pool.query(query, values);
@@ -70,10 +72,17 @@ exports.getAllReferralPatients = async (req, res) => {
         const hospitalIds = await getAssignedHospitalIds(req.user);
 
         // Join with referral_doctor to get doctor name if needed
+        // Also join with referral_agents for Agent name
         const query = `
-            SELECT rp.*, rd.doctor_name as referral_doctor_name
+            SELECT rp.*, 
+                   rd.doctor_name as referral_doctor_name,
+                   ra.name as referral_agent_name,
+                   CONCAT(s.first_name, ' ', s.last_name) as created_by_name
             FROM referral_patients rp
             LEFT JOIN referral_doctor_module rd ON rp.referral_doctor_id = rd.id
+            LEFT JOIN referral_agents ra ON rp.referral_means = 'Agent' AND rp.means_id = ra.id
+            LEFT JOIN users u ON (rp.created_by = u.username OR rp.created_by = CAST(u.user_id AS VARCHAR))
+            LEFT JOIN staff s ON u.user_id = s.user_id
             WHERE rd.tenant_id = ANY($1)
             ORDER BY rp.created_at DESC
         `;

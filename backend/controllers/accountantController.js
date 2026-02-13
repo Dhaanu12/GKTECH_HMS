@@ -208,6 +208,14 @@ exports.getClaims = async (req, res, next) => {
                 paramIndex++;
             }
 
+            // Add insurance_name filter
+            const { insurance_name } = req.query;
+            if (insurance_name && insurance_name !== 'ALL') {
+                whereClause += ` AND insurance_name = $${paramIndex}`;
+                values.push(insurance_name);
+                paramIndex++;
+            }
+
             if (month && year && month !== 'ALL' && year !== 'ALL') {
                 const startDate = `${year}-${month.toString().padStart(2, '0')}-01`;
                 const endDate = new Date(year, month, 0).toISOString().split('T')[0];
@@ -578,19 +586,46 @@ exports.updateClaimPayment = async (req, res, next) => {
 exports.getInsuranceCompanies = async (req, res, next) => {
     try {
         const { branch_id } = req.query;
-        let query = `SELECT DISTINCT insurance_name FROM insurance_claims WHERE insurance_name IS NOT NULL AND insurance_name != ''`;
-        const values = [];
-
-        if (branch_id) {
-            query += ` AND branch_id = $1`;
-            values.push(branch_id);
-        }
-
-        query += ` ORDER BY insurance_name ASC`;
-
         const db = require('../config/db');
         const client = await db.getClient();
+
         try {
+            let whereClause = 'WHERE insurance_name IS NOT NULL AND insurance_name != \'\'';
+            const values = [];
+            let paramIndex = 1;
+
+            // For accountants, filter by their assigned hospital
+            if (['ACCOUNTANT', 'ACCOUNTANT_MANAGER'].includes(req.user.role_code)) {
+                const userHospitalQuery = `
+                    SELECT DISTINCT b.hospital_id
+                    FROM users u
+                    JOIN staff s ON u.user_id = s.user_id
+                    JOIN staff_branches sb ON s.staff_id = sb.staff_id
+                    JOIN branches b ON sb.branch_id = b.branch_id
+                    WHERE u.user_id = $1 AND sb.is_active = true
+                `;
+                const userHospitals = await client.query(userHospitalQuery, [req.user.user_id]);
+
+                if (userHospitals.rows.length === 0) {
+                    return res.status(200).json({
+                        status: 'success',
+                        data: []
+                    });
+                }
+
+                const hospitalIds = userHospitals.rows.map(row => row.hospital_id);
+                whereClause += ` AND hospital_id = ANY($${paramIndex})`;
+                values.push(hospitalIds);
+                paramIndex++;
+            }
+
+            if (branch_id) {
+                whereClause += ` AND branch_id = $${paramIndex}`;
+                values.push(branch_id);
+                paramIndex++;
+            }
+
+            const query = `SELECT DISTINCT insurance_name FROM insurance_claims ${whereClause} ORDER BY insurance_name ASC`;
             const result = await client.query(query, values);
             const companies = result.rows.map(r => r.insurance_name);
 
@@ -801,6 +836,8 @@ exports.getInsurerAnalytics = async (req, res, next) => {
                 SELECT 
                     ic.insurance_name,
                     COUNT(ic.claim_id) as total_claims,
+                    COUNT(CASE WHEN ic.pending_amount > 0 THEN 1 END) as pending_claims,
+                    COUNT(CASE WHEN ic.pending_amount = 0 THEN 1 END) as completed_claims,
                     COALESCE(SUM(ic.bill_amount), 0) as total_bill_amount,
                     COALESCE(SUM(ic.approval_amount), 0) as total_approval_amount,
                     COALESCE(SUM(ic.amount_received), 0) as total_amount_received,
@@ -824,6 +861,8 @@ exports.getInsurerAnalytics = async (req, res, next) => {
             const insurers = result.rows.map(row => ({
                 insurance_name: row.insurance_name,
                 total_claims: parseInt(row.total_claims) || 0,
+                pending_claims: parseInt(row.pending_claims) || 0,
+                completed_claims: parseInt(row.completed_claims) || 0,
                 claims_percentage: totalClaims > 0 ? ((parseInt(row.total_claims) / totalClaims) * 100).toFixed(2) : 0,
                 total_bill_amount: parseFloat(row.total_bill_amount) || 0,
                 bill_percentage: totalBillAmount > 0 ? ((parseFloat(row.total_bill_amount) / totalBillAmount) * 100).toFixed(2) : 0,
@@ -834,6 +873,26 @@ exports.getInsurerAnalytics = async (req, res, next) => {
                 avg_approval_amount: parseFloat(row.avg_approval_amount) || 0
             }));
 
+            // Calculate pending vs non-pending claims
+            const pendingClaims = result.rows.reduce((sum, row) => {
+                // Count claims where pending_amount > 0
+                return sum;
+            }, 0);
+
+            // Get actual count from database
+            const claimsStatusQuery = `
+                SELECT 
+                    COUNT(CASE WHEN pending_amount > 0 THEN 1 END) as pending_claims,
+                    COUNT(CASE WHEN pending_amount <= 0 THEN 1 END) as non_pending_claims
+                FROM insurance_claims
+                WHERE insurance_name IS NOT NULL 
+                  AND insurance_name != ''
+                  AND hospital_id = ANY($1)
+            `;
+            const claimsStatusResult = await client.query(claimsStatusQuery, [hospitalIds]);
+            const pendingCount = parseInt(claimsStatusResult.rows[0].pending_claims) || 0;
+            const nonPendingCount = parseInt(claimsStatusResult.rows[0].non_pending_claims) || 0;
+
             res.status(200).json({
                 status: 'success',
                 data: {
@@ -841,7 +900,9 @@ exports.getInsurerAnalytics = async (req, res, next) => {
                     summary: {
                         total_insurers: insurers.length,
                         total_claims: totalClaims,
-                        total_bill_amount: totalBillAmount
+                        total_bill_amount: totalBillAmount,
+                        pending_claims: pendingCount,
+                        non_pending_claims: nonPendingCount
                     }
                 }
             });

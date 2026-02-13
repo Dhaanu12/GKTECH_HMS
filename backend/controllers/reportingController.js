@@ -90,7 +90,13 @@ class ReportingController {
                         COUNT(CASE WHEN ns.attendance_status = 'Present' THEN 1 END) as performance_metric, -- Present Days
                         -- New Punctuality Metrics
                         COUNT(CASE WHEN ns.attendance_status = 'Late' THEN 1 END) as late_days,
-                        COUNT(CASE WHEN ns.attendance_status = 'Absent' THEN 1 END) as absent_days
+                        COUNT(CASE WHEN ns.attendance_status = 'Absent' THEN 1 END) as absent_days,
+                        -- New Lab Metrics
+                        (SELECT COUNT(*) FROM lab_orders lo WHERE lo.assigned_nurse_id = n.nurse_id AND lo.ordered_at >= $2::date AND lo.ordered_at <= $3::date) as labs_assigned,
+                        (SELECT COUNT(*) FROM lab_orders lo WHERE lo.assigned_nurse_id = n.nurse_id AND lo.status = 'Completed' AND lo.ordered_at >= $2::date AND lo.ordered_at <= $3::date) as labs_completed,
+                        (SELECT COUNT(*) FROM lab_orders lo WHERE lo.assigned_nurse_id = n.nurse_id AND lo.status NOT IN ('Completed', 'Cancelled') AND lo.ordered_at >= $2::date AND lo.ordered_at <= $3::date) as labs_pending,
+                        -- Vitals Metric (Patients Handled)
+                        (SELECT COUNT(DISTINCT patient_id) FROM patient_vitals pv WHERE pv.recorded_by = n.user_id AND pv.recorded_at >= $2::date AND pv.recorded_at <= $3::date) as patients_vitals_handled
                     FROM nurses n
                     JOIN nurse_branches nb ON n.nurse_id = nb.nurse_id
                     JOIN branches b ON nb.branch_id = b.branch_id
@@ -114,9 +120,7 @@ class ReportingController {
                             +
                             (SELECT COUNT(*) FROM opd_entries o 
                              WHERE o.visit_date >= $2::date AND o.visit_date <= $3::date 
-                             AND o.checked_in_by IS NOT NULL 
-                             AND o.checked_in_by ~ '^[0-9]+$'
-                             AND o.checked_in_by::INTEGER = s.user_id)
+                             AND o.checked_in_by = s.staff_code)
                         ) as task_count,
                         -- Primary Performance Metric (Cancellations + No-shows handled/recorded)
                         (SELECT COUNT(*) FROM appointments a 
@@ -125,14 +129,20 @@ class ReportingController {
                          
                          -- Detailed Breakdown
                          (SELECT COUNT(*) FROM appointments a WHERE a.confirmed_by = s.user_id AND a.appointment_date >= $2::date AND a.appointment_date <= $3::date) as total_confirmed,
-                         (SELECT COUNT(*) FROM opd_entries o WHERE o.checked_in_by IS NOT NULL AND o.checked_in_by ~ '^[0-9]+$' AND o.checked_in_by::INTEGER = s.user_id AND o.visit_date >= $2::date AND o.visit_date <= $3::date) as opd_checkins,
+                         (SELECT COUNT(*) FROM appointments a WHERE a.confirmed_by = s.user_id AND a.appointment_status = 'Completed' AND a.appointment_date >= $2::date AND a.appointment_date <= $3::date) as appointments_converted,
+                         (SELECT COUNT(*) FROM opd_entries o WHERE o.checked_in_by = s.staff_code AND o.visit_date >= $2::date AND o.visit_date <= $3::date) as opd_checkins,
                          (SELECT COUNT(*) FROM appointments a WHERE a.confirmed_by = s.user_id AND a.appointment_status = 'No-show' AND a.appointment_date >= $2::date AND a.appointment_date <= $3::date) as no_show_count,
-                         (SELECT COUNT(*) FROM appointments a WHERE a.cancelled_by = s.user_id AND a.appointment_date >= $2::date AND a.appointment_date <= $3::date) as cancellations_handled
+                         (SELECT COUNT(*) FROM appointments a WHERE a.cancelled_by = s.user_id AND a.appointment_date >= $2::date AND a.appointment_date <= $3::date) as cancellations_handled,
+                         
+                         -- Financial Metrics
+                         (SELECT COALESCE(SUM(total_amount), 0) FROM billing_master bm WHERE bm.created_by = s.staff_code AND bm.billing_date >= $2::date AND bm.billing_date <= $3::date) as payments_collected,
+                         (SELECT COALESCE(SUM(pending_amount), 0) FROM billing_master bm WHERE bm.created_by = s.staff_code AND bm.billing_date >= $2::date AND bm.billing_date <= $3::date) as pending_amount
+
                     FROM staff s
                     JOIN staff_branches sb ON s.staff_id = sb.staff_id
                     JOIN branches b ON sb.branch_id = b.branch_id
                     WHERE b.hospital_id = $1 AND s.staff_type = 'RECEPTIONIST'
-                    GROUP BY s.staff_id, s.first_name, s.last_name, s.user_id
+                    GROUP BY s.staff_id, s.first_name, s.last_name, s.user_id, s.staff_code
                 `;
             } else {
                 return next(new AppError('Invalid staff type', 400));

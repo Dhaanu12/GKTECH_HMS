@@ -5,6 +5,7 @@ import {
     Building2, Users, CreditCard, ArrowRight, TrendingUp,
     Briefcase, BarChart3
 } from 'lucide-react';
+import { getAgentDashboardStats, AgentDashboardStats } from '@/lib/api/referralPayment';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import axios from 'axios';
@@ -34,11 +35,13 @@ interface DashboardStats {
 export default function AccountantDashboard() {
     const { user } = useAuth();
     const [stats, setStats] = useState<DashboardStats | null>(null);
+    const [agentStats, setAgentStats] = useState<AgentDashboardStats | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
     useEffect(() => {
         fetchDashboardStats();
+        fetchAgentStats();
     }, []);
 
     const fetchDashboardStats = async () => {
@@ -57,6 +60,17 @@ export default function AccountantDashboard() {
             setError('Failed to load dashboard data');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchAgentStats = async () => {
+        try {
+            const response = await getAgentDashboardStats();
+            if (response.success) {
+                setAgentStats(response.data);
+            }
+        } catch (error) {
+            console.error('Error fetching agent stats:', error);
         }
     };
 
@@ -119,7 +133,7 @@ export default function AccountantDashboard() {
             )}
 
             {/* Stats Grid - 5 Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 {/* Total Claims */}
                 <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
                     <div className="flex items-center gap-3 mb-3">
@@ -153,6 +167,22 @@ export default function AccountantDashboard() {
                     <h3 className="text-2xl font-bold text-gray-900 mt-1">{stats?.referral_doctors || 0}</h3>
                 </div>
 
+                {/* Referral Agents (NEW) */}
+                <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="flex items-center gap-3 mb-3">
+                        <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl">
+                            <Users className="w-5 h-5" />
+                        </div>
+                    </div>
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Referral Agents</p>
+                    <div className="flex items-end gap-2">
+                        <h3 className="text-2xl font-bold text-gray-900 mt-1">{agentStats?.total_agents || 0}</h3>
+                        <span className="text-xs text-gray-400 mb-1">
+                            ({agentStats?.total_commission_liability ? formatCurrency(Number(agentStats.total_commission_liability)) : '₹0'})
+                        </span>
+                    </div>
+                </div>
+
                 {/* Referral Payouts */}
                 <div className="bg-gradient-to-br from-emerald-500 to-green-600 p-5 rounded-2xl shadow-lg shadow-emerald-500/20 text-white">
                     <div className="flex items-center gap-3 mb-3">
@@ -160,7 +190,7 @@ export default function AccountantDashboard() {
                             <IndianRupee className="w-5 h-5" />
                         </div>
                     </div>
-                    <p className="text-xs font-medium text-emerald-100 uppercase tracking-wide">This Month Payouts</p>
+                    <p className="text-xs font-medium text-emerald-100 uppercase tracking-wide">Doctor Payouts</p>
                     <h3 className="text-2xl font-bold mt-1">{formatCurrency(stats?.referral_payouts || 0)}</h3>
                 </div>
 
@@ -207,7 +237,7 @@ export default function AccountantDashboard() {
                 </Link>
 
                 <Link
-                    href="/accounts/dashboard"
+                    href="/accounts/referrals"
                     className="group bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg hover:border-purple-200 transition-all flex items-center gap-4"
                 >
                     <div className="p-3 bg-purple-100 text-purple-600 rounded-xl group-hover:bg-purple-600 group-hover:text-white transition-colors">

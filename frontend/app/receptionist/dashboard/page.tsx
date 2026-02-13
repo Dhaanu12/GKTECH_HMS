@@ -635,7 +635,7 @@ export default function ReceptionistDashboard() {
                 visit_type: 'Appointment',
                 consultation_fee: consultationFee,
                 appointment_id: patient.appointment_id || '',
-                patient_id: '', // Explicitly empty as not linked
+                patient_id: patient.patient_id || '', // Explicitly empty as not linked
                 chief_complaint: patient.reason_for_visit || '',
                 visit_date: format(new Date(), 'yyyy-MM-dd'),
                 visit_time: format(new Date(), 'HH:mm')

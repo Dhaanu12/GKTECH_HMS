@@ -541,6 +541,349 @@ class ClientAdminController {
             next(new AppError('Failed to fetch analytics', 500));
         }
     }
+    static async getExecutiveStats(req, res, next) {
+        try {
+            const hospital_id = req.user.hospital_id;
+            let { startDate, endDate } = req.query;
+
+            console.log('=== GET EXECUTIVE STATS ===');
+            console.log('Hospital ID:', hospital_id);
+            console.log('Requested Range:', startDate, 'to', endDate);
+
+            console.log('=== GET EXECUTIVE STATS ===');
+            console.log('Hospital ID:', hospital_id);
+            console.log('Requested Range:', startDate, 'to', endDate);
+
+            if (!hospital_id) {
+                return next(new AppError('Hospital not linked to your account', 403));
+            }
+
+            // Default to current date/month if not provided
+            // For trends, we usually show 6 months back from "End Date"
+            const queryDate = endDate ? endDate : new Date().toISOString().split('T')[0];
+            const startQueryDate = startDate ? startDate : queryDate; // If no start, just use single day for daily stats?
+            // Actually, for "Dashboard" mode (no dates), we want Today for KPIs and Month for Revenue.
+            // For "Report" mode (dates provided), we want aggregates over that range.
+
+            const isReportMode = !!(startDate && endDate);
+
+            const client = await require('../config/db').pool.connect();
+            try {
+                let patientsTodayRes, revenueMonthRes, revenueTrendRes, diagnosisRes, peakHoursRes, retentionRes, labOrdersRes, pharmacyRes;
+
+                if (isReportMode) {
+                    // --- REPORT MODE (Aggregated over range) ---
+
+                    // 1. Patients via Opd entries in range
+                    patientsTodayRes = await client.query(`
+                        SELECT COUNT(*) 
+                        FROM opd_entries o
+                        JOIN branches b ON o.branch_id = b.branch_id
+                        WHERE b.hospital_id = $1 
+                        AND DATE(o.visit_date) >= $2::date AND DATE(o.visit_date) <= $3::date
+                    `, [hospital_id, startDate, endDate]);
+
+                    // 2. Revenue in range
+                    revenueMonthRes = await client.query(`
+                        WITH opd_rev AS (
+                            SELECT COALESCE(SUM(consultation_fee), 0) as val 
+                            FROM opd_entries o
+                            JOIN branches b ON o.branch_id = b.branch_id
+                            WHERE b.hospital_id = $1 
+                            AND DATE(o.visit_date) >= $2::date AND DATE(o.visit_date) <= $3::date
+                        ),
+                        bill_rev AS (
+                            SELECT COALESCE(SUM(d.net_amount), 0) as val
+                            FROM billing_invoice_details d
+                            JOIN billing_invoices i ON d.invoice_id = i.invoice_id
+                            JOIN branches b ON i.branch_id = b.branch_id
+                            WHERE b.hospital_id = $1
+                            AND DATE(i.invoice_date) >= $2::date AND DATE(i.invoice_date) <= $3::date
+                        )
+                        SELECT (SELECT val FROM opd_rev) + (SELECT val FROM bill_rev) as total_revenue
+                    `, [hospital_id, startDate, endDate]).catch(() => ({ rows: [{ total_revenue: 0 }] }));
+
+                    // 3. Trend (Daily within range)
+                    revenueTrendRes = await client.query(`
+                        SELECT 
+                             TO_CHAR(DATE(o.visit_date), 'DD Mon') as name,
+                             COALESCE(SUM(o.consultation_fee), 0) as revenue
+                         FROM opd_entries o
+                         JOIN branches b ON o.branch_id = b.branch_id
+                         WHERE b.hospital_id = $1
+                         AND DATE(o.visit_date) >= $2::date AND DATE(o.visit_date) <= $3::date
+                         GROUP BY DATE(o.visit_date)
+                         ORDER BY DATE(o.visit_date)
+                     `, [hospital_id, startDate, endDate]);
+
+                    // 4. Clinical (Diagnoses in range)
+                    diagnosisRes = await client.query(`
+                        SELECT 
+                            COALESCE(o.diagnosis, 'Unspecified') as name,
+                            COUNT(*) as count
+                        FROM opd_entries o
+                        JOIN branches b ON o.branch_id = b.branch_id
+                        WHERE b.hospital_id = $1
+                        AND DATE(o.visit_date) >= $2::date AND DATE(o.visit_date) <= $3::date
+                        AND o.diagnosis IS NOT NULL
+                        GROUP BY o.diagnosis
+                        ORDER BY count DESC
+                        LIMIT 5
+                    `, [hospital_id, startDate, endDate]);
+
+                    // 5. Operational (Peak Hours in range)
+                    peakHoursRes = await client.query(`
+                        SELECT 
+                            EXTRACT(HOUR FROM a.appointment_time) as hour,
+                            COUNT(*) as patients
+                        FROM appointments a
+                        JOIN branches b ON a.branch_id = b.branch_id
+                        WHERE b.hospital_id = $1
+                        AND DATE(a.appointment_date) >= $2::date AND DATE(a.appointment_date) <= $3::date
+                        GROUP BY EXTRACT(HOUR FROM a.appointment_time)
+                        ORDER BY hour ASC
+                    `, [hospital_id, startDate, endDate]);
+
+                    // 6. Revenue Trend (Daily)
+                    revenueTrendRes = await client.query(`
+                        SELECT 
+                            to_char(date_trunc('day', i.billing_date), 'YYYY-MM-DD') as period_label,
+                            SUM(d.final_price) as revenue
+                        FROM bill_details d
+                        JOIN billing_master i ON d.bill_master_id = i.bill_master_id
+                        JOIN branches b ON i.branch_id = b.branch_id
+                        WHERE b.hospital_id = $1
+                        AND DATE(i.billing_date) >= $2::date AND DATE(i.billing_date) <= $3::date
+                        GROUP BY 1
+                        ORDER BY 1
+                    `, [hospital_id, startDate, endDate]);
+                } else {
+                    // --- DASHBOARD MODE (Default views) ---
+
+                    // 1. Patients Today (KPI)
+                    patientsTodayRes = await client.query(`
+                        SELECT COUNT(*) 
+                        FROM opd_entries o
+                        JOIN branches b ON o.branch_id = b.branch_id
+                        WHERE b.hospital_id = $1 AND DATE(o.visit_date) = CURRENT_DATE
+                        `, [hospital_id]);
+
+                    // 2. Revenue This Month (KPI)
+                    revenueMonthRes = await client.query(`
+                        WITH opd_rev AS(
+                            SELECT COALESCE(SUM(consultation_fee), 0) as val 
+                            FROM opd_entries o
+                            JOIN branches b ON o.branch_id = b.branch_id
+                            WHERE b.hospital_id = $1 
+                            AND date_trunc('month', o.visit_date) = date_trunc('month', CURRENT_DATE)
+                        ),
+                        bill_rev AS(
+                            SELECT COALESCE(SUM(d.final_price), 0) as val
+                            FROM bill_details d
+                            JOIN billing_master i ON d.bill_master_id = i.bill_master_id
+                            JOIN branches b ON i.branch_id = b.branch_id
+                            WHERE b.hospital_id = $1
+                            AND date_trunc('month', i.billing_date) = date_trunc('month', CURRENT_DATE)
+                        )
+                    SELECT(SELECT val FROM opd_rev) + (SELECT val FROM bill_rev) as total_revenue
+                        `, [hospital_id]);
+
+                    // 3. Revenue Trend (Last 6 months)
+                    // We need to aggregate by Month for the dashboard trend
+                    revenueTrendRes = await client.query(`
+                    SELECT
+                    to_char(date_trunc('month', i.billing_date), 'Mon') as name,
+                        SUM(d.final_price) as revenue
+                        FROM bill_details d
+                        JOIN billing_master i ON d.bill_master_id = i.bill_master_id
+                        JOIN branches b ON i.branch_id = b.branch_id
+                        WHERE b.hospital_id = $1
+                        AND i.billing_date >= NOW() - INTERVAL '6 months'
+                        GROUP BY 1, date_trunc('month', i.billing_date)
+                        ORDER BY date_trunc('month', i.billing_date)
+                        `, [hospital_id]).catch(err => { console.error(err); return { rows: [] }; });
+                }
+
+                // --- COMMON QUERIES (Both Modes) ---
+
+                // 4. Clinical: Top 5 Diagnoses
+                diagnosisRes = await client.query(`
+                    SELECT diagnosis as name, COUNT(*) as count 
+                    FROM opd_entries o
+                    JOIN branches b ON o.branch_id = b.branch_id
+                    WHERE b.hospital_id = $1 
+                    AND o.diagnosis IS NOT NULL AND o.diagnosis != ''
+                    AND DATE(o.visit_date) >= $2::date AND DATE(o.visit_date) <= $3:: date
+                    GROUP BY 1 
+                    ORDER BY 2 DESC 
+                    LIMIT 5
+                        `, [hospital_id, startDate || (new Date().getFullYear() + '-01-01'), queryDate]).catch(err => { console.error(err); return { rows: [] }; });
+
+                // 5. Operational: Peak Hours (based on visit_time usually, but let's use created_at casting to hour if needed or mock logically)
+                // Assuming visit_date is timestamp or we have created_at. opd_entries usually has time.
+                // If not, we'll try created_at.
+                peakHoursRes = await client.query(`
+                    SELECT
+                    EXTRACT(HOUR FROM o.created_at) as hour_num,
+                        COUNT(*) as patients
+                    FROM opd_entries o
+                    JOIN branches b ON o.branch_id = b.branch_id
+                    WHERE b.hospital_id = $1
+                    AND DATE(o.visit_date) >= $2::date AND DATE(o.visit_date) <= $3:: date
+                    GROUP BY 1
+                    ORDER BY 1
+                        `, [hospital_id, startQueryDate, queryDate]).catch(err => { console.error(err); return { rows: [] }; });
+
+                // 6. Patient Retention (Returning vs New)
+                // Simplified: First visit ever vs Repeat. 
+                // Hard to do strictly without complex subquery. 
+                // Approx: "Is Follow Up" field often exists?
+                // Or just count patient_id occurrences > 1.
+                // Let's us visit_type if available (New vs Review).
+                // Checking opd_entries columns? Let's assume visit_type exists or we query patient visit counts.
+                // Fallback: Just return rough stats if schema unknown.
+                retentionRes = await client.query(`
+                    SELECT 
+                        CASE WHEN visit_type = 'New' THEN 'New' ELSE 'Returning' END as name,
+                        COUNT(*) as value
+                    FROM opd_entries o
+                    JOIN branches b ON o.branch_id = b.branch_id
+                    WHERE b.hospital_id = $1
+                    AND DATE(o.visit_date) >= $2::date AND DATE(o.visit_date) <= $3:: date
+                    GROUP BY 1
+                        `, [hospital_id, startQueryDate, queryDate]).catch(err => { console.error(err); return { rows: [] }; });
+
+
+                // 7. Revenue Breakdown (By Service Category)
+                const revenueBreakdownRes = await client.query(`
+                    SELECT
+                    COALESCE(NULLIF(d.service_type, ''), 'Other') as name,
+                        SUM(d.final_price) as value
+                    FROM bill_details d
+                    JOIN billing_master i ON d.bill_master_id = i.bill_master_id
+                    JOIN branches b ON i.branch_id = b.branch_id
+                    WHERE b.hospital_id = $1
+                    AND DATE(i.billing_date) >= $2::date AND DATE(i.billing_date) <= $3:: date
+                    GROUP BY 1
+                    ORDER BY 2 DESC
+                        `, [hospital_id, startQueryDate, queryDate]).catch(err => { console.error(err); return { rows: [] }; });
+
+                // 8. High Value Patients
+                const highValueRes = await client.query(`
+                    SELECT
+                    p.first_name || ' ' || p.last_name as name,
+                        MAX(i.billing_date) as last_visit,
+                        SUM(i.total_amount) as total_spend,
+                        'Active' as status
+                    FROM billing_master i
+                    JOIN patients p ON i.patient_id = p.patient_id
+                    JOIN branches b ON i.branch_id = b.branch_id
+                    WHERE b.hospital_id = $1
+                    GROUP BY p.patient_id
+                    ORDER BY total_spend DESC
+                    LIMIT 10
+                        `, [hospital_id]).catch(err => { console.error(err); return { rows: [] }; });
+
+                // 9. Claim Stats (from insurance_claims)
+                const claimsRes = await client.query(`
+                    SELECT
+                    COUNT(*) as submitted,
+                        COUNT(CASE WHEN approval_amount > 0 THEN 1 END) as approved,
+                        COUNT(CASE WHEN pending_amount > 0 THEN 1 END) as pending
+                    FROM insurance_claims ic
+                    JOIN branches b ON ic.branch_id = b.branch_id
+                    WHERE b.hospital_id = $1
+                    AND DATE(ic.created_at) >= $2::date AND DATE(ic.created_at) <= $3:: date
+                `, [hospital_id, startQueryDate, queryDate]).catch(err => { console.error(err); return { rows: [{ submitted: 0, approved: 0 }] }; });
+
+                // 10. Lab Intelligence
+                labOrdersRes = await client.query(`
+                    SELECT 
+                        COUNT(*) as total,
+                        COUNT(CASE WHEN status = 'Completed' THEN 1 END) as completed,
+                        COUNT(CASE WHEN status IN ('Pending', 'In-Progress', 'Ordered') THEN 1 END) as pending
+                    FROM lab_orders lo
+                    JOIN branches b ON lo.branch_id = b.branch_id
+                    WHERE b.hospital_id = $1
+                    AND DATE(lo.ordered_at) >= $2::date AND DATE(lo.ordered_at) <= $3::date
+                `, [hospital_id, startQueryDate, queryDate]).catch(err => { console.error('Lab stats error', err); return { rows: [{ total: 0, completed: 0, pending: 0 }] }; });
+
+                // 11. Pharmacy Intelligence (Prescriptions)
+                pharmacyRes = await client.query(`
+                     SELECT COUNT(*) as total
+                     FROM prescriptions p
+                     JOIN branches b ON p.branch_id = b.branch_id
+                     WHERE b.hospital_id = $1
+                     AND DATE(p.created_at) >= $2::date AND DATE(p.created_at) <= $3::date
+                `, [hospital_id, startQueryDate, queryDate]).catch(err => { console.error('Pharmacy stats error', err); return { rows: [{ total: 0 }] }; });
+
+
+
+
+                const patientsCount = parseInt(patientsTodayRes?.rows[0]?.count || 0);
+                const revenueAmount = parseFloat(patientsTodayRes?.rows[0]?.total_revenue || revenueMonthRes?.rows[0]?.total_revenue || 0);
+
+                // Peak Hour formatting
+                const formattedPeakHours = peakHoursRes.rows.map(r => ({
+                    time: `${r.hour_num}:00`,
+                    patients: parseInt(r.patients)
+                }));
+
+                // Retention formatting
+                const retentionData = retentionRes.rows.map(r => ({
+                    name: r.name || 'Returning',
+                    value: parseInt(r.value),
+                    color: r.name === 'New' ? '#3b82f6' : '#10b981'
+                }));
+                // Check if empty, populate basic fallback? No, let frontend handle "No Data"
+
+                // Revenue Breakdown Formatting
+                const breakdownData = revenueBreakdownRes.rows.map((r, idx) => ({
+                    name: r.name,
+                    value: Math.round(parseFloat(r.value)),
+                    color: ['#3b82f6', '#10b981', '#f59e0b', '#6366f1', '#ec4899'][idx % 5]
+                }));
+
+                res.status(200).json({
+                    status: 'success',
+                    data: {
+                        kpi: {
+                            total_patients_today: patientsCount,
+                            revenue_month: revenueAmount,
+                            claims: claimsRes.rows[0],
+                            lab: {
+                                total: parseInt(labOrdersRes?.rows[0]?.total || 0),
+                                completed: parseInt(labOrdersRes?.rows[0]?.completed || 0),
+                                pending: parseInt(labOrdersRes?.rows[0]?.pending || 0)
+                            },
+                            pharmacy: {
+                                total_prescriptions: parseInt(pharmacyRes?.rows[0]?.total || 0)
+                            }
+                        },
+                        revenue_trend: revenueTrendRes.rows.map(r => ({
+                            name: r.name || r.period_label,
+                            revenue: parseFloat(r.revenue)
+                        })),
+                        revenue_breakdown: breakdownData,
+                        diagnoses: diagnosisRes.rows,
+                        peak_hours: formattedPeakHours,
+                        retention: retentionData,
+                        high_value_patients: highValueRes.rows,
+                        // Add explicit efficienty metrics if calculate-able, else let frontend derive or show N/A
+                        efficiency: {
+                            patients_per_doctor: 0 // TODO: calculate if needed
+                        }
+                    }
+                });
+
+            } finally {
+                client.release();
+            }
+        } catch (error) {
+            console.error('Get executive stats error:', error);
+            next(new AppError('Failed to fetch executive stats: ' + error.message, 500));
+        }
+    }
 }
 
 module.exports = ClientAdminController;

@@ -82,7 +82,7 @@ class LabOrderController {
                 // For now, return empty if no branch context
                 return res.status(200).json({
                     status: 'success',
-                    data: { 
+                    data: {
                         orders: [],
                         counts: { Ordered: 0, 'In-Progress': 0, Completed: 0, Cancelled: 0 },
                         total: 0,
@@ -104,7 +104,7 @@ class LabOrderController {
 
             res.status(200).json({
                 status: 'success',
-                data: { 
+                data: {
                     orders,
                     counts,
                     total: orders.length
@@ -134,7 +134,7 @@ class LabOrderController {
 
             res.status(200).json({
                 status: 'success',
-                data: { 
+                data: {
                     order,
                     statusHistory
                 }

@@ -4,7 +4,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 import Link from 'next/link';
-import { LayoutDashboard, PlusCircle, Users, LogOut, FileText } from 'lucide-react';
+import { LayoutDashboard, PlusCircle, Users, LogOut, FileText, Stethoscope } from 'lucide-react';
 
 export default function MarketingLayout({ children }: { children: React.ReactNode }) {
     const { isAuthenticated, loading, user, logout } = useAuth();
@@ -35,8 +35,10 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
     // Marketing Navigation
     const navItems = [
         { name: 'Dashboard', path: '/marketing/dashboard', icon: LayoutDashboard },
-        { name: 'Add Referral Doctor', path: '/marketing/doctors/add', icon: PlusCircle },
-        { name: 'Add Referral Patient', path: '/marketing/patients/add', icon: Users, disabled: false },
+        ...(user?.role_code === 'MRKT_MNGR' ? [{ name: 'My Team', path: '/marketing/team', icon: Users }] : []),
+        { name: 'Referral Doctors', path: '/marketing/doctors', icon: Stethoscope },
+        { name: 'Referral Patients', path: '/marketing/patients', icon: Users, disabled: false },
+        { name: 'Manage Agents', path: '/marketing/agents', icon: Users },
         { name: 'Referral Reports', path: '/marketing/referral-payment/reports', icon: FileText },
     ];
 

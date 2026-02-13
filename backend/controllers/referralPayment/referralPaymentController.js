@@ -15,6 +15,45 @@ const pool = new Pool({
 // Helper for formatted money
 const formatMoney = (amount) => Number(Number(amount).toFixed(2));
 
+// Helper to convert Excel date serial number to YYYY-MM-DD format
+const convertExcelDate = (excelDate) => {
+    if (!excelDate) return null;
+
+    // If it's already a string in date format, return as is
+    if (typeof excelDate === 'string' && excelDate.includes('-')) {
+        return excelDate;
+    }
+
+    // If it's a number (Excel serial date), convert it
+    if (typeof excelDate === 'number') {
+        // Excel dates start from 1900-01-01 (serial 1)
+        // JavaScript dates start from 1970-01-01
+        const excelEpoch = new Date(1899, 11, 30); // December 30, 1899
+        const jsDate = new Date(excelEpoch.getTime() + excelDate * 86400000);
+
+        // Format as YYYY-MM-DD
+        const year = jsDate.getFullYear();
+        const month = String(jsDate.getMonth() + 1).padStart(2, '0');
+        const day = String(jsDate.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    // Try to parse as date string
+    try {
+        const date = new Date(excelDate);
+        if (!isNaN(date.getTime())) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+    } catch (e) {
+        console.error('Error parsing date:', excelDate, e);
+    }
+
+    return null;
+};
+
 exports.downloadTemplate = async (req, res) => {
     try {
         // Fetch active services for this branch
@@ -40,6 +79,7 @@ exports.downloadTemplate = async (req, res) => {
         const staticColumns = [
             'PATIENT NAME',
             'IP NUMBER',
+            'SERVICE DATE',
             'ADMISSION TYPE',
             'DEPARTMENT',
             'DOCTOR NAME',
@@ -54,6 +94,7 @@ exports.downloadTemplate = async (req, res) => {
         const sampleRow = {
             'PATIENT NAME': 'John Doe',
             'IP NUMBER': 'IP-2023-001',
+            'SERVICE DATE': '2023-01-15',
             'ADMISSION TYPE': 'IPD',
             'DEPARTMENT': 'Cardiology',
             'DOCTOR NAME': 'Dr. Smith',
@@ -141,16 +182,24 @@ exports.uploadReferralData = async (req, res) => {
         });
 
         // Loop through Excel Rows
+        console.log(`Processing ${data.length} rows from Excel...`);
         for (const row of data) {
             const patientName = row['PATIENT NAME'] || null;
             const ipNumber = row['IP NUMBER'] || null;
+            const serviceDate = convertExcelDate(row['SERVICE DATE']);
             const admissionType = row['ADMISSION TYPE'] || null;
             const department = row['DEPARTMENT'] || null;
             const doctorName = row['DOCTOR NAME'] || null;
             const mciId = row['MEDICAL COUNCIL ID'] || null;
             const paymentMode = row['PAYMENT MODE'] || null;
 
-            if (!patientName || !doctorName) continue; // Skip empty rows
+            if (!patientName || !doctorName) {
+                console.log('⚠️ Skipping row - missing patient name or doctor name:', { patientName, doctorName });
+                continue; // Skip empty rows
+            }
+
+            console.log(`Processing row: Patient=${patientName}, Doctor=${doctorName}, MCI=${mciId}, IP=${ipNumber}, Date=${serviceDate}`);
+
 
             // Deduplication: Check for existing header by IP Number and MCI ID
             // Requirement: "based on IP Number and doctor MEDICAL COUNCIL ID... update it and only add new data"
@@ -172,12 +221,15 @@ exports.uploadReferralData = async (req, res) => {
             if (doctorQuery.rows.length > 0) {
                 doctorId = doctorQuery.rows[0].id;
                 resolvedDoctorName = doctorQuery.rows[0].doctor_name; // Use DB name to ensure correct assignment
+                console.log(`✓ Doctor found: ID=${doctorId}, Name=${resolvedDoctorName}`);
+            } else {
+                console.log(`⚠️ Doctor NOT found in database for MCI ID: ${mciId}. Data will be saved but with 0% commission.`);
             }
 
-            if (ipNumber && mciId) {
+            if (ipNumber && mciId && serviceDate) {
                 const existingHeader = await client.query(
-                    "SELECT id FROM referral_payment_header WHERE ip_number = $1 AND medical_council_id = $2",
-                    [ipNumber, mciId]
+                    "SELECT id FROM referral_payment_header WHERE ip_number = $1 AND medical_council_id = $2 AND service_date = $3",
+                    [ipNumber, mciId, serviceDate]
                 );
 
                 if (existingHeader.rows.length > 0) {
@@ -186,22 +238,26 @@ exports.uploadReferralData = async (req, res) => {
                     // Update header info with latest from Excel (but use resolved Doc Name)
                     await client.query(
                         `UPDATE referral_payment_header 
-                         SET patient_name = $1, admission_type = $2, department = $3, doctor_name = $4, payment_mode = $5, updated_by = $6, updated_at = NOW()
-                         WHERE id = $7`,
-                        [patientName, admissionType, department, resolvedDoctorName, paymentMode, created_by, headerId]
+                         SET patient_name = $1, admission_type = $2, department = $3, doctor_name = $4, payment_mode = $5, service_date = $6, updated_by = $7, updated_at = NOW()
+                         WHERE id = $8`,
+                        [patientName, admissionType, department, resolvedDoctorName, paymentMode, serviceDate, created_by, headerId]
                     );
                 }
             }
 
             if (!isUpdate) {
                 // Insert new header
+                console.log(`✓ Inserting NEW header for patient: ${patientName}`);
                 const headerResult = await client.query(
                     `INSERT INTO referral_payment_header 
-                    (batch_id, ip_number, patient_name, admission_type, department, doctor_name, medical_council_id, payment_mode, created_by, updated_by)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9) RETURNING id`,
-                    [batchId, ipNumber, patientName, admissionType, department, resolvedDoctorName, mciId, paymentMode, created_by]
+                    (batch_id, ip_number, patient_name, admission_type, department, doctor_name, medical_council_id, payment_mode, service_date, created_by, updated_by)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10) RETURNING id`,
+                    [batchId, ipNumber, patientName, admissionType, department, resolvedDoctorName, mciId, paymentMode, serviceDate, created_by]
                 );
                 headerId = headerResult.rows[0].id;
+                console.log(`✓ Header created with ID: ${headerId}`);
+            } else {
+                console.log(`✓ UPDATING existing header ID: ${headerId} for patient: ${patientName}`);
             }
 
             // Fetch specific percentages for this doctor
@@ -220,7 +276,7 @@ exports.uploadReferralData = async (req, res) => {
             }
 
             // Iterate over dynamic columns (Services)
-            const staticKeys = ['PATIENT NAME', 'IP NUMBER', 'ADMISSION TYPE', 'DEPARTMENT', 'DOCTOR NAME', 'MEDICAL COUNCIL ID', 'PAYMENT MODE'];
+            const staticKeys = ['PATIENT NAME', 'IP NUMBER', 'SERVICE DATE', 'ADMISSION TYPE', 'DEPARTMENT', 'DOCTOR NAME', 'MEDICAL COUNCIL ID', 'PAYMENT MODE'];
             let headerTotalAmount = 0; // Accumulator for THIS processing loop (not strict total if updating, but we recalc total at end)
 
             for (const key of Object.keys(row)) {
@@ -351,6 +407,8 @@ exports.getPaymentReports = async (req, res) => {
             SELECT 
                 h.id as header_id,
                 h.created_at as upload_date,
+                h.ip_number,
+                h.service_date,
                 h.patient_name,
                 h.doctor_name,
                 h.medical_council_id,
@@ -362,7 +420,8 @@ exports.getPaymentReports = async (req, res) => {
                 d.referral_percentage,
                 d.referral_amount,
                 b.file_name,
-                rd.marketing_spoc
+                rd.marketing_spoc,
+                rd.id as referral_doctor_id
             FROM referral_payment_header h
             JOIN referral_payment_upload_batch b ON h.batch_id = b.id
             LEFT JOIN referral_payment_details d ON h.id = d.payment_header_id
@@ -380,15 +439,15 @@ exports.getPaymentReports = async (req, res) => {
             paramIndex++;
         }
 
-        // 2. Date Filtering
+        // 2. Date Filtering (by service_date, not upload date)
         if (fromDate) {
-            query += ` AND h.created_at >= $${paramIndex}`;
+            query += ` AND h.service_date >= $${paramIndex}`;
             params.push(fromDate);
             paramIndex++;
         }
         if (toDate) {
-            query += ` AND h.created_at <= $${paramIndex}`;
-            params.push(toDate + ' 23:59:59');
+            query += ` AND h.service_date <= $${paramIndex}`;
+            params.push(toDate);
             paramIndex++;
         }
 
@@ -411,7 +470,7 @@ exports.getPaymentReports = async (req, res) => {
             paramIndex++;
         }
 
-        query += ` ORDER BY h.created_at DESC`;
+        query += ` ORDER BY rd.id, h.ip_number, h.service_date DESC, h.created_at DESC`;
 
         const result = await pool.query(query, params);
 
@@ -420,5 +479,157 @@ exports.getPaymentReports = async (req, res) => {
     } catch (error) {
         console.error('Error fetching reports:', error);
         res.status(500).json({ success: false, message: 'Server error fetching reports' });
+    }
+};
+
+exports.getAgentReferralReports = async (req, res) => {
+    try {
+        const { fromDate, toDate, agentId } = req.query;
+        const branchId = req.user.branch_id;
+        const hospitalId = req.user.hospital_id; // Agents are usually hospital-wide or branch-specific? Schema has tenant_id (hospital).
+
+        // Base Query: Select Agents
+        // We will then join/subquery to get counts. 
+        // Note: Counting needs to respect Date Range for the *Referrals* (patients/doctors created), not when Agent was created.
+
+        // Complex query to get Agents + Counts in one go
+        let query = `
+            WITH patient_counts AS (
+                SELECT means_id, COUNT(*) as p_count
+                FROM referral_patients
+                WHERE referral_means = 'Agent'
+        `;
+
+        const params = [];
+        let paramIndex = 1;
+
+        if (fromDate) {
+            query += ` AND created_at >= $${paramIndex}`;
+            params.push(fromDate);
+            paramIndex++;
+        }
+        if (toDate) {
+            query += ` AND created_at <= $${paramIndex}`;
+            params.push(toDate);
+            paramIndex++;
+        }
+        query += ` GROUP BY means_id ),
+            doctor_counts AS (
+                SELECT means_id, COUNT(*) as d_count
+                FROM referral_doctor_module
+                WHERE referral_means = 'Agent'
+        `;
+
+        if (fromDate) {
+            query += ` AND created_at >= $${paramIndex}`; // Reuse params? No, push again or reference? 
+            // safer to push again to avoid index confusion or just use named params if pg supported (it doesn't).
+            // Actually, let's keep it simple: 
+            // We can't easily reuse $1 inside CTE if we increment index.
+            // Let's rely on logic correctness.
+            // Re-pushing params for simplicity of index tracking
+            query += ` AND created_at >= $${paramIndex}`; // $1 or $3?
+            params.push(fromDate);
+            paramIndex++;
+        }
+        if (toDate) {
+            query += ` AND created_at <= $${paramIndex}`;
+            params.push(toDate);
+            paramIndex++;
+        }
+
+        query += ` GROUP BY means_id )
+            SELECT 
+                ra.id as agent_id,
+                ra.name as agent_name,
+                ra.mobile,
+                ra.referral_patient_commission,
+                ra.referral_doc_commission,
+                COALESCE(pc.p_count, 0) as patient_count,
+                COALESCE(dc.d_count, 0) as doctor_count
+            FROM referral_agents ra
+            LEFT JOIN patient_counts pc ON ra.id = pc.means_id
+            LEFT JOIN doctor_counts dc ON ra.id = dc.means_id
+            WHERE ra.status != 'Deleted'
+        `;
+
+        // Scope Agents by Hospital
+        if (hospitalId) {
+            query += ` AND ra.tenant_id = $${paramIndex}`;
+            params.push(hospitalId);
+            paramIndex++;
+        }
+
+        if (agentId) {
+            query += ` AND ra.id = $${paramIndex}`;
+            params.push(agentId);
+            paramIndex++;
+        }
+
+        query += ` ORDER BY (COALESCE(pc.p_count, 0) + COALESCE(dc.d_count, 0)) DESC, ra.name ASC`;
+
+        const result = await pool.query(query, params);
+
+        const data = result.rows.map(row => {
+            const pComm = Number(row.referral_patient_commission || 0);
+            const dComm = Number(row.referral_doc_commission || 0);
+            const pCount = Number(row.patient_count);
+            const dCount = Number(row.doctor_count);
+            return {
+                ...row,
+                total_patient_commission: pCount * pComm,
+                total_doctor_commission: dCount * dComm,
+                total_commission: (pCount * pComm) + (dCount * dComm)
+            };
+        });
+
+        res.status(200).json({ success: true, count: data.length, data });
+
+    } catch (error) {
+        console.error('Error fetching agent reports:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
+exports.getAgentDashboardStats = async (req, res) => {
+    try {
+        const hospitalId = req.user.hospital_id;
+
+        // We want aggregate stats: Total Agents, Total Patients Referred, Total Doctors Referred, Est. Commission
+        // (This is ALL TIME stats mostly, or maybe filtered? Usually dashboard is "Overview")
+        // Let's do All Time for dashboard summary.
+
+        const query = `
+            WITH patient_counts AS (
+                SELECT means_id, COUNT(*) as p_count
+                FROM referral_patients
+                WHERE referral_means = 'Agent'
+                GROUP BY means_id
+            ),
+            doctor_counts AS (
+                SELECT means_id, COUNT(*) as d_count
+                FROM referral_doctor_module
+                WHERE referral_means = 'Agent'
+                GROUP BY means_id
+            )
+            SELECT 
+                COUNT(ra.id) as total_agents,
+                SUM(COALESCE(pc.p_count, 0)) as total_patients_referred,
+                SUM(COALESCE(dc.d_count, 0)) as total_doctors_referred,
+                SUM(
+                    (COALESCE(pc.p_count, 0) * COALESCE(ra.referral_patient_commission, 0)) + 
+                    (COALESCE(dc.d_count, 0) * COALESCE(ra.referral_doc_commission, 0))
+                ) as total_commission_liability
+            FROM referral_agents ra
+            LEFT JOIN patient_counts pc ON ra.id = pc.means_id
+            LEFT JOIN doctor_counts dc ON ra.id = dc.means_id
+            WHERE ra.status != 'Deleted' AND ra.tenant_id = $1
+        `;
+
+        const result = await pool.query(query, [hospitalId]);
+        res.status(200).json({ success: true, data: result.rows[0] });
+
+    } catch (error) {
+        console.error('Error fetching agent stats:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
     }
 };

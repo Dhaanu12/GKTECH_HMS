@@ -15,14 +15,18 @@ import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
     PieChart, Pie, Cell, Tooltip as RechartsTooltip
 } from 'recharts';
-
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
-type TabType = 'upload' | 'reports';
+import { getAgentReferralReports, AgentReportRow } from '@/lib/api/referralPayment';
+
+type TabType = 'upload' | 'reports' | 'agent-reports';
 
 interface ReportRow {
     header_id: number;
     upload_date: string;
+    ip_number: string;
+    service_date: string;
     patient_name: string;
     doctor_name: string;
     medical_council_id: string;
@@ -34,6 +38,7 @@ interface ReportRow {
     referral_percentage: number;
     referral_amount: number;
     file_name: string;
+    referral_doctor_id: number;
 }
 
 interface GroupedData {
@@ -41,19 +46,24 @@ interface GroupedData {
         doctorName: string;
         totalPayout: number;
         patients: {
-            [patientName: string]: {
+            [patientKey: string]: {
                 patientName: string;
+                ipNumber: string;
                 mci_id: string;
                 totalPayout: number;
-                services: ReportRow[];
+                dates: {
+                    [serviceDate: string]: {
+                        serviceDate: string;
+                        totalPayout: number;
+                        services: ReportRow[];
+                    }
+                }
             }
         }
     }
 }
 
 const COLORS = ['#2563eb', '#7c3aed', '#db2777', '#ea580c', '#16a34a', '#0891b2'];
-
-import { Suspense } from 'react';
 
 export default function ReferralPaymentsHub() {
     return (
@@ -75,6 +85,7 @@ function ReferralPaymentsContent() {
     const tabs = [
         { id: 'upload' as TabType, name: 'Upload Bills', icon: Upload, description: 'Upload bulk referral bills via Excel' },
         { id: 'reports' as TabType, name: 'Payment Reports', icon: BarChart3, description: 'View analytics and detailed reports' },
+        { id: 'agent-reports' as TabType, name: 'Agent Reports', icon: Users, description: 'View agent referral performance' },
     ];
 
     return (
@@ -92,7 +103,7 @@ function ReferralPaymentsContent() {
 
             {/* Tabs */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="grid grid-cols-2 gap-0 border-b border-gray-200">
+                <div className="grid grid-cols-3 gap-0 border-b border-gray-200">
                     {tabs.map((tab) => {
                         const Icon = tab.icon;
                         return (
@@ -120,6 +131,7 @@ function ReferralPaymentsContent() {
                 <div className="p-6">
                     {activeTab === 'upload' && <UploadBillsTab />}
                     {activeTab === 'reports' && <PaymentReportsTab />}
+                    {activeTab === 'agent-reports' && <AgentReportsTab />}
                 </div>
             </div>
         </div>
@@ -369,6 +381,7 @@ function PaymentReportsTab() {
     const [doctors, setDoctors] = useState<{ id: string, name: string }[]>([]);
     const [expandedDoctors, setExpandedDoctors] = useState<string[]>([]);
     const [expandedPatients, setExpandedPatients] = useState<string[]>([]);
+    const [selectedDateTabs, setSelectedDateTabs] = useState<Record<string, string>>({});
 
     useEffect(() => {
         fetchDoctors();
@@ -444,11 +457,14 @@ function PaymentReportsTab() {
         return { barData, pieData };
     }, [reports]);
 
-    // Grouping Logic
+    // Grouping Logic: Doctor → Patient → Date → Services
     const groupedReports = useMemo<GroupedData>(() => {
         const groups: GroupedData = {};
 
-        reports.forEach(row => {
+        // Filter out records without service_date
+        const validReports = reports.filter(row => row.service_date);
+
+        validReports.forEach(row => {
             if (!groups[row.doctor_name]) {
                 groups[row.doctor_name] = {
                     doctorName: row.doctor_name,
@@ -460,18 +476,34 @@ function PaymentReportsTab() {
             const doctorGroup = groups[row.doctor_name];
             doctorGroup.totalPayout += Number(row.referral_amount);
 
-            if (!doctorGroup.patients[row.patient_name]) {
-                doctorGroup.patients[row.patient_name] = {
+            // Use IP number as unique patient key
+            const patientKey = `${row.ip_number}-${row.patient_name}`;
+
+            if (!doctorGroup.patients[patientKey]) {
+                doctorGroup.patients[patientKey] = {
                     patientName: row.patient_name,
+                    ipNumber: row.ip_number,
                     mci_id: row.medical_council_id,
+                    totalPayout: 0,
+                    dates: {}
+                };
+            }
+
+            const patientGroup = doctorGroup.patients[patientKey];
+            patientGroup.totalPayout += Number(row.referral_amount);
+
+            // Group by service date
+            if (!patientGroup.dates[row.service_date]) {
+                patientGroup.dates[row.service_date] = {
+                    serviceDate: row.service_date,
                     totalPayout: 0,
                     services: []
                 };
             }
 
-            const patientGroup = doctorGroup.patients[row.patient_name];
-            patientGroup.totalPayout += Number(row.referral_amount);
-            patientGroup.services.push(row);
+            const dateGroup = patientGroup.dates[row.service_date];
+            dateGroup.totalPayout += Number(row.referral_amount);
+            dateGroup.services.push(row);
         });
 
         return groups;
@@ -554,9 +586,89 @@ function PaymentReportsTab() {
             });
         }
 
+        // 3. Admission Type Analysis (Pie Chart)
+        const admissionTypeCounts: Record<string, number> = {};
+        reports.forEach(row => {
+            const admType = row.admission_type || 'Unknown';
+            admissionTypeCounts[admType] = (admissionTypeCounts[admType] || 0) + 1;
+        });
+        const sortedAdmissionTypes = Object.entries(admissionTypeCounts)
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => b.value - a.value);
+
+        const pieChartY = chartY + (sortedServices.length * (barHeight + gap)) + 15;
+
+        if (sortedAdmissionTypes.length > 0) {
+            doc.setFontSize(12);
+            doc.setTextColor(50);
+            doc.text('Admission Type Distribution', 14, pieChartY - 2);
+
+            // Pie chart settings
+            const pieX = 50;
+            const pieY = pieChartY + 25;
+            const radius = 20;
+            const totalCount = sortedAdmissionTypes.reduce((sum, item) => sum + item.value, 0);
+
+            // Color palette
+            const colors = [
+                [16, 185, 129],   // Green
+                [59, 130, 246],   // Blue
+                [251, 146, 60],   // Orange
+                [168, 85, 247],   // Purple
+                [236, 72, 153],   // Pink
+                [234, 179, 8],    // Yellow
+            ];
+
+            // Draw horizontal percentage bars
+            const barChartX = 14;
+            const barChartY = pieChartY + 5;
+            const barWidth = 180;
+            const barItemHeight = 12;
+            const barGap = 3;
+
+            sortedAdmissionTypes.forEach((stat, index) => {
+                const percentage = (stat.value / totalCount) * 100;
+                const color = colors[index % colors.length];
+                const currentY = barChartY + (index * (barItemHeight + barGap));
+
+                // Label
+                doc.setFontSize(9);
+                doc.setTextColor(60);
+                doc.text(stat.name, barChartX, currentY + 7);
+
+                // Background bar
+                doc.setFillColor(240, 240, 240);
+                doc.roundedRect(barChartX + 50, currentY, barWidth, barItemHeight, 2, 2, 'F');
+
+                // Filled percentage bar
+                const filledWidth = (percentage / 100) * barWidth;
+                doc.setFillColor(color[0], color[1], color[2]);
+                doc.roundedRect(barChartX + 50, currentY, filledWidth, barItemHeight, 2, 2, 'F');
+
+                // Percentage text
+                doc.setFontSize(8);
+                doc.setTextColor(255, 255, 255);
+                doc.setFont('helvetica', 'bold');
+                if (filledWidth > 15) {
+                    doc.text(`${percentage.toFixed(1)}%`, barChartX + 50 + filledWidth - 12, currentY + 7.5);
+                } else {
+                    doc.setTextColor(60);
+                    doc.text(`${percentage.toFixed(1)}%`, barChartX + 50 + filledWidth + 2, currentY + 7.5);
+                }
+                doc.setFont('helvetica', 'normal');
+
+                // Count
+                doc.setFontSize(7);
+                doc.setTextColor(100);
+                doc.text(`${stat.value} records`, barChartX + 50 + barWidth + 3, currentY + 7.5);
+            });
+
+
+        }
+
         // 4. Financial Overview
         const totalReferralAmount = reports.reduce((sum, row) => sum + Number(row.referral_amount), 0);
-        const boxesY = chartY + (sortedServices.length * (barHeight + gap)) + 15;
+        const boxesY = pieChartY + 60;
 
         doc.setFontSize(11);
         doc.setTextColor(37, 99, 235);
@@ -792,12 +904,12 @@ function PaymentReportsTab() {
                                             {/* Patients */}
                                             {isDocExpanded && (
                                                 <div className="bg-gray-50/50 divide-y divide-gray-100">
-                                                    {Object.entries(doctor.patients).map(([patName, patient]) => {
-                                                        const isPatExpanded = expandedPatients.includes(`${docName}-${patName}`);
+                                                    {Object.entries(doctor.patients).map(([patKey, patient]) => {
+                                                        const isPatExpanded = expandedPatients.includes(`${docName}-${patKey}`);
                                                         return (
-                                                            <div key={`${docName}-${patName}`}>
+                                                            <div key={`${docName}-${patKey}`}>
                                                                 <div
-                                                                    onClick={() => togglePatientExpansion(`${docName}-${patName}`)}
+                                                                    onClick={() => togglePatientExpansion(`${docName}-${patKey}`)}
                                                                     className="px-10 py-3 flex items-center justify-between cursor-pointer hover:bg-gray-100/50 border-l-4 border-blue-400 bg-white ml-2"
                                                                 >
                                                                     <div className="flex items-center gap-3">
@@ -805,8 +917,8 @@ function PaymentReportsTab() {
                                                                             PT
                                                                         </div>
                                                                         <div>
-                                                                            <p className="font-bold text-gray-800 text-xs">{patName}</p>
-                                                                            <p className="text-[10px] font-mono text-gray-400">{patient.mci_id}</p>
+                                                                            <p className="font-bold text-gray-800 text-xs">{patient.patientName}</p>
+                                                                            <p className="text-[10px] font-mono text-gray-400">IP: {patient.ipNumber}</p>
                                                                         </div>
                                                                     </div>
                                                                     <div className="flex items-center gap-4">
@@ -817,34 +929,85 @@ function PaymentReportsTab() {
                                                                     </div>
                                                                 </div>
 
-                                                                {/* Services */}
+                                                                {/* Dates as Tabs */}
                                                                 {isPatExpanded && (
-                                                                    <div className="bg-white ml-12 pb-2">
-                                                                        <table className="w-full text-[11px] text-gray-600">
-                                                                            <thead className="text-[9px] font-black text-gray-400 uppercase tracking-widest bg-gray-50/80">
-                                                                                <tr>
-                                                                                    <th className="px-6 py-2 text-left">Service Name</th>
-                                                                                    <th className="px-6 py-2 text-right">Cost</th>
-                                                                                    <th className="px-6 py-2 text-center">%</th>
-                                                                                    <th className="px-6 py-2 text-right">Payout</th>
-                                                                                </tr>
-                                                                            </thead>
-                                                                            <tbody className="divide-y divide-gray-50">
-                                                                                {patient.services.map((service, idx) => (
-                                                                                    <tr key={idx} className="hover:bg-blue-50/20">
-                                                                                        <td className="px-6 py-2">
-                                                                                            <span className="font-bold text-gray-700">{service.service_name}</span>
-                                                                                            <span className="ml-2 text-[9px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">{service.payment_mode}</span>
-                                                                                        </td>
-                                                                                        <td className="px-6 py-2 text-right text-gray-500 font-mono">₹{Number(service.service_cost).toLocaleString()}</td>
-                                                                                        <td className="px-6 py-2 text-center">
-                                                                                            <span className="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-bold">{service.referral_percentage}%</span>
-                                                                                        </td>
-                                                                                        <td className="px-6 py-2 text-right font-black text-blue-600 font-mono">₹{Number(service.referral_amount).toLocaleString()}</td>
-                                                                                    </tr>
-                                                                                ))}
-                                                                            </tbody>
-                                                                        </table>
+                                                                    <div className="bg-gray-100/30 ml-12 p-4">
+                                                                        {(() => {
+                                                                            const dates = Object.entries(patient.dates).sort(([dateA], [dateB]) => new Date(dateB).getTime() - new Date(dateA).getTime());
+                                                                            const patientKey = `${docName}-${patKey}`;
+                                                                            const selectedDate = selectedDateTabs[patientKey] || dates[0]?.[0];
+                                                                            const selectedDateGroup = dates.find(([date]) => date === selectedDate)?.[1];
+
+                                                                            return (
+                                                                                <>
+                                                                                    {/* Date Tabs */}
+                                                                                    <div className="flex gap-2 mb-4 flex-wrap">
+                                                                                        {dates.map(([serviceDate, dateGroup]) => {
+                                                                                            const isSelected = serviceDate === selectedDate;
+                                                                                            return (
+                                                                                                <button
+                                                                                                    key={serviceDate}
+                                                                                                    onClick={() => setSelectedDateTabs(prev => ({ ...prev, [patientKey]: serviceDate }))}
+                                                                                                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${isSelected
+                                                                                                        ? 'bg-blue-600 text-white shadow-md'
+                                                                                                        : 'bg-white text-gray-700 hover:bg-blue-50 border border-gray-200'
+                                                                                                        }`}
+                                                                                                >
+                                                                                                    <div className="flex items-center gap-2">
+                                                                                                        <div className={`w-6 h-6 rounded flex items-center justify-center text-[10px] font-bold ${isSelected ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-600'
+                                                                                                            }`}>
+                                                                                                            {new Date(serviceDate).getDate()}
+                                                                                                        </div>
+                                                                                                        <div className="text-left">
+                                                                                                            <div className="text-[11px] leading-tight">
+                                                                                                                {new Date(serviceDate).toLocaleDateString('en-IN', {
+                                                                                                                    month: 'short',
+                                                                                                                    day: 'numeric'
+                                                                                                                })}
+                                                                                                            </div>
+                                                                                                            <div className={`text-[9px] leading-tight ${isSelected ? 'text-blue-100' : 'text-gray-500'}`}>
+                                                                                                                ₹{dateGroup.totalPayout.toLocaleString()}
+                                                                                                            </div>
+                                                                                                        </div>
+                                                                                                    </div>
+                                                                                                </button>
+                                                                                            );
+                                                                                        })}
+                                                                                    </div>
+
+                                                                                    {/* Services for selected date */}
+                                                                                    {selectedDateGroup && (
+                                                                                        <div className="bg-white rounded-lg overflow-hidden border border-gray-200">
+                                                                                            <table className="w-full text-[11px] text-gray-600">
+                                                                                                <thead className="text-[9px] font-black text-gray-400 uppercase tracking-widest bg-gray-50/80">
+                                                                                                    <tr>
+                                                                                                        <th className="px-6 py-2 text-left">Service Name</th>
+                                                                                                        <th className="px-6 py-2 text-right">Cost</th>
+                                                                                                        <th className="px-6 py-2 text-center">%</th>
+                                                                                                        <th className="px-6 py-2 text-right">Payout</th>
+                                                                                                    </tr>
+                                                                                                </thead>
+                                                                                                <tbody className="divide-y divide-gray-50">
+                                                                                                    {selectedDateGroup.services.map((service: ReportRow, idx: number) => (
+                                                                                                        <tr key={idx} className="hover:bg-blue-50/20">
+                                                                                                            <td className="px-6 py-2">
+                                                                                                                <span className="font-bold text-gray-700">{service.service_name}</span>
+                                                                                                                <span className="ml-2 text-[9px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">{service.payment_mode}</span>
+                                                                                                            </td>
+                                                                                                            <td className="px-6 py-2 text-right text-gray-500 font-mono">₹{Number(service.service_cost).toLocaleString()}</td>
+                                                                                                            <td className="px-6 py-2 text-center">
+                                                                                                                <span className="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-bold">{service.referral_percentage}%</span>
+                                                                                                            </td>
+                                                                                                            <td className="px-6 py-2 text-right font-black text-blue-600 font-mono">₹{Number(service.referral_amount).toLocaleString()}</td>
+                                                                                                        </tr>
+                                                                                                    ))}
+                                                                                                </tbody>
+                                                                                            </table>
+                                                                                        </div>
+                                                                                    )}
+                                                                                </>
+                                                                            );
+                                                                        })()}
                                                                     </div>
                                                                 )}
                                                             </div>
@@ -938,6 +1101,356 @@ function PaymentReportsTab() {
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ============================================
+// Agent Reports Tab
+// ============================================
+function AgentReportsTab() {
+    const { user } = useAuth();
+    const [reports, setReports] = useState<AgentReportRow[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [fromDate, setFromDate] = useState('');
+    const [toDate, setToDate] = useState('');
+    const [showAnalytics, setShowAnalytics] = useState(true);
+
+    useEffect(() => {
+        setQuickFilter('thisMonth'); // Default to this month
+    }, []);
+
+    useEffect(() => {
+        fetchReports();
+    }, [fromDate, toDate]);
+
+    const fetchReports = async () => {
+        setLoading(true);
+        try {
+            const data = await getAgentReferralReports({ fromDate, toDate });
+            if (data.success) {
+                setReports(data.data);
+            }
+        } catch (error) {
+            console.error('Error fetching agent reports:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const setQuickFilter = (type: 'thisMonth' | 'lastMonth' | 'overall') => {
+        const now = new Date();
+        let start = '';
+        let end = '';
+
+        if (type === 'thisMonth') {
+            const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+            const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            start = toDateString(firstDay);
+            end = toDateString(lastDay);
+        } else if (type === 'lastMonth') {
+            const firstDay = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            const lastDay = new Date(now.getFullYear(), now.getMonth(), 0);
+            start = toDateString(firstDay);
+            end = toDateString(lastDay);
+        } else {
+            // Overall - clear dates to fetch all
+            start = '';
+            end = '';
+        }
+
+        setFromDate(start);
+        setToDate(end);
+    };
+
+    const toDateString = (date: Date) => {
+        const offset = date.getTimezoneOffset() * 60000;
+        return new Date(date.getTime() - offset).toISOString().split('T')[0];
+    };
+
+    const downloadReport = () => {
+        const doc = new jsPDF('l', 'mm', 'a4');
+        doc.setFontSize(18);
+        doc.setTextColor(37, 99, 235);
+        doc.text('Agent Referral Performance Report', 14, 20);
+
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 26);
+        doc.text(`Period: ${fromDate || 'Start'} to ${toDate || 'Present'}`, 14, 31);
+
+        const columns = ["Agent Name", "Mobile", "Ref. Patients", "Ref. Doctors", "Patient Comm.", "Doctor Comm.", "Total Comm."];
+        const rows = filteredReports.map(row => [
+            row.agent_name,
+            row.mobile,
+            row.patient_count,
+            row.doctor_count,
+            `Rs. ${Number(row.total_patient_commission).toLocaleString()}`,
+            `Rs. ${Number(row.total_doctor_commission).toLocaleString()}`,
+            `Rs. ${Number(row.total_commission).toLocaleString()}`
+        ]);
+
+        autoTable(doc, {
+            head: [columns],
+            body: rows,
+            startY: 40,
+            theme: 'grid',
+            headStyles: { fillColor: [37, 99, 235] },
+            styles: { fontSize: 9 }
+        });
+
+        // Add Summary
+        const finalY = (doc as any).lastAutoTable.finalY + 10;
+        doc.setFontSize(12);
+        doc.setTextColor(0);
+        doc.text(`Total Commission Liability: Rs. ${totalStats.commission.toLocaleString()}`, 14, finalY);
+
+        doc.save(`Agent_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+    };
+
+    const filteredReports = reports.filter(row =>
+        row.agent_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        row.mobile.includes(searchTerm)
+    );
+
+    const totalStats = useMemo(() => {
+        return reports.reduce((acc, curr) => ({
+            patients: acc.patients + Number(curr.patient_count),
+            doctors: acc.doctors + Number(curr.doctor_count),
+            commission: acc.commission + Number(curr.total_commission)
+        }), { patients: 0, doctors: 0, commission: 0 });
+    }, [reports]);
+
+    // Analytics Data Preparation
+    const analyticsData = useMemo(() => {
+        const sortedByPatients = [...reports].sort((a, b) => Number(b.patient_count) - Number(a.patient_count)).slice(0, 5);
+        const sortedByDoctors = [...reports].sort((a, b) => Number(b.doctor_count) - Number(a.doctor_count)).slice(0, 5);
+
+        return {
+            patientLeaders: sortedByPatients.map(r => ({ name: r.agent_name, value: Number(r.patient_count) })),
+            doctorLeaders: sortedByDoctors.map(r => ({ name: r.agent_name, value: Number(r.doctor_count) })),
+        };
+    }, [reports]);
+
+    return (
+        <div className="space-y-6">
+            {/* Filters & Actions */}
+            <div className="flex flex-col xl:flex-row gap-4 justify-between items-start xl:items-center bg-gray-50 p-4 rounded-xl border border-gray-200">
+                <div className="flex flex-col md:flex-row gap-4 w-full xl:w-auto">
+                    {/* Search */}
+                    <div className="relative flex-1 md:w-64">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                            type="text"
+                            placeholder="Search agent..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                        />
+                    </div>
+
+                    {/* Date Range */}
+                    <div className="flex items-center gap-2 bg-white p-1 rounded-lg border border-gray-200">
+                        <input
+                            type="date"
+                            value={fromDate}
+                            onChange={(e) => setFromDate(e.target.value)}
+                            className="px-2 py-1 bg-transparent text-sm outline-none w-32"
+                        />
+                        <span className="text-gray-400">-</span>
+                        <input
+                            type="date"
+                            value={toDate}
+                            onChange={(e) => setToDate(e.target.value)}
+                            className="px-2 py-1 bg-transparent text-sm outline-none w-32"
+                        />
+                    </div>
+
+                    {/* Quick Filters */}
+                    <div className="flex bg-white rounded-lg border border-gray-200 p-1">
+                        <button onClick={() => setQuickFilter('thisMonth')} className="px-3 py-1 text-xs font-medium rounded hover:bg-gray-50">This Month</button>
+                        <div className="w-px bg-gray-200 my-1"></div>
+                        <button onClick={() => setQuickFilter('lastMonth')} className="px-3 py-1 text-xs font-medium rounded hover:bg-gray-50">Last Month</button>
+                        <div className="w-px bg-gray-200 my-1"></div>
+                        <button onClick={() => setQuickFilter('overall')} className="px-3 py-1 text-xs font-medium rounded hover:bg-gray-50">Overall</button>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-3 w-full xl:w-auto justify-end">
+                    <button
+                        onClick={() => setShowAnalytics(!showAnalytics)}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${showAnalytics ? 'bg-blue-100 text-blue-700' : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'}`}
+                    >
+                        <BarChart3 className="w-4 h-4" />
+                        {showAnalytics ? 'Hide Analytics' : 'Show Analytics'}
+                    </button>
+                    <button
+                        onClick={downloadReport}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition"
+                    >
+                        <Download className="w-4 h-4" />
+                        Download Report
+                    </button>
+                </div>
+            </div>
+
+            {/* Analytics Section */}
+            {showAnalytics && reports.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Patient Referrals Chart */}
+                    <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                        <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide mb-4 flex items-center gap-2">
+                            <Users className="w-4 h-4 text-blue-600" />
+                            Top Agents by Patient Referrals
+                        </h3>
+                        <div className="h-64">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={analyticsData.patientLeaders} layout="vertical" margin={{ left: 0, right: 30, top: 0, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f0f0f0" />
+                                    <XAxis type="number" hide />
+                                    <YAxis dataKey="name" type="category" width={100} style={{ fontSize: '11px', fontWeight: 500 }} />
+                                    <Tooltip
+                                        cursor={{ fill: '#f8fafc' }}
+                                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                                    />
+                                    <Bar dataKey="value" name="Patients" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={20} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+
+                    {/* Doctor Referrals Chart */}
+                    <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                        <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide mb-4 flex items-center gap-2">
+                            <User className="w-4 h-4 text-purple-600" />
+                            Top Agents by Doctor Referrals
+                        </h3>
+                        <div className="h-64">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={analyticsData.doctorLeaders} layout="vertical" margin={{ left: 0, right: 30, top: 0, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f0f0f0" />
+                                    <XAxis type="number" hide />
+                                    <YAxis dataKey="name" type="category" width={100} style={{ fontSize: '11px', fontWeight: 500 }} />
+                                    <Tooltip
+                                        cursor={{ fill: '#f8fafc' }}
+                                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                                    />
+                                    <Bar dataKey="value" name="Doctors" fill="#8b5cf6" radius={[0, 4, 4, 0]} barSize={20} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Stats Summary Row */}
+            <div className="grid grid-cols-3 gap-4">
+                <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p className="text-xs font-semibold text-gray-500 uppercase">Total Patients</p>
+                        <p className="text-2xl font-bold text-gray-900 mt-1">{totalStats.patients}</p>
+                    </div>
+                    <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
+                        <Users className="w-5 h-5 text-blue-600" />
+                    </div>
+                </div>
+                <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p className="text-xs font-semibold text-gray-500 uppercase">Total Doctors</p>
+                        <p className="text-2xl font-bold text-gray-900 mt-1">{totalStats.doctors}</p>
+                    </div>
+                    <div className="w-10 h-10 rounded-full bg-purple-50 flex items-center justify-center">
+                        <User className="w-5 h-5 text-purple-600" />
+                    </div>
+                </div>
+                <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p className="text-xs font-semibold text-gray-500 uppercase">Total Commission</p>
+                        <p className="text-2xl font-bold text-gray-900 mt-1">₹{totalStats.commission.toLocaleString()}</p>
+                    </div>
+                    <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center">
+                        <IndianRupee className="w-5 h-5 text-emerald-600" />
+                    </div>
+                </div>
+            </div>
+
+            {/* Table */}
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                        <thead className="bg-gray-50 text-gray-500 font-medium border-b border-gray-200">
+                            <tr>
+                                <th className="px-6 py-4">Agent Name</th>
+                                <th className="px-6 py-4 text-center">Ref. Patients</th>
+                                <th className="px-6 py-4 text-center">Ref. Doctors</th>
+                                <th className="px-6 py-4 text-right">Patient Comm.</th>
+                                <th className="px-6 py-4 text-right">Doctor Comm.</th>
+                                <th className="px-6 py-4 text-right">Total Comm.</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {loading ? (
+                                <tr>
+                                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                                        <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-500" />
+                                        Loading report data...
+                                    </td>
+                                </tr>
+                            ) : filteredReports.length === 0 ? (
+                                <tr>
+                                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                                        No agents found for the selected criteria.
+                                    </td>
+                                </tr>
+                            ) : (
+                                filteredReports.map((row) => (
+                                    <tr key={row.agent_id} className="hover:bg-gray-50 transition-colors group">
+                                        <td className="px-6 py-4">
+                                            <div className="font-medium text-gray-900">{row.agent_name}</div>
+                                            <div className="text-xs text-gray-500">{row.mobile}</div>
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
+                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                {row.patient_count}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
+                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                                {row.doctor_count}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-right text-gray-600">
+                                            ₹{Number(row.total_patient_commission).toLocaleString()}
+                                            <div className="text-[10px] text-gray-400">Rate: ₹{row.referral_patient_commission}</div>
+                                        </td>
+                                        <td className="px-6 py-4 text-right text-gray-600">
+                                            ₹{Number(row.total_doctor_commission).toLocaleString()}
+                                            <div className="text-[10px] text-gray-400">Rate: ₹{row.referral_doc_commission}</div>
+                                        </td>
+                                        <td className="px-6 py-4 text-right font-bold text-gray-900 bg-gray-50/50">
+                                            ₹{Number(row.total_commission).toLocaleString()}
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                        {/* Footer Totals */}
+                        {!loading && filteredReports.length > 0 && (
+                            <tfoot className="bg-gray-50 font-semibold text-gray-900 border-t border-gray-200">
+                                <tr>
+                                    <td className="px-6 py-4">Total</td>
+                                    <td className="px-6 py-4 text-center">{totalStats.patients}</td>
+                                    <td className="px-6 py-4 text-center">{totalStats.doctors}</td>
+                                    <td className="px-6 py-4 text-right">-</td>
+                                    <td className="px-6 py-4 text-right">-</td>
+                                    <td className="px-6 py-4 text-right">₹{totalStats.commission.toLocaleString()}</td>
+                                </tr>
+                            </tfoot>
+                        )}
+                    </table>
                 </div>
             </div>
         </div>

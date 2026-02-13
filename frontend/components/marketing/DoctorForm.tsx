@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { createReferralDoctor, updateReferralDoctor } from '@/lib/api/marketing';
-import { ReferralDoctor } from '@/types/marketing';
+import { createReferralDoctor, updateReferralDoctor, getReferralAgents } from '@/lib/api/marketing';
+import { ReferralDoctor, ReferralAgent } from '@/types/marketing';
 import { Save, MapPin, Upload, FileText, CreditCard, User, Building, CheckCircle2 } from 'lucide-react';
 
 interface DoctorFormProps {
@@ -18,6 +18,7 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ doctor, onSuccess, onCancel, re
     const [loading, setLoading] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
+    const [agents, setAgents] = useState<ReferralAgent[]>([]);
 
     // Form State
     const [formData, setFormData] = useState({
@@ -48,11 +49,30 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ doctor, onSuccess, onCancel, re
         // Location
         geo_latitude: doctor?.geo_latitude || '',
         geo_longitude: doctor?.geo_longitude || '',
-        geo_accuracy: doctor?.geo_accuracy || ''
+        geo_accuracy: doctor?.geo_accuracy || '',
+
+        // Referral Source
+        referral_means: doctor?.referral_means || '',
+        means_id: doctor?.means_id || ''
     });
 
     const [files, setFiles] = useState<{ photo?: File, pan?: File, aadhar?: File, clinic_photo?: File, kyc_document?: File }>({});
     const [locationError, setLocationError] = useState('');
+
+    // Fetch agents for referral source dropdown
+    useEffect(() => {
+        const fetchAgents = async () => {
+            try {
+                const res = await getReferralAgents();
+                if (res.success) {
+                    setAgents(res.data);
+                }
+            } catch (err) {
+                console.error('Error fetching agents:', err);
+            }
+        };
+        fetchAgents();
+    }, []);
 
     // Auto-capture location on mount
     useEffect(() => {
@@ -395,6 +415,34 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ doctor, onSuccess, onCancel, re
                             <input name="bank_address" value={formData.bank_address} onChange={handleChange}
                                 className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-gray-50/50" placeholder="Full Bank Address" />
                         </div>
+                    </div>
+                </section>
+
+                {/* 5. Introduction / Referral Source */}
+                <section>
+                    <SectionHeader title="Source / Introduction" icon={User} id="source" />
+                    <div className="space-y-4">
+                        <label className="block text-sm font-medium text-gray-700">How were they introduced?</label>
+                        <div className="flex gap-4">
+                            {['Agent', 'Self', 'Other'].map(type => (
+                                <label key={type} className={`flex-1 cursor-pointer border rounded-lg p-3 flex items-center justify-center gap-2 transition ${formData.referral_means === type ? 'bg-blue-50 border-blue-500 text-blue-700 ring-1 ring-blue-500' : 'bg-white border-gray-200 hover:bg-gray-50'}`}>
+                                    <input type="radio" name="referral_means" value={type} checked={formData.referral_means === type} onChange={handleChange} className="hidden" />
+                                    <span className="font-medium">{type}</span>
+                                </label>
+                            ))}
+                        </div>
+
+                        {formData.referral_means === 'Agent' && (
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Select Agent</label>
+                                <select name="means_id" value={formData.means_id} onChange={handleChange} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-gray-50/50">
+                                    <option value="">-- Select Agent --</option>
+                                    {agents.map(agent => (
+                                        <option key={agent.id} value={agent.id}>{agent.name} - {agent.role}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
                     </div>
                 </section>
 

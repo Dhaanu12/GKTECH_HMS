@@ -35,18 +35,25 @@ class ConsultationController {
      * POST /api/consultations/draft
      */
     static async saveDraft(req, res, next) {
+        const client = await require('../config/db').pool.connect();
         try {
+            await client.query('BEGIN');
+
             const {
                 opd_id,
                 patient_id,
                 diagnosis,
+                diagnosis_list,
                 notes,
                 next_visit_date,
                 next_visit_status,
                 medications,
                 labs,
                 referral_doctor_id,
-                referral_notes
+                referral_notes,
+                procedures,
+                procedures_list,
+                pathology_lab
             } = req.body;
 
             const doctor_id = req.user.doctor_id || req.body.doctor_id;
@@ -55,64 +62,255 @@ class ConsultationController {
                 throw new AppError('Missing required fields: opd_id, patient_id, doctor_id', 400);
             }
 
-            // Check if draft already exists for this OPD
-            const existingDraft = await query(`
-                SELECT outcome_id FROM consultation_outcomes
-                WHERE opd_id = $1 AND consultation_status = 'Draft'
+            // --- 0. PREP DATA & HELPERS ---
+            // Fetch OPD details (needed branches, validation, billing header)
+            const opdDetailsRes = await client.query(`
+                SELECT o.branch_id, o.opd_number, 
+                       p.first_name, p.last_name, p.mrn_number, p.contact_number, 
+                       p.city, p.state, p.address
+                FROM opd_entries o
+                JOIN patients p ON o.patient_id = p.patient_id
+                WHERE o.opd_id = $1
             `, [opd_id]);
+            const opdData = opdDetailsRes.rows[0];
+            if (!opdData) throw new AppError('OPD Entry not found', 404);
+            const branch_id = opdData.branch_id;
 
-            let result;
-            if (existingDraft.rows.length > 0) {
-                // Update existing draft
-                result = await query(`
-                    UPDATE consultation_outcomes
-                    SET diagnosis = $1, notes = $2, labs = $3, medications = $4,
-                        referral_doctor_id = $5, referral_notes = $6,
-                        next_visit_date = $7, next_visit_status = $8,
-                        updated_at = CURRENT_TIMESTAMP
-                    WHERE opd_id = $9 AND consultation_status = 'Draft'
-                    RETURNING *
-                `, [
-                    diagnosis,
-                    notes,
-                    JSON.stringify(labs || []),
-                    JSON.stringify(medications || []),
-                    referral_doctor_id || null,
-                    referral_notes || null,
-                    next_visit_date || null,
-                    next_visit_status,
-                    opd_id
-                ]);
-            } else {
-                // Create new draft (OPD status remains 'In-consultation')
-                result = await query(`
-                    INSERT INTO consultation_outcomes (
-                        opd_id, patient_id, doctor_id,
-                        consultation_status, diagnosis, notes, labs, medications,
-                        referral_doctor_id, referral_notes,
-                        next_visit_date, next_visit_status
-                    ) VALUES ($1, $2, $3, 'Draft', $4, $5, $6, $7, $8, $9, $10, $11)
-                    RETURNING *
-                `, [
+            const user_id = req.user?.user_id || req.user?.userId || doctor_id; // Fallback to doctor_id if no user_id
+
+            const safeInt = (val) => {
+                if (val === undefined || val === null) return null;
+                const converted = parseInt(val, 10);
+                return isNaN(converted) ? null : converted;
+            };
+
+            const normalizeCategory = (category) => {
+                const cat = (category || '').toLowerCase();
+                if (cat.includes('lab') || cat === 'lab_test') return 'Lab';
+                if (cat.includes('imag') || cat.includes('radio') || cat.includes('x-ray') || cat.includes('scan')) return 'Imaging';
+                if (cat.includes('proc')) return 'Procedure';
+                if (cat.includes('exam')) return 'Examination';
+                return 'Other';
+            };
+
+
+            // --- 1. CLEANUP PREVIOUS DRAFTS ---
+            // We'll delete related items to ensure a clean slate for the draft save
+            // Note: We only delete items that are likely in a 'Pending'/'Draft' state associated with this OPD.
+            // However, since this is "Save Draft" for a specific OPD interaction, we can assume ownership of these records for this opd_id.
+
+            // Delete Consultation Outcome (Draft/Pending)
+            await client.query(`DELETE FROM consultation_outcomes WHERE opd_id = $1 AND consultation_status IN ('Draft', 'Pending')`, [opd_id]);
+            // Delete Prescriptions
+            await client.query(`DELETE FROM prescriptions WHERE opd_id = $1`, [opd_id]);
+            // Delete Lab Orders (only those created during this OPD session, ideally we'd filter by status but 'Ordered' is default)
+            // Strategy: We will delete all lab orders for this OPD. 
+            // Warning: If there were "finalized" lab orders from a previous "partial complete", they might be lost. 
+            // But usually "Complete" closes the OPD. So for an open OPD, deleting and recreating is acceptable for Draft saves.
+            await client.query(`DELETE FROM lab_orders WHERE opd_id = $1`, [opd_id]);
+
+            // Delete Billing (Pending bills for this OPD)
+            // We first identify the bill_master_id to delete details
+            const pendingBills = await client.query(`SELECT bill_master_id FROM billing_master WHERE opd_id = $1 AND status = 'Pending'`, [opd_id]);
+            for (const row of pendingBills.rows) {
+                await client.query(`DELETE FROM bill_details WHERE bill_master_id = $1`, [row.bill_master_id]);
+            }
+            await client.query(`DELETE FROM billing_master WHERE opd_id = $1 AND status = 'Pending'`, [opd_id]);
+
+
+            // --- 2. INSERT CONSULTATION OUTCOME (DRAFT) ---
+            const outcomeResult = await client.query(`
+                INSERT INTO consultation_outcomes (
                     opd_id, patient_id, doctor_id,
-                    diagnosis, notes,
-                    JSON.stringify(labs || []),
-                    JSON.stringify(medications || []),
-                    referral_doctor_id || null,
-                    referral_notes || null,
-                    next_visit_date || null,
-                    next_visit_status
-                ]);
+                    consultation_status, diagnosis, notes, labs, medications,
+                    referral_doctor_id, referral_notes,
+                    next_visit_date, next_visit_status,
+                    procedures, diagnostic_center,
+                    diagnosis_data, procedures_data
+                ) VALUES ($1, $2, $3, 'Draft', $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+                RETURNING *
+            `, [
+                opd_id, patient_id, doctor_id,
+                diagnosis, notes,
+                JSON.stringify(labs || []),
+                JSON.stringify(medications || []),
+                referral_doctor_id || null,
+                referral_notes || null,
+                next_visit_date || null,
+                next_visit_status,
+                procedures || null,
+                pathology_lab || null,
+                JSON.stringify(diagnosis_list || []),
+                JSON.stringify(procedures_list || [])
+            ]);
+
+            // --- 3. CREATE PRESCRIPTION (Active/Draft) ---
+            let prescription_id = null;
+            if ((medications && medications.length > 0) || (labs && labs.length > 0) || (procedures && procedures.length > 0)) {
+                const presResult = await client.query(`
+                    INSERT INTO prescriptions (
+                        doctor_id, patient_id, branch_id, medications, notes, diagnosis, labs, procedures, status, opd_id
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'Pending', $9)
+                    RETURNING prescription_id
+                `, [doctor_id, patient_id, branch_id, JSON.stringify(medications || []), notes, diagnosis, JSON.stringify(labs || []), procedures || null, opd_id]);
+                prescription_id = presResult.rows[0].prescription_id;
+
+                // Update outcome with prescription_id
+                await client.query(`UPDATE consultation_outcomes SET prescription_id = $1 WHERE outcome_id = $2`, [prescription_id, outcomeResult.rows[0].outcome_id]);
             }
 
+            // --- 4. PROCESS BILLING ITEMS & LAB ORDERS ---
+            let subtotal = 0;
+            const billingItems = [];
+
+            // 4a. Labs
+            if (labs && labs.length > 0) {
+                for (const lab of labs) {
+                    const orderNumber = `LO-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+                    const normalizedCat = normalizeCategory(lab.category);
+                    const isExternal = lab.source !== 'billing_setup_master';
+
+                    await client.query(`
+                        INSERT INTO lab_orders (
+                            order_number, patient_id, doctor_id, branch_id, opd_id, prescription_id,
+                            test_name, test_category, priority, status, ordered_at, notes, test_code, is_external
+                        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'Routine', 'Ordered', NOW(), $9, $10, $11)
+                    `, [
+                        orderNumber, safeInt(patient_id), safeInt(doctor_id), safeInt(branch_id), safeInt(opd_id), safeInt(prescription_id),
+                        lab.test_name || lab.service_name, normalizedCat, lab.notes || '', lab.code || null, isExternal
+                    ]);
+
+                    // Billing (Internal only)
+                    const price = parseFloat(lab.price || 0);
+                    if (price > 0) {
+                        subtotal += price;
+                        billingItems.push({
+                            service_name: lab.test_name || lab.service_name,
+                            service_type: 'lab_order',
+                            service_category: lab.category || 'Laboratory',
+                            quantity: 1, unit_price: price, subtotal: price, final_price: price,
+                            description: lab.source === 'billing_setup_master' ? 'In House' : 'External'
+                        });
+                    }
+                }
+            }
+
+            // 4b. Procedures
+            if (procedures_list && procedures_list.length > 0) {
+                for (const proc of procedures_list) {
+                    // Create Lab Order (Procedure)
+                    const orderNumber = `LO-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+                    const isExternal = proc.source !== 'billing_setup_master';
+                    const normalizedCat = normalizeCategory(proc.category || 'Procedure');
+
+                    await client.query(`
+                        INSERT INTO lab_orders (
+                            order_number, patient_id, doctor_id, branch_id, opd_id, prescription_id,
+                            test_name, test_category, priority, status, ordered_at, notes, test_code, is_external
+                        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'Routine', 'Ordered', NOW(), $9, $10, $11)
+                    `, [
+                        orderNumber, safeInt(patient_id), safeInt(doctor_id), safeInt(branch_id), safeInt(opd_id), safeInt(prescription_id),
+                        proc.name || proc.service_name, normalizedCat, '', proc.code || null, isExternal
+                    ]);
+
+                    if (proc.price && parseFloat(proc.price) > 0) {
+                        const price = parseFloat(proc.price);
+                        subtotal += price;
+                        billingItems.push({
+                            service_name: proc.name || proc.service_name,
+                            service_type: 'procedure',
+                            service_category: normalizedCat,
+                            quantity: 1, unit_price: price, subtotal: price, final_price: price,
+                            description: proc.source === 'billing_setup_master' ? 'In House' : 'External'
+                        });
+                    }
+                }
+            }
+
+            // 4c. Diagnosis
+            if (diagnosis_list && diagnosis_list.length > 0) {
+                for (const diag of diagnosis_list) {
+                    // Create Lab Order (Diagnosis/Scan) - Only if it's a structured service object or has a name
+                    if (diag.name || diag.service_name) {
+                        const orderNumber = `LO-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+                        const isExternal = diag.source !== 'billing_setup_master';
+                        const normalizedCat = normalizeCategory(diag.category || 'Diagnosis');
+
+                        await client.query(`
+                             INSERT INTO lab_orders (
+                                 order_number, patient_id, doctor_id, branch_id, opd_id, prescription_id,
+                                 test_name, test_category, priority, status, ordered_at, notes, test_code, is_external
+                             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'Routine', 'Ordered', NOW(), $9, $10, $11)
+                         `, [
+                            orderNumber, safeInt(patient_id), safeInt(doctor_id), safeInt(branch_id), safeInt(opd_id), safeInt(prescription_id),
+                            diag.name || diag.service_name, normalizedCat, '', diag.code || null, isExternal
+                        ]);
+                    }
+
+                    if (diag.price && parseFloat(diag.price) > 0) {
+                        const price = parseFloat(diag.price);
+                        subtotal += price;
+                        billingItems.push({
+                            service_name: diag.name || diag.service_name,
+                            service_type: 'consultation',
+                            service_category: normalizeCategory(diag.category || 'Diagnosis'),
+                            quantity: 1, unit_price: price, subtotal: price, final_price: price,
+                            description: diag.source === 'billing_setup_master' ? 'In House' : 'External'
+                        });
+                    }
+                }
+            }
+
+            // --- 5. CREATE BILLING MASTER & DETAILS (DRAFT) ---
+            if (billingItems.length > 0) {
+                const billNumber = `DRAFT-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+                const patientName = `${opdData.first_name} ${opdData.last_name}`;
+                const patientAddress = `${opdData.address || ''}, ${opdData.city || ''}`;
+
+                const billRes = await client.query(`
+                    INSERT INTO billing_master (
+                        bill_number, invoice_number, opd_id, opd_number, branch_id, patient_id,
+                        mrn_number, patient_name, patient_address, contact_number,
+                        billing_date, subtotal_amount, total_amount, payment_mode, status, payment_status,
+                        created_by
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), $11, $12, 'Cash', 'Pending', 'Unpaid', $13)
+                    RETURNING bill_master_id
+                `, [
+                    billNumber, 'DRAFT', safeInt(opd_id), opdData.opd_number, safeInt(branch_id), safeInt(patient_id),
+                    opdData.mrn_number, patientName, patientAddress, opdData.contact_number,
+                    subtotal, subtotal, safeInt(user_id)
+                ]);
+
+                const billMasterId = billRes.rows[0].bill_master_id;
+
+                for (const item of billingItems) {
+                    await client.query(`
+                        INSERT INTO bill_details (
+                            bill_master_id, branch_id, department_id, opd_id, patient_id, mrn_number,
+                            service_type, service_name, service_category, description,
+                            quantity, unit_price, subtotal, final_price, status, created_by
+                        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'Pending', $15)
+                    `, [
+                        safeInt(billMasterId), safeInt(branch_id), 1, safeInt(opd_id), safeInt(patient_id), opdData.mrn_number,
+                        item.service_type, item.service_name, item.service_category, item.description,
+                        item.quantity, item.unit_price, item.subtotal, item.final_price, safeInt(user_id)
+                    ]);
+                }
+            }
+
+            await client.query('COMMIT');
             res.status(200).json({
                 status: 'success',
                 message: 'Draft saved successfully',
-                data: { draft: result.rows[0] }
+                data: { draft: outcomeResult.rows[0] }
             });
+
         } catch (error) {
+            await client.query('ROLLBACK');
             console.error('Save draft error:', error);
             next(new AppError('Failed to save draft', 500));
+        } finally {
+            client.release();
         }
     }
 
@@ -126,7 +324,7 @@ class ConsultationController {
 
             const result = await query(`
                 SELECT * FROM consultation_outcomes
-                WHERE opd_id = $1 AND consultation_status = 'Draft'
+                WHERE opd_id = $1 AND consultation_status IN ('Draft', 'Pending')
             `, [opdId]);
 
             res.status(200).json({
@@ -152,29 +350,44 @@ class ConsultationController {
                 opd_id,
                 patient_id,
                 diagnosis,
+                diagnosis_list,
                 notes,
                 next_visit_date,
                 next_visit_status,
-                // Prescription details
                 medications,
-                labs, // New field
-                // Referral details
+                labs,
                 referral_doctor_id,
                 referral_notes,
-                pathology_lab // For external diagnostic center
+                pathology_lab,
+                procedures,
+                procedures_list
             } = req.body;
 
-            const doctor_id = req.user.doctor_id || req.body.doctor_id; // Handle if passed explicitly or from token
+            const doctor_id = req.user.doctor_id || req.body.doctor_id;
 
             if (!opd_id || !patient_id || !doctor_id) {
                 throw new AppError('Missing required fields: opd_id, patient_id, doctor_id', 400);
             }
 
+            // Delete any existing draft prescriptions
             // Delete any existing draft for this OPD
             await client.query(`
                 DELETE FROM consultation_outcomes
-                WHERE opd_id = $1 AND consultation_status = 'Draft'
+                WHERE opd_id = $1 AND consultation_status IN ('Draft', 'Pending')
             `, [opd_id]);
+
+            await client.query(`DELETE FROM prescriptions WHERE opd_id = $1`, [opd_id]);
+
+            // Delete Draft Lab Orders for this OPD (created by Save Draft)
+            await client.query(`DELETE FROM lab_orders WHERE opd_id = $1`, [opd_id]);
+
+            // Delete Pending Bills for this OPD (created by Save Draft)
+            const pendingBills = await client.query(`SELECT bill_master_id FROM billing_master WHERE opd_id = $1 AND status = 'Pending'`, [opd_id]);
+            for (const row of pendingBills.rows) {
+                await client.query(`DELETE FROM bill_details WHERE bill_master_id = $1`, [row.bill_master_id]);
+            }
+            await client.query(`DELETE FROM billing_master WHERE opd_id = $1 AND status = 'Pending'`, [opd_id]);
+
 
             // 1. Fetch details needed for Labs and Billing
             const opdDetailsRes = await client.query(`
@@ -200,67 +413,76 @@ class ConsultationController {
                 throw new AppError('Critical Error: Missing Doctor ID in request or token', 400);
             }
 
-            const user_id = req.user?.user_id || req.user?.userId; // Handle both naming conventions
+            const user_id = req.user?.user_id || req.user?.userId;
             if (!user_id) {
-                // Fallback: If no user_id found (rare), use a system user or throw error?
-                // For now, throw error as it's required for audit trails (created_by)
                 throw new AppError('Critical Error: User ID not found in session', 401);
             }
 
             const patientName = `${opdData.first_name} ${opdData.last_name}`;
             const patientAddress = `${opdData.address || ''}, ${opdData.city || ''}, ${opdData.state || ''}`;
 
-            // Helper to handle potentially undefined values for SQL
             const safeInt = (val) => {
                 if (val === undefined || val === null) return null;
                 const converted = parseInt(val, 10);
                 return isNaN(converted) ? null : converted;
             };
 
+            // --- SAVE FINAL PRESCRIPTIONS ---
+            if (medications && Array.isArray(medications) && medications.length > 0) {
+                for (const med of medications) {
+                    await client.query(`
+                        INSERT INTO prescriptions (
+                            opd_id, patient_id, doctor_id,
+                            medicine_name, dosage, frequency, duration, food_timing,
+                            status
+                        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'Completed')
+                    `, [
+                        opd_id, patient_id, doctor_id,
+                        med.name, med.dosage,
+                        med.frequency || [med.morning && 'Morning', med.noon && 'Noon', med.night && 'Night'].filter(Boolean).join('-'),
+                        med.duration, med.food_timing
+                    ]);
+                }
+            }
+
             // 2. Create Prescription if medications or labs are provided
             let prescription_id = null;
-            if ((medications && medications.length > 0) || (labs && labs.length > 0)) {
+            if ((medications && medications.length > 0) || (labs && labs.length > 0) || (procedures && procedures.length > 0)) {
                 // Fetch branch_id from OPD entry
                 const opdResult = await client.query('SELECT branch_id FROM opd_entries WHERE opd_id = $1', [opd_id]);
                 const branch_id = opdResult.rows[0]?.branch_id;
 
                 const presResult = await client.query(`
                     INSERT INTO prescriptions (
-                        doctor_id, patient_id, branch_id, medications, notes, diagnosis, labs, status
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'Active')
+                        doctor_id, patient_id, branch_id, medications, notes, diagnosis, labs, procedures, status, opd_id
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'Active', $9)
                     RETURNING prescription_id
-                `, [doctor_id, patient_id, branch_id, JSON.stringify(medications || []), notes, diagnosis, JSON.stringify(labs || [])]);
+                `, [doctor_id, patient_id, branch_id, JSON.stringify(medications || []), notes, diagnosis, JSON.stringify(labs || []), procedures || null, opd_id]);
 
                 prescription_id = presResult.rows[0].prescription_id;
             }
 
-            // Helper function to normalize category to valid DB values
             const normalizeCategory = (category) => {
                 const cat = (category || '').toLowerCase();
                 if (cat.includes('lab') || cat === 'lab_test') return 'Lab';
-                if (cat.includes('imag') || cat.includes('radio') || cat.includes('x-ray')) return 'Imaging';
+                if (cat.includes('imag') || cat.includes('radio') || cat.includes('x-ray') || cat.includes('scan')) return 'Imaging';
                 if (cat.includes('proc')) return 'Procedure';
                 if (cat.includes('exam')) return 'Examination';
                 return 'Other';
             };
 
-            // 3. Process Lab Orders & Billing
-            let billMasterId = null;
-            if (labs && labs.length > 0) {
-                // Calculate Totals
-                let subtotal = 0;
-                const billingItems = [];
+            // 3. Process Billing Items (Labs, Procedures, Diagnosis)
+            let subtotal = 0;
+            const billingItems = [];
 
+            // 3a. Labs: Create Lab Orders + Add to Billing
+            if (labs && labs.length > 0) {
                 for (const lab of labs) {
                     // Create Lab Order
                     const orderNumber = `LO-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-
                     const normalizedCat = normalizeCategory(lab.category);
-                    console.log(`[LAB ORDER] Category: "${lab.category}" -> "${normalizedCat}"`);
 
-
-                    // Determine if external: TRUE for medical_service, FALSE for billing_master
-                    const isExternal = lab.source !== 'billing_master'; // Default to TRUE (external) if not specified
+                    const isExternal = lab.source !== 'billing_setup_master';
 
                     await client.query(`
                         INSERT INTO lab_orders (
@@ -281,14 +503,8 @@ class ConsultationController {
                         isExternal
                     ]);
 
-                    // Prepare Billing Item (ONLY FOR IN_HOUSE LABS)
+                    // Add to billing only if price > 0
                     const price = parseFloat(lab.price || 0);
-
-                    // Determine description based on source
-                    const isInternal = lab.source === 'billing_master';
-                    const description = isInternal ? 'In House' : 'External';
-
-                    // Prepare Billing Item if price is valid
                     if (price > 0) {
                         subtotal += price;
                         billingItems.push({
@@ -299,72 +515,141 @@ class ConsultationController {
                             unit_price: price,
                             subtotal: price,
                             final_price: price,
-                            description: description
+                            description: lab.source === 'billing_setup_master' ? 'In House' : 'External'
                         });
-                    }
-                }
-
-                // Create Billing Master if there are billable items
-                if (subtotal > 0) {
-                    const billNumber = `BILL-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-                    const invoiceNumber = `INV-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-
-                    const billRes = await client.query(`
-                        INSERT INTO billing_master (
-                            bill_number, invoice_number, opd_id, opd_number, branch_id, patient_id,
-                            mrn_number, patient_name, patient_address, contact_number,
-                            billing_date, subtotal_amount, total_amount, payment_mode, status, payment_status,
-                            created_by
-                        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), $11, $12, 'Cash', 'Pending', 'Unpaid', $13)
-                        RETURNING bill_master_id
-                    `, [
-                        billNumber,
-                        invoiceNumber,
-                        safeInt(opd_id),
-                        opdData.opd_number || 'UNKNOWN',
-                        safeInt(branch_id),
-                        safeInt(patient_id),
-                        opdData.mrn_number || 'UNKNOWN',
-                        patientName || 'Unknown Patient',
-                        patientAddress || '',
-                        opdData.contact_number || '',
-                        subtotal,
-                        subtotal,
-                        safeInt(user_id)
-                    ]);
-
-                    billMasterId = billRes.rows[0].bill_master_id;
-
-                    // Insert Bill Details
-                    for (const item of billingItems) {
-                        await client.query(`
-                            INSERT INTO bill_details (
-                                bill_master_id, branch_id, department_id, opd_id, patient_id, mrn_number,
-                                service_type, service_name, service_category, description,
-                                quantity, unit_price, subtotal, final_price, status, created_by
-                            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'Pending', $15)
-                        `, [
-                            safeInt(billMasterId),
-                            safeInt(branch_id),
-                            1, // Default department_id - Lab/Diagnostic department
-                            safeInt(opd_id),
-                            safeInt(patient_id),
-                            opdData.mrn_number || 'UNKNOWN',
-                            item.service_type,
-                            item.service_name,
-                            item.service_category,
-                            item.description || 'In House', // 'In House' or 'External'
-                            item.quantity,
-                            item.unit_price,
-                            item.subtotal,
-                            item.final_price,
-                            safeInt(user_id)
-                        ]);
                     }
                 }
             }
 
-            // 4. Create Consultation Outcome
+            // 3b. Procedures: Add to Billing & Lab Orders
+            if (procedures_list && procedures_list.length > 0) {
+                for (const proc of procedures_list) {
+                    // Create Lab Order (Procedure)
+                    const orderNumber = `LO-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+                    const isExternal = proc.source !== 'billing_setup_master';
+                    const normalizedCat = normalizeCategory(proc.category || 'Procedure');
+
+                    await client.query(`
+                        INSERT INTO lab_orders (
+                            order_number, patient_id, doctor_id, branch_id, opd_id, prescription_id,
+                            test_name, test_category, priority, status, ordered_at, notes, test_code, is_external
+                        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'Routine', 'Ordered', NOW(), $9, $10, $11)
+                    `, [
+                        orderNumber, safeInt(patient_id), safeInt(doctor_id), safeInt(branch_id), safeInt(opd_id), safeInt(prescription_id),
+                        proc.name || proc.service_name, normalizedCat, '', proc.code || null, isExternal
+                    ]);
+
+                    if (proc.price && parseFloat(proc.price) > 0) {
+                        const price = parseFloat(proc.price);
+                        subtotal += price;
+                        billingItems.push({
+                            service_name: proc.name || proc.service_name,
+                            service_type: 'procedure',
+                            service_category: normalizedCat,
+                            quantity: 1, unit_price: price, subtotal: price, final_price: price,
+                            description: proc.source === 'billing_setup_master' ? 'In House' : 'External'
+                        });
+                    }
+                }
+            }
+
+            // 3c. Diagnosis: Add to Billing & Lab Orders (if valid service)
+            if (diagnosis_list && diagnosis_list.length > 0) {
+                for (const diag of diagnosis_list) {
+                    // Create Lab Order (Diagnosis/Scan)
+                    if (diag.name || diag.service_name) {
+                        const orderNumber = `LO-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+                        const isExternal = diag.source !== 'billing_setup_master';
+                        const normalizedCat = normalizeCategory(diag.category || 'Diagnosis');
+
+                        await client.query(`
+                            INSERT INTO lab_orders (
+                                order_number, patient_id, doctor_id, branch_id, opd_id, prescription_id,
+                                test_name, test_category, priority, status, ordered_at, notes, test_code, is_external
+                            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'Routine', 'Ordered', NOW(), $9, $10, $11)
+                        `, [
+                            orderNumber, safeInt(patient_id), safeInt(doctor_id), safeInt(branch_id), safeInt(opd_id), safeInt(prescription_id),
+                            diag.name || diag.service_name, normalizedCat, '', diag.code || null, isExternal
+                        ]);
+                    }
+
+                    if (diag.price && parseFloat(diag.price) > 0) {
+                        const price = parseFloat(diag.price);
+                        subtotal += price;
+                        billingItems.push({
+                            service_name: diag.name || diag.service_name,
+                            service_type: 'consultation', // or diagnosis
+                            service_category: normalizeCategory(diag.category || 'Diagnosis'),
+                            quantity: 1,
+                            unit_price: price,
+                            subtotal: price,
+                            final_price: price,
+                            description: diag.source === 'billing_setup_master' ? 'In House' : 'External'
+                        });
+                    }
+                }
+            }
+
+
+            // Create Billing Master if there are billable items
+            if (billingItems.length > 0) {
+                const billNumber = `BILL-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+                const invoiceNumber = `INV-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+                const billRes = await client.query(`
+                    INSERT INTO billing_master (
+                        bill_number, invoice_number, opd_id, opd_number, branch_id, patient_id,
+                        mrn_number, patient_name, patient_address, contact_number,
+                        billing_date, subtotal_amount, total_amount, payment_mode, status, payment_status,
+                        created_by
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), $11, $12, 'Cash', 'Pending', 'Unpaid', $13)
+                    RETURNING bill_master_id
+                `, [
+                    billNumber,
+                    invoiceNumber,
+                    safeInt(opd_id),
+                    opdData.opd_number || 'UNKNOWN',
+                    safeInt(branch_id),
+                    safeInt(patient_id),
+                    opdData.mrn_number || 'UNKNOWN',
+                    patientName || 'Unknown Patient',
+                    patientAddress || '',
+                    opdData.contact_number || '',
+                    subtotal,
+                    subtotal,
+                    safeInt(user_id)
+                ]);
+
+                const billMasterId = billRes.rows[0].bill_master_id;
+
+                // Insert Bill Details
+                for (const item of billingItems) {
+                    await client.query(`
+                        INSERT INTO bill_details (
+                            bill_master_id, branch_id, department_id, opd_id, patient_id, mrn_number,
+                            service_type, service_name, service_category, description,
+                            quantity, unit_price, subtotal, final_price, status, created_by
+                        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'Pending', $15)
+                    `, [
+                        safeInt(billMasterId),
+                        safeInt(branch_id),
+                        1, // Default department
+                        safeInt(opd_id),
+                        safeInt(patient_id),
+                        opdData.mrn_number || 'UNKNOWN',
+                        item.service_type,
+                        item.service_name,
+                        item.service_category,
+                        item.description,
+                        item.quantity,
+                        item.unit_price,
+                        item.subtotal,
+                        item.final_price,
+                        safeInt(user_id)
+                    ]);
+                }
+            }
+
             // 4. Create Consultation Outcome
             let outcomeResult;
             try {
@@ -374,8 +659,10 @@ class ConsultationController {
                         consultation_status, diagnosis, notes,
                         next_visit_date, next_visit_status, labs,
                         referral_doctor_id, referral_notes,
-                        diagnostic_center
-                    ) VALUES ($1, $2, $3, $4, 'Completed', $5, $6, $7, $8, $9, $10, $11, $12)
+                        diagnostic_center,
+                        procedures,
+                        diagnosis_data, procedures_data
+                    ) VALUES ($1, $2, $3, $4, 'Completed', $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
                     RETURNING *
                 `, [
                     safeInt(opd_id),
@@ -389,64 +676,15 @@ class ConsultationController {
                     JSON.stringify(labs || []),
                     safeInt(referral_doctor_id),
                     referral_notes || null,
-                    pathology_lab || null
+                    pathology_lab || null,
+                    procedures || null,
+                    JSON.stringify(diagnosis_list || []),
+                    JSON.stringify(procedures_list || [])
                 ]);
             } catch (err) {
                 console.error('Error inserting consultation outcome:', err);
                 throw new AppError(`Failed to save consultation outcome: ${err.message}`, 500);
             }
-
-            // 5. Update OPD Entry Status & Clear Drafts... (Rest of function)
-
-            // Delete any existing draft for this OPD (Moved to start usually, but fine here if transaction holds)
-            // Wait, existing code had delete at start. I should keep it or ensure order.
-            // I'll assume usage of existing delete at line 173-176 covered by previous steps if I kept it?
-            // Actually, I am replacing lines 178-193 mostly.
-            // The original code deleted draft at line 173. My replacement starts there?
-            // No, my replacement starts at line ~182: "const opdResult = await client.query..."
-            // I should check strict line numbers.
-
-            // Wait, I am replacing lines 178-193 AND injecting new logic.
-            // The existing code at 178-193 was just prescription creation.
-            // So I am replacing that block with my expanded block.
-
-            // Need to match context exactly.
-
-            // Original line 173: await client.query... DELETE FROM consultation_outcomes...
-            // Original line 178: // 1. Create Prescription...
-
-            // So my replacement effectively handles prescription + labs + billing.
-
-            // Wait, I need to check if I broke the flow.
-            // My replacement ends before "const outcomeResult = await client.query..."
-            // Which is line 196 in original.
-
-            // So I should replace lines 178 to 193 with my new logic.
-            // And I included "4. Create Consultation Outcome" in my replacement content, which duplicates line 196+
-            // Ah, I need to be careful.
-
-            // Let's look at what I am targeting.
-            // I am targeting lines 178 to 204?
-            // No, I want to replace the Prescription creation part and insert Lab/Billing before Outcome creation.
-
-            // Original:
-            // 178: // 1. Create Prescription...
-            // ...
-            // 193: }
-            // 195: // 2. Create Consultation Outcome
-
-            // So I will replace from line 178 to 193.
-            // And insert my logic there.
-
-            // BUT, my replacement content includes:
-            // "4. Create Consultation Outcome" ...
-            // That means I am duplicating the outcome creation if I don't remove the original.
-
-            // Better strategy: Replace the whole block from 178 to 204.
-            // But 196-204 is the outcome creation.
-
-            // Let's rewrite the Instruction to be precise.
-
 
 
             // 3. Update OPD Entry Status
@@ -457,7 +695,6 @@ class ConsultationController {
             `, [opd_id]);
 
             // 4. Update Appointment Status to 'Completed'
-            // We need to match by patient, doctor and date of the OPD visit
             const opdDateResult = await client.query('SELECT visit_date FROM opd_entries WHERE opd_id = $1', [opd_id]);
             const visit_date = opdDateResult.rows[0]?.visit_date;
 

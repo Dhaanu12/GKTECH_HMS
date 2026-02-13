@@ -3,56 +3,89 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, FileText, User, Stethoscope, Activity, Plus, Trash2, Phone, MapPin, Calendar, Clock, Loader2, Mic, Sparkles, Play, Pause, Layout, History as HistoryIcon, FileBadge, CheckCircle, XCircle, Info, X, Search } from 'lucide-react';
+import { ArrowLeft, FileText, User, Stethoscope, Activity, Plus, Trash2, Phone, MapPin, Calendar, Clock, Loader2, Mic, Sparkles, Play, Pause, Layout, History as HistoryIcon, FileBadge, CheckCircle, XCircle, Info, X, Search, Droplet, Pill, Zap, Eye } from 'lucide-react';
 import PatientProfile from '@/components/patient/PatientProfile';
 
 const API_URL = 'http://localhost:5000/api';
-
-const COMMON_DIAGNOSES = [
-    "Viral Fever", "Acute Gastroenteritis", "Upper Respiratory Tract Infection", "Type 2 Diabetes Mellitus", "Hypertension",
-    "Essential Hypertension", "Acute Bronchitis", "Pneumonia", "Urinary Tract Infection", "Migraine",
-    "Tension Headache", "GERD", "Acid Peptic Disease", "Acute Gastritis", "Typhoid Fever",
-    "Dengue Fever", "Malaria", "Hypothyroidism", "Hyperthyroidism", "Anaemia",
-    "Iron Deficiency Anaemia", "Vitamin D Deficiency", "Vitamin B12 Deficiency", "Osteoarthritis", "Back Pain",
-    "Lower Back Pain", "Cervical Spondylosis", "Allergic Rhinitis", "Asthma", "COPD",
-    "Tuberculosis", "Conjunctivitis", "Otitis Media", "Pharyngitis", "Tonsillitis",
-    "Sinusitis", "Food Poisoning", "Chickenpox", "Measles", "Mumps",
-    "Skin Infection", "Dermatitis", "Eczema", "Fungal Infection", "Scabies",
-    "Anxiety Disorder", "Depression", "Insomnia", "Obesity", "Dyslipidemia"
-];
 
 export default function PatientDetails() {
     const params = useParams();
     const router = useRouter();
     const [patient, setPatient] = useState<any>(null);
     const [opdHistory, setOpdHistory] = useState<any[]>([]);
+    const [patientDocuments, setPatientDocuments] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'consultation' | 'profile'>('consultation');
 
     // Diagnosis Search Logic
     const [diagnosisSearchQuery, setDiagnosisSearchQuery] = useState('');
-    const [diagnosisSearchResults, setDiagnosisSearchResults] = useState<string[]>([]);
+    const [diagnosisSearchResults, setDiagnosisSearchResults] = useState<any[]>([]);
     const [showDiagnosisDropdown, setShowDiagnosisDropdown] = useState(false);
+    const [isSearchingDiagnosis, setIsSearchingDiagnosis] = useState(false);
 
-    const handleDiagnosisSearch = (query: string) => {
+    const handleDiagnosisSearch = async (query: string) => {
         setDiagnosisSearchQuery(query);
-        if (query.length > 0) {
-            const results = COMMON_DIAGNOSES.filter(d => d.toLowerCase().includes(query.toLowerCase()));
-            setDiagnosisSearchResults(results);
-            setShowDiagnosisDropdown(true);
-        } else {
+        if (query.length < 2) {
+            setDiagnosisSearchResults([]);
             setShowDiagnosisDropdown(false);
+            return;
+        }
+
+        setIsSearchingDiagnosis(true);
+        setShowDiagnosisDropdown(true);
+
+        try {
+            const token = localStorage.getItem('token');
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            const activeOpd = opdHistory.find(opd => ['Registered', 'In-consultation'].includes(opd.visit_status)) || opdHistory[0];
+            const branchId = activeOpd?.branch_id || user.branch_id || 1; // Default to 1 (Global) to ensure In-House search works
+
+            // Search for services with category 'scan' for diagnosis
+            const endpoint = `${API_URL}/billing-setup/search-services?term=${query}&category=scan&branchId=${branchId || 1}`;
+
+            const response = await axios.get(endpoint, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            console.log(`[Diagnostic] Diagnosis result for "${query}":`, response.data);
+            setDiagnosisSearchResults(Array.isArray(response.data) ? response.data : (response.data?.data?.services || []));
+        } catch (error) {
+            console.error('Error searching diagnosis:', error);
+            setDiagnosisSearchResults([]);
+        } finally {
+            setIsSearchingDiagnosis(false);
         }
     };
 
-    const addDiagnosis = (diagnosis: string) => {
+    const addDiagnosis = (diagnosis: any) => {
+        const diagnosisName = typeof diagnosis === 'string' ? diagnosis : diagnosis.service_name;
         const currentList = consultationData.diagnosis ? consultationData.diagnosis.split(', ').filter(d => d.trim() !== '') : [];
-        if (!currentList.includes(diagnosis.trim())) {
-            const newList = [...currentList, diagnosis.trim()];
+        if (!currentList.includes(diagnosisName.trim())) {
+            const newStringList = [...currentList, diagnosisName.trim()];
+
+            const newObjectList = [...(consultationData.diagnosis_list || [])];
+            if (typeof diagnosis === 'object' && diagnosis.service_name) {
+                newObjectList.push({
+                    name: diagnosis.service_name,
+                    source: diagnosis.source,
+                    service_id: diagnosis.service_id,
+                    price: diagnosis.price,
+                    code: diagnosis.service_code,
+                    category: diagnosis.category
+                });
+            } else {
+                newObjectList.push({ name: diagnosisName.trim(), source: null });
+            }
+
             setConsultationData({
                 ...consultationData,
-                diagnosis: newList.join(', ')
+                diagnosis: newStringList.join(', '),
+                diagnosis_list: newObjectList
             });
+
+            if (typeof diagnosis === 'object' && diagnosis.source && diagnosis.source !== 'billing_setup_master') {
+                setHasExternalDiagnosis(true);
+            }
         }
         setDiagnosisSearchQuery('');
         setShowDiagnosisDropdown(false);
@@ -61,9 +94,16 @@ export default function PatientDetails() {
     const removeDiagnosis = (index: number) => {
         const currentList = consultationData.diagnosis ? consultationData.diagnosis.split(', ').filter(d => d.trim() !== '') : [];
         currentList.splice(index, 1);
+
+        const newObjectList = [...(consultationData.diagnosis_list || [])];
+        if (index < newObjectList.length) {
+            newObjectList.splice(index, 1);
+        }
+
         setConsultationData({
             ...consultationData,
-            diagnosis: currentList.join(', ')
+            diagnosis: currentList.join(', '),
+            diagnosis_list: newObjectList
         });
     };
 
@@ -73,9 +113,102 @@ export default function PatientDetails() {
         }
     };
 
+    // Procedures Logic
+    const [procedureSearchQuery, setProcedureSearchQuery] = useState('');
+    const [procedureSearchResults, setProcedureSearchResults] = useState<any[]>([]);
+    const [showProcedureDropdown, setShowProcedureDropdown] = useState(false);
+    const [isSearchingProcedures, setIsSearchingProcedures] = useState(false);
+
+    const handleProcedureSearch = async (query: string) => {
+        setProcedureSearchQuery(query);
+        if (query.length < 2) {
+            setProcedureSearchResults([]);
+            setShowProcedureDropdown(false);
+            return;
+        }
+
+        setIsSearchingProcedures(true);
+        setShowProcedureDropdown(true);
+
+        try {
+            const token = localStorage.getItem('token');
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            const activeOpd = opdHistory.find(opd => ['Registered', 'In-consultation'].includes(opd.visit_status)) || opdHistory[0];
+            const branchId = activeOpd?.branch_id || user.branch_id || 1;
+
+            const endpoint = `${API_URL}/billing-setup/search-services?term=${query}&category=procedure&branchId=${branchId || 1}`;
+
+            const response = await axios.get(endpoint, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            console.log(`[Diagnostic] Procedure result for "${query}":`, response.data);
+            setProcedureSearchResults(Array.isArray(response.data) ? response.data : (response.data?.data?.services || []));
+        } catch (error) {
+            console.error('Error searching procedures:', error);
+            setProcedureSearchResults([]);
+        } finally {
+            setIsSearchingProcedures(false);
+        }
+    };
+
+    const addProcedure = (proc: any) => {
+        const procName = typeof proc === 'string' ? proc : proc.service_name;
+        const currentList = consultationData.procedures ? consultationData.procedures.split(', ').filter(d => d.trim() !== '') : [];
+        if (!currentList.includes(procName.trim())) {
+            const newStringList = [...currentList, procName.trim()];
+
+            const newObjectList = [...(consultationData.procedures_list || [])];
+            if (typeof proc === 'object' && proc.service_name) {
+                newObjectList.push({
+                    name: proc.service_name,
+                    source: proc.source,
+                    service_id: proc.service_id,
+                    price: proc.price,
+                    code: proc.service_code,
+                    category: proc.category
+                });
+            } else {
+                newObjectList.push({ name: procName.trim(), source: null });
+            }
+
+            setConsultationData({
+                ...consultationData,
+                procedures: newStringList.join(', '),
+                procedures_list: newObjectList
+            });
+        }
+        setProcedureSearchQuery('');
+        setShowProcedureDropdown(false);
+    };
+
+    const handleManualAddProcedure = () => {
+        if (procedureSearchQuery.trim()) {
+            addProcedure(procedureSearchQuery);
+        }
+    };
+
+    const removeProcedure = (index: number) => {
+        const currentList = consultationData.procedures ? consultationData.procedures.split(', ').filter(d => d.trim() !== '') : [];
+        currentList.splice(index, 1);
+
+        const newObjectList = [...(consultationData.procedures_list || [])];
+        if (index < newObjectList.length) {
+            newObjectList.splice(index, 1);
+        }
+
+        setConsultationData({
+            ...consultationData,
+            procedures: currentList.join(', '),
+            procedures_list: newObjectList
+        });
+    };
+
     const [showConsultationForm, setShowConsultationForm] = useState(false);
     const [consultationData, setConsultationData] = useState({
+        opd_id: undefined as number | undefined,
         diagnosis: '',
+        diagnosis_list: [] as any[],
         pathology_lab: '',
         notes: '',
         labs: [] as any[],
@@ -83,7 +216,9 @@ export default function PatientDetails() {
         next_visit_date: '',
         next_visit_status: 'Follow-up Required',
         referral_doctor_id: '',
-        referral_notes: ''
+        referral_notes: '',
+        procedures: '',
+        procedures_list: [] as any[]
     });
     const [selectedReferralHospital, setSelectedReferralHospital] = useState('');
     const [newMedication, setNewMedication] = useState({
@@ -108,6 +243,9 @@ export default function PatientDetails() {
         nature_of_injury: 'Simple'
     });
     const [existingMlc, setExistingMlc] = useState<any>(null);
+
+    // Track if an external diagnosis (Scan/Service) was added - to show Lab Input
+    const [hasExternalDiagnosis, setHasExternalDiagnosis] = useState(false);
 
     // Wound Certificate State
     const [showWoundCertModal, setShowWoundCertModal] = useState(false);
@@ -143,6 +281,12 @@ export default function PatientDetails() {
     const [isReferralExpanded, setIsReferralExpanded] = useState(false);
     const [isAiListening, setIsAiListening] = useState(false);
     const [isReviewMode, setIsReviewMode] = useState(false);
+    const [animateIcons, setAnimateIcons] = useState(false);
+
+    useEffect(() => {
+        const timer = setTimeout(() => setAnimateIcons(true), 600);
+        return () => clearTimeout(timer);
+    }, []);
 
     // Template Selector State
 
@@ -215,15 +359,17 @@ export default function PatientDetails() {
             // Verify params.id exists before making requests
             if (!params.id) return;
 
-            const [patientRes, opdRes, consultRes] = await Promise.all([
+            const [patientRes, opdRes, consultRes, docRes] = await Promise.all([
                 axios.get(`${API_URL}/patients/${params.id}`, { headers: { Authorization: `Bearer ${token}` } }),
                 axios.get(`${API_URL}/opd/patient/${params.id}`, { headers: { Authorization: `Bearer ${token}` } }),
-                axios.get(`${API_URL}/consultations/patient/${params.id}`, { headers: { Authorization: `Bearer ${token}` } })
+                axios.get(`${API_URL}/consultations/patient/${params.id}`, { headers: { Authorization: `Bearer ${token}` } }),
+                axios.get(`${API_URL}/patient-documents/patient/${params.id}`, { headers: { Authorization: `Bearer ${token}` } })
             ]);
 
             setPatient(patientRes.data.data.patient);
             setOpdHistory(opdRes.data.data.opdHistory || []);
             setConsultationHistory(consultRes.data.data.consultations || []);
+            setPatientDocuments(docRes.data.data.documents || []);
 
             // Check for completed visit to hide placeholder
             const history = opdRes.data.data.opdHistory || [];
@@ -306,15 +452,19 @@ export default function PatientDetails() {
             if (response.data.data.draft) {
                 const draft = response.data.data.draft;
                 setConsultationData({
+                    opd_id: draft.opd_id,
                     diagnosis: draft.diagnosis || '',
-                    pathology_lab: '',
+                    diagnosis_list: draft.diagnosis_data || [],
+                    pathology_lab: draft.diagnostic_center || draft.pathology_lab || '',
                     notes: draft.notes || '',
                     labs: draft.labs || [],
                     medications: draft.medications || [],
                     next_visit_date: draft.next_visit_date ? draft.next_visit_date.split('T')[0] : '',
                     next_visit_status: draft.next_visit_status || 'Follow-up Required',
                     referral_doctor_id: draft.referral_doctor_id ? String(draft.referral_doctor_id) : '',
-                    referral_notes: draft.referral_notes || ''
+                    referral_notes: draft.referral_notes || '',
+                    procedures: draft.procedures || '',
+                    procedures_list: draft.procedures_data || []
                 });
             }
         } catch (error: any) {
@@ -922,6 +1072,7 @@ export default function PatientDetails() {
 
     const handleStartConsultation = async () => {
         try {
+            setIsReviewMode(false); // Ensure we're not in review mode
             const token = localStorage.getItem('token');
             const activeOpd = opdHistory.find(opd => ['Registered', 'In-consultation'].includes(opd.visit_status));
 
@@ -946,17 +1097,70 @@ export default function PatientDetails() {
         }
     };
 
-    const handleAddMedication = () => {
-        if (newMedication.name && newMedication.dosage) {
-            setConsultationData({
-                ...consultationData,
-                medications: [...consultationData.medications, newMedication]
-            });
+    const handleViewConsultation = (consult: any) => {
+        let meds = consult.prescription_medications;
+        if (typeof meds === 'string') {
+            try { meds = JSON.parse(meds); } catch (e) { meds = []; }
+        } else if (!meds) {
+            meds = [];
+        }
+
+        let labs = consult.labs;
+        if (typeof labs === 'string') {
+            try { labs = JSON.parse(labs); } catch (e) { labs = []; }
+        } else if (!labs) {
+            labs = [];
+        }
+
+        setConsultationData({
+            opd_id: consult.opd_id,
+            diagnosis: consult.diagnosis || '',
+            diagnosis_list: consult.diagnosis_data || [],
+            pathology_lab: consult.pathology_lab || '',
+            notes: consult.notes || '',
+            labs: labs || [],
+            medications: meds || [],
+            next_visit_date: consult.next_visit_date ? new Date(consult.next_visit_date).toISOString().split('T')[0] : '',
+            next_visit_status: consult.next_visit_status || 'Follow-up Required',
+            referral_doctor_id: consult.referral_doctor_id ? String(consult.referral_doctor_id) : '',
+            referral_notes: consult.referral_notes || '',
+            procedures: consult.procedures || '',
+            procedures_list: consult.procedures_data || []
+        });
+        setHasExternalDiagnosis(false); // Reset this, visibility will rely on pathology_lab value
+        setIsReviewMode(true);
+        setShowConsultationForm(true);
+    };
+
+    const handleAddMedication = (medicationOverride?: any) => {
+        // Use the override if provided, otherwise use the current state
+        // This allows adding the medication immediately when a food timing button is clicked
+        // without waiting for the state to update asynchronously
+        const medToAdd = medicationOverride && medicationOverride.name ? medicationOverride : newMedication;
+
+        if (medToAdd.name && medToAdd.dosage) {
+            setConsultationData(prev => ({
+                ...prev,
+                medications: [...prev.medications, medToAdd]
+            }));
             setNewMedication({
                 name: '', dosage: '', frequency: '', duration: '',
                 morning: false, noon: false, night: false,
                 food_timing: 'After Food'
             });
+        }
+    };
+
+    const handleFoodTimingSelection = (timing: string) => {
+        // Create the updated medication object with the new timing
+        const updatedMed = { ...newMedication, food_timing: timing };
+
+        // If name and dosage are filled, add it immediately
+        if (updatedMed.name && updatedMed.dosage) {
+            handleAddMedication(updatedMed);
+        } else {
+            // Otherwise just update the state
+            setNewMedication(updatedMed);
         }
     };
 
@@ -978,33 +1182,27 @@ export default function PatientDetails() {
             const token = localStorage.getItem('token');
             const user = JSON.parse(localStorage.getItem('user') || '{}');
             const activeOpd = opdHistory.find(opd => ['Registered', 'In-consultation'].includes(opd.visit_status)) || opdHistory[0];
-            const branchId = activeOpd?.branch_id || user.branch_id;
+            const branchId = activeOpd?.branch_id || user.branch_id || 1;
 
-            // Use the unified billing setup search if branchId is available
-            const endpoint = branchId
-                ? `${API_URL}/billing-setup/search-services?term=${query}&branchId=${branchId}`
-                : `${API_URL}/services/search?query=${query}`; // Fallback
+            // Use the unified billing setup search
+            // Ensure In-House search is included by defaulting branchId to 1 if missing
+            const endpoint = `${API_URL}/billing-setup/search-services?term=${query}&category=lab_test&branchId=${branchId || 1}`;
+
+            console.log(`[Diagnostic] Fetching Labs from: ${endpoint}`);
 
             const response = await axios.get(endpoint, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            // Result is normally array in response.data directly for this endpoint (from controller)
-            // But verify response structure. Controller sends `res.json(services)`.
-            // So response.data IS the array. Not response.data.data.services.
-            // Wait, standard response structure in this app is usually { status: 'success', data: ... } wrapped by most controllers?
-            // The Controller I wrote in Step 3395: `res.json(services)`. It does NOT wrap in data object.
-            // So response.data is the array.
+            console.log(`[Diagnostic] Labs result for "${query}":`, response.data);
 
-            // However, the fallback endpoint: `response.data.data.services`.
+            // Direct assignment as the unified API returns an array
+            // Handle both array response and potential nested data structure
+            const results = Array.isArray(response.data) ? response.data : (response.data?.data?.services || []);
 
-            if (branchId) {
-                setLabSearchResults(response.data || []);
-            } else {
-                setLabSearchResults(response.data.data?.services || []);
-            }
-
+            setLabSearchResults(results);
         } catch (error) {
             console.error("Error searching labs:", error);
+            // Show error in UI via special item (optional, or just log)
             setLabSearchResults([]);
         } finally {
             setIsSearchingLabs(false);
@@ -1017,7 +1215,7 @@ export default function PatientDetails() {
             labs: [...prev.labs, {
                 test_name: service.service_name,
                 lab_name: '', // User will enter this if external
-                source: service.source,
+                source: service.source || 'medical_service',
                 category: service.category,
                 price: service.price,
                 code: service.code,
@@ -1039,7 +1237,7 @@ export default function PatientDetails() {
                 labs: [...prev.labs, {
                     test_name: service.service_name,
                     lab_name: '', // User will enter this if external
-                    source: service.source,
+                    source: service.source || 'medical_service',
                     category: service.category,
                     price: service.price,
                     code: service.code,
@@ -1251,26 +1449,37 @@ export default function PatientDetails() {
     };
 
     const handlePrintDraft = () => {
-        const activeOpd = opdHistory.find(opd => ['Registered', 'In-consultation'].includes(opd.visit_status));
+        let activeOpd = consultationData.opd_id
+            ? opdHistory.find(opd => opd.opd_id === consultationData.opd_id)
+            : opdHistory.find(opd => ['Registered', 'In-consultation', 'Pending'].includes(opd.visit_status));
+
+        // If still not found and we are in review mode (likely just completed), try finding the most recent completed one
+        if (!activeOpd && isReviewMode) {
+            const completedOpds = opdHistory.filter(opd => opd.visit_status === 'Completed');
+            if (completedOpds.length > 0) {
+                activeOpd = completedOpds[0]; // Most recent as per sort order
+            }
+        }
         const user = JSON.parse(localStorage.getItem('user') || '{}');
 
         // Construct mock consult object from current state
         const consult = {
-            hospital_name: activeOpd?.branch_name || 'PHC Hospital Management System',
+            hospital_name: activeOpd?.hospital_name || activeOpd?.branch_name || 'PHC Hospital Management System',
             headquarters_address: activeOpd?.branch_address || '', // Fallback if available
-            hospital_contact: '',
-            hospital_email: '',
+            hospital_contact: activeOpd?.branch_contact_number || '',
+            hospital_email: activeOpd?.branch_email || '',
 
-            doctor_first_name: user.first_name || '',
-            doctor_last_name: user.last_name || '',
-            specialization: user.specialization || '',
-            doctor_registration_number: user.registration_number || '', // Assuming this is stored in user object
+            doctor_first_name: activeOpd?.doctor_first_name || user.first_name || '',
+            doctor_last_name: activeOpd?.doctor_last_name || user.last_name || '',
+            specialization: activeOpd?.specialization || user.specialization || '',
+            doctor_registration_number: activeOpd?.doctor_registration_number || user.registration_number || '', // Assuming this is stored in user object
 
             created_at: new Date().toISOString(),
 
             vital_signs: activeOpd?.vital_signs || null,
             notes: consultationData.notes,
             diagnosis: consultationData.diagnosis,
+            procedures: consultationData.procedures,
             labs: consultationData.labs, // Array of objects or strings
             prescription_medications: consultationData.medications,
 
@@ -1390,6 +1599,12 @@ export default function PatientDetails() {
                     <p>${consult.diagnosis}</p>
                 </div>` : ''}
 
+                ${consult.procedures ? `
+                <div class="section">
+                    <div class="section-title">Procedures</div>
+                    <p>${consult.procedures}</p>
+                </div>` : ''}
+
                  ${printedLabs.length > 0 ? `
                 <div class="section">
                     <div class="section-title">Labs</div>
@@ -1475,15 +1690,11 @@ export default function PatientDetails() {
             }
 
             const payload = {
-                opd_id: activeOpd.opd_id,
                 patient_id: patient.patient_id,
                 ...consultationData,
+                opd_id: activeOpd.opd_id, // Ensure this overrides any undefined opd_id from consultationData
                 next_visit_date: consultationData.next_visit_date || null
             };
-
-            await axios.post(`${API_URL}/consultations/draft`, payload, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
 
             await axios.post(`${API_URL}/consultations/draft`, payload, {
                 headers: { Authorization: `Bearer ${token}` }
@@ -1500,6 +1711,7 @@ export default function PatientDetails() {
             }
 
             showCustomAlert('success', 'Draft Saved!', 'You can continue editing later.');
+            setIsReviewMode(true);
         } catch (error) {
             console.error('Error saving draft:', error);
             showCustomAlert('error', 'Error', 'Failed to save draft. Please try again.');
@@ -1518,9 +1730,9 @@ export default function PatientDetails() {
             }
 
             const payload = {
-                opd_id: activeOpd.opd_id,
                 patient_id: patient.patient_id,
                 ...consultationData,
+                opd_id: activeOpd.opd_id, // Ensure this overrides any undefined opd_id from consultationData
                 next_visit_date: consultationData.next_visit_date || null
             };
 
@@ -1598,34 +1810,21 @@ export default function PatientDetails() {
     console.log('Rendering PatientDetails, patient:', patient);
 
     return (
-        <div className="max-w-7xl mx-auto space-y-6">
-            {/* Navigation & Header */}
-            <div className="flex items-center justify-between mb-2">
-                <button
-                    onClick={() => router.back()}
-                    className="flex items-center text-slate-500 hover:text-blue-600 transition group"
-                >
-                    <div className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center mr-2 shadow-sm group-hover:scale-110 transition-transform">
-                        <ArrowLeft className="w-4 h-4" />
-                    </div>
-                    <span className="font-medium">Back to Patient List</span>
-                </button>
-            </div>
-
+        <div className="max-w-5xl mx-auto space-y-4 -mt-4">
             {/* Tabs */}
-            <div className="flex bg-white p-1 rounded-xl border border-slate-200 w-fit mb-6 shadow-sm">
+            <div className="flex bg-white/50 backdrop-blur-sm p-1.5 rounded-2xl border border-white/60 w-fit mb-8 shadow-xl shadow-blue-500/5">
                 <button
                     onClick={() => setActiveTab('consultation')}
-                    className={`flex items-center gap-2 px-6 py-3 rounded-lg font-bold transition-all ${activeTab === 'consultation' ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/30' : 'text-slate-600 hover:bg-slate-50'}`}
+                    className={`flex items-center gap-2.5 px-7 py-2.5 rounded-xl font-black transition-all duration-300 transform active:scale-95 ${activeTab === 'consultation' ? 'bg-[#4A9AF8] text-white shadow-lg shadow-blue-400/40 ring-2 ring-white/20' : 'text-slate-600 hover:bg-white/80'}`}
                 >
-                    <Stethoscope className="w-4 h-4" />
+                    <Zap className={`w-5 h-5 ${activeTab === 'consultation' ? 'text-orange-400 fill-orange-400' : 'text-slate-400'}`} />
                     Current Consultation
                 </button>
                 <button
                     onClick={() => setActiveTab('profile')}
-                    className={`flex items-center gap-2 px-6 py-3 rounded-lg font-bold transition-all ${activeTab === 'profile' ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/30' : 'text-slate-600 hover:bg-slate-50'}`}
+                    className={`flex items-center gap-2.5 px-7 py-2.5 rounded-xl font-black transition-all duration-300 transform active:scale-95 ${activeTab === 'profile' ? 'bg-[#4A9AF8] text-white shadow-lg shadow-blue-400/40 ring-2 ring-white/20' : 'text-slate-600 hover:bg-white/80'}`}
                 >
-                    <User className="w-4 h-4" />
+                    <User className={`w-5 h-5 ${activeTab === 'profile' ? 'text-purple-400 fill-purple-400' : 'text-slate-400'}`} />
                     Patient History
                 </button>
             </div>
@@ -1633,41 +1832,41 @@ export default function PatientDetails() {
             {activeTab === 'consultation' ? (
                 <>
                     {/* Glass Patient Identity Card */}
-                    <div className="glass-panel p-6 rounded-3xl border border-white/60 relative overflow-hidden shadow-lg shadow-blue-500/5">
-                        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-blue-100/30 to-purple-100/30 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none"></div>
+                    <div className="bg-[#FF7A00] py-3 px-6 rounded-[2rem] border border-white/20 relative overflow-hidden shadow-2xl shadow-orange-500/20">
+                        <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-gradient-to-bl from-white/20 to-transparent rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none"></div>
 
-                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative z-10">
-                            <div className="flex items-center gap-5">
-                                <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center text-white text-3xl font-bold shadow-lg shadow-blue-500/30 ring-4 ring-white/50">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative z-10">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-blue-500/30 ring-2 ring-white/50">
                                     {patient?.first_name?.charAt(0)}
                                 </div>
                                 <div>
-                                    <div className="flex items-center gap-3">
-                                        <h1 className="text-3xl font-heading font-bold text-slate-800">{patient?.first_name} {patient?.last_name}</h1>
+                                    <div className="flex items-center gap-2">
+                                        <h1 className="text-lg font-heading font-black text-slate-800">{patient?.first_name} {patient?.last_name}</h1>
                                         {opdHistory.some((opd: any) => opd.is_mlc) && (
-                                            <span className="px-3 py-1 bg-red-500/10 text-red-600 border border-red-200 text-xs font-bold rounded-full uppercase tracking-wider flex items-center gap-1">
-                                                <Activity className="w-3 h-3" /> MLC Case
+                                            <span className="px-3 py-1 bg-red-600 text-white border-2 border-white/40 text-xs font-black rounded-full uppercase tracking-wider flex items-center gap-1.5 shadow-lg shadow-red-900/20 animate-pulse">
+                                                <Activity className="w-3.5 h-3.5 fill-current" /> MLC
                                             </span>
                                         )}
                                     </div>
-                                    <div className="flex items-center gap-4 text-slate-500 text-sm mt-2 font-medium">
-                                        <span className="flex items-center gap-1.5 bg-white/60 px-3 py-1 rounded-lg border border-white/60"><User className="w-4 h-4 text-blue-500" /> {patient?.age} Yrs • {patient?.gender}</span>
-                                        <span className="flex items-center gap-1.5 bg-white/60 px-3 py-1 rounded-lg border border-white/60"><FileText className="w-4 h-4 text-purple-500" /> {patient?.mrn_number}</span>
-                                        <span className="flex items-center gap-1.5 bg-white/60 px-3 py-1 rounded-lg border border-white/60"><Phone className="w-4 h-4 text-emerald-500" /> {patient?.contact_number}</span>
+                                    <div className="flex items-center gap-2.5 text-white text-[10px] mt-1 font-bold">
+                                        <span className="flex items-center gap-1 bg-white/25 px-2.5 py-1 rounded-lg backdrop-blur-md border border-white/20 shadow-sm"><User className="w-3 h-3 text-orange-100" /> {patient?.age} Yrs • {patient?.gender}</span>
+                                        <span className="flex items-center gap-1 bg-white/25 px-2.5 py-1 rounded-lg backdrop-blur-md border border-white/20 shadow-sm"><FileText className="w-3 h-3 text-orange-100" /> MRN {patient?.mrn_number}</span>
+                                        <span className="flex items-center gap-1 bg-white/25 px-2.5 py-1 rounded-lg backdrop-blur-md border border-white/20 shadow-sm"><Phone className="w-3 h-3 text-orange-100" /> {patient?.contact_number}</span>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="flex gap-3">
+                            <div className="flex gap-2">
                                 {(() => {
                                     const activeMlcOpd = opdHistory.find(opd => opd.is_mlc && ['Registered', 'In-consultation', 'Completed'].includes(opd.visit_status));
                                     if (activeMlcOpd) {
                                         return (
                                             <button
                                                 onClick={() => fetchMlcDetails(activeMlcOpd.opd_id)}
-                                                className="px-5 py-2.5 bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 rounded-xl transition font-semibold flex items-center gap-2"
+                                                className="px-4 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 rounded-lg transition font-bold flex items-center gap-1.5 text-[11px]"
                                             >
-                                                <FileText className="w-4 h-4" />
+                                                <FileText className="w-3.5 h-3.5" />
                                                 MLC Form
                                             </button>
                                         );
@@ -1677,20 +1876,42 @@ export default function PatientDetails() {
 
                                 {(() => {
                                     const activeVisit = opdHistory.find(opd => ['Registered', 'In-consultation'].includes(opd.visit_status));
+                                    // Also check for the most recent completed visit to allow viewing it
+                                    const completedVisit = opdHistory.find(opd => opd.visit_status === 'Completed');
 
                                     if (activeVisit && !showConsultationForm) {
                                         const isRegistered = activeVisit.visit_status === 'Registered';
                                         return (
                                             <button
                                                 onClick={handleStartConsultation}
-                                                className="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl transition-all font-bold flex items-center gap-2 shadow-lg shadow-blue-500/30 hover:scale-105"
+                                                className="px-6 py-2 bg-[#4A9AF8] hover:bg-blue-600 text-white rounded-xl transition-all font-black flex items-center gap-2 shadow-xl shadow-blue-600/30 hover:scale-105 active:scale-95 group text-xs"
                                             >
-                                                <Stethoscope className="w-5 h-5" />
+                                                <Stethoscope className="w-4 h-4 group-hover:rotate-12 transition-transform" />
                                                 {isRegistered ? 'Start Consultation' : 'Resume Session'}
                                             </button>
                                         );
                                     }
-                                    if (!activeVisit && !showConsultationForm) {
+
+                                    if (completedVisit && !activeVisit && !showConsultationForm) {
+                                        return (
+                                            <button
+                                                onClick={() => {
+                                                    const consult = consultationHistory.find((c: any) => c.opd_id === completedVisit.opd_id);
+                                                    if (consult) {
+                                                        handleViewConsultation(consult);
+                                                    } else {
+                                                        showCustomAlert('info', 'No Data', 'Consultation details not found for this visit.');
+                                                    }
+                                                }}
+                                                className="px-6 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl transition-all font-black flex items-center gap-2 shadow-xl shadow-emerald-500/30 hover:scale-105 active:scale-95 group text-xs"
+                                            >
+                                                <Eye className="w-4 h-4" />
+                                                View Scribe
+                                            </button>
+                                        );
+                                    }
+
+                                    if (!activeVisit && !completedVisit && !showConsultationForm) {
                                         return (
                                             <div className="px-5 py-2 bg-slate-100 text-slate-500 rounded-xl font-medium border border-slate-200">
                                                 No Active Visit
@@ -1704,23 +1925,10 @@ export default function PatientDetails() {
                     </div>
 
                     {/* Patient Context Card - Quick Clinical Summary */}
-                    <div className="glass-panel p-4 rounded-2xl border border-slate-200/50 bg-gradient-to-r from-amber-50/30 via-white to-rose-50/30">
+                    <div className="bg-transparent p-0 rounded-2xl border-none shadow-none mt-2">
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            {/* ALLERGIES CARD - COMMENTED OUT 2026-02-04
-                    <div className="flex items-start gap-3 p-3 bg-white/60 rounded-xl border border-rose-100">
-                        <div className="w-10 h-10 rounded-lg bg-rose-100 flex items-center justify-center flex-shrink-0">
-                            <Activity className="w-5 h-5 text-rose-600" />
-                        </div>
-                        <div className="min-w-0">
-                            <p className="text-[10px] font-bold text-rose-500 uppercase tracking-wider">Allergies</p>
-                            <p className="text-sm font-semibold text-slate-800 truncate">
-                                {patient?.allergies || 'None Recorded'}
-                            </p>
-                        </div>
-                    </div>
-                    */}
 
-                            {/* Record Vitals - NEW */}
+                            {/* Record Vitals - Gradient Teal */}
                             {(() => {
                                 const activeVisit = opdHistory.find(opd => ['Registered', 'In-consultation'].includes(opd.visit_status));
                                 const hasVitals = activeVisit && (
@@ -1733,50 +1941,58 @@ export default function PatientDetails() {
                                     <button
                                         onClick={() => {
                                             if (activeVisit) {
-                                                // Navigate to vitals page for editing or adding
                                                 router.push(`/doctor/patients/${params.id}/vitals?opd_id=${activeVisit.opd_id}`);
                                             } else {
                                                 showCustomAlert('info', 'No Active Visit', 'Please start a consultation first to record vitals.');
                                             }
                                         }}
-                                        className="flex items-start gap-3 p-3 bg-white/60 hover:bg-emerald-50/60 rounded-xl border border-emerald-100 hover:border-emerald-300 transition-all group cursor-pointer w-full text-left"
+                                        className="flex items-center gap-3 py-3.5 px-4 rounded-2xl shadow-xl shadow-cyan-600/20 bg-gradient-to-br from-[#00A8B5] to-[#008C99] border border-white/10 relative overflow-hidden group hover:scale-[1.02] transition-transform duration-300 w-full text-left"
                                     >
-                                        <div className="w-10 h-10 rounded-lg bg-emerald-100 group-hover:bg-emerald-200 flex items-center justify-center flex-shrink-0 transition-colors">
-                                            <Activity className="w-5 h-5 text-emerald-600" />
+                                        <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full blur-2xl -mr-6 -mt-6 pointer-events-none"></div>
+
+                                        <div className={`w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0 text-white backdrop-blur-sm shadow-inner border border-white/20 transition-transform duration-1000 ${animateIcons ? '[transform:rotateY(360deg)]' : ''} group-hover:[transform:rotateY(180deg)]`}>
+                                            <Activity className="w-5 h-5" />
                                         </div>
-                                        <div className="min-w-0 flex-1">
-                                            <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">
+
+                                        <div className="relative z-10 flex-1 min-w-0">
+                                            <p className="text-[10px] font-bold text-emerald-100 uppercase tracking-wider mb-0.5">
                                                 {hasVitals ? 'Vital Signs' : 'Record Vitals'}
                                             </p>
-                                            <p className="text-sm font-semibold text-slate-700 group-hover:text-emerald-700 transition-colors">
+                                            <h3 className="text-lg font-bold text-white leading-none truncate">
                                                 {hasVitals ? 'Edit Vitals' : 'Add Vitals'}
-                                            </p>
+                                            </h3>
                                         </div>
-                                        <Plus className="w-4 h-4 text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity absolute right-2 top-1/2 -translate-y-1/2">
+                                            <Plus className="w-3.5 h-3.5 text-white" />
+                                        </div>
                                     </button>
                                 );
                             })()}
 
-                            {/* Blood Group */}
-                            <div className="flex items-start gap-3 p-3 bg-white/60 rounded-xl border border-red-100">
-                                <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0">
-                                    <span className="text-red-600 font-bold text-sm">🩸</span>
+                            {/* Blood Group - Gradient Red/Pink */}
+                            <div className="flex items-center gap-3 py-3.5 px-4 rounded-2xl shadow-xl shadow-pink-600/20 bg-gradient-to-br from-[#E91E63] to-[#D81B60] border border-white/10 relative overflow-hidden group hover:scale-[1.02] transition-transform duration-300 pointer-events-auto">
+                                <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full blur-2xl -mr-5 -mt-5 pointer-events-none"></div>
+
+                                <div className={`w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0 text-white backdrop-blur-sm shadow-inner border border-white/20 transition-transform duration-1000 ${animateIcons ? '[transform:rotateY(360deg)]' : ''} group-hover:[transform:rotateY(180deg)]`}>
+                                    <Droplet className="w-5 h-5" />
                                 </div>
-                                <div className="min-w-0">
-                                    <p className="text-[10px] font-bold text-red-500 uppercase tracking-wider">Blood Group</p>
-                                    <p className="text-sm font-bold text-slate-800">
-                                        {patient?.blood_group || 'Unknown'}
-                                    </p>
+                                <div className="relative z-10 min-w-0">
+                                    <p className="text-[10px] font-bold text-rose-100 uppercase tracking-wider mb-0.5">Blood Group</p>
+                                    <h3 className="text-xl font-bold text-white leading-none">
+                                        {patient?.blood_group || 'N/A'}
+                                    </h3>
                                 </div>
                             </div>
 
-                            {/* Current Medications (from last consultation) */}
-                            <div className="flex items-start gap-3 p-3 bg-white/60 rounded-xl border border-blue-100">
-                                <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-                                    <FileText className="w-5 h-5 text-blue-600" />
+                            {/* Current Medications - Gradient Purple */}
+                            <div className="flex items-center gap-3 py-3.5 px-4 rounded-2xl shadow-xl shadow-purple-600/20 bg-gradient-to-br from-[#9C27B0] to-[#8E24AA] border border-white/10 relative overflow-hidden group hover:scale-[1.02] transition-transform duration-300">
+                                <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full blur-2xl -mr-5 -mt-5 pointer-events-none"></div>
+
+                                <div className={`w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0 text-white backdrop-blur-sm shadow-inner border border-white/20 transition-transform duration-1000 ${animateIcons ? '[transform:rotateY(360deg)]' : ''} group-hover:[transform:rotateY(180deg)]`}>
+                                    <Pill className="w-5 h-5 -rotate-45" />
                                 </div>
-                                <div className="min-w-0 flex-1">
-                                    <p className="text-[10px] font-bold text-blue-500 uppercase tracking-wider">Current Meds</p>
+                                <div className="relative z-10 flex-1 min-w-0">
+                                    <p className="text-[10px] font-bold text-violet-100 uppercase tracking-wider mb-0.5">Current Meds</p>
                                     {(() => {
                                         const lastConsult = consultationHistory[0];
                                         let meds = lastConsult?.prescription_medications;
@@ -1785,58 +2001,39 @@ export default function PatientDetails() {
                                         }
                                         if (Array.isArray(meds) && meds.length > 0) {
                                             return (
-                                                <div className="flex flex-wrap gap-1 mt-0.5">
-                                                    {meds.slice(0, 2).map((m: any, i: number) => (
-                                                        <span key={i} className="text-xs bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-medium">
-                                                            {m.name}
-                                                        </span>
-                                                    ))}
-                                                    {meds.length > 2 && (
-                                                        <span className="text-xs text-blue-500">+{meds.length - 2}</span>
-                                                    )}
+                                                <div className="text-white font-bold leading-tight">
+                                                    <span className="text-base">{meds[0].name}</span>
+                                                    {meds.length > 1 && <span className="text-[10px] opacity-80 ml-1">+{meds.length - 1} more</span>}
                                                 </div>
                                             );
                                         }
-                                        return <p className="text-sm text-slate-500">None Active</p>;
+                                        return <p className="text-base font-bold text-white/90">None Active</p>;
                                     })()}
                                 </div>
                             </div>
 
-                            {/* Last Visit */}
-                            <div className="flex items-start gap-3 p-3 bg-white/60 rounded-xl border border-purple-100">
-                                <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
-                                    <Calendar className="w-5 h-5 text-purple-600" />
-                                </div>
-                                <div className="min-w-0">
-                                    <p className="text-[10px] font-bold text-purple-500 uppercase tracking-wider">Last Visit</p>
-                                    {(() => {
-                                        console.log('DEBUG: Full OpdHistory:', opdHistory);
-                                        // Find active visit (currently being attended)
-                                        const activeVisit = opdHistory.find(opd => ['Registered', 'In-consultation'].includes(opd.visit_status));
-                                        console.log('DEBUG: Active Visit:', activeVisit);
+                            {/* Last Visit - Gradient Blue */}
+                            <div className="flex items-center gap-3 py-3.5 px-4 rounded-2xl shadow-xl shadow-blue-600/20 bg-gradient-to-br from-[#2196F3] to-[#1E88E5] border border-white/10 relative overflow-hidden group hover:scale-[1.02] transition-transform duration-300">
+                                <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full blur-2xl -mr-5 -mt-5 pointer-events-none"></div>
 
-                                        // Filter out the active visit to find true historical visits
+                                <div className={`w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0 text-white backdrop-blur-sm shadow-inner border border-white/20 transition-transform duration-1000 ${animateIcons ? '[transform:rotateY(360deg)]' : ''} group-hover:[transform:rotateY(180deg)]`}>
+                                    <Calendar className="w-5 h-5" />
+                                </div>
+                                <div className="relative z-10 min-w-0">
+                                    <p className="text-[10px] font-bold text-cyan-100 uppercase tracking-wider mb-0.5">Last Visit</p>
+                                    {(() => {
+                                        const activeVisit = opdHistory.find(opd => ['Registered', 'In-consultation'].includes(opd.visit_status));
                                         const pastVisits = opdHistory.filter(opd => opd.opd_id !== activeVisit?.opd_id);
-                                        console.log('DEBUG: Past Visits (History):', pastVisits);
 
                                         if (pastVisits.length > 0) {
-                                            // Since opdHistory is sorted DESC, the first one remaining is the last visit
                                             const lastVisit = pastVisits[0];
-                                            const consult = consultationHistory.find((c: any) => c.opd_id === lastVisit.opd_id);
-                                            const diagnosis = consult?.diagnosis || lastVisit.diagnosis || lastVisit.chief_complaint || 'No diagnosis';
-
                                             return (
-                                                <>
-                                                    <p className="text-sm font-semibold text-slate-800">
-                                                        {new Date(lastVisit.visit_date).toLocaleDateString()}
-                                                    </p>
-                                                    <p className="text-xs text-slate-500 truncate" title={diagnosis}>
-                                                        {diagnosis}
-                                                    </p>
-                                                </>
+                                                <h3 className="text-lg font-bold text-white leading-none">
+                                                    {new Date(lastVisit.visit_date).toLocaleDateString()}
+                                                </h3>
                                             );
                                         }
-                                        return <p className="text-sm text-slate-500 italic">No Past Visits</p>;
+                                        return <p className="text-xs font-medium text-white/80 italic">No Past Visits</p>;
                                     })()}
                                 </div>
                             </div>
@@ -1854,27 +2051,29 @@ export default function PatientDetails() {
                                 const activeVisit = opdHistory.find(opd => ['Registered', 'In-consultation'].includes(opd.visit_status));
                                 if (activeVisit) {
                                     return (
-                                        <div className="glass-panel p-5 rounded-2xl border border-blue-200/50 bg-blue-50/30">
+                                        <div className="bg-white py-4 px-5 rounded-3xl border border-slate-200 shadow-xl shadow-blue-900/5">
                                             <div className="flex items-center justify-between mb-4">
-                                                <h3 className="font-bold text-slate-700 flex items-center gap-2">
-                                                    <Activity className="w-4 h-4 text-blue-500" /> Live Vitals
+                                                <h3 className="font-bold text-slate-800 flex items-center gap-2 text-lg">
+                                                    <div className="w-4 h-4 bg-indigo-900 rounded-sm shadow-sm shadow-indigo-900/20"></div> Live Vitals
                                                 </h3>
-                                                <span className="text-[10px] uppercase font-bold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">Current Visit</span>
+                                                <span className="text-[10px] uppercase font-black tracking-widest text-white bg-[#10B981] px-3 py-1 rounded-lg">Current Visit</span>
                                             </div>
 
                                             <div className="space-y-3">
-                                                <div className="p-3 bg-white/60 rounded-xl border border-white/50 shadow-sm">
-                                                    <p className="text-xs text-slate-500 font-semibold uppercase mb-1">Chief Complaint</p>
-                                                    <p className="font-medium text-slate-800">{activeVisit.chief_complaint}</p>
+                                                <div className="p-4 bg-[#FFF4C2]/50 rounded-2xl border border-yellow-200/50">
+                                                    <p className="text-[10px] text-yellow-800 font-black uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                                                        <Activity className="w-3 h-3" /> Chief Complaint
+                                                    </p>
+                                                    <p className="font-bold text-slate-800 text-lg leading-snug">{activeVisit.chief_complaint}</p>
                                                 </div>
 
-                                                <div className="grid grid-cols-2 gap-2">
+                                                <div className="grid grid-cols-2 gap-3">
                                                     {activeVisit.vital_signs ? Object.entries(activeVisit.vital_signs).map(([key, value]) => (
-                                                        <div key={key} className="p-2 bg-white/60 rounded-lg border border-white/50 text-center">
-                                                            <p className="text-[10px] text-slate-400 uppercase font-bold">{key.replace(/_/g, ' ')}</p>
-                                                            <p className="font-bold text-slate-800">{String(value)}</p>
+                                                        <div key={key} className="p-3 bg-[#FFF4C2]/30 rounded-xl border border-yellow-200/30 text-center transition-all hover:bg-[#FFF4C2]/50">
+                                                            <p className="text-[10px] text-yellow-800 uppercase font-black tracking-widest mb-1">{key.replace(/_/g, ' ')}</p>
+                                                            <p className="font-black text-slate-800 text-lg">{String(value)}</p>
                                                         </div>
-                                                    )) : <p className="text-sm text-slate-400 italic col-span-2">No vitals recorded</p>}
+                                                    )) : <p className="text-sm text-slate-400 italic col-span-2 text-center py-4">No vitals recorded</p>}
                                                 </div>
                                             </div>
                                         </div>
@@ -1883,10 +2082,56 @@ export default function PatientDetails() {
                                 return null;
                             })()}
 
+                            {/* Reports Section */}
+                            <div className="bg-white py-4 px-5 rounded-3xl border border-slate-200 shadow-xl shadow-blue-900/5">
+                                <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2 text-lg">
+                                    <div className="w-4 h-4 bg-indigo-900 rounded-sm shadow-sm shadow-indigo-900/20"></div> Reports
+                                </h3>
+
+                                {patientDocuments && patientDocuments.length > 0 ? (
+                                    <div className="space-y-3">
+                                        {patientDocuments.map((doc, idx) => (
+                                            <div key={idx} className="flex justify-between items-center p-2.5 bg-slate-50 rounded-xl border border-slate-100/50 hover:bg-slate-100 transition-colors group">
+                                                <div className="flex items-center gap-3 overflow-hidden">
+                                                    <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-400 flex-shrink-0">
+                                                        <FileText className="w-4 h-4" />
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <p className="text-xs font-bold text-slate-700 truncate" title={doc.original_file_name}>{doc.original_file_name}</p>
+                                                        <p className="text-[10px] text-slate-400">{new Date(doc.created_at).toLocaleDateString()}</p>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={() => {
+                                                        const token = localStorage.getItem('token');
+                                                        // Use fetch to get the file blob with auth header, then open blob URL
+                                                        fetch(`${API_URL}/patient-documents/${doc.document_id}/view`, {
+                                                            headers: { Authorization: `Bearer ${token}` }
+                                                        })
+                                                            .then(response => response.blob())
+                                                            .then(blob => {
+                                                                const url = window.URL.createObjectURL(blob);
+                                                                window.open(url, '_blank');
+                                                            })
+                                                            .catch(err => console.error('Error viewing document:', err));
+                                                    }}
+                                                    className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors opacity-0 group-hover:opacity-100"
+                                                    title="View Document"
+                                                >
+                                                    <Eye className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-slate-400 italic text-center py-4">No documents uploaded</p>
+                                )}
+                            </div>
+
                             {/* Quick Contact & History Info */}
-                            <div className="glass-panel p-5 rounded-2xl border border-white/60">
-                                <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2">
-                                    <HistoryIcon className="w-4 h-4 text-purple-500" /> Recent History
+                            <div className="bg-white py-4 px-5 rounded-3xl border border-slate-200 shadow-xl shadow-blue-900/5">
+                                <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2 text-lg">
+                                    <div className="w-4 h-4 bg-indigo-900 rounded-sm shadow-sm shadow-indigo-900/20"></div> Recent History
                                 </h3>
                                 <div className="space-y-4 relative">
                                     <div className="absolute left-2 top-2 bottom-2 w-0.5 bg-slate-200"></div>
@@ -1908,7 +2153,7 @@ export default function PatientDetails() {
                         {/* RIGHT WORKSPACE (70%) */}
                         <div className="w-full lg:w-2/3">
                             {showConsultationForm ? (
-                                <div className="glass-panel p-1 rounded-3xl border border-white/60 shadow-xl shadow-slate-200/50 bg-white/40 backdrop-blur-md">
+                                <div className="bg-white p-1.5 rounded-[2.5rem] border border-slate-200 shadow-2xl shadow-blue-500/5 transition-all duration-500">
 
                                     {/* AI Scribe Header */}
                                     <div className="p-4 bg-gradient-to-r from-slate-900 to-slate-800 rounded-t-3xl text-white flex justify-between items-center shadow-lg relative overflow-hidden">
@@ -1934,116 +2179,274 @@ export default function PatientDetails() {
 
                                     <div className={`p-6 space-y-8 min-h-[500px] ${isReviewMode ? 'pointer-events-none opacity-90' : ''}`}>
                                         {/* 1. Clinical Notes (Paper-on-Glass) */}
-                                        <div className="relative group">
-                                            <div className="absolute -left-3 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-400 to-purple-400 rounded-full opacity-50 group-hover:opacity-100 transition"></div>
-                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2 pl-2">Clinical Notes & Observations</label>
-                                            <textarea
-                                                className="w-full bg-white/50 border border-slate-200 rounded-xl p-4 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all text-slate-700 text-sm font-medium leading-relaxed resize-none shadow-inner"
-                                                rows={4}
-                                                value={consultationData.notes}
-                                                onChange={(e) => setConsultationData({ ...consultationData, notes: e.target.value })}
-                                                placeholder="Start typing or speak to describe symptoms..."
-                                            />
-                                        </div>
+                                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 min-h-[500px]">
+                                            {/* LEFT COLUMN: Clinical Notes (Full Height) */}
+                                            <div className="flex flex-col bg-slate-50/50 rounded-2xl border border-slate-200 p-4 shadow-sm group hover:shadow-md transition-all duration-300 h-full">
+                                                <div className="flex items-center gap-2 mb-3 pl-1">
+                                                    <div className="w-1 h-4 bg-gradient-to-b from-blue-400 to-purple-400 rounded-full opacity-70 group-hover:opacity-100 transition"></div>
+                                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Clinical Notes & Observations</label>
+                                                </div>
+                                                <textarea
+                                                    className="flex-1 w-full bg-white border border-slate-200/60 rounded-xl p-4 focus:ring-2 focus:ring-blue-500/10 focus:border-blue-300 transition-all text-slate-700 text-sm font-medium leading-relaxed resize-none shadow-inner placeholder:text-slate-300"
+                                                    value={consultationData.notes}
+                                                    onChange={(e) => setConsultationData({ ...consultationData, notes: e.target.value })}
+                                                    placeholder="Start typing or speak to describe symptoms..."
+                                                />
+                                            </div>
 
-                                        {/* 2. Diagnosis & Labs Grid */}
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                            <div>
-                                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2 ml-1">Diagnosis</label>
-                                                <div className="relative">
-                                                    <textarea
-                                                        className="w-full bg-white/50 border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400 transition-all text-slate-700 text-sm font-medium h-32 resize-none shadow-inner"
-                                                        value={consultationData.diagnosis}
-                                                        onChange={(e) => setConsultationData({ ...consultationData, diagnosis: e.target.value })}
-                                                        placeholder="Enter Diagnosis..."
-                                                    />
-                                                    <div className="absolute bottom-2 right-2 p-1.5 bg-white rounded-lg shadow-sm border border-slate-100 cursor-pointer hover:bg-purple-50">
-                                                        <Sparkles className="w-4 h-4 text-purple-500" />
+                                            {/* RIGHT COLUMN: Diagnosis, Procedures, Labs */}
+                                            <div className="space-y-6">
+
+                                                {/* Diagnosis Section */}
+                                                <div className="relative z-30">
+                                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2 ml-1">Diagnosis</label>
+                                                    <div className="bg-purple-50/30 rounded-xl border border-purple-100 p-3 min-h-[128px] flex flex-col">
+                                                        <div className="relative z-10">
+                                                            <div className="flex gap-2 mb-2">
+                                                                <input
+                                                                    type="text"
+                                                                    className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500/10 focus:border-purple-300 transition-all outline-none"
+                                                                    placeholder="Search Diagnosis (e.g. Fever)..."
+                                                                    value={diagnosisSearchQuery}
+                                                                    onChange={(e) => handleDiagnosisSearch(e.target.value)}
+                                                                    onFocus={() => { if (diagnosisSearchQuery.length > 0) setShowDiagnosisDropdown(true); }}
+                                                                    onBlur={() => setTimeout(() => setShowDiagnosisDropdown(false), 200)}
+                                                                    onKeyDown={(e) => {
+                                                                        if (e.key === 'Enter') {
+                                                                            e.preventDefault();
+                                                                            handleManualAddDiagnosis();
+                                                                        }
+                                                                    }}
+                                                                />
+                                                                <button onClick={handleManualAddDiagnosis} className="p-2 bg-purple-100 hover:bg-purple-200 rounded-lg text-purple-600 transition">
+                                                                    <Plus className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
+
+                                                            {/* Diagnosis Search Dropdown */}
+                                                            {showDiagnosisDropdown && (
+                                                                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl z-[100] max-h-48 overflow-y-auto">
+                                                                    {isSearchingDiagnosis ? (
+                                                                        <div className="p-3 text-xs text-slate-500 text-center">Searching...</div>
+                                                                    ) : diagnosisSearchResults.length > 0 ? (
+                                                                        <ul>
+                                                                            {diagnosisSearchResults.map((diagnosis, index) => (
+                                                                                <li
+                                                                                    key={index}
+                                                                                    className="px-3 py-2 hover:bg-purple-50 cursor-pointer text-sm border-b border-slate-50 last:border-none flex justify-between items-center"
+                                                                                    onMouseDown={() => addDiagnosis(diagnosis)}
+                                                                                >
+                                                                                    <div className="flex flex-col">
+                                                                                        <span className="font-medium text-slate-700">{diagnosis.service_name || diagnosis}</span>
+                                                                                        {diagnosis.category && <span className="text-[10px] text-slate-400">{diagnosis.category}</span>}
+                                                                                    </div>
+                                                                                    {/* Badge for Source */}
+                                                                                    {diagnosis.source && (
+                                                                                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border ml-2 ${diagnosis.source === 'billing_setup_master'
+                                                                                            ? 'bg-blue-50 text-blue-600 border-blue-200'
+                                                                                            : 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                                                                                            }`}>
+                                                                                            {diagnosis.source === 'billing_setup_master' ? 'In-House' : 'External'}
+                                                                                        </span>
+                                                                                    )}
+                                                                                    {!diagnosis.source && <Plus className="w-3 h-3 text-purple-400" />}
+                                                                                </li>
+                                                                            ))}
+                                                                        </ul>
+                                                                    ) : (
+                                                                        <div className="p-3 text-xs text-slate-500 text-center">No results found</div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Selected Diagnoses List */}
+                                                        <div className="flex-1 overflow-y-auto space-y-1 custom-scrollbar">
+                                                            {consultationData.diagnosis ? (
+                                                                consultationData.diagnosis.split(', ').filter(d => d.trim()).map((diag, index) => (
+                                                                    <div key={index} className="flex justify-between items-center bg-white px-3 py-1.5 rounded-lg border border-purple-100 text-xs shadow-sm group">
+                                                                        <span className="font-semibold text-slate-700">{diag}</span>
+                                                                        <button onClick={() => removeDiagnosis(index)} className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">×</button>
+                                                                    </div>
+                                                                ))
+                                                            ) : (
+                                                                <p className="text-xs text-purple-300/50 text-center mt-4 flex flex-col items-center">
+                                                                    <Sparkles className="w-4 h-4 mb-1" />
+                                                                    Add diagnosis
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Conditional Pathology/Lab Field */}
+                                                    {/* Conditional Pathology/Lab Field - Show if: 
+                                                        1. Already has value (Editing/View)
+                                                        2. Has External Diagnosis (Scan)
+                                                        3. Has External Lab
+                                                    */}
+                                                    {(consultationData.pathology_lab || hasExternalDiagnosis || consultationData.labs.some((l: any) => l.source && l.source !== 'billing_setup_master')) && (
+                                                        <div className="mt-3 pt-3 border-t border-slate-200 animate-in fade-in slide-in-from-top-2">
+                                                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Pathology/Lab (Diagnostic center)</label>
+                                                            <input
+                                                                type="text"
+                                                                placeholder="Enter Diagnostic Center..."
+                                                                className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 focus:ring-2 focus:ring-purple-500/10 focus:border-purple-300 transition-all outline-none"
+                                                                value={consultationData.pathology_lab || ''}
+                                                                onChange={(e) => setConsultationData({ ...consultationData, pathology_lab: e.target.value })}
+                                                            />
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Procedures Section (New) */}
+                                                <div className="relative z-20 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100">
+                                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2 ml-1">Procedures</label>
+                                                    <div className="bg-emerald-50/30 rounded-xl border border-emerald-100 p-3 min-h-[128px] flex flex-col hover:shadow-md transition-shadow">
+                                                        <div className="relative z-10">
+                                                            <div className="flex gap-2 mb-2">
+                                                                <input
+                                                                    type="text"
+                                                                    className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-300 transition-all outline-none"
+                                                                    placeholder="Search Procedure (e.g. Graft)..."
+                                                                    value={procedureSearchQuery}
+                                                                    onChange={(e) => handleProcedureSearch(e.target.value)}
+                                                                    onFocus={() => { if (procedureSearchQuery.length > 0) setShowProcedureDropdown(true); }}
+                                                                    onBlur={() => setTimeout(() => setShowProcedureDropdown(false), 200)}
+                                                                    onKeyDown={(e) => {
+                                                                        if (e.key === 'Enter') {
+                                                                            e.preventDefault();
+                                                                            handleManualAddProcedure();
+                                                                        }
+                                                                    }}
+                                                                />
+                                                                <button onClick={handleManualAddProcedure} className="p-2 bg-emerald-100 hover:bg-emerald-200 rounded-lg text-emerald-600 transition">
+                                                                    <Plus className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
+
+                                                            {/* Procedure Search Dropdown */}
+                                                            {showProcedureDropdown && (
+                                                                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl z-[100] max-h-48 overflow-y-auto">
+                                                                    {isSearchingProcedures ? (
+                                                                        <div className="p-3 text-xs text-slate-500 text-center">Searching...</div>
+                                                                    ) : procedureSearchResults.length > 0 ? (
+                                                                        <ul>
+                                                                            {procedureSearchResults.map((proc, index) => (
+                                                                                <li
+                                                                                    key={index}
+                                                                                    className="px-3 py-2 hover:bg-emerald-50 cursor-pointer text-sm border-b border-slate-50 last:border-none flex justify-between items-center"
+                                                                                    onMouseDown={() => addProcedure(proc)}
+                                                                                >
+                                                                                    <div className="flex flex-col">
+                                                                                        <span className="font-medium text-slate-700">{proc.service_name || proc}</span>
+                                                                                        {proc.category && <span className="text-[10px] text-slate-400">{proc.category}</span>}
+                                                                                    </div>
+                                                                                    {/* Badge for Source */}
+                                                                                    {proc.source && (
+                                                                                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border ml-2 ${proc.source === 'billing_setup_master'
+                                                                                            ? 'bg-blue-50 text-blue-600 border-blue-200'
+                                                                                            : 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                                                                                            }`}>
+                                                                                            {proc.source === 'billing_setup_master' ? 'In-House' : 'External'}
+                                                                                        </span>
+                                                                                    )}
+                                                                                    {!proc.source && <Plus className="w-3 h-3 text-emerald-400" />}
+                                                                                </li>
+                                                                            ))}
+                                                                        </ul>
+                                                                    ) : (
+                                                                        <div className="p-3 text-xs text-slate-500 text-center">No results found</div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex-1 overflow-y-auto space-y-1 custom-scrollbar">
+                                                            {consultationData.procedures ? (
+                                                                consultationData.procedures.split(', ').filter(p => p.trim()).map((proc, index) => (
+                                                                    <div key={index} className="flex justify-between items-center bg-white px-3 py-1.5 rounded-lg border border-emerald-100 text-xs shadow-sm group">
+                                                                        <span className="font-semibold text-slate-700">{proc}</span>
+                                                                        <button onClick={() => removeProcedure(index)} className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">×</button>
+                                                                    </div>
+                                                                ))
+                                                            ) : (
+                                                                <p className="text-xs text-emerald-400/50 text-center mt-4 flex flex-col items-center">
+                                                                    <Activity className="w-4 h-4 mb-1 opacity-50" />
+                                                                    Add procedure
+                                                                </p>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
 
-                                                {/* Conditional Pathology/Lab Field */}
-                                                {(consultationData.diagnosis || consultationData.labs.some((l: any) => l.source && l.source !== 'billing_master')) && (
-                                                    <div className="mt-3 pt-3 border-t border-slate-200 animate-in fade-in slide-in-from-top-2">
-                                                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Pathology/Lab (Diagnostic center)</label>
-                                                        <input
-                                                            type="text"
-                                                            placeholder="Enter Diagnostic Center..."
-                                                            className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 focus:ring-2 focus:ring-purple-500/10 focus:border-purple-300 transition-all outline-none"
-                                                            value={consultationData.pathology_lab || ''}
-                                                            onChange={(e) => setConsultationData({ ...consultationData, pathology_lab: e.target.value })}
-                                                        />
-                                                    </div>
-                                                )}
-                                            </div>
+                                                {/* Labs Section */}
+                                                <div className="relative z-10">
+                                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2 ml-1">Labs</label>
+                                                    <div className="bg-slate-50/50 rounded-xl border border-slate-200 p-3 min-h-[128px] flex flex-col">
+                                                        <div className="relative z-10">
+                                                            <div className="flex gap-2 mb-2">
+                                                                <input
+                                                                    type="text"
+                                                                    className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500/10 focus:border-blue-300 transition-all outline-none"
+                                                                    placeholder="Search Test Name..."
+                                                                    value={newLab.test_name}
+                                                                    onChange={(e) => handleLabSearch(e.target.value)}
+                                                                    onFocus={() => { if (newLab.test_name.length >= 2) setShowLabDropdown(true); }}
+                                                                    onBlur={() => setTimeout(() => setShowLabDropdown(false), 200)} // Delay to allow click
+                                                                    onKeyDown={(e) => {
+                                                                        if (e.key === 'Enter') {
+                                                                            e.preventDefault();
+                                                                            handleAddLab();
+                                                                        }
+                                                                    }}
+                                                                />
+                                                                <button onClick={handleAddLab} className="p-2 bg-slate-200 hover:bg-slate-300 rounded-lg text-slate-600 transition">
+                                                                    <Plus className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
 
-                                            <div>
-                                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2 ml-1">Labs</label>
-                                                <div className="bg-slate-50/50 rounded-xl border border-slate-200 p-3 min-h-[128px] flex flex-col">
-                                                    <div className="relative z-10">
-                                                        <div className="flex gap-2 mb-2">
-                                                            <input
-                                                                type="text"
-                                                                className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500/10 focus:border-blue-300 transition-all outline-none"
-                                                                placeholder="Search Test Name..."
-                                                                value={newLab.test_name}
-                                                                onChange={(e) => handleLabSearch(e.target.value)}
-                                                                onFocus={() => { if (newLab.test_name.length >= 2) setShowLabDropdown(true); }}
-                                                                onBlur={() => setTimeout(() => setShowLabDropdown(false), 200)} // Delay to allow click
-                                                                onKeyDown={(e) => {
-                                                                    if (e.key === 'Enter') {
-                                                                        e.preventDefault();
-                                                                        handleAddLab();
-                                                                    }
-                                                                }}
-                                                            />
-                                                            <button onClick={handleAddLab} className="p-2 bg-slate-200 hover:bg-slate-300 rounded-lg text-slate-600 transition">
-                                                                <Plus className="w-4 h-4" />
-                                                            </button>
+                                                            {/* Search Dropdown */}
+                                                            {showLabDropdown && (
+                                                                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl z-[100] max-h-48 overflow-y-auto">
+                                                                    {isSearchingLabs ? (
+                                                                        <div className="p-3 text-xs text-slate-500 text-center">Searching...</div>
+                                                                    ) : labSearchResults.length > 0 ? (
+                                                                        <ul>
+                                                                            {labSearchResults.map((service) => (
+                                                                                <li
+                                                                                    key={service.id || service.service_id} // Fallback to service_id if id missing
+                                                                                    className="px-3 py-2 hover:bg-slate-50 cursor-pointer text-sm border-b border-slate-50 last:border-none flex justify-between items-center"
+                                                                                    onMouseDown={() => selectLabService(service)}
+                                                                                >
+                                                                                    <div className="flex flex-col">
+                                                                                        <span className="font-medium text-slate-700">{service.service_name}</span>
+                                                                                        {service.category && <span className="text-[10px] text-slate-400">{service.category}</span>}
+                                                                                    </div>
+                                                                                    {service.source && (
+                                                                                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border ${service.source === 'billing_setup_master'
+                                                                                            ? 'bg-blue-50 text-blue-600 border-blue-200'
+                                                                                            : 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                                                                                            }`}>
+                                                                                            {service.source === 'billing_setup_master' ? 'In-House' : 'External'}
+                                                                                        </span>
+                                                                                    )}
+                                                                                </li>
+                                                                            ))}
+                                                                        </ul>
+                                                                    ) : (
+                                                                        <div className="p-3 text-xs text-slate-500 text-center">No results found</div>
+                                                                    )}
+                                                                </div>
+                                                            )}
                                                         </div>
-
-                                                        {/* Search Dropdown */}
-                                                        {showLabDropdown && (
-                                                            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl z-[100] max-h-48 overflow-y-auto">
-                                                                {isSearchingLabs ? (
-                                                                    <div className="p-3 text-xs text-slate-500 text-center">Searching...</div>
-                                                                ) : labSearchResults.length > 0 ? (
-                                                                    <ul>
-                                                                        {labSearchResults.map((service) => (
-                                                                            <li
-                                                                                key={service.id || service.service_id} // Fallback to service_id if id missing
-                                                                                className="px-3 py-2 hover:bg-slate-50 cursor-pointer text-sm border-b border-slate-50 last:border-none flex justify-between items-center"
-                                                                                onMouseDown={() => selectLabService(service)}
-                                                                            >
-                                                                                <div className="flex flex-col">
-                                                                                    <span className="font-medium text-slate-700">{service.service_name}</span>
-                                                                                    {service.category && <span className="text-[10px] text-slate-400">{service.category}</span>}
-                                                                                </div>
-                                                                                {service.source && (
-                                                                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border ${service.source === 'billing_master'
-                                                                                        ? 'bg-blue-50 text-blue-600 border-blue-200'
-                                                                                        : 'bg-emerald-50 text-emerald-600 border-emerald-200'
-                                                                                        }`}>
-                                                                                        {service.source === 'billing_master' ? 'In-House' : 'External'}
-                                                                                    </span>
-                                                                                )}
-                                                                            </li>
-                                                                        ))}
-                                                                    </ul>
-                                                                ) : (
-                                                                    <div className="p-3 text-xs text-slate-500 text-center">No results found</div>
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    <div className="flex-1 overflow-y-auto space-y-1 custom-scrollbar">
-                                                        {consultationData.labs.map((lab, index) => (
-                                                            <div key={index} className="flex justify-between items-center bg-white px-3 py-1.5 rounded-lg border border-slate-100 text-xs shadow-sm">
-                                                                <span className="font-semibold text-slate-700">{lab.test_name}</span>
-                                                                <button onClick={() => removeLab(index)} className="text-slate-400 hover:text-red-500">×</button>
-                                                            </div>
-                                                        ))}
-                                                        {consultationData.labs.length === 0 && <p className="text-xs text-slate-400 text-center mt-4">No labs added</p>}
+                                                        <div className="flex-1 overflow-y-auto space-y-1 custom-scrollbar">
+                                                            {consultationData.labs.map((lab, index) => (
+                                                                <div key={index} className="flex justify-between items-center bg-white px-3 py-1.5 rounded-lg border border-slate-100 text-xs shadow-sm">
+                                                                    <span className="font-semibold text-slate-700">{lab.test_name}</span>
+                                                                    <button onClick={() => removeLab(index)} className="text-slate-400 hover:text-red-500">×</button>
+                                                                </div>
+                                                            ))}
+                                                            {consultationData.labs.length === 0 && <p className="text-xs text-slate-400 text-center mt-4">No labs added</p>}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -2092,11 +2495,11 @@ export default function PatientDetails() {
                                                         <div className="flex bg-slate-100 rounded p-0.5">
                                                             <button
                                                                 className={`px-2 py-0.5 text-[10px] rounded ${newMedication.food_timing === 'After Food' ? 'bg-white shadow text-blue-600 font-bold' : 'text-slate-400 hover:text-slate-600'}`}
-                                                                onClick={() => setNewMedication({ ...newMedication, food_timing: 'After Food' })}
+                                                                onClick={() => handleFoodTimingSelection('After Food')}
                                                             >A/F</button>
                                                             <button
                                                                 className={`px-2 py-0.5 text-[10px] rounded ${newMedication.food_timing === 'Before Food' ? 'bg-white shadow text-blue-600 font-bold' : 'text-slate-400 hover:text-slate-600'}`}
-                                                                onClick={() => setNewMedication({ ...newMedication, food_timing: 'Before Food' })}
+                                                                onClick={() => handleFoodTimingSelection('Before Food')}
                                                             >B/F</button>
                                                         </div>
                                                         <button onClick={handleAddMedication} className="w-8 h-8 flex items-center justify-center bg-blue-600 text-white rounded-full hover:bg-blue-700 shadow-md transition hover:scale-110">
@@ -2428,6 +2831,20 @@ export default function PatientDetails() {
                                             <FileText className="w-4 h-4" />
                                             Print {isReviewMode ? 'Record' : 'Draft'}
                                         </button>
+
+                                        {/* Edit Draft Button - Only when in review mode and not completed */}
+                                        {isReviewMode && opdHistory.find(opd => ['Registered', 'In-consultation'].includes(opd.visit_status)) && (
+                                            <button
+                                                onClick={() => setIsReviewMode(false)}
+                                                className="px-6 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg transition-all font-medium flex items-center gap-2"
+                                            >
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                </svg>
+                                                Edit Draft
+                                            </button>
+                                        )}
+
                                         {!isReviewMode && (
                                             <>
                                                 <button
@@ -2485,17 +2902,46 @@ export default function PatientDetails() {
                                         </div>
                                     </div>
                                 </div>
-                            ) : isReviewMode ? null : (
-                                <div className="glass-panel p-12 rounded-3xl border border-white/60 text-center flex flex-col items-center justify-center h-full min-h-[400px]">
-                                    <div className="w-24 h-24 bg-blue-50 rounded-full flex items-center justify-center mb-6 animate-pulse">
-                                        <Stethoscope className="w-10 h-10 text-blue-400" />
+                            ) : isReviewMode ? null : (() => {
+                                const activeVisit = opdHistory.find(opd => ['Registered', 'In-consultation'].includes(opd.visit_status));
+                                const completedVisit = opdHistory.find(opd => opd.visit_status === 'Completed');
+                                const completedConsult = completedVisit ? consultationHistory.find(c => c.opd_id === completedVisit.opd_id) : null;
+
+                                if (!activeVisit && completedConsult) {
+                                    const isToday = new Date(completedVisit.visit_date).toDateString() === new Date().toDateString();
+
+                                    return (
+                                        <div className="glass-panel p-12 rounded-3xl border border-white/60 text-center flex flex-col items-center justify-center h-full min-h-[400px] animate-in fade-in zoom-in duration-500">
+                                            <div className="w-24 h-24 bg-emerald-50 rounded-full flex items-center justify-center mb-6 shadow-inner shadow-emerald-200/50 ring-8 ring-emerald-50/50">
+                                                <CheckCircle className="w-10 h-10 text-emerald-500" />
+                                            </div>
+                                            <h2 className="text-2xl font-black text-slate-800 mb-3 tracking-tight">Consultation Completed</h2>
+                                            <p className="text-slate-500 max-w-md mb-8 font-medium leading-relaxed">
+                                                {isToday ? "Today's" : `The ${new Date(completedVisit.visit_date).toLocaleDateString()}`} consultation session for <span className="text-slate-900 font-bold">{patient?.first_name}</span> has been successfully summarized and finalized.
+                                            </p>
+                                            <button
+                                                onClick={() => handleViewConsultation(completedConsult)}
+                                                className="px-10 py-4 bg-[#10B981] hover:bg-emerald-600 text-white rounded-2xl transition-all font-black flex items-center gap-3 shadow-xl shadow-emerald-600/30 hover:scale-105 active:scale-95 group ring-4 ring-emerald-100/50"
+                                            >
+                                                <Eye className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                                                View Clinical Scribe
+                                            </button>
+                                        </div>
+                                    );
+                                }
+
+                                return (
+                                    <div className="glass-panel p-12 rounded-[2.5rem] border border-white/60 text-center flex flex-col items-center justify-center h-full min-h-[400px] shadow-2xl shadow-blue-500/5">
+                                        <div className="w-24 h-24 bg-blue-50 rounded-full flex items-center justify-center mb-6 animate-pulse ring-8 ring-blue-50/50">
+                                            <Stethoscope className="w-10 h-10 text-blue-400" />
+                                        </div>
+                                        <h2 className="text-2xl font-black text-slate-800 mb-3 tracking-tight">Ready for Consultation</h2>
+                                        <p className="text-slate-500 max-w-md font-medium leading-relaxed">
+                                            Please select <span className="text-blue-600 font-bold">"Start Consultation"</span> button above to begin the session and access the Clinical Scribe.
+                                        </p>
                                     </div>
-                                    <h2 className="text-2xl font-bold text-slate-800 mb-2">Ready for Consultation</h2>
-                                    <p className="text-slate-500 max-w-md">
-                                        Please select "Start Consultation" from the header to begin the session. The Clinical Scribe will be ready to assist you.
-                                    </p>
-                                </div>
-                            )}
+                                );
+                            })()}
                         </div>
                     </div>
 
@@ -2665,12 +3111,20 @@ export default function PatientDetails() {
 
                                             <div className="flex justify-between items-center pt-3 border-t border-slate-100/50">
                                                 <p className="text-xs text-slate-500 font-medium">Dr. {consult.doctor_first_name} {consult.doctor_last_name}</p>
-                                                <button
-                                                    onClick={() => handlePrintPrescription(consult)}
-                                                    className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 hover:bg-blue-50 px-2 py-1 rounded transition"
-                                                >
-                                                    <FileText className="w-3 h-3" /> Prescription
-                                                </button>
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        onClick={() => handleViewConsultation(consult)}
+                                                        className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 hover:bg-emerald-50 px-2 py-1 rounded transition"
+                                                    >
+                                                        <Eye className="w-3 h-3" /> View Record
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handlePrintPrescription(consult)}
+                                                        className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 hover:bg-blue-50 px-2 py-1 rounded transition"
+                                                    >
+                                                        <FileText className="w-3 h-3" /> Prescription
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                     ))

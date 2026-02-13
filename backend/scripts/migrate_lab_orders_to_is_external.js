@@ -29,8 +29,8 @@ async function migrateLabOrdersSourceToIsExternal() {
             await client.query(`
                 UPDATE lab_orders 
                 SET is_external = CASE 
-                    WHEN source = 'medical_service' THEN TRUE
-                    WHEN source = 'billing_master' THEN FALSE
+                    WHEN source = 'medical_services' THEN TRUE
+                    WHEN source = 'billing_setup_master' THEN FALSE
                     ELSE TRUE
                 END
             `);

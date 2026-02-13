@@ -110,8 +110,19 @@ export const importCSV = async (csv_data: Array<{
     service_type: string;
     referral_pay: string;
     cash_percentage: number;
-    insurance_percentage: number;
-}>) => {
-    const response = await api.post('/marketing/import-csv', { csv_data });
+    inpatient_percentage: number;
+}>, dry_run: boolean = false) => {
+    const response = await api.post('/marketing/import-csv', { csv_data, dry_run });
+    return response.data;
+};
+
+/**
+ * Export actual doctor configurations
+ */
+export const exportDoctorConfigs = async (status?: string) => {
+    const response = await api.get('/marketing/export-doctor-configs', {
+        params: { status },
+        responseType: 'blob'
+    });
     return response.data;
 };
