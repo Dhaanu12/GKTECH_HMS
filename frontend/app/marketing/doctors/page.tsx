@@ -23,7 +23,7 @@ export default function ReferralDoctorsListPage() {
             const res = await getReferralDoctors();
             if (res.success && res.data) {
                 // Filter out 'Initialization' status if not already handled by backend
-                setDoctors(res.data.filter((d: any) => d.status !== 'Initialization'));
+                setDoctors(res.data);
             }
         } catch (err) {
             console.error('Error fetching doctors:', err);

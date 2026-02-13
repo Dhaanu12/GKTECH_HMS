@@ -1,0 +1,20 @@
+CREATE TABLE referral_patients (
+    id integer NOT NULL DEFAULT nextval('referral_patients_id_seq'::regclass),
+    referral_patient_id character varying(50),
+    patient_name character varying(100) NOT NULL,
+    mobile_number character varying(20) NOT NULL,
+    gender character varying(10),
+    age integer,
+    place character varying(100),
+    referral_doctor_id integer,
+    payment_type character varying(20) DEFAULT 'Cash'::character varying,
+    service_required character varying(255),
+    status character varying(20) DEFAULT 'Pending'::character varying,
+    remarks text,
+    created_by character varying(50),
+    marketing_spoc character varying(50),
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    referral_means character varying(50),
+    means_id integer
+);

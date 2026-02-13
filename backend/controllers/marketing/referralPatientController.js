@@ -39,15 +39,17 @@ exports.createReferralPatient = async (req, res) => {
     const referral_patient_id = manual_id || ('RP-' + Date.now());
     const final_payment_type = payment_type || 'Cash';
 
+    const effective_tenant_id = (req.user && req.user.hospital_id) ? req.user.hospital_id : null;
+
     try {
         const query = `
             INSERT INTO referral_patients (
                 patient_name, mobile_number, gender, age, place,
                 referral_doctor_id, service_required, remarks,
                 created_by, marketing_spoc, referral_patient_id, payment_type,
-                referral_means, means_id
+                referral_means, means_id, tenant_id
             ) VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
             ) RETURNING *
         `;
 
@@ -55,7 +57,7 @@ exports.createReferralPatient = async (req, res) => {
             patient_name, mobile_number, gender === '' ? null : gender, age === '' ? null : age, place,
             referral_doctor_id, service_required, remarks,
             created_by, marketing_spoc, referral_patient_id, final_payment_type,
-            req.body.referral_means, req.body.means_id
+            req.body.referral_means, req.body.means_id === '' ? null : req.body.means_id, effective_tenant_id
         ];
 
         const result = await pool.query(query, values);
@@ -73,6 +75,7 @@ exports.getAllReferralPatients = async (req, res) => {
 
         // Join with referral_doctor to get doctor name if needed
         // Also join with referral_agents for Agent name
+        // Filter by either direct tenant_id on patient OR tenant_id of the linked doctor (fallback for old data)
         const query = `
             SELECT rp.*, 
                    rd.doctor_name as referral_doctor_name,
@@ -83,7 +86,7 @@ exports.getAllReferralPatients = async (req, res) => {
             LEFT JOIN referral_agents ra ON rp.referral_means = 'Agent' AND rp.means_id = ra.id
             LEFT JOIN users u ON (rp.created_by = u.username OR rp.created_by = CAST(u.user_id AS VARCHAR))
             LEFT JOIN staff s ON u.user_id = s.user_id
-            WHERE rd.tenant_id = ANY($1)
+            WHERE (rp.tenant_id = ANY($1) OR (rp.tenant_id IS NULL AND rd.tenant_id = ANY($1)))
             ORDER BY rp.created_at DESC
         `;
         const result = await pool.query(query, [hospitalIds]);
