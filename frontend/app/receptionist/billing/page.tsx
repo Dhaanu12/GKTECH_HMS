@@ -451,7 +451,7 @@ export default function BillingPage() {
                     ) : (
                         pendingItems.length > 0 ? (
                             pendingItems.map((item: any) => (
-                                <div key={item.opd_id} className="group bg-white rounded-2xl p-6 border-l-4 border-l-amber-400 border border-slate-200 shadow-sm hover:shadow-lg transition-all flex flex-col justify-between min-h-[220px]">
+                                <div key={item.bill_master_id} className="group bg-white rounded-2xl p-6 border-l-4 border-l-amber-400 border border-slate-200 shadow-sm hover:shadow-lg transition-all flex flex-col justify-between min-h-[220px]">
                                     <div>
                                         <div className="flex justify-between items-start mb-5">
                                             <div className="flex items-center gap-4">

@@ -44,11 +44,11 @@ export default function AppointmentsPage() {
         doctor_id: '',
         reason: ''
     });
-    
+
     // AI scheduling state
     const [aiSchedulingSuggestion, setAiSchedulingSuggestion] = useState<string | null>(null);
     const [aiSchedulingLoading, setAiSchedulingLoading] = useState(false);
-    
+
     // AI scheduling for new appointments
     const [newApptAiSuggestion, setNewApptAiSuggestion] = useState<string | null>(null);
     const [newApptAiLoading, setNewApptAiLoading] = useState(false);
@@ -524,21 +524,21 @@ export default function AppointmentsPage() {
         else setTimeSlotCategory('Evening');
 
         setShowRescheduleModal(true);
-        
+
         // Clear previous AI suggestion
         setAiSchedulingSuggestion(null);
     };
-    
+
     const handleGetAISchedulingSuggestion = async () => {
         if (!appointmentToReschedule) return;
-        
+
         setAiSchedulingLoading(true);
         setAiSchedulingSuggestion(null);
-        
+
         try {
             // Get the selected doctor's name
             const selectedDoctor = doctors.find((d: any) => d.doctor_id === parseInt(rescheduleForm.doctor_id));
-            
+
             const result = await optimizeSchedule({
                 doctorName: selectedDoctor?.name || appointmentToReschedule.doctor_name,
                 requestedTime: `${rescheduleForm.appointment_date} ${rescheduleForm.appointment_time}`,
@@ -548,7 +548,7 @@ export default function AppointmentsPage() {
                     date: rescheduleForm.appointment_date
                 })),
             });
-            
+
             if (result.success) {
                 setAiSchedulingSuggestion(result.message);
             } else {
@@ -563,10 +563,10 @@ export default function AppointmentsPage() {
 
     const handleGetNewApptAISuggestion = async () => {
         if (!appointmentForm.doctor_id || !appointmentForm.appointment_date) return;
-        
+
         setNewApptAiLoading(true);
         setNewApptAiSuggestion(null);
-        
+
         try {
             const selectedDoctor = doctors.find((d: any) => d.doctor_id === parseInt(appointmentForm.doctor_id));
             const result = await optimizeSchedule({
@@ -578,7 +578,7 @@ export default function AppointmentsPage() {
                     date: appointmentForm.appointment_date
                 })),
             });
-            
+
             if (result.success) {
                 setNewApptAiSuggestion(result.message);
             } else {
@@ -1713,7 +1713,7 @@ export default function AppointmentsPage() {
                                         placeholder="e.g., Patient requested change"
                                     />
                                 </div>
-                                
+
                                 {/* AI Scheduling Suggestions */}
                                 <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-4 border border-indigo-100">
                                     <div className="flex items-center justify-between mb-2">
@@ -1730,7 +1730,7 @@ export default function AppointmentsPage() {
                                             {aiSchedulingLoading ? 'Analyzing...' : 'Get Suggestion'}
                                         </button>
                                     </div>
-                                    
+
                                     {aiSchedulingLoading && (
                                         <AILoadingIndicator text="Analyzing schedule..." variant="compact" />
                                     )}

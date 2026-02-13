@@ -251,7 +251,7 @@ class OpdController {
                 const duplicateCheck = await client.query(
                     `SELECT opd_id FROM opd_entries 
                      WHERE patient_id = $1 AND doctor_id = $2 AND visit_date = $3 
-                     AND visit_status != 'Cancelled'`,
+                     AND visit_status NOT IN ('Cancelled', 'Completed')`,
                     [finalPatientId, doctor_id, visit_date]
                 );
 
@@ -1189,7 +1189,7 @@ class OpdController {
             const duplicateCheck = await query(
                 `SELECT opd_id FROM opd_entries 
                  WHERE patient_id = $1 AND doctor_id = $2 AND visit_date = $3 
-                 AND visit_status != 'Cancelled'`,
+                 AND visit_status NOT IN ('Cancelled', 'Completed')`,
                 [patient_id, doctor_id, visit_date]
             );
 

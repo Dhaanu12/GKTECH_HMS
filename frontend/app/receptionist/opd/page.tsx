@@ -1866,8 +1866,8 @@ export default function OpdEntryPage() {
                                                 </span>
                                             </div>
                                             <button
-                                                onClick={() => handleEditOpd(entry)}
-                                                className={`text-xs font-mono font-bold text-slate-500 hover:${colors.text} hover:underline whitespace-nowrap`}
+                                                onClick={() => entry.visit_status !== 'Completed' && handleEditOpd(entry)}
+                                                className={`text-xs font-mono font-bold text-slate-500 hover:${colors.text} hover:underline whitespace-nowrap ${entry.visit_status === 'Completed' ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}`}
                                             >
                                                 #{entry.opd_number}
                                             </button>
@@ -1946,19 +1946,27 @@ export default function OpdEntryPage() {
                                             <div className="flex items-center gap-1.5 w-full">
                                                 {/* Edit Button */}
                                                 <button
-                                                    onClick={() => handleEditOpd(entry)}
-                                                    className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-800 rounded-lg transition-all font-bold text-xs"
-                                                    title="Edit OPD Entry"
+                                                    onClick={() => entry.visit_status !== 'Completed' && handleEditOpd(entry)}
+                                                    className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg transition-all font-bold text-xs ${entry.visit_status === 'Completed'
+                                                        ? 'bg-slate-50 text-slate-300 cursor-not-allowed pointer-events-none'
+                                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-800'
+                                                        }`}
+                                                    title={entry.visit_status === 'Completed' ? "Cannot edit completed visit" : "Edit OPD Entry"}
+                                                    disabled={entry.visit_status === 'Completed'}
                                                 >
                                                     Edit
                                                 </button>
 
-                                                {/* Cancel Button */}
-                                                {entry.visit_status === 'Registered' ? (
+                                                {/* Cancel Button - Show for Registered or Completed (but disabled for Completed or MLC) */}
+                                                {entry.visit_status === 'Registered' || entry.visit_status === 'Completed' ? (
                                                     <button
-                                                        onClick={() => openCancelModal(entry)}
-                                                        className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-all font-bold text-xs border border-red-100"
-                                                        title="Cancel Visit"
+                                                        onClick={() => entry.visit_status !== 'Completed' && !entry.is_mlc && openCancelModal(entry)}
+                                                        className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg transition-all font-bold text-xs border ${entry.visit_status === 'Completed' || entry.is_mlc
+                                                            ? 'bg-red-50/30 text-red-200 border-red-50 cursor-not-allowed pointer-events-none'
+                                                            : 'bg-red-50 text-red-600 hover:bg-red-100 border-red-100'
+                                                            }`}
+                                                        title={entry.visit_status === 'Completed' ? "Cannot cancel completed visit" : entry.is_mlc ? "Cannot cancel MLC case" : "Cancel Visit"}
+                                                        disabled={entry.visit_status === 'Completed' || entry.is_mlc}
                                                     >
                                                         Cancel
                                                     </button>
@@ -1967,11 +1975,15 @@ export default function OpdEntryPage() {
                                                 )}
                                             </div>
 
-                                            {/* Row 2: Re-Appoint (Full Width) */}
+                                            {/* Row 2: Re-Appoint (Full Width) - Disabled for Completed or MLC */}
                                             <button
-                                                onClick={() => openRescheduleModal(entry)}
-                                                className="w-full flex items-center justify-center gap-2 px-2 py-1.5 bg-slate-900 text-white hover:bg-slate-800 rounded-lg transition-all font-bold text-xs shadow-sm active:scale-95"
-                                                title="Re-Appoint Patient"
+                                                onClick={() => entry.visit_status !== 'Completed' && !entry.is_mlc && openRescheduleModal(entry)}
+                                                className={`w-full flex items-center justify-center gap-2 px-2 py-1.5 rounded-lg transition-all font-bold text-xs shadow-sm active:scale-95 ${entry.visit_status === 'Completed' || entry.is_mlc
+                                                    ? 'bg-slate-200 text-slate-400 cursor-not-allowed pointer-events-none'
+                                                    : 'bg-slate-900 text-white hover:bg-slate-800'
+                                                    }`}
+                                                title={entry.visit_status === 'Completed' ? "Cannot re-appoint for completed visit" : entry.is_mlc ? "Cannot re-appoint for MLC case" : "Re-Appoint Patient"}
+                                                disabled={entry.visit_status === 'Completed' || entry.is_mlc}
                                             >
                                                 Re-Appoint
                                             </button>

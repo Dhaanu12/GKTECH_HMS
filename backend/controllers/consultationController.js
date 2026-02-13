@@ -103,19 +103,27 @@ class ConsultationController {
             await client.query(`DELETE FROM consultation_outcomes WHERE opd_id = $1 AND consultation_status IN ('Draft', 'Pending')`, [opd_id]);
             // Delete Prescriptions
             await client.query(`DELETE FROM prescriptions WHERE opd_id = $1`, [opd_id]);
-            // Delete Lab Orders (only those created during this OPD session, ideally we'd filter by status but 'Ordered' is default)
-            // Strategy: We will delete all lab orders for this OPD. 
-            // Warning: If there were "finalized" lab orders from a previous "partial complete", they might be lost. 
-            // But usually "Complete" closes the OPD. So for an open OPD, deleting and recreating is acceptable for Draft saves.
-            await client.query(`DELETE FROM lab_orders WHERE opd_id = $1`, [opd_id]);
+            // Delete Lab Orders (only those created during draft/pending consultation)
+            // We only delete 'Ordered' or 'Draft' status to avoid losing processed work
+            await client.query(`DELETE FROM lab_orders WHERE opd_id = $1 AND status IN ('Ordered', 'Draft')`, [opd_id]);
 
-            // Delete Billing (Pending bills for this OPD)
-            // We first identify the bill_master_id to delete details
-            const pendingBills = await client.query(`SELECT bill_master_id FROM billing_master WHERE opd_id = $1 AND status = 'Pending'`, [opd_id]);
-            for (const row of pendingBills.rows) {
+            // Delete Billing (Only Draft bills for this OPD)
+            const draftBills = await client.query(`
+                SELECT bill_master_id 
+                FROM billing_master 
+                WHERE opd_id = $1 
+                AND status = 'Pending' 
+                AND (invoice_number = 'DRAFT' OR bill_number LIKE 'DRAFT-%')
+            `, [opd_id]);
+            for (const row of draftBills.rows) {
                 await client.query(`DELETE FROM bill_details WHERE bill_master_id = $1`, [row.bill_master_id]);
             }
-            await client.query(`DELETE FROM billing_master WHERE opd_id = $1 AND status = 'Pending'`, [opd_id]);
+            await client.query(`
+                DELETE FROM billing_master 
+                WHERE opd_id = $1 
+                AND status = 'Pending' 
+                AND (invoice_number = 'DRAFT' OR bill_number LIKE 'DRAFT-%')
+            `, [opd_id]);
 
 
             // --- 2. INSERT CONSULTATION OUTCOME (DRAFT) ---
@@ -379,14 +387,25 @@ class ConsultationController {
             await client.query(`DELETE FROM prescriptions WHERE opd_id = $1`, [opd_id]);
 
             // Delete Draft Lab Orders for this OPD (created by Save Draft)
-            await client.query(`DELETE FROM lab_orders WHERE opd_id = $1`, [opd_id]);
+            await client.query(`DELETE FROM lab_orders WHERE opd_id = $1 AND status IN ('Ordered', 'Draft')`, [opd_id]);
 
-            // Delete Pending Bills for this OPD (created by Save Draft)
-            const pendingBills = await client.query(`SELECT bill_master_id FROM billing_master WHERE opd_id = $1 AND status = 'Pending'`, [opd_id]);
-            for (const row of pendingBills.rows) {
+            // Delete Pending Draft Bills for this OPD (created by Save Draft)
+            const draftBills = await client.query(`
+                SELECT bill_master_id 
+                FROM billing_master 
+                WHERE opd_id = $1 
+                AND status = 'Pending' 
+                AND (invoice_number = 'DRAFT' OR bill_number LIKE 'DRAFT-%')
+            `, [opd_id]);
+            for (const row of draftBills.rows) {
                 await client.query(`DELETE FROM bill_details WHERE bill_master_id = $1`, [row.bill_master_id]);
             }
-            await client.query(`DELETE FROM billing_master WHERE opd_id = $1 AND status = 'Pending'`, [opd_id]);
+            await client.query(`
+                DELETE FROM billing_master 
+                WHERE opd_id = $1 
+                AND status = 'Pending' 
+                AND (invoice_number = 'DRAFT' OR bill_number LIKE 'DRAFT-%')
+            `, [opd_id]);
 
 
             // 1. Fetch details needed for Labs and Billing
@@ -429,18 +448,25 @@ class ConsultationController {
 
 
             // 2. Create Prescription if medications or labs are provided
+            // --- SAVE FINAL PRESCRIPTION ---
             let prescription_id = null;
             if ((medications && medications.length > 0) || (labs && labs.length > 0) || (procedures && procedures.length > 0)) {
-                // Fetch branch_id from OPD entry
-                const opdResult = await client.query('SELECT branch_id FROM opd_entries WHERE opd_id = $1', [opd_id]);
-                const branch_id = opdResult.rows[0]?.branch_id;
-
                 const presResult = await client.query(`
                     INSERT INTO prescriptions (
                         doctor_id, patient_id, branch_id, medications, notes, diagnosis, labs, procedures, status, opd_id
                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'Active', $9)
                     RETURNING prescription_id
-                `, [doctor_id, patient_id, branch_id, JSON.stringify(medications || []), notes, diagnosis, JSON.stringify(labs || []), procedures || null, opd_id]);
+                `, [
+                    doctor_id,
+                    patient_id,
+                    branch_id,
+                    JSON.stringify(medications || []),
+                    notes,
+                    diagnosis,
+                    JSON.stringify(labs || []),
+                    procedures || null,
+                    opd_id
+                ]);
 
                 prescription_id = presResult.rows[0].prescription_id;
             }
