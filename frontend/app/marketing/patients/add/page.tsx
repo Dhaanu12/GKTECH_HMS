@@ -163,7 +163,7 @@ export default function AddReferralPatientPage() {
         try {
             const token = localStorage.getItem('token');
             const baseUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || '';
-            const apiUrl = `${baseUrl}/api/marketing/referral-patients`;
+            const apiUrl = `${baseUrl}/marketing/referral-patients`;
 
             // Ensure referral_doctor_id is populated for backward compatibility if Doctor is selected
             // If Agent/Self, referral_doctor_id can be null or ignored by backend if updated

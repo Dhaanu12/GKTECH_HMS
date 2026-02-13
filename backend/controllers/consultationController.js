@@ -427,23 +427,6 @@ class ConsultationController {
                 return isNaN(converted) ? null : converted;
             };
 
-            // --- SAVE FINAL PRESCRIPTIONS ---
-            if (medications && Array.isArray(medications) && medications.length > 0) {
-                for (const med of medications) {
-                    await client.query(`
-                        INSERT INTO prescriptions (
-                            opd_id, patient_id, doctor_id,
-                            medicine_name, dosage, frequency, duration, food_timing,
-                            status
-                        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'Completed')
-                    `, [
-                        opd_id, patient_id, doctor_id,
-                        med.name, med.dosage,
-                        med.frequency || [med.morning && 'Morning', med.noon && 'Noon', med.night && 'Night'].filter(Boolean).join('-'),
-                        med.duration, med.food_timing
-                    ]);
-                }
-            }
 
             // 2. Create Prescription if medications or labs are provided
             let prescription_id = null;
