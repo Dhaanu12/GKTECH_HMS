@@ -328,29 +328,121 @@ exports.exportCSVTemplate = async (req, res) => {
 };
 
 /**
+ * Export actual doctor configurations as CSV
+ */
+exports.exportDoctorConfigs = async (req, res) => {
+    try {
+        const { status } = req.query; // 'configured', 'unconfigured', or 'all'
+
+        // 1. Get assigned contexts
+        const hospitalIds = await getAssignedHospitalIds(req.user);
+        const branchIds = await getAssignedBranchIds(req.user);
+
+        // 2. Fetch all available services (active and inactive)
+        const servicesQuery = `
+            SELECT DISTINCT s.service_name as service_type 
+            FROM services s
+            JOIN branch_services bs ON s.service_id = bs.service_id
+            WHERE bs.branch_id = ANY($1)
+            UNION
+            SELECT DISTINCT ms.service_name as service_type
+            FROM medical_services ms
+            JOIN branch_medical_services bms ON ms.service_id = bms.service_id
+            WHERE bms.branch_id = ANY($1)
+            ORDER BY service_type
+        `;
+
+        const servicesResult = await db.query(servicesQuery, [branchIds]);
+        const allServices = servicesResult.rows;
+
+        // 3. Fetch Doctors based on filter
+        let doctorsQuery = `
+            SELECT rd.id, rd.doctor_name, rd.mobile_number
+            FROM referral_doctor_module rd
+            WHERE rd.tenant_id = ANY($1) AND rd.status != 'Deleted'
+        `;
+
+        if (status === 'configured') {
+            doctorsQuery += ` AND EXISTS (SELECT 1 FROM referral_doctor_service_percentage_module rdsp WHERE rdsp.referral_doctor_id = rd.id)`;
+        } else if (status === 'unconfigured') {
+            doctorsQuery += ` AND NOT EXISTS (SELECT 1 FROM referral_doctor_service_percentage_module rdsp WHERE rdsp.referral_doctor_id = rd.id)`;
+        }
+
+        doctorsQuery += ` ORDER BY rd.doctor_name`;
+
+        const doctorsResult = await db.query(doctorsQuery, [hospitalIds]);
+        const doctors = doctorsResult.rows;
+
+        // 4. Fetch Existing Configurations/Permissions
+        const doctorIds = doctors.map(d => d.id);
+        let existingConfigs = [];
+
+        if (doctorIds.length > 0) {
+            const configQuery = `
+                SELECT referral_doctor_id, service_type, referral_pay, cash_percentage, inpatient_percentage
+                FROM referral_doctor_service_percentage_module
+                WHERE referral_doctor_id = ANY($1)
+            `;
+            const configResult = await db.query(configQuery, [doctorIds]);
+            existingConfigs = configResult.rows;
+        }
+
+        // Map configs
+        const configMap = {};
+        existingConfigs.forEach(cfg => {
+            if (!configMap[cfg.referral_doctor_id]) configMap[cfg.referral_doctor_id] = {};
+            configMap[cfg.referral_doctor_id][cfg.service_type] = cfg;
+        });
+
+        // 5. Generate CSV
+        let csv = 'Doctor ID,Doctor Name,Mobile Number,Service Type,Referral Pay (Y/N),Cash Percentage,Insurance Percentage\n';
+
+        if (doctors.length === 0) {
+            csv += 'No doctors found matching criteria.\n';
+        } else if (allServices.length === 0) {
+            csv += 'No services found in your branches.\n';
+        } else {
+            doctors.forEach(doc => {
+                allServices.forEach(svc => {
+                    const config = configMap[doc.id]?.[svc.service_type];
+
+                    const refPay = config ? config.referral_pay : 'N';
+                    const cashPct = config ? config.cash_percentage : 0;
+                    const inpatientPct = config ? config.inpatient_percentage : 0;
+
+                    csv += `${doc.id},"${doc.doctor_name.replace(/"/g, '""')}","${doc.mobile_number || ''}","${svc.service_type.replace(/"/g, '""')}",${refPay},${cashPct},${inpatientPct}\n`;
+                });
+            });
+        }
+
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', `attachment; filename=referral_config_${status || 'all'}_${new Date().toISOString().split('T')[0]}.csv`);
+        res.status(200).send(csv);
+
+    } catch (error) {
+        console.error('Export doctor configs error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
  * Import service percentages from CSV
  */
 exports.importCSV = async (req, res) => {
     let client;
 
     try {
-        const { csv_data } = req.body;
+        const { csv_data, dry_run } = req.body;
 
-        console.log('📥 Received CSV import request');
-        console.log('CSV data length:', csv_data?.length);
-        console.log('First 3 rows:', JSON.stringify(csv_data?.slice(0, 3), null, 2));
+        console.log(`📥 Received CSV import request (Dry Run: ${dry_run})`);
 
-        if (!csv_data || !Array.isArray(csv_data)) {
-            return res.status(400).json({ success: false, message: 'csv_data array is required' });
-        }
-
-        if (csv_data.length === 0) {
-            return res.status(400).json({ success: false, message: 'csv_data array is empty' });
+        if (!csv_data || !Array.isArray(csv_data) || csv_data.length === 0) {
+            return res.status(400).json({ success: false, message: 'csv_data array is required and cannot be empty' });
         }
 
         client = await db.getClient();
 
-        // Security check: Ensure all doctors in CSV belong to assigned hospitals
+        // 1. Security Check: Validate Doctors
         const hospitalIds = await getAssignedHospitalIds(req.user);
         const doctorIdsInCSV = [...new Set(csv_data.map(row => row.doctor_id).filter(id => id != null))];
 
@@ -361,77 +453,129 @@ exports.importCSV = async (req, res) => {
 
         const validDoctorIds = new Set(validDoctorsCheck.rows.map(row => row.id.toString()));
 
-        await client.query('BEGIN');
+        // 2. Process Rows
+        if (!dry_run) await client.query('BEGIN');
 
-        const insertedRecords = [];
-        const errors = [];
+        const summary = {
+            to_insert: 0,
+            to_update: 0,
+            unchanged: 0,
+            errors: 0,
+            details: []
+        };
         const affectedDoctorIds = new Set();
+        const insertedRecords = []; // For response compatibility
 
         for (let i = 0; i < csv_data.length; i++) {
             const row = csv_data[i];
-            console.log(`\n🔄 Processing row ${i + 1}:`, row);
 
             try {
-                // Validate row
+                // Validate Data Structure
                 if (!row.doctor_id || !row.service_type) {
-                    console.log(`⚠️ Row ${i + 1} validation failed:`, row);
-                    errors.push({ row: i + 1, error: 'Missing doctor_id or service_type' });
+                    summary.errors++;
+                    summary.details.push({ row: i + 1, error: 'Missing doctor_id or service_type', data: row });
                     continue;
                 }
 
+                // Security Check
                 if (!validDoctorIds.has(row.doctor_id.toString())) {
-                    console.log(`⚠️ Row ${i + 1} security validation failed: Doctor ${row.doctor_id} unauthorized`);
-                    errors.push({ row: i + 1, error: 'Unauthorized: Doctor does not belong to your assigned hospitals' });
+                    summary.errors++;
+                    summary.details.push({ row: i + 1, error: 'Unauthorized: Doctor not assigned to user', data: row });
                     continue;
                 }
 
-                console.log(`✅ Row ${i + 1} validation passed`);
+                // Parse Values (Ensure correct types)
+                const newCash = parseFloat(row.cash_percentage) || 0;
+                const newInpatient = parseFloat(row.inpatient_percentage) || 0;
+                const newRefPay = row.referral_pay === 'Y' ? 'Y' : 'N';
+                const serviceType = row.service_type.trim();
 
-                // Check if already exists
-                console.log(`🔍 Checking if record exists for doctor ${row.doctor_id}, service ${row.service_type}`);
+                // Check Existing
                 const existingCheck = await client.query(
-                    `SELECT id FROM referral_doctor_service_percentage_module 
-                     WHERE referral_doctor_id = $1 AND service_type = $2`,
-                    [row.doctor_id, row.service_type]
+                    `SELECT percentage_id, cash_percentage, inpatient_percentage, referral_pay 
+                     FROM referral_doctor_service_percentage_module 
+                     WHERE referral_doctor_id = $1 AND TRIM(service_type) = $2`,
+                    [row.doctor_id, serviceType]
                 );
-
-                console.log(`📊 Existing check result: ${existingCheck.rows.length} rows found`);
 
                 if (existingCheck.rows.length > 0) {
-                    console.log(`⚠️ Row ${i + 1} already exists, skipping`);
-                    errors.push({ row: i + 1, error: 'Record already exists' });
-                    continue;
+                    const current = existingCheck.rows[0];
+
+                    // DEBUG LOGGING
+                    console.log(`\n🔍 Comparison for ${row.doctor_id} - ${serviceType}:`);
+                    console.log(`   Current (DB): Cash=${current.cash_percentage} (${typeof current.cash_percentage}), Inpatient=${current.inpatient_percentage} (${typeof current.inpatient_percentage}), Pay=${current.referral_pay} (${typeof current.referral_pay})`);
+                    console.log(`   New (CSV):    Cash=${newCash} (${typeof newCash}), Inpatient=${newInpatient} (${typeof newInpatient}), Pay=${newRefPay} (${typeof newRefPay})`);
+
+                    // Compare values (Handle string/number differences)
+                    const isChanged =
+                        parseFloat(current.cash_percentage) !== newCash ||
+                        parseFloat(current.inpatient_percentage) !== newInpatient ||
+                        current.referral_pay !== newRefPay;
+
+                    console.log(`   Result: isChanged=${isChanged}`);
+
+                    if (isChanged) {
+                        summary.to_update++;
+                        if (dry_run) {
+                            summary.details.push({
+                                row: i + 1,
+                                status: 'Update',
+                                diff: {
+                                    doctor: row.doctor_id,
+                                    service: serviceType,
+                                    old: { cash: current.cash_percentage, inpatient: current.inpatient_percentage, pay: current.referral_pay },
+                                    new: { cash: newCash, inpatient: newInpatient, pay: newRefPay }
+                                }
+                            });
+                        } else {
+                            await client.query(
+                                `UPDATE referral_doctor_service_percentage_module 
+                                 SET cash_percentage = $1, inpatient_percentage = $2, referral_pay = $3, status = 'Active', updated_by = 'Bulk Import', updated_at = CURRENT_TIMESTAMP
+                                 WHERE percentage_id = $4`,
+                                [newCash, newInpatient, newRefPay, current.percentage_id]
+                            );
+                            affectedDoctorIds.add(row.doctor_id);
+                            insertedRecords.push({ status: 'updated', ...row });
+                        }
+                    } else {
+                        summary.unchanged++;
+                        // In real run, we might just ignore, or maybe ensuring 'Active' status is useful?
+                        // For now, treat as no-op.
+                    }
+                } else {
+                    summary.to_insert++;
+                    if (dry_run) {
+                        summary.details.push({ row: i + 1, status: 'Insert', data: { doctor: row.doctor_id, service: serviceType, cash: newCash, inpatient: newInpatient } });
+                    } else {
+                        const result = await client.query(
+                            `INSERT INTO referral_doctor_service_percentage_module (
+                                referral_doctor_id, service_type, cash_percentage,
+                                inpatient_percentage, referral_pay, status
+                            ) VALUES ($1, $2, $3, $4, $5, $6)
+                            RETURNING *`,
+                            [row.doctor_id, serviceType, newCash, newInpatient, newRefPay, 'Active']
+                        );
+                        affectedDoctorIds.add(row.doctor_id);
+                        insertedRecords.push({ status: 'inserted', ...result.rows[0] });
+                    }
                 }
 
-                console.log(`💾 Inserting row ${i + 1}...`);
-                // Insert record
-                const result = await client.query(
-                    `INSERT INTO referral_doctor_service_percentage_module (
-                        referral_doctor_id, service_type, cash_percentage,
-                        inpatient_percentage, referral_pay, status
-                    ) VALUES ($1, $2, $3, $4, $5, $6)
-                    RETURNING *`,
-                    [
-                        row.doctor_id,
-                        row.service_type,
-                        parseFloat(row.cash_percentage) || 0,
-                        parseFloat(row.inpatient_percentage) || 0,
-                        row.referral_pay === 'Y' ? 'Y' : 'N',
-                        'Active'
-                    ]
-                );
-
-                console.log(`✅ Row ${i + 1} inserted successfully:`, result.rows[0].percentage_id);
-                insertedRecords.push(result.rows[0]);
-                affectedDoctorIds.add(row.doctor_id);
-
             } catch (rowError) {
-                console.error(`❌ Row ${i + 1} error:`, rowError.message);
-                errors.push({ row: i + 1, error: rowError.message });
+                console.error(`Row ${i + 1} error:`, rowError);
+                summary.errors++;
+                summary.details.push({ row: i + 1, error: rowError.message });
             }
         }
 
-        // Activate all affected doctors
+        if (dry_run) {
+            return res.status(200).json({
+                success: true,
+                dry_run: true,
+                summary: summary
+            });
+        }
+
+        // Commit Changes
         if (affectedDoctorIds.size > 0) {
             const doctorIds = Array.from(affectedDoctorIds);
             await client.query(
@@ -444,16 +588,16 @@ exports.importCSV = async (req, res) => {
 
         res.status(201).json({
             success: true,
-            message: `Imported ${insertedRecords.length} records`,
+            dry_run: false,
+            message: `Imported ${insertedRecords.length} records (${summary.to_update} updated, ${summary.to_insert} inserted, ${summary.unchanged} unchanged)`,
             data: {
                 inserted: insertedRecords.length,
-                errors: errors.length,
-                error_details: errors
+                stats: summary
             }
         });
 
     } catch (error) {
-        if (client) await client.query('ROLLBACK');
+        if (client && !req.body.dry_run) await client.query('ROLLBACK');
         console.error('Import CSV error:', error);
         res.status(500).json({ success: false, message: error.message });
     } finally {

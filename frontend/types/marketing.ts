@@ -26,4 +26,51 @@ export interface ReferralDoctor {
     kyc_upload_path?: string;
     created_at?: string;
     updated_at?: string;
+    status?: string;
+    referral_means?: string;
+    means_id?: number;
+    branch_id?: number | null;
+    created_by_name?: string;
+}
+
+export interface ReferralAgent {
+    id: number;
+    name: string;
+    mobile: string;
+    company?: string;
+    role?: string;
+    remarks?: string;
+    email?: string;
+    status: string;
+    created_at?: string;
+    created_by?: string;
+    created_by_name?: string;
+    tenant_id?: number;
+    // Bank Details
+    bank_name?: string;
+    bank_branch?: string;
+    bank_account_number?: string;
+    bank_ifsc_code?: string;
+    // Identity
+    pan_card_number?: string;
+    pan_upload_path?: string;
+    // Commissions
+    referral_patient_commission?: number;
+    referral_doc_commission?: number;
+}
+
+export interface ServicePercentage {
+    id: number;
+    referral_doctor_id: number;
+    service_name: string;
+    percentage: number;
+    created_at?: string;
+    updated_at?: string;
+}
+
+export interface Service {
+    id: number;
+    service_name: string;
+    department_id?: number;
+    base_price?: number;
 }

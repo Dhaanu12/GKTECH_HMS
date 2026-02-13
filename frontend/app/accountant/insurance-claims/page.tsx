@@ -108,6 +108,7 @@ export default function ClaimsPage() {
 
     useEffect(() => {
         fetchBranches();
+        fetchInsuranceCompanies(); // Fetch all insurance companies initially
     }, []);
 
     useEffect(() => {
@@ -192,7 +193,8 @@ export default function ClaimsPage() {
             const response = await axios.get('/api/accountant/analytics/insurers', {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setAnalyticsSummary(response.data.data.summary);
+            // Store the entire data object which includes both summary and insurers
+            setAnalyticsSummary(response.data.data);
         } catch (error) {
             console.error('Error fetching analytics summary:', error);
         } finally {
@@ -908,7 +910,7 @@ export default function ClaimsPage() {
                                 <div>
                                     <p className="text-sm font-medium text-gray-500">Total Claims</p>
                                     <h3 className="text-2xl font-bold text-gray-900">
-                                        {analyticsSummary?.total_claims?.toLocaleString() || '0'}
+                                        {analyticsSummary?.summary?.total_claims?.toLocaleString() || '0'}
                                     </h3>
                                 </div>
                             </div>
@@ -925,7 +927,7 @@ export default function ClaimsPage() {
                                 <div>
                                     <p className="text-sm font-medium text-gray-500">Total Billing</p>
                                     <h3 className="text-2xl font-bold text-gray-900">
-                                        {formatCurrency(analyticsSummary?.total_bill_amount)}
+                                        {formatCurrency(analyticsSummary?.summary?.total_bill_amount)}
                                     </h3>
                                 </div>
                             </div>
@@ -942,7 +944,7 @@ export default function ClaimsPage() {
                                 <div>
                                     <p className="text-sm font-medium text-gray-500">Active Insurers</p>
                                     <h3 className="text-2xl font-bold text-gray-900">
-                                        {analyticsSummary?.total_insurers || '0'}
+                                        {analyticsSummary?.summary?.total_insurers || '0'}
                                     </h3>
                                 </div>
                             </div>
@@ -959,13 +961,150 @@ export default function ClaimsPage() {
                                 <div>
                                     <p className="text-sm font-medium text-gray-500">Avg Claim Size</p>
                                     <h3 className="text-2xl font-bold text-gray-900">
-                                        {formatCurrency(analyticsSummary?.total_bill_amount / (analyticsSummary?.total_claims || 1))}
+                                        {formatCurrency(analyticsSummary?.summary?.total_bill_amount / (analyticsSummary?.summary?.total_claims || 1))}
                                     </h3>
                                 </div>
                             </div>
                             <div className="h-1 w-full bg-gray-50 rounded-full overflow-hidden">
                                 <div className="h-full bg-amber-500 w-full" />
                             </div>
+                        </div>
+                    </div>
+
+                    {/* Pending vs Non-Pending Claims Chart */}
+                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all">
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                                <BarChart3 className="w-5 h-5 text-blue-600" />
+                                Claims Status Distribution
+                            </h2>
+                            <span className="text-xs font-medium px-2 py-1 bg-blue-50 text-blue-600 rounded-lg">Pending vs Completed</span>
+                        </div>
+                        <div className="h-[300px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart
+                                    data={[
+                                        {
+                                            name: 'Pending',
+                                            count: analyticsSummary?.summary?.pending_claims || 0,
+                                            fill: '#ef4444'
+                                        },
+                                        {
+                                            name: 'Completed',
+                                            count: analyticsSummary?.summary?.non_pending_claims || 0,
+                                            fill: '#22c55e'
+                                        }
+                                    ]}
+                                    margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                                >
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                                    <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                                    <YAxis
+                                        stroke="#888888"
+                                        fontSize={12}
+                                        tickLine={false}
+                                        axisLine={false}
+                                    />
+                                    <Tooltip
+                                        cursor={{ fill: '#f8fafc' }}
+                                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                        formatter={(value: number) => [value.toLocaleString(), 'Claims']}
+                                    />
+                                    <Legend />
+                                    <Bar name="Number of Claims" dataKey="count" radius={[8, 8, 0, 0]} barSize={80}>
+                                        {[
+                                            { name: 'Pending', fill: '#ef4444' },
+                                            { name: 'Completed', fill: '#22c55e' }
+                                        ].map((entry, index) => (
+                                            <Bar key={`cell-${index}`} dataKey="count" fill={entry.fill} />
+                                        ))}
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                        <div className="mt-4 grid grid-cols-2 gap-4">
+                            <div className="bg-red-50 p-4 rounded-xl border border-red-100">
+                                <p className="text-xs font-medium text-red-600 mb-1">Pending Claims</p>
+                                <p className="text-2xl font-bold text-red-700">{analyticsSummary?.summary?.pending_claims?.toLocaleString() || '0'}</p>
+                                <p className="text-xs text-red-500 mt-1">
+                                    {analyticsSummary?.summary?.total_claims > 0
+                                        ? `${((analyticsSummary.summary.pending_claims / analyticsSummary.summary.total_claims) * 100).toFixed(1)}% of total`
+                                        : '0% of total'}
+                                </p>
+                            </div>
+                            <div className="bg-green-50 p-4 rounded-xl border border-green-100">
+                                <p className="text-xs font-medium text-green-600 mb-1">Completed Claims</p>
+                                <p className="text-2xl font-bold text-green-700">{analyticsSummary?.summary?.non_pending_claims?.toLocaleString() || '0'}</p>
+                                <p className="text-xs text-green-500 mt-1">
+                                    {analyticsSummary?.summary?.total_claims > 0
+                                        ? `${((analyticsSummary.summary.non_pending_claims / analyticsSummary.summary.total_claims) * 100).toFixed(1)}% of total`
+                                        : '0% of total'}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Insurer-wise Pending/Completed Breakdown */}
+                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all">
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                                <BarChart3 className="w-5 h-5 text-blue-600" />
+                                Insurer-wise Claims Status
+                            </h2>
+                            <span className="text-xs font-medium px-2 py-1 bg-purple-50 text-purple-600 rounded-lg">Breakdown by Company</span>
+                        </div>
+                        <div className="h-[400px]">
+                            {analyticsSummary && (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart
+                                        data={(() => {
+                                            // Fetch insurers data from the API response
+                                            const insurersData = analyticsSummary.insurers || [];
+                                            return insurersData.map((insurer: any) => ({
+                                                name: insurer.insurance_name.length > 15
+                                                    ? insurer.insurance_name.substring(0, 12) + '...'
+                                                    : insurer.insurance_name,
+                                                fullName: insurer.insurance_name,
+                                                Pending: insurer.pending_claims || 0,
+                                                Completed: insurer.completed_claims || 0
+                                            }));
+                                        })()}
+                                        margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+                                    >
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                                        <XAxis
+                                            dataKey="name"
+                                            stroke="#888888"
+                                            fontSize={11}
+                                            tickLine={false}
+                                            axisLine={false}
+                                            angle={-45}
+                                            textAnchor="end"
+                                            height={80}
+                                        />
+                                        <YAxis
+                                            stroke="#888888"
+                                            fontSize={12}
+                                            tickLine={false}
+                                            axisLine={false}
+                                        />
+                                        <Tooltip
+                                            cursor={{ fill: '#f8fafc' }}
+                                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                            formatter={(value: number, name: string) => [value.toLocaleString(), name]}
+                                            labelFormatter={(label) => {
+                                                const item = analyticsSummary.insurers?.find((i: any) =>
+                                                    i.insurance_name.startsWith(label.replace('...', ''))
+                                                );
+                                                return item?.insurance_name || label;
+                                            }}
+                                        />
+                                        <Legend />
+                                        <Bar name="Pending Claims" dataKey="Pending" stackId="a" fill="#ef4444" radius={[0, 0, 0, 0]} />
+                                        <Bar name="Completed Claims" dataKey="Completed" stackId="a" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            )}
                         </div>
                     </div>
 
@@ -978,7 +1117,7 @@ export default function ClaimsPage() {
                                 </h2>
                                 <span className="text-xs font-medium px-2 py-1 bg-amber-50 text-amber-600 rounded-lg">By Insurer</span>
                             </div>
-                            <div>
+                            <div className="h-[400px]">
                                 <InsurersDistributionChart />
                             </div>
                         </div>

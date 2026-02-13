@@ -37,4 +37,8 @@ router.post('/upload', authenticate, authorize('ACCOUNTANT', 'ACCOUNTANT_MANAGER
 // 3. Reports
 router.get('/reports', authenticate, authorize('ACCOUNTANT', 'ACCOUNTANT_MANAGER', 'MRKT_EXEC', 'MRKT_MNGR', 'COO', 'SUPER_ADMIN'), referralPaymentController.getPaymentReports);
 
+// 4. Agent Reports & Stats
+router.get('/agent-reports', authenticate, authorize('ACCOUNTANT', 'ACCOUNTANT_MANAGER', 'MRKT_EXEC', 'MRKT_MNGR', 'COO', 'SUPER_ADMIN'), referralPaymentController.getAgentReferralReports);
+router.get('/agent-stats', authenticate, authorize('ACCOUNTANT', 'ACCOUNTANT_MANAGER', 'MRKT_EXEC', 'MRKT_MNGR', 'COO', 'SUPER_ADMIN'), referralPaymentController.getAgentDashboardStats);
+
 module.exports = router;
