@@ -70,6 +70,7 @@ class BillingController {
                         discount_remarks = $8,
                         updated_by = $9,
                         updated_at = CURRENT_TIMESTAMP,
+                        billing_date = CURRENT_TIMESTAMP,
                         contact_number = $11,
                         patient_name = $12,
                         patient_address = $13
@@ -252,11 +253,11 @@ class BillingController {
 
             if (startDate) {
                 params.push(startDate);
-                queryText += ` AND bm.billing_date >= $${params.length}`;
+                queryText += ` AND DATE(bm.billing_date) >= $${params.length}`;
             }
             if (endDate) {
                 params.push(endDate);
-                queryText += ` AND bm.billing_date <= $${params.length}`;
+                queryText += ` AND DATE(bm.billing_date) <= $${params.length}`;
             }
             if (status) {
                 params.push(status);
@@ -273,7 +274,7 @@ class BillingController {
                 )`;
             }
 
-            queryText += ` ORDER BY bm.created_at DESC LIMIT 100`;
+            queryText += ` ORDER BY bm.updated_at DESC, bm.created_at DESC LIMIT 100`;
 
             const result = await query(queryText, params);
 

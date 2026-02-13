@@ -36,7 +36,7 @@ export default function BillingPage() {
 
     useEffect(() => {
         if (aiContext.setPageContext && !loading) {
-            const totalPending = pendingItems.reduce((sum: number, item: any) => sum + (parseFloat(item.total_amount) || 0), 0);
+            const totalPending = pendingItems.reduce((sum: number, item: any) => sum + (parseFloat(item.total_pending_amount) || 0), 0);
             const ctx = `Viewing Billing page. Active tab: ${activeTab}. ` +
                 `Pending: ${pendingItems.length} bills, total Rs.${totalPending.toFixed(2)}. ` +
                 `Paid: ${bills.length} bills. Cancelled: ${cancelledBills.length} bills. ` +
@@ -73,7 +73,10 @@ export default function BillingPage() {
                 params
             });
 
-            setBills(response.data.data.bills);
+            const sortedBills = response.data.data.bills.sort((a: any, b: any) =>
+                new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime()
+            );
+            setBills(sortedBills);
         } catch (error) {
             console.error('Error fetching bills:', error);
         }
@@ -95,7 +98,10 @@ export default function BillingPage() {
                     item.bill_number?.toLowerCase().includes(lowerSearch)
                 );
             }
-            setPendingItems(data);
+            const sortedData = data.sort((a: any, b: any) =>
+                new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime()
+            );
+            setPendingItems(sortedData);
         } catch (error) {
             console.error('Error fetching pending items:', error);
         }
@@ -117,7 +123,10 @@ export default function BillingPage() {
                 params
             });
 
-            setCancelledBills(response.data.data.bills);
+            const sortedBills = response.data.data.bills.sort((a: any, b: any) =>
+                new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime()
+            );
+            setCancelledBills(sortedBills);
         } catch (error) {
             console.error('Error fetching cancelled bills:', error);
         }
@@ -188,7 +197,7 @@ export default function BillingPage() {
                     <p className="text-sm text-slate-700 font-medium">
                         <span className="font-bold text-amber-700">{pendingItems.length}</span> pending {pendingItems.length === 1 ? 'bill' : 'bills'} totaling{' '}
                         <span className="font-bold text-amber-700">
-                            ₹{pendingItems.reduce((sum: number, item: any) => sum + (parseFloat(item.total_amount || item.amount) || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            ₹{pendingItems.reduce((sum: number, item: any) => sum + (parseFloat(item.total_pending_amount) || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </span>
                         {(() => {
                             const threeDaysAgo = new Date();
@@ -295,7 +304,7 @@ export default function BillingPage() {
                                                 </div>
                                                 <div>
                                                     <p className="text-base text-slate-800 font-extrabold uppercase tracking-tight">{bill.invoice_number}</p>
-                                                    <p className="text-xs text-slate-500 font-medium mt-0.5">{new Date(bill.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                                                    <p className="text-xs text-slate-500 font-medium mt-0.5">{new Date(bill.updated_at || bill.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                                                 </div>
                                             </div>
                                             <div className="text-right">
@@ -373,7 +382,7 @@ export default function BillingPage() {
                                                 </div>
                                                 <div>
                                                     <p className="text-base text-slate-800 font-extrabold uppercase tracking-tight">{bill.invoice_number}</p>
-                                                    <p className="text-xs text-slate-500 font-medium mt-0.5">{new Date(bill.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                                                    <p className="text-xs text-slate-500 font-medium mt-0.5">{new Date(bill.updated_at || bill.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                                                 </div>
                                             </div>
                                             <div className="text-right">
@@ -569,8 +578,7 @@ export default function BillingPage() {
                     }}
                     opdData={selectedPendingOpd}
                     onSuccess={(data) => {
-                        fetchPendingClearances();
-                        if (activeTab === 'paid') fetchBills();
+                        fetchAllData();
                         // Automatically show invoice after payment
                         if (data && data.bill_master_id) {
                             handleViewInvoice(data.bill_master_id);
