@@ -17,6 +17,7 @@ interface Option {
         value: number;
         color: 'blue' | 'amber' | 'emerald' | 'slate';
     }[];
+    disabled?: boolean;
 }
 
 interface SearchableSelectProps {
@@ -256,13 +257,14 @@ export default function SearchableSelect({
                                         <div
                                             key={option.value}
                                             className={`
-                                            px-4 py-3.5 cursor-pointer flex items-stretch justify-between gap-3 transition-all border-b border-slate-100/60 last:border-0
-                                            ${isSelected ? 'bg-blue-50/70' : 'hover:bg-slate-50/80'}
+                                            px-4 py-3.5 flex items-stretch justify-between gap-3 transition-all border-b border-slate-100/60 last:border-0
+                                            ${option.disabled ? 'cursor-not-allowed bg-slate-50 opacity-60' : 'cursor-pointer'}
+                                            ${isSelected ? 'bg-blue-50/70' : (!option.disabled && 'hover:bg-slate-50/80')}
                                         `}
-                                            onClick={() => handleSelect(option.value)}
+                                            onClick={() => !option.disabled && handleSelect(option.value)}
                                         >
                                             {/* Left: Doctor info */}
-                                            <div className="flex flex-col justify-center min-w-0 flex-1">
+                                            <div className={`flex flex-col justify-center min-w-0 flex-1 ${option.disabled ? 'opacity-50' : ''}`}>
                                                 <div className="flex items-center gap-2">
                                                     <span className={`text-[14px] font-bold truncate ${isSelected ? 'text-blue-700' : 'text-slate-800'}`}>{option.label}</span>
                                                     {isSelected && <Check className="w-3.5 h-3.5 text-blue-600 shrink-0" />}

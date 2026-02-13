@@ -16,19 +16,11 @@ async function checkSchema() {
         const res1 = await pool.query(`
             SELECT column_name, data_type 
             FROM information_schema.columns 
-            WHERE table_name = 'billing_master'
-            AND column_name = 'created_by';
+            WHERE table_name IN ('billing_master', 'bill_details')
+            AND column_name IN ('updated_by', 'cancelled_by', 'created_by')
+            ORDER BY table_name, column_name;
         `);
         console.table(res1.rows);
-
-        console.log('Checking bill_details schema...');
-        const res2 = await pool.query(`
-            SELECT column_name, data_type 
-            FROM information_schema.columns 
-            WHERE table_name = 'bill_details'
-            AND column_name = 'created_by';
-        `);
-        console.table(res2.rows);
 
     } catch (err) {
         console.error('Error:', err);

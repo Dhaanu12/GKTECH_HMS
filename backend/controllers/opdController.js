@@ -582,18 +582,20 @@ class OpdController {
             const staffRes = await client.query(`SELECT staff_code FROM staff WHERE user_id = $1`, [req.user.user_id]);
             const staffCode = staffRes.rows[0]?.staff_code || req.user.username || 'SYSTEM';
 
-            const result = await client.query(`
+            const query = `
                 UPDATE opd_entries 
                 SET 
                     visit_status = $1, 
                     updated_at = CURRENT_TIMESTAMP,
                     consultation_start_time = CASE 
-                        WHEN $1 = 'In-consultation' AND consultation_start_time IS NULL THEN CURRENT_TIMESTAMP 
+                        WHEN $4 = 'In-consultation' AND consultation_start_time IS NULL THEN CURRENT_TIMESTAMP 
                         ELSE consultation_start_time 
                     END
                 WHERE opd_id = $2 AND branch_id = $3
                 RETURNING *
-            `, [visit_status, id, branch_id]);
+            `;
+
+            const result = await client.query(query, [visit_status, id, branch_id, visit_status]);
 
             if (result.rows.length === 0) {
                 await client.query('ROLLBACK');
