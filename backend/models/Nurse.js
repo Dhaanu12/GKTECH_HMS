@@ -103,6 +103,16 @@ class Nurse extends BaseModel {
         const result = await this.executeQuery(query, [hospitalId, departmentId]);
         return result.rows;
     }
+    async getBranches(nurseId) {
+        const query = `
+            SELECT b.* 
+            FROM branches b
+            JOIN nurse_branches nb ON b.branch_id = nb.branch_id
+            WHERE nb.nurse_id = $1
+        `;
+        const result = await this.executeQuery(query, [nurseId]);
+        return result.rows;
+    }
 }
 
 module.exports = new Nurse();

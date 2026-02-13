@@ -1,129 +1,3 @@
-// import React from 'react';
-// import {
-//     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-//     PieChart, Pie, Cell
-// } from 'recharts';
-// import { TrendingUp, Users, IndianRupee } from 'lucide-react';
-
-// const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
-
-// interface BranchData {
-//     branch_name: string;
-//     total_revenue: string;
-//     total_appointments: string;
-//     unique_patients: string;
-// }
-
-// interface Props {
-//     data: BranchData[];
-// }
-
-// export default function BranchPerformance({ data }: Props) {
-//     if (!data || !Array.isArray(data)) return <div className="p-4 text-center text-gray-500">No data available</div>;
-
-//     const chartData = data.map(d => ({
-//         name: d.branch_name,
-//         Revenue: parseFloat(d.total_revenue),
-//         Appointments: parseInt(d.total_appointments),
-//         Patients: parseInt(d.unique_patients)
-//     }));
-
-//     return (
-//         <div className="space-y-8">
-//             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-//                 {/* Revenue Comparison */}
-//                 {/* Revenue Comparison */}
-//                 <div className="glass-panel pdf-capture p-6 rounded-3xl border border-white/60">
-//                     <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-//                         <IndianRupee className="w-5 h-5 text-emerald-500" />
-//                         Revenue by Branch
-//                     </h3>
-//                     <div className="h-80">
-//                         <ResponsiveContainer width="100%" height="100%">
-//                             <BarChart data={chartData}>
-//                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(200,200,200,0.2)" />
-//                                 <XAxis dataKey="name" axisLine={false} tickLine={false} />
-//                                 <YAxis axisLine={false} tickLine={false} />
-//                                 <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }} />
-//                                 <Bar dataKey="Revenue" fill="#10b981" radius={[6, 6, 0, 0]} barSize={40} />
-//                             </BarChart>
-//                         </ResponsiveContainer>
-//                     </div>
-//                 </div>
-
-//                 {/* Patient Volume Comparison */}
-//                 {/* Patient Volume Comparison */}
-//                 <div className="glass-panel pdf-capture p-6 rounded-3xl border border-white/60">
-//                     <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-//                         <Users className="w-5 h-5 text-blue-500" />
-//                         Patient Volume
-//                     </h3>
-//                     <div className="h-80">
-//                         <ResponsiveContainer width="100%" height="100%">
-//                             <PieChart>
-//                                 <Pie
-//                                     data={chartData}
-//                                     dataKey="Appointments"
-//                                     nameKey="name"
-//                                     cx="50%"
-//                                     cy="50%"
-//                                     innerRadius={60}
-//                                     outerRadius={100}
-//                                     paddingAngle={5}
-//                                 >
-//                                     {chartData.map((entry, index) => (
-//                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-//                                     ))}
-//                                 </Pie>
-//                                 <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }} />
-//                                 <Legend verticalAlign="bottom" height={36} />
-//                             </PieChart>
-//                         </ResponsiveContainer>
-//                     </div>
-//                 </div>
-//             </div>
-
-//             {/* Detailed Table */}
-//             <div className="glass-panel rounded-3xl border border-white/60 overflow-hidden">
-//                 <div className="p-6 border-b border-gray-100">
-//                     <h3 className="text-lg font-bold text-slate-800">Branch Leaderboard</h3>
-//                 </div>
-//                 <div className="overflow-x-auto">
-//                     <table className="w-full text-left text-sm text-gray-600">
-//                         <thead className="bg-gray-50/50 text-xs uppercase font-semibold text-gray-500">
-//                             <tr>
-//                                 <th className="px-6 py-4">Branch Name</th>
-//                                 <th className="px-6 py-4 text-right">Total Revenue</th>
-//                                 <th className="px-6 py-4 text-right">Appointments</th>
-//                                 <th className="px-6 py-4 text-right">Unique Patients</th>
-//                                 <th className="px-6 py-4 text-center">Status</th>
-//                             </tr>
-//                         </thead>
-//                         <tbody className="divide-y divide-gray-100">
-//                             {chartData.map((row, idx) => (
-//                                 <tr key={idx} className="hover:bg-gray-50/50 transition">
-//                                     <td className="px-6 py-4 font-medium text-gray-900">{row.name}</td>
-//                                     <td className="px-6 py-4 text-right font-bold text-emerald-600">
-//                                         ₹{row.Revenue.toLocaleString()}
-//                                     </td>
-//                                     <td className="px-6 py-4 text-right">{row.Appointments}</td>
-//                                     <td className="px-6 py-4 text-right">{row.Patients}</td>
-//                                     <td className="px-6 py-4 text-center">
-//                                         <span className="px-2 py-1 rounded-full bg-emerald-100 text-emerald-600 text-xs font-bold">
-//                                             Active
-//                                         </span>
-//                                     </td>
-//                                 </tr>
-//                             ))}
-//                         </tbody>
-//                     </table>
-//                 </div>
-//             </div>
-//         </div>
-//     );
-// }
-
-
 import React from 'react';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -160,7 +34,8 @@ export default function BranchPerformance({ data }: Props) {
         name: d.branch_name,
         revenue: parseFloat(d.total_revenue),
         appointments: parseInt(d.total_appointments),
-        patients: parseInt(d.unique_patients),
+        unique_patients: parseInt(d.unique_patients),
+        patients: parseInt(d.unique_patients), // Added for consistency with existing code usage
         revenuePerPatient: parseFloat(d.total_revenue) / parseInt(d.unique_patients) || 0
     }));
 
@@ -187,49 +62,49 @@ export default function BranchPerformance({ data }: Props) {
         <div className="space-y-6">
             {/* Overview Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl shadow-xl p-6 text-white">
+                <div className="bg-emerald-50 border border-emerald-200 rounded-2xl shadow-sm p-6">
                     <div className="flex items-center justify-between mb-4">
-                        <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
-                            <IndianRupee className="w-8 h-8" />
+                        <div className="p-3 bg-emerald-100 rounded-xl">
+                            <IndianRupee className="w-8 h-8 text-emerald-600" />
                         </div>
-                        <TrendingUp className="w-6 h-6 opacity-50" />
+                        <TrendingUp className="w-6 h-6 text-emerald-400 opacity-50" />
                     </div>
-                    <p className="text-emerald-100 text-sm font-medium mb-1">Total Revenue</p>
-                    <p className="text-4xl font-bold">₹{totalRevenue.toLocaleString()}</p>
-                    <p className="text-emerald-100 text-xs mt-2">Across all branches</p>
+                    <p className="text-emerald-700 text-sm font-medium mb-1">Total Revenue</p>
+                    <p className="text-4xl font-bold text-emerald-900">₹{totalRevenue.toLocaleString()}</p>
+                    <p className="text-emerald-600 text-xs mt-2">Across all branches</p>
                 </div>
 
-                <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-xl p-6 text-white">
+                <div className="bg-blue-50 border border-blue-200 rounded-2xl shadow-sm p-6">
                     <div className="flex items-center justify-between mb-4">
-                        <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
-                            <Users className="w-8 h-8" />
+                        <div className="p-3 bg-blue-100 rounded-xl">
+                            <Users className="w-8 h-8 text-blue-600" />
                         </div>
-                        <Activity className="w-6 h-6 opacity-50" />
+                        <Activity className="w-6 h-6 text-blue-400 opacity-50" />
                     </div>
-                    <p className="text-blue-100 text-sm font-medium mb-1">Total Patients</p>
-                    <p className="text-4xl font-bold">{totalPatients.toLocaleString()}</p>
-                    <p className="text-blue-100 text-xs mt-2">{totalAppointments} appointments</p>
+                    <p className="text-blue-700 text-sm font-medium mb-1">Total Patients</p>
+                    <p className="text-4xl font-bold text-blue-900">{totalPatients.toLocaleString()}</p>
+                    <p className="text-blue-600 text-xs mt-2">{totalAppointments} appointments</p>
                 </div>
 
-                <div className="bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl shadow-xl p-6 text-white">
+                <div className="bg-purple-50 border border-purple-200 rounded-2xl shadow-sm p-6">
                     <div className="flex items-center justify-between mb-4">
-                        <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
-                            <Award className="w-8 h-8" />
+                        <div className="p-3 bg-purple-100 rounded-xl">
+                            <Award className="w-8 h-8 text-purple-600" />
                         </div>
-                        <MapPin className="w-6 h-6 opacity-50" />
+                        <MapPin className="w-6 h-6 text-purple-400 opacity-50" />
                     </div>
-                    <p className="text-purple-100 text-sm font-medium mb-1">Active Branches</p>
-                    <p className="text-4xl font-bold">{data.length}</p>
-                    <p className="text-purple-100 text-xs mt-2">Nationwide network</p>
+                    <p className="text-purple-700 text-sm font-medium mb-1">Active Branches</p>
+                    <p className="text-4xl font-bold text-purple-900">{data.length}</p>
+                    <p className="text-purple-600 text-xs mt-2">Nationwide network</p>
                 </div>
             </div>
 
             {/* Main Charts Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Revenue Comparison - Horizontal Bar */}
-                <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-lg hover:shadow-xl transition-all">
+                <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-all">
                     <div className="flex items-center gap-3 mb-6">
-                        <div className="p-2 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl text-white shadow-lg">
+                        <div className="p-2 bg-emerald-100 rounded-xl text-emerald-600">
                             <IndianRupee className="w-5 h-5" />
                         </div>
                         <div>
@@ -260,9 +135,9 @@ export default function BranchPerformance({ data }: Props) {
                 </div>
 
                 {/* Patient Distribution - Donut Chart */}
-                <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-lg hover:shadow-xl transition-all">
+                <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-all">
                     <div className="flex items-center gap-3 mb-6">
-                        <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl text-white shadow-lg">
+                        <div className="p-2 bg-blue-100 rounded-xl text-blue-600">
                             <Users className="w-5 h-5" />
                         </div>
                         <div>
@@ -298,9 +173,9 @@ export default function BranchPerformance({ data }: Props) {
                 </div>
 
                 {/* Revenue per Patient - Efficiency Chart */}
-                <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-lg hover:shadow-xl transition-all">
+                <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-all">
                     <div className="flex items-center gap-3 mb-6">
-                        <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl text-white shadow-lg">
+                        <div className="p-2 bg-purple-100 rounded-xl text-purple-600">
                             <TrendingUp className="w-5 h-5" />
                         </div>
                         <div>
@@ -331,9 +206,9 @@ export default function BranchPerformance({ data }: Props) {
                 </div>
 
                 {/* Multi-dimensional Radar Chart */}
-                <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-lg hover:shadow-xl transition-all">
+                <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-all">
                     <div className="flex items-center gap-3 mb-6">
-                        <div className="p-2 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl text-white shadow-lg">
+                        <div className="p-2 bg-orange-100 rounded-xl text-orange-600">
                             <Activity className="w-5 h-5" />
                         </div>
                         <div>
@@ -377,8 +252,8 @@ export default function BranchPerformance({ data }: Props) {
                         {rankedByRevenue.slice(0, 3).map((branch, index) => (
                             <div key={index} className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-sm">
                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${index === 0 ? 'bg-yellow-400 text-yellow-900' :
-                                        index === 1 ? 'bg-gray-300 text-gray-700' :
-                                            'bg-orange-400 text-orange-900'
+                                    index === 1 ? 'bg-gray-300 text-gray-700' :
+                                        'bg-orange-400 text-orange-900'
                                     }`}>
                                     {index + 1}
                                 </div>
@@ -401,8 +276,8 @@ export default function BranchPerformance({ data }: Props) {
                         {rankedByPatients.slice(0, 3).map((branch, index) => (
                             <div key={index} className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-sm">
                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${index === 0 ? 'bg-yellow-400 text-yellow-900' :
-                                        index === 1 ? 'bg-gray-300 text-gray-700' :
-                                            'bg-orange-400 text-orange-900'
+                                    index === 1 ? 'bg-gray-300 text-gray-700' :
+                                        'bg-orange-400 text-orange-900'
                                     }`}>
                                     {index + 1}
                                 </div>
@@ -425,8 +300,8 @@ export default function BranchPerformance({ data }: Props) {
                         {rankedByEfficiency.slice(0, 3).map((branch, index) => (
                             <div key={index} className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-sm">
                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${index === 0 ? 'bg-yellow-400 text-yellow-900' :
-                                        index === 1 ? 'bg-gray-300 text-gray-700' :
-                                            'bg-orange-400 text-orange-900'
+                                    index === 1 ? 'bg-gray-300 text-gray-700' :
+                                        'bg-orange-400 text-orange-900'
                                     }`}>
                                     {index + 1}
                                 </div>
@@ -487,8 +362,8 @@ export default function BranchPerformance({ data }: Props) {
                                             <div className="flex items-center justify-center gap-2">
                                                 {revenueRank <= 3 && (
                                                     <span className={`px-3 py-1 rounded-full text-xs font-bold ${revenueRank === 1 ? 'bg-yellow-100 text-yellow-800' :
-                                                            revenueRank === 2 ? 'bg-gray-200 text-gray-700' :
-                                                                'bg-orange-100 text-orange-800'
+                                                        revenueRank === 2 ? 'bg-gray-200 text-gray-700' :
+                                                            'bg-orange-100 text-orange-800'
                                                         }`}>
                                                         #{revenueRank} Revenue
                                                     </span>

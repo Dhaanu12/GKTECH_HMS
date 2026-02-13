@@ -68,14 +68,95 @@ class NurseController {
     }
 
     static async updateNurse(req, res, next) {
+        const client = await pool.connect();
         try {
+            await client.query('BEGIN');
             const { id } = req.params;
-            const updates = req.body;
-            const updatedNurse = await Nurse.update(id, updates);
-            if (!updatedNurse) return next(new AppError('Nurse not found', 404));
+            const {
+                username, email, password, phone_number,
+                first_name, last_name, qualification, experience_years,
+                registration_number, is_active,
+                branch_ids
+            } = req.body;
+
+            // 1. Get existing nurse to find user_id
+            const nurseResult = await client.query('SELECT user_id FROM nurses WHERE nurse_id = $1', [id]);
+            if (nurseResult.rows.length === 0) {
+                await client.query('ROLLBACK');
+                return next(new AppError('Nurse not found', 404));
+            }
+            const userId = nurseResult.rows[0].user_id;
+
+            // 2. Update User details (if provided)
+            const userUpdates = [];
+            const userValues = [];
+            let userParamCount = 1;
+
+            if (username) { userUpdates.push(`username = $${userParamCount++}`); userValues.push(username); }
+            if (email) { userUpdates.push(`email = $${userParamCount++}`); userValues.push(email); }
+            if (phone_number) { userUpdates.push(`phone_number = $${userParamCount++}`); userValues.push(phone_number); }
+            if (password) {
+                const passwordHash = await PasswordUtils.hashPassword(password);
+                userUpdates.push(`password_hash = $${userParamCount++}`);
+                userValues.push(passwordHash);
+            }
+            if (is_active !== undefined) { userUpdates.push(`is_active = $${userParamCount++}`); userValues.push(is_active); }
+
+            if (userUpdates.length > 0) {
+                userValues.push(userId);
+                await client.query(
+                    `UPDATE users SET ${userUpdates.join(', ')} WHERE user_id = $${userParamCount}`,
+                    userValues
+                );
+            }
+
+            // 3. Update Nurse details
+            const nurseUpdates = [];
+            const nurseValues = [];
+            let nurseParamCount = 1;
+
+            if (first_name) { nurseUpdates.push(`first_name = $${nurseParamCount++}`); nurseValues.push(first_name); }
+            if (last_name) { nurseUpdates.push(`last_name = $${nurseParamCount++}`); nurseValues.push(last_name); }
+            if (qualification) { nurseUpdates.push(`qualification = $${nurseParamCount++}`); nurseValues.push(qualification); }
+            if (experience_years) { nurseUpdates.push(`experience_years = $${nurseParamCount++}`); nurseValues.push(experience_years); }
+            if (registration_number) { nurseUpdates.push(`registration_number = $${nurseParamCount++}`); nurseValues.push(registration_number); }
+            if (is_active !== undefined) { nurseUpdates.push(`is_active = $${nurseParamCount++}`); nurseValues.push(is_active); }
+
+            if (nurseUpdates.length > 0) {
+                nurseValues.push(id);
+                await client.query(
+                    `UPDATE nurses SET ${nurseUpdates.join(', ')} WHERE nurse_id = $${nurseParamCount} RETURNING *`,
+                    nurseValues
+                );
+            }
+
+            // 4. Update Branches (if provided)
+            if (branch_ids) {
+                // Delete existing mappings
+                await client.query('DELETE FROM nurse_branches WHERE nurse_id = $1', [id]);
+
+                // Insert new mappings
+                if (branch_ids.length > 0) {
+                    for (const branchId of branch_ids) {
+                        await client.query(
+                            'INSERT INTO nurse_branches (nurse_id, branch_id) VALUES ($1, $2)',
+                            [id, branchId]
+                        );
+                    }
+                }
+            }
+
+            await client.query('COMMIT');
+
+            // Fetch updated nurse for response
+            const updatedNurse = await Nurse.findById(id);
             res.status(200).json({ status: 'success', data: { nurse: updatedNurse } });
+
         } catch (error) {
+            await client.query('ROLLBACK');
             next(new AppError(error.message, 500));
+        } finally {
+            client.release();
         }
     }
 
