@@ -2,6 +2,7 @@ const BillingSetupMaster = require('../models/BillingSetupMaster');
 const BillingSetupPackageDetail = require('../models/BillingSetupPackageDetail');
 const MedicalService = require('../models/MedicalService');
 const db = require('../config/db');
+const ExcelService = require('../services/ExcelService');
 
 class BillingSetupController {
     /**
@@ -434,6 +435,26 @@ class BillingSetupController {
                 WHERE bs_tbl.branch_id = $1 AND bs_tbl.is_active = true
                 
                 UNION ALL
+
+                SELECT 
+                    NULL as service_id,
+                    bs.service_name,
+                    bs.type_of_service as category,
+                    bs.type_of_service,
+                    bs.billing_setup_id,
+                    bs.uuid,
+                    bs.patient_charge,
+                    bs.b2b_charge,
+                    bs.special_charge,
+                    false as is_package
+                FROM billing_setup_master bs
+                WHERE bs.branch_id = $1 
+                AND bs.type_of_service != 'package'
+                AND bs.is_active = true
+                AND bs.service_name NOT IN (SELECT service_name FROM medical_services)
+                AND bs.service_name NOT IN (SELECT service_name FROM services)
+                
+                UNION ALL
                 
                 SELECT 
                     NULL as service_id,
@@ -538,6 +559,222 @@ class BillingSetupController {
             await client.query('ROLLBACK');
             console.error('Error bulk updating prices:', error);
             res.status(500).json({ message: 'Internal server error' });
+        } finally {
+            client.release();
+        }
+    }
+
+    /**
+     * Download billing configuration as Excel file
+     * GET /api/billing-setup/:branchId/excel-download
+     */
+    async downloadBillingExcel(req, res) {
+        try {
+            const { branchId } = req.params;
+
+            // Fetch all services with pricing using existing method logic
+            const servicesQuery = `
+                SELECT 
+                    ms.service_id,
+                    ms.service_name,
+                    ms.category,
+                    ms.category as type_of_service,
+                    bs.billing_setup_id,
+                    bs.uuid,
+                    COALESCE(bs.patient_charge, '0.00') as patient_charge,
+                    COALESCE(bs.b2b_charge, '0.00') as b2b_charge,
+                    COALESCE(bs.special_charge, '0.00') as special_charge,
+                    false as is_package
+                FROM branch_medical_services bms
+                JOIN medical_services ms ON bms.service_id = ms.service_id
+                LEFT JOIN billing_setup_master bs ON 
+                    bs.branch_id = bms.branch_id 
+                    AND bs.service_name = ms.service_name
+                    AND bs.type_of_service = ms.category
+                WHERE bms.branch_id = $1 AND bms.is_active = true
+                
+                UNION ALL
+                
+                SELECT 
+                    s.service_id,
+                    s.service_name,
+                    s.service_category as category,
+                    s.service_category as type_of_service,
+                    bs.billing_setup_id,
+                    bs.uuid,
+                    COALESCE(bs.patient_charge, '0.00') as patient_charge,
+                    COALESCE(bs.b2b_charge, '0.00') as b2b_charge,
+                    COALESCE(bs.special_charge, '0.00') as special_charge,
+                    false as is_package
+                FROM branch_services bs_tbl
+                JOIN services s ON bs_tbl.service_id = s.service_id
+                LEFT JOIN billing_setup_master bs ON 
+                    bs.branch_id = bs_tbl.branch_id 
+                    AND bs.service_name = s.service_name
+                    AND bs.type_of_service = s.service_category
+                WHERE bs_tbl.branch_id = $1 AND bs_tbl.is_active = true
+
+                UNION ALL
+
+                SELECT 
+                    NULL as service_id,
+                    bs.service_name,
+                    bs.type_of_service as category,
+                    bs.type_of_service,
+                    bs.billing_setup_id,
+                    bs.uuid,
+                    bs.patient_charge,
+                    bs.b2b_charge,
+                    bs.special_charge,
+                    false as is_package
+                FROM billing_setup_master bs
+                WHERE bs.branch_id = $1 
+                AND bs.type_of_service != 'package'
+                AND bs.is_active = true
+                AND bs.service_name NOT IN (SELECT service_name FROM medical_services)
+                AND bs.service_name NOT IN (SELECT service_name FROM services)
+                
+                ORDER BY is_package ASC, service_name ASC
+            `;
+
+            const result = await db.query(servicesQuery, [branchId]);
+            const allData = result.rows;
+
+            // Fetch packages
+            const packagesQuery = `
+                SELECT 
+                    NULL as service_id,
+                    bs.service_name,
+                    NULL as category,
+                    bs.type_of_service,
+                    bs.billing_setup_id,
+                    bs.uuid,
+                    bs.patient_charge,
+                    bs.b2b_charge,
+                    bs.special_charge,
+                    true as is_package
+                FROM billing_setup_master bs
+                WHERE bs.branch_id = $1 
+                AND bs.type_of_service ILIKE 'package'
+                AND bs.is_active = true
+                ORDER BY service_name ASC
+            `;
+
+            const packagesResult = await db.query(packagesQuery, [branchId]);
+            const packages = packagesResult.rows;
+
+            // Generate Excel file
+            const excelBuffer = ExcelService.generateBillingExcel(allData, packages);
+
+            // Send file
+            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            res.setHeader('Content-Disposition', `attachment; filename=billing-setup-branch-${branchId}.xlsx`);
+            res.send(excelBuffer);
+        } catch (error) {
+            console.error('Error generating billing Excel:', error);
+            res.status(500).json({ message: 'Failed to generate Excel file' });
+        }
+    }
+
+    /**
+     * Upload billing configuration Excel file
+     * POST /api/billing-setup/:branchId/excel-upload
+     */
+    async uploadBillingExcel(req, res) {
+        const client = await db.getClient();
+        try {
+            const { branchId } = req.params;
+
+            if (!req.file) {
+                return res.status(400).json({ message: 'No file uploaded' });
+            }
+
+            // Parse Excel file
+            const parseResult = ExcelService.parseBillingExcel(req.file.buffer);
+
+            if (parseResult.errors.length > 0) {
+                return res.status(400).json({
+                    message: 'Excel file contains errors',
+                    errors: parseResult.errors
+                });
+            }
+
+            await client.query('BEGIN');
+
+            const userId = req.user ? req.user.id : null;
+            let servicesUpdated = 0;
+            let packagesUpdated = 0;
+
+            // Update Services
+            for (const service of parseResult.services) {
+                const { service_name, category, patient_charge, b2b_charge, special_charge } = service;
+
+                // Check if billing setup already exists
+                const checkResult = await client.query(`
+                    SELECT billing_setup_id 
+                    FROM billing_setup_master 
+                    WHERE branch_id = $1 
+                    AND service_name = $2 
+                    AND type_of_service = $3
+                `, [branchId, service_name, category]);
+
+                if (checkResult.rows.length > 0) {
+                    // Update existing record
+                    await client.query(`
+                        UPDATE billing_setup_master
+                        SET 
+                            patient_charge = $1,
+                            b2b_charge = $2,
+                            special_charge = $3,
+                            updated_at = NOW(),
+                            updated_by = $4
+                        WHERE billing_setup_id = $5
+                    `, [patient_charge, b2b_charge, special_charge, userId, checkResult.rows[0].billing_setup_id]);
+                } else {
+                    // Insert new record
+                    await client.query(`
+                        INSERT INTO billing_setup_master 
+                        (branch_id, service_name, type_of_service, patient_charge, b2b_charge, special_charge, created_at, updated_at, created_by, updated_by)
+                        VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW(), $7, $7)
+                    `, [branchId, service_name, category, patient_charge, b2b_charge, special_charge, userId]);
+                }
+
+                servicesUpdated++;
+            }
+
+            // Update Packages
+            for (const pkg of parseResult.packages) {
+                const { uuid, patient_charge, b2b_charge, special_charge } = pkg;
+
+                // Update package pricing by UUID
+                const updateResult = await client.query(`
+                    UPDATE billing_setup_master
+                    SET 
+                        patient_charge = $1,
+                        b2b_charge = $2,
+                        special_charge = $3,
+                        updated_at = NOW(),
+                        updated_by = $4
+                    WHERE uuid = $5 AND branch_id = $6
+                `, [patient_charge, b2b_charge, special_charge, userId, uuid, branchId]);
+
+                if (updateResult.rowCount > 0) {
+                    packagesUpdated++;
+                }
+            }
+
+            await client.query('COMMIT');
+
+            res.json({
+                message: 'Billing configuration imported successfully from Excel',
+                servicesUpdated,
+                packagesUpdated,
+                total: servicesUpdated + packagesUpdated
+            });
+        } catch (error) {
+            await client.query('ROLLBACK');
+            console.error('Error uploading billing Excel:', error);
+            res.status(500).json({ message: 'Failed to process Excel file' });
         } finally {
             client.release();
         }
