@@ -14,6 +14,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, opdData, o
     const [items, setItems] = useState<any[]>([]);
     const [paymentMode, setPaymentMode] = useState('Cash');
     const [discount, setDiscount] = useState({ type: 'none', value: 0 });
+    const [discountRemarks, setDiscountRemarks] = useState(''); // New Remarks State
     const [totals, setTotals] = useState({ subtotal: 0, discountAmount: 0, total: 0 });
     const [contactNumber, setContactNumber] = useState('');
     const [caretakerPhone, setCaretakerPhone] = useState('');
@@ -30,6 +31,10 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, opdData, o
     }, [isOpen, opdData]);
 
     const initializeData = async () => {
+        // Reset Discount State on Open
+        setDiscount({ type: 'none', value: 0 });
+        setDiscountRemarks('');
+
         let currentContact = opdData.patient_contact_number || opdData.patient?.contact_number || '';
         if (currentContact === '0000000000') currentContact = '';
         setContactNumber(currentContact);
@@ -47,9 +52,9 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, opdData, o
                 if (caretaker_phone) setCaretakerPhone(caretaker_phone);
 
                 if (!currentContact) {
-                    if (patient_phone) {
+                    if (patient_phone && patient_phone !== '0000000000') {
                         setContactNumber(patient_phone);
-                    } else if (caretaker_phone) {
+                    } else if (caretaker_phone && caretaker_phone !== '0000000000') {
                         setContactNumber(caretaker_phone);
                     }
                 }
@@ -162,7 +167,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, opdData, o
 
         // Validate 10-digit number
         const phoneRegex = /^[0-9]{10}$/;
-        if (!phoneRegex.test(contactNumber)) {
+        if (!phoneRegex.test(contactNumber) || contactNumber === '0000000000') {
             return alert('Please enter a valid 10-digit Patient Contact Number!');
         }
 
@@ -171,6 +176,20 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, opdData, o
             return alert('Contact number must be exactly 10 digits.');
         }
 
+        // Validate Remarks if Discount Applied
+        if (discount.value > 0 && discount.type !== 'none') {
+            if (!discountRemarks.trim()) {
+                alert('Please enter remarks for the discount.');
+                setLoading(false);
+                return;
+            }
+            const wordCount = discountRemarks.trim().split(/\s+/).length;
+            if (wordCount > 50) {
+                alert('Discount remarks cannot exceed 50 words.');
+                setLoading(false);
+                return;
+            }
+        }
 
         setLoading(true);
         try {
@@ -187,6 +206,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, opdData, o
                 items: items.filter(i => i.status !== 'Cancelled'),
                 discount_type: discount.type,
                 discount_value: discount.value,
+                discount_remarks: discountRemarks, // Pass to backend
                 total_amount: totals.total,
                 paid_amount: isPayLater ? 0 : totals.total
             };
@@ -218,7 +238,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, opdData, o
 
     return (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl h-[85vh] flex overflow-hidden font-sans">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[90rem] h-[90vh] flex overflow-hidden font-sans">
 
                 {/* LEFT COLUMN (65%) */}
                 <div className="w-[65%] flex flex-col bg-white">
@@ -492,6 +512,28 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, opdData, o
                                 </div>
                             )}
                         </div>
+
+                        {/* Mandatory Discount Remarks */}
+                        {(discount.value > 0 && discount.type !== 'none') && (
+                            <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide flex justify-between items-center">
+                                    <span>Discount Remarks <span className="text-red-500">*</span></span>
+                                    <span className={`text-[10px] normal-case font-bold px-2 py-0.5 rounded-full ${discountRemarks.trim().split(/\s+/).length > 50
+                                        ? 'bg-red-50 text-red-600'
+                                        : 'bg-slate-100 text-slate-400'
+                                        }`}>
+                                        {discountRemarks.trim() ? discountRemarks.trim().split(/\s+/).length : 0}/50 words
+                                    </span>
+                                </label>
+                                <textarea
+                                    value={discountRemarks}
+                                    onChange={(e) => setDiscountRemarks(e.target.value)}
+                                    placeholder="Reason for discount (Required)"
+                                    className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none shadow-sm placeholder:text-slate-300 transition-all"
+                                    rows={3}
+                                />
+                            </div>
+                        )}
 
                         {/* Calculations */}
                         <div className="space-y-3 pt-6 border-t border-slate-200 text-sm">

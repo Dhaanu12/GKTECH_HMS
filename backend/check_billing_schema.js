@@ -16,9 +16,8 @@ async function checkSchema() {
         const res1 = await pool.query(`
             SELECT column_name, data_type 
             FROM information_schema.columns 
-            WHERE table_name IN ('billing_master', 'bill_details')
-            AND column_name IN ('updated_by', 'cancelled_by', 'created_by')
-            ORDER BY table_name, column_name;
+            WHERE table_name = 'billing_master'
+            ORDER BY column_name;
         `);
         console.table(res1.rows);
 
