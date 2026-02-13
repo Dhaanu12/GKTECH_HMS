@@ -47,6 +47,8 @@ import {
     Save
 } from 'lucide-react';
 
+import { useAI } from '@/components/ai';
+
 const API_URL = 'http://localhost:5000/api';
 
 // Note type colors and icons
@@ -154,6 +156,26 @@ export default function ReceptionistPatientDetails() {
             fetchPatientDetails();
         }
     }, [params.id, fetchPatientDetails]);
+
+    // AI page context
+    let aiContext: { setPageContext?: (page: string, context?: string) => void } = {};
+    try { aiContext = useAI(); } catch { /* AIContextProvider not available */ }
+
+    useEffect(() => {
+        if (aiContext.setPageContext && patient && !loading) {
+            const latestVital = vitalsHistory?.[0];
+            const vitalsSummary = latestVital
+                ? `Latest vitals: BP ${latestVital.blood_pressure_systolic || '?'}/${latestVital.blood_pressure_diastolic || '?'}, HR ${latestVital.pulse_rate || '?'}, Temp ${latestVital.temperature || '?'}°F, SpO2 ${latestVital.spo2 || '?'}%`
+                : 'No vitals recorded';
+            const ctx = `Viewing patient: ${patient.first_name} ${patient.last_name} (ID: ${patient.patient_id}). ` +
+                `MRN: ${patient.mrn_number || patient.mrn || 'N/A'}. Age: ${patient.age || 'N/A'}, Gender: ${patient.gender || 'N/A'}. ` +
+                `Blood group: ${patient.blood_group || 'N/A'}. Phone: ${patient.contact_number || patient.phone || 'N/A'}. ` +
+                `OPD visits: ${opdHistory.length}. Lab orders: ${labOrders.length}. Clinical notes: ${clinicalNotes.length}. Documents: ${documents.length}. ` +
+                `${vitalsSummary}. ` +
+                `Use getPatientDetails, getPatientVitals, getPatientLabOrders, getPatientNotes tools with patientId ${patient.patient_id} for details.`;
+            aiContext.setPageContext(`/receptionist/patients/${params.id}`, ctx);
+        }
+    }, [aiContext.setPageContext, patient, loading, vitalsHistory, opdHistory.length, labOrders.length, clinicalNotes.length, documents.length]);
 
     // Fetch filtered vitals and notes when filters change
     const fetchFilteredData = useCallback(async () => {

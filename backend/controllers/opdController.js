@@ -508,10 +508,12 @@ class OpdController {
                        p.first_name as patient_first_name, p.last_name as patient_last_name, p.mrn_number, p.contact_number, p.age, p.gender, p.blood_group,
                        p.address as address_line1, p.address_line2, p.city, p.state, p.pincode, p.adhaar_number,
                        d.first_name as doctor_first_name, d.last_name as doctor_last_name, d.specialization,
-                       co.next_visit_date
+                       co.next_visit_date,
+                       dept.department_name
                 FROM opd_entries o
                 JOIN patients p ON o.patient_id = p.patient_id
                 JOIN doctors d ON o.doctor_id = d.doctor_id
+                LEFT JOIN departments dept ON o.department_id = dept.department_id
                 LEFT JOIN consultation_outcomes co ON o.opd_id = co.opd_id
                 WHERE o.branch_id = $1
             `;
@@ -582,7 +584,13 @@ class OpdController {
 
             const result = await client.query(`
                 UPDATE opd_entries 
-                SET visit_status = $1, updated_at = CURRENT_TIMESTAMP
+                SET 
+                    visit_status = $1, 
+                    updated_at = CURRENT_TIMESTAMP,
+                    consultation_start_time = CASE 
+                        WHEN $1 = 'In-consultation' AND consultation_start_time IS NULL THEN CURRENT_TIMESTAMP 
+                        ELSE consultation_start_time 
+                    END
                 WHERE opd_id = $2 AND branch_id = $3
                 RETURNING *
             `, [visit_status, id, branch_id]);
@@ -715,6 +723,13 @@ class OpdController {
                 WHERE branch_id = $1 AND visit_date = CURRENT_DATE
             `, [branch_id]);
 
+            // 6. Yesterday's OPD Count (for growth comparison)
+            const yesterdayOpdResult = await query(`
+                SELECT COUNT(*) as count 
+                FROM opd_entries 
+                WHERE branch_id = $1 AND visit_date = CURRENT_DATE - INTERVAL '1 day'
+            `, [branch_id]);
+
             const finStats = financialResult.rows[0];
 
             res.status(200).json({
@@ -722,6 +737,7 @@ class OpdController {
                 data: {
                     stats: {
                         todayOpd: parseInt(opdResult.rows[0].count),
+                        yesterdayOpd: parseInt(yesterdayOpdResult.rows[0].count),
                         newPatients: parseInt(patientsResult.rows[0].count),
                         todayAppointments: parseInt(apptResult.rows[0].count),
                         pendingOpd: parseInt(finStats.queue_count || 0), // Queue (Registered + In-consultation)
