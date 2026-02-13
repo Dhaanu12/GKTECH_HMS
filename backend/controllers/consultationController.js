@@ -446,6 +446,8 @@ class ConsultationController {
                 return isNaN(converted) ? null : converted;
             };
 
+
+            // 2. Create Prescription if medications or labs are provided
             // --- SAVE FINAL PRESCRIPTION ---
             let prescription_id = null;
             if ((medications && medications.length > 0) || (labs && labs.length > 0) || (procedures && procedures.length > 0)) {

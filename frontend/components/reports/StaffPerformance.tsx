@@ -669,6 +669,7 @@ interface StaffData {
     appointments_converted?: string;
     payments_collected?: string;
     pending_amount?: string;
+    emergency_count?: string;
 }
 
 interface Props {
@@ -732,7 +733,9 @@ export default function StaffPerformance({ data, type }: Props) {
                 cancelled: parseInt(d.cancellations_handled || '0'),
                 noShows: parseInt(d.no_show_count || '0'),
                 paymentsCollected: parseFloat(d.payments_collected || '0'),
-                pending: parseFloat(d.pending_amount || '0')
+                pending: parseFloat(d.pending_amount || '0'),
+                walkInCount: parseInt(d.walk_in_count || '0'),
+                emergencyCount: parseInt(d.emergency_count || '0')
             };
         }
     });
@@ -750,16 +753,18 @@ export default function StaffPerformance({ data, type }: Props) {
             const avgAttendance = chartData.reduce((sum: number, d: any) => sum + d.presentDays, 0) / chartData.length;
             return { totalLabs, totalVitals, avgAttendance };
         } else {
-            const totalBookings = chartData.reduce((sum: number, d: any) => sum + d.totalBooked, 0);
-            const totalPayments = chartData.reduce((sum: number, d: any) => sum + d.paymentsCollected, 0);
-            const avgConversion = chartData.reduce((sum: number, d: any) => {
-                return sum + (d.totalBooked > 0 ? (d.converted / d.totalBooked) * 100 : 0);
-            }, 0) / chartData.length;
-            return { totalBookings, totalPayments, avgConversion };
+            const totalOPD = chartData.reduce((sum: number, d: any) => sum + d.opdCheckins, 0);
+            const totalAppointments = chartData.reduce((sum: number, d: any) => sum + d.totalBooked, 0);
+            const totalConverted = chartData.reduce((sum: number, d: any) => sum + d.converted, 0);
+            const totalWalkIn = chartData.reduce((sum: number, d: any) => sum + d.walkInCount, 0);
+            const totalEmergency = chartData.reduce((sum: number, d: any) => sum + d.emergencyCount, 0);
+
+            const conversionRate = totalAppointments > 0 ? (totalConverted / totalAppointments) * 100 : 0;
+            return { totalOPD, totalAppointments, conversionRate, totalConverted, totalWalkIn, totalEmergency };
         }
     };
 
-    const stats = getSummaryStats();
+    const stats: any = getSummaryStats();
 
     // Sort data for ranking
     const topPerformers = [...chartData].sort((a: any, b: any) => {
@@ -868,21 +873,28 @@ export default function StaffPerformance({ data, type }: Props) {
                     <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl shadow-xl p-6 text-white">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
-                                <Users className="w-7 h-7" />
+                                <Activity className="w-7 h-7" />
                             </div>
                         </div>
-                        <p className="text-emerald-100 text-sm font-medium mb-1">Total Bookings</p>
-                        <p className="text-4xl font-bold">{stats.totalBookings.toLocaleString()}</p>
+                        <p className="text-emerald-100 text-sm font-medium mb-1">Total OPD Entries</p>
+                        <p className="text-4xl font-bold mb-2">{stats.totalOPD.toLocaleString()}</p>
+                        <div className="flex gap-3 text-xs font-semibold bg-black/10 p-2 rounded-lg">
+                            <span title="Walk-ins">Walk-in: {stats.totalWalkIn}</span>
+                            <span className="opacity-50">|</span>
+                            <span title="Appointments">Appt: {stats.totalConverted}</span>
+                            <span className="opacity-50">|</span>
+                            <span title="Emergency">Emergency: {stats.totalEmergency}</span>
+                        </div>
                     </div>
 
                     <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-xl p-6 text-white">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
-                                <DollarSign className="w-7 h-7" />
+                                <Users className="w-7 h-7" />
                             </div>
                         </div>
-                        <p className="text-blue-100 text-sm font-medium mb-1">Payments Collected</p>
-                        <p className="text-4xl font-bold">₹{stats.totalPayments.toLocaleString()}</p>
+                        <p className="text-blue-100 text-sm font-medium mb-1">Total Appointments</p>
+                        <p className="text-4xl font-bold">{stats.totalAppointments.toLocaleString()}</p>
                     </div>
 
                     <div className="bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl shadow-xl p-6 text-white">
@@ -891,8 +903,11 @@ export default function StaffPerformance({ data, type }: Props) {
                                 <TrendingUp className="w-7 h-7" />
                             </div>
                         </div>
-                        <p className="text-purple-100 text-sm font-medium mb-1">Avg Conversion Rate</p>
-                        <p className="text-4xl font-bold">{stats.avgConversion.toFixed(1)}%</p>
+                        <p className="text-purple-100 text-sm font-medium mb-1">Conversion Success</p>
+                        <div className="flex items-baseline gap-2">
+                            <p className="text-4xl font-bold">{stats.conversionRate.toFixed(1)}%</p>
+                            <span className="text-sm opacity-80">({stats.totalConverted.toLocaleString()} converted)</span>
+                        </div>
                     </div>
                 </div>
             )}
@@ -1191,8 +1206,8 @@ export default function StaffPerformance({ data, type }: Props) {
                                 {/* Rank Badge for Top 3 */}
                                 {index < 3 && (
                                     <div className={`absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${index === 0 ? 'bg-yellow-400 text-yellow-900' :
-                                            index === 1 ? 'bg-gray-300 text-gray-700' :
-                                                'bg-orange-400 text-orange-900'
+                                        index === 1 ? 'bg-gray-300 text-gray-700' :
+                                            'bg-orange-400 text-orange-900'
                                         }`}>
                                         {index + 1}
                                     </div>
@@ -1276,6 +1291,12 @@ export default function StaffPerformance({ data, type }: Props) {
                                         <>
                                             <span className="px-3 py-1 bg-teal-100 text-teal-700 rounded-lg text-xs font-semibold">
                                                 OPD: {staff.opd_checkins || 0}
+                                            </span>
+                                            <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-lg text-xs font-semibold">
+                                                Walk-in: {staff.walk_in_count || 0}
+                                            </span>
+                                            <span className="px-3 py-1 bg-red-100 text-red-700 rounded-lg text-xs font-semibold">
+                                                Emergency: {staff.emergency_count || 0}
                                             </span>
                                             <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-lg text-xs font-semibold">
                                                 Cancelled: {staff.cancellations_handled || 0}

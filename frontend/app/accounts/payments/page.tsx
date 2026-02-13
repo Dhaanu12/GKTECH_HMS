@@ -391,7 +391,7 @@ function PaymentReportsTab() {
     const fetchDoctors = async () => {
         try {
             const token = localStorage.getItem('token');
-            const response = await axios.get('/api/marketing/referral-doctors', {
+            const response = await axios.get('/marketing/referral-doctors', {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (response.data.success) {
