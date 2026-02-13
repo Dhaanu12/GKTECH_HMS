@@ -60,7 +60,7 @@ export default function AddReferralPatientPage() {
         try {
             const token = localStorage.getItem('token');
             const baseUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || '';
-            const apiUrl = `${baseUrl}/api/marketing/referral-doctors`;
+            const apiUrl = `${baseUrl}/marketing/referral-doctors`;
 
             const response = await axios.get(apiUrl, {
                 headers: { Authorization: `Bearer ${token}` }
