@@ -130,6 +130,7 @@ export default function OpdEntryPage() {
     const [hasAppointment, setHasAppointment] = useState(false);
     const [appointmentDoctorName, setAppointmentDoctorName] = useState('');
     const [paymentChoice, setPaymentChoice] = useState<'PayNow' | 'PayLater'>('PayNow');
+    const [wasInitiallyPaid, setWasInitiallyPaid] = useState(false);
     const [editingOpdId, setEditingOpdId] = useState<number | null>(null);
     const [branchDetails, setBranchDetails] = useState<any>(null);
     const [branchDepartments, setBranchDepartments] = useState<any[]>([]);
@@ -1052,8 +1053,8 @@ export default function OpdEntryPage() {
         try {
             const savedEntry = await saveEntry();
 
-            // Only show bill modal for NEW entries with PayNow, not for updates
-            if (paymentChoice === 'PayNow' && savedEntry && !editingOpdId) {
+            // Trigger billing flow for both NEW and UPDATES when PayNow is selected
+            if (paymentChoice === 'PayNow' && savedEntry && !wasInitiallyPaid) {
                 const opdId = typeof savedEntry === 'number' ? savedEntry : savedEntry.opd_id;
                 if (opdId) {
                     setNewOpdData(savedEntry); // Set this to trigger reset on modal close
@@ -1179,6 +1180,7 @@ export default function OpdEntryPage() {
         setIsFromConvertToOPD(false);
         setPendingPatientData(null);
         setPaymentChoice('PayNow');
+        setWasInitiallyPaid(false);
         setSelectedDepartment('All');
     };
 
@@ -1256,6 +1258,7 @@ export default function OpdEntryPage() {
 
         // Set Payment Choice based on status
         setPaymentChoice(entry.payment_status === 'Paid' ? 'PayNow' : 'PayLater');
+        setWasInitiallyPaid(entry.payment_status === 'Paid');
 
         setShowModal(true);
     };
@@ -1878,1211 +1881,1211 @@ export default function OpdEntryPage() {
 
                                 return (
                                     <div key={entry.opd_id} id={`opd-row-${entry.opd_id}`} className={`group bg-white rounded-2xl p-4 border transition-all duration-300 flex flex-col md:flex-row items-center relative overflow-hidden ${highlightedOpdId === entry.opd_id.toString()
-                                            ? 'ring-[6px] ring-blue-500/20 border-blue-500 border-2 shadow-2xl z-20 animate-row-pulse'
-                                            : `border-slate-100 shadow-sm hover:shadow-md ${colors.hoverBorder}`
-                                            }`}
+                                        ? 'ring-[6px] ring-blue-500/20 border-blue-500 border-2 shadow-2xl z-20 animate-row-pulse'
+                                        : `border-slate-100 shadow-sm hover:shadow-md ${colors.hoverBorder}`
+                                        }`}
                                     >
-                                {/* Left Accent Bar */}
+                                        {/* Left Accent Bar */}
                                         <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${entry.visit_status === 'Completed' ? 'bg-emerald-500' :
-                                    entry.visit_status === 'In-consultation' ? 'bg-amber-500' :
-                                        colors.bar
-                                    }`}></div>
+                                            entry.visit_status === 'In-consultation' ? 'bg-amber-500' :
+                                                colors.bar
+                                            }`}></div>
 
-                {/* Token & ID - Scaled Up */}
-                <div className="w-full md:w-[15%] pl-4 flex flex-row items-center gap-3 flex-shrink-0">
-                    <div className={`${colors.bg} ${colors.lightGroupHover} transition-colors rounded-xl border ${colors.border} h-12 w-12 flex items-center justify-center shadow-sm group-hover:scale-105 duration-300 flex-shrink-0`}>
-                        <span className={`font-black ${colors.text} text-lg`}>
-                            {entry.token_number}
-                        </span>
-                    </div>
-                    <button
-                        onClick={() => entry.visit_status !== 'Completed' && handleEditOpd(entry)}
-                        className={`text-xs font-mono font-bold text-slate-500 hover:${colors.text} hover:underline whitespace-nowrap ${entry.visit_status === 'Completed' ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}`}
-                    >
-                        #{entry.opd_number}
-                    </button>
-                </div>
-
-                {/* Patient Info - Scaled Up */}
-                <div className="w-full md:w-[15%] flex items-center gap-3 flex-shrink-0 pl-2">
-                    <div className={`w-11 h-11 rounded-full flex-shrink-0 flex items-center justify-center text-lg font-bold shadow-sm ${colors.bg} ${colors.text}`}>
-                        {entry.patient_first_name[0]}
-                    </div>
-                    <div className="min-w-0">
-                        <Link href={`/receptionist/patients/${entry.patient_id}`} className={`block font-bold text-slate-800 text-lg truncate hover:${colors.text} transition`} title={`${entry.patient_first_name} ${entry.patient_last_name}`}>
-                            {entry.patient_first_name} {entry.patient_last_name}
-                        </Link>
-                        <p className="text-xs text-slate-500 font-medium truncate">{entry.gender}, {entry.age} yrs</p>
-                    </div>
-                </div>
-
-                {/* Doctor Info - Scaled Up */}
-                <div className="w-full md:w-[15%] flex-shrink-0">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-sm">
-                            {entry.doctor_first_name ? entry.doctor_first_name[0].toUpperCase() : 'D'}
-                        </div>
-                        <div className="min-w-0">
-                            <p className="text-base font-bold text-slate-700 leading-tight capitalize truncate">
-                                Dr. {entry.doctor_first_name} {entry.doctor_last_name}
-                            </p>
-                            <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider truncate mt-0.5">
-                                {entry.specialization || 'General'}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Timings - Scaled Up */}
-                <div className="w-full md:w-[10%] flex-shrink-0">
-                    <div className="flex flex-col">
-                        <p className="text-base font-bold text-slate-700">{entry.visit_time.slice(0, 5)}</p>
-                        <p className="text-[11px] text-slate-400 font-medium">{new Date(entry.visit_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</p>
-                    </div>
-                </div>
-
-                {/* Status Pills - Scaled Up */}
-                <div className="w-full md:w-[10%] flex flex-col gap-1.5 flex-shrink-0 items-start">
-                    <span className={`inline-flex px-2.5 py-1 text-[11px] font-bold rounded-lg border ${entry.visit_type === 'Emergency' ? 'bg-red-50 text-red-600 border-red-100' :
-                        entry.visit_type === 'Follow-up' ? 'bg-blue-50 text-blue-600 border-blue-100' :
-                            'bg-slate-50 text-slate-600 border-slate-100'
-                        }`}>
-                        {entry.visit_type}
-                    </span>
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold rounded-lg border ${entry.visit_status === 'Completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
-                        entry.visit_status === 'In-consultation' ? 'bg-amber-50 text-amber-700 border-amber-100' :
-                            'bg-white text-slate-500 border-slate-200'
-                        }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${entry.visit_status === 'Completed' ? 'bg-emerald-500' :
-                            entry.visit_status === 'In-consultation' ? 'bg-amber-500' :
-                                'bg-slate-300'
-                            }`}></span>
-                        {entry.visit_status}
-                    </span>
-                </div>
-
-                {/* Payment - Scaled Up */}
-                <div className="w-full md:w-[10%] text-right flex-shrink-0">
-                    <p className="font-mono text-base font-bold text-slate-800">₹{entry.consultation_fee || '0'}</p>
-                    <p className={`text-[11px] font-bold uppercase tracking-wider ${entry.payment_status === 'Paid' ? 'text-emerald-500' : 'text-red-500'
-                        }`}>
-                        {entry.payment_status}
-                    </p>
-                </div>
-
-                {/* Action Buttons - 25% Width - Spacious Layout */}
-                <div className="w-full md:w-[25%] flex flex-col gap-1.5 pl-6 flex-shrink-0">
-                    {/* Row 1: Edit & Cancel (Side by Side) */}
-                    <div className="flex items-center gap-1.5 w-full">
-                        {/* Edit Button */}
-                        <button
-                            onClick={() => (entry.visit_status !== 'Completed' || entry.is_mlc) && handleEditOpd(entry)}
-                            className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg transition-all font-bold text-xs ${entry.visit_status === 'Completed' && !entry.is_mlc
-                                ? 'bg-slate-50 text-slate-300 cursor-not-allowed pointer-events-none'
-                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-800'
-                                }`}
-                            title={entry.visit_status === 'Completed' && !entry.is_mlc ? "Cannot edit completed visit" : "Edit OPD Entry"}
-                            disabled={entry.visit_status === 'Completed' && !entry.is_mlc}
-                        >
-                            Edit
-                        </button>
-
-                        {/* Cancel Button - Show for Registered or Completed (but disabled for Completed or MLC) */}
-                        {entry.visit_status === 'Registered' || entry.visit_status === 'Completed' ? (
-                            <button
-                                onClick={() => entry.visit_status !== 'Completed' && !entry.is_mlc && openCancelModal(entry)}
-                                className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg transition-all font-bold text-xs border ${entry.visit_status === 'Completed' || entry.is_mlc
-                                    ? 'bg-red-50/30 text-red-200 border-red-50 cursor-not-allowed pointer-events-none'
-                                    : 'bg-red-50 text-red-600 hover:bg-red-100 border-red-100'
-                                    }`}
-                                title={entry.visit_status === 'Completed' ? "Cannot cancel completed visit" : entry.is_mlc ? "Cannot cancel MLC case" : "Cancel Visit"}
-                                disabled={entry.visit_status === 'Completed' || entry.is_mlc}
-                            >
-                                Cancel
-                            </button>
-                        ) : (
-                            <div className="flex-1"></div>
-                        )}
-                    </div>
-
-                    {/* Row 2: Re-Appoint (Full Width) - Disabled for Completed or MLC */}
-                    <button
-                        onClick={() => entry.visit_status !== 'Completed' && !entry.is_mlc && openRescheduleModal(entry)}
-                        className={`w-full flex items-center justify-center gap-2 px-2 py-1.5 rounded-lg transition-all font-bold text-xs shadow-sm active:scale-95 ${entry.visit_status === 'Completed' || entry.is_mlc
-                            ? 'bg-slate-200 text-slate-400 cursor-not-allowed pointer-events-none'
-                            : 'bg-slate-900 text-white hover:bg-slate-800'
-                            }`}
-                        title={entry.visit_status === 'Completed' ? "Cannot re-appoint for completed visit" : entry.is_mlc ? "Cannot re-appoint for MLC case" : "Re-Appoint Patient"}
-                        disabled={entry.visit_status === 'Completed' || entry.is_mlc}
-                    >
-                        Re-Appoint
-                    </button>
-                </div>
-            </div>
-            );
-                            }))
-                    }
-        </div>
-            </div >
-
-        {/* Glass Modal for Entry */ }
-    {
-        showModal && (
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all duration-300">
-                <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto border border-white/20">
-                    {/* Modal Header */}
-                    <div className="flex justify-between items-center px-6 py-5 border-b border-slate-100 sticky top-0 bg-white/95 backdrop-blur z-10 rounded-t-3xl">
-                        <div>
-                            <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                                {editingOpdId ? <FileText className="w-5 h-5 text-blue-600" /> : <Plus className="w-5 h-5 text-blue-600" />}
-                                {editingOpdId ? 'Edit OPD Entry' : 'New OPD Entry'}
-                            </h2>
-                            {selectedPatient && (
-                                <p className="text-xs font-bold text-blue-600 uppercase tracking-wider mt-1">
-                                    Patient: {selectedPatient.first_name} {selectedPatient.last_name} • MRN: {selectedPatient.mrn_number}
-                                </p>
-                            )}
-                        </div>
-                        <div className="flex items-center gap-3">
-                            {opdForm.payment_status === 'Paid' && !editingOpdId && (
-                                <button
-                                    type="button"
-                                    onClick={handleSaveAndPrint}
-                                    className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition text-sm font-bold"
-                                >
-                                    <Printer className="w-4 h-4" />
-                                    Save & Print
-                                </button>
-                            )}
-                            <button
-                                onClick={() => { setShowModal(false); resetForm(); }}
-                                className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition"
-                            >
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Progress Indicator - Only for new entries - Sequential validation */}
-                    {!editingOpdId && (
-                        <div className="px-6 py-3 bg-slate-50/80 border-b border-slate-100">
-                            {(() => {
-                                // Define completion checks
-                                const step1Complete = selectedPatient
-                                    ? true
-                                    : (opdForm.first_name && opdForm.age && opdForm.gender &&
-                                        (opdForm.is_mlc || opdForm.contact_number?.length === 10));
-
-                                const step2FieldsComplete = opdForm.visit_type && opdForm.doctor_id;
-                                const step2Complete = step1Complete && step2FieldsComplete;
-
-                                const step3FieldsComplete = opdForm.consultation_fee;
-                                const step3Complete = step2Complete && step3FieldsComplete;
-
-                                return (
-                                    <div className="flex items-center justify-between max-w-2xl mx-auto">
-                                        {/* Step 1: Patient */}
-                                        <div className="flex items-center">
-                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${step1Complete
-                                                ? 'bg-emerald-500 text-white'
-                                                : currentStep === 'search' || currentStep === 'newPatient'
-                                                    ? 'bg-blue-600 text-white ring-4 ring-blue-100'
-                                                    : 'bg-slate-200 text-slate-500'
-                                                }`}>
-                                                {step1Complete ? '✓' : '1'}
+                                        {/* Token & ID - Scaled Up */}
+                                        <div className="w-full md:w-[15%] pl-4 flex flex-row items-center gap-3 flex-shrink-0">
+                                            <div className={`${colors.bg} ${colors.lightGroupHover} transition-colors rounded-xl border ${colors.border} h-12 w-12 flex items-center justify-center shadow-sm group-hover:scale-105 duration-300 flex-shrink-0`}>
+                                                <span className={`font-black ${colors.text} text-lg`}>
+                                                    {entry.token_number}
+                                                </span>
                                             </div>
-                                            <span className={`ml-2 text-sm font-medium ${step1Complete ? 'text-emerald-600' : 'text-slate-600'}`}>
-                                                Patient
+                                            <button
+                                                onClick={() => entry.visit_status !== 'Completed' && handleEditOpd(entry)}
+                                                className={`text-xs font-mono font-bold text-slate-500 hover:${colors.text} hover:underline whitespace-nowrap ${entry.visit_status === 'Completed' ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}`}
+                                            >
+                                                #{entry.opd_number}
+                                            </button>
+                                        </div>
+
+                                        {/* Patient Info - Scaled Up */}
+                                        <div className="w-full md:w-[15%] flex items-center gap-3 flex-shrink-0 pl-2">
+                                            <div className={`w-11 h-11 rounded-full flex-shrink-0 flex items-center justify-center text-lg font-bold shadow-sm ${colors.bg} ${colors.text}`}>
+                                                {entry.patient_first_name[0]}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <Link href={`/receptionist/patients/${entry.patient_id}`} className={`block font-bold text-slate-800 text-lg truncate hover:${colors.text} transition`} title={`${entry.patient_first_name} ${entry.patient_last_name}`}>
+                                                    {entry.patient_first_name} {entry.patient_last_name}
+                                                </Link>
+                                                <p className="text-xs text-slate-500 font-medium truncate">{entry.gender}, {entry.age} yrs</p>
+                                            </div>
+                                        </div>
+
+                                        {/* Doctor Info - Scaled Up */}
+                                        <div className="w-full md:w-[15%] flex-shrink-0">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-sm">
+                                                    {entry.doctor_first_name ? entry.doctor_first_name[0].toUpperCase() : 'D'}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="text-base font-bold text-slate-700 leading-tight capitalize truncate">
+                                                        Dr. {entry.doctor_first_name} {entry.doctor_last_name}
+                                                    </p>
+                                                    <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider truncate mt-0.5">
+                                                        {entry.specialization || 'General'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Timings - Scaled Up */}
+                                        <div className="w-full md:w-[10%] flex-shrink-0">
+                                            <div className="flex flex-col">
+                                                <p className="text-base font-bold text-slate-700">{entry.visit_time.slice(0, 5)}</p>
+                                                <p className="text-[11px] text-slate-400 font-medium">{new Date(entry.visit_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</p>
+                                            </div>
+                                        </div>
+
+                                        {/* Status Pills - Scaled Up */}
+                                        <div className="w-full md:w-[10%] flex flex-col gap-1.5 flex-shrink-0 items-start">
+                                            <span className={`inline-flex px-2.5 py-1 text-[11px] font-bold rounded-lg border ${entry.visit_type === 'Emergency' ? 'bg-red-50 text-red-600 border-red-100' :
+                                                entry.visit_type === 'Follow-up' ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                                                    'bg-slate-50 text-slate-600 border-slate-100'
+                                                }`}>
+                                                {entry.visit_type}
+                                            </span>
+                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold rounded-lg border ${entry.visit_status === 'Completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                                                entry.visit_status === 'In-consultation' ? 'bg-amber-50 text-amber-700 border-amber-100' :
+                                                    'bg-white text-slate-500 border-slate-200'
+                                                }`}>
+                                                <span className={`w-1.5 h-1.5 rounded-full ${entry.visit_status === 'Completed' ? 'bg-emerald-500' :
+                                                    entry.visit_status === 'In-consultation' ? 'bg-amber-500' :
+                                                        'bg-slate-300'
+                                                    }`}></span>
+                                                {entry.visit_status}
                                             </span>
                                         </div>
 
-                                        {/* Connector 1-2 */}
-                                        <div className={`flex-1 h-1 mx-4 rounded ${step1Complete ? 'bg-emerald-300' : 'bg-slate-200'}`}></div>
-
-                                        {/* Step 2: Visit Details - Only green if Step 1 is also complete */}
-                                        <div className="flex items-center">
-                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${step2Complete
-                                                ? 'bg-emerald-500 text-white'
-                                                : currentStep === 'visitDetails'
-                                                    ? 'bg-blue-600 text-white ring-4 ring-blue-100'
-                                                    : 'bg-slate-200 text-slate-500'
+                                        {/* Payment - Scaled Up */}
+                                        <div className="w-full md:w-[10%] text-right flex-shrink-0">
+                                            <p className="font-mono text-base font-bold text-slate-800">₹{entry.consultation_fee || '0'}</p>
+                                            <p className={`text-[11px] font-bold uppercase tracking-wider ${entry.payment_status === 'Paid' ? 'text-emerald-500' : 'text-red-500'
                                                 }`}>
-                                                {step2Complete ? '✓' : '2'}
-                                            </div>
-                                            <span className={`ml-2 text-sm font-medium ${step2Complete ? 'text-emerald-600' : 'text-slate-600'}`}>
-                                                Visit Details
-                                            </span>
+                                                {entry.payment_status}
+                                            </p>
                                         </div>
 
-                                        {/* Connector 2-3 */}
-                                        <div className={`flex-1 h-1 mx-4 rounded ${step2Complete ? 'bg-emerald-300' : 'bg-slate-200'}`}></div>
+                                        {/* Action Buttons - 25% Width - Spacious Layout */}
+                                        <div className="w-full md:w-[25%] flex flex-col gap-1.5 pl-6 flex-shrink-0">
+                                            {/* Row 1: Edit & Cancel (Side by Side) */}
+                                            <div className="flex items-center gap-1.5 w-full">
+                                                {/* Edit Button */}
+                                                <button
+                                                    onClick={() => (entry.visit_status !== 'Completed' || entry.is_mlc) && handleEditOpd(entry)}
+                                                    className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg transition-all font-bold text-xs ${entry.visit_status === 'Completed' && !entry.is_mlc
+                                                        ? 'bg-slate-50 text-slate-300 cursor-not-allowed pointer-events-none'
+                                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-800'
+                                                        }`}
+                                                    title={entry.visit_status === 'Completed' && !entry.is_mlc ? "Cannot edit completed visit" : "Edit OPD Entry"}
+                                                    disabled={entry.visit_status === 'Completed' && !entry.is_mlc}
+                                                >
+                                                    Edit
+                                                </button>
 
-                                        {/* Step 3: Payment - Only green if Step 1 & 2 are complete */}
-                                        <div className="flex items-center">
-                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${step3Complete
-                                                ? 'bg-emerald-500 text-white'
-                                                : currentStep === 'payment'
-                                                    ? 'bg-blue-600 text-white ring-4 ring-blue-100'
-                                                    : 'bg-slate-200 text-slate-500'
-                                                }`}>
-                                                {step3Complete ? '✓' : '3'}
+                                                {/* Cancel Button - Show for Registered or Completed (but disabled for Completed or MLC) */}
+                                                {entry.visit_status === 'Registered' || entry.visit_status === 'Completed' ? (
+                                                    <button
+                                                        onClick={() => entry.visit_status !== 'Completed' && !entry.is_mlc && openCancelModal(entry)}
+                                                        className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg transition-all font-bold text-xs border ${entry.visit_status === 'Completed' || entry.is_mlc
+                                                            ? 'bg-red-50/30 text-red-200 border-red-50 cursor-not-allowed pointer-events-none'
+                                                            : 'bg-red-50 text-red-600 hover:bg-red-100 border-red-100'
+                                                            }`}
+                                                        title={entry.visit_status === 'Completed' ? "Cannot cancel completed visit" : entry.is_mlc ? "Cannot cancel MLC case" : "Cancel Visit"}
+                                                        disabled={entry.visit_status === 'Completed' || entry.is_mlc}
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                ) : (
+                                                    <div className="flex-1"></div>
+                                                )}
                                             </div>
-                                            <span className={`ml-2 text-sm font-medium ${step3Complete ? 'text-emerald-600' : 'text-slate-600'}`}>
-                                                Payment
-                                            </span>
+
+                                            {/* Row 2: Re-Appoint (Full Width) - Disabled for Completed or MLC */}
+                                            <button
+                                                onClick={() => entry.visit_status !== 'Completed' && !entry.is_mlc && openRescheduleModal(entry)}
+                                                className={`w-full flex items-center justify-center gap-2 px-2 py-1.5 rounded-lg transition-all font-bold text-xs shadow-sm active:scale-95 ${entry.visit_status === 'Completed' || entry.is_mlc
+                                                    ? 'bg-slate-200 text-slate-400 cursor-not-allowed pointer-events-none'
+                                                    : 'bg-slate-900 text-white hover:bg-slate-800'
+                                                    }`}
+                                                title={entry.visit_status === 'Completed' ? "Cannot re-appoint for completed visit" : entry.is_mlc ? "Cannot re-appoint for MLC case" : "Re-Appoint Patient"}
+                                                disabled={entry.visit_status === 'Completed' || entry.is_mlc}
+                                            >
+                                                Re-Appoint
+                                            </button>
                                         </div>
                                     </div>
                                 );
-                            })()}
-                        </div>
-                    )}
+                            }))
+                    }
+                </div>
+            </div >
 
-                    <form onSubmit={handleSubmit} className="p-5 space-y-7">
-                        {/* Form Sections content... (Keep existing logic but styled) */}
-                        {/* Patient Information Section */}
-                        <div className="bg-gradient-to-br from-blue-50/30 to-slate-50/50 p-6 rounded-2xl border border-blue-100/60 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_10px_20px_-2px_rgba(0,0,0,0.04)]">
-                            <div className="flex justify-between items-center mb-4">
-                                <h3 className="text-[15px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                                    <User className="w-4 h-4 text-blue-500" /> Patient Details
-                                </h3>
-                                {(opdForm.contact_number || selectedPatient) && (
+            {/* Glass Modal for Entry */}
+            {
+                showModal && (
+                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all duration-300">
+                        <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto border border-white/20">
+                            {/* Modal Header */}
+                            <div className="flex justify-between items-center px-6 py-5 border-b border-slate-100 sticky top-0 bg-white/95 backdrop-blur z-10 rounded-t-3xl">
+                                <div>
+                                    <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                                        {editingOpdId ? <FileText className="w-5 h-5 text-blue-600" /> : <Plus className="w-5 h-5 text-blue-600" />}
+                                        {editingOpdId ? 'Edit OPD Entry' : 'New OPD Entry'}
+                                    </h2>
+                                    {selectedPatient && (
+                                        <p className="text-xs font-bold text-blue-600 uppercase tracking-wider mt-1">
+                                            Patient: {selectedPatient.first_name} {selectedPatient.last_name} • MRN: {selectedPatient.mrn_number}
+                                        </p>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    {opdForm.payment_status === 'Paid' && !editingOpdId && (
+                                        <button
+                                            type="button"
+                                            onClick={handleSaveAndPrint}
+                                            className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition text-sm font-bold"
+                                        >
+                                            <Printer className="w-4 h-4" />
+                                            Save & Print
+                                        </button>
+                                    )}
                                     <button
-                                        type="button"
-                                        onClick={handleClearPatient}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white border border-rose-200 hover:border-rose-600 rounded-lg transition-all text-[11px] font-bold shadow-sm active:scale-95 group"
+                                        onClick={() => { setShowModal(false); resetForm(); }}
+                                        className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition"
                                     >
-                                        <X className="w-3.5 h-3.5 transition-transform group-hover:rotate-90" />
-                                        Clear Patient
+                                        <X className="w-5 h-5" />
                                     </button>
-                                )}
+                                </div>
                             </div>
 
-                            {/* Patient Form Fields - Phone-first workflow (synced from dashboard) */}
+                            {/* Progress Indicator - Only for new entries - Sequential validation */}
                             {!editingOpdId && (
-                                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                                    {/* Row 1: Phone Number | Name */}
-                                    <div className="md:col-span-2 relative">
-                                        <label className="block text-sm font-semibold text-slate-700 mb-1.5">Phone Number {opdForm.is_mlc ? '(Optional for MLC)' : <span className="text-red-500">*</span>}</label>
-                                        <input
-                                            ref={phoneInputRef}
-                                            type="tel"
-                                            required={!opdForm.is_mlc}
-                                            value={opdForm.contact_number}
-                                            onChange={(e) => {
-                                                const value = e.target.value.replace(/\D/g, "");
-                                                if (value.length <= 10) {
-                                                    setOpdForm({ ...opdForm, contact_number: value });
-                                                    // Trigger search when phone number is 8+ digits
-                                                    if (value.length >= 8) {
-                                                        setModalSearchQuery(value);
-                                                    } else {
-                                                        setModalSearchResults([]);
-                                                    }
-                                                }
-                                            }}
-                                            maxLength={10}
-                                            className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${((opdForm.contact_number.length === 10 || !!selectedPatient) && !editingOpdId) ? 'bg-slate-50 cursor-not-allowed text-slate-600' : ''}`}
-                                            placeholder="10-digit number"
-                                            autoFocus
-                                            disabled={((opdForm.contact_number.length === 10 || !!selectedPatient) && !editingOpdId)}
-                                        />
+                                <div className="px-6 py-3 bg-slate-50/80 border-b border-slate-100">
+                                    {(() => {
+                                        // Define completion checks
+                                        const step1Complete = selectedPatient
+                                            ? true
+                                            : (opdForm.first_name && opdForm.age && opdForm.gender &&
+                                                (opdForm.is_mlc || opdForm.contact_number?.length === 10));
 
-                                        {/* Existing Patients Dropdown */}
-                                        {modalSearchResults.length > 0 && opdForm.contact_number.length >= 8 && (
-                                            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-50">
-                                                <div className="flex items-center justify-between px-4 py-2 bg-slate-50 border-b border-slate-100">
-                                                    <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Existing Patients Found</span>
+                                        const step2FieldsComplete = opdForm.visit_type && opdForm.doctor_id;
+                                        const step2Complete = step1Complete && step2FieldsComplete;
+
+                                        const step3FieldsComplete = opdForm.consultation_fee;
+                                        const step3Complete = step2Complete && step3FieldsComplete;
+
+                                        return (
+                                            <div className="flex items-center justify-between max-w-2xl mx-auto">
+                                                {/* Step 1: Patient */}
+                                                <div className="flex items-center">
+                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${step1Complete
+                                                        ? 'bg-emerald-500 text-white'
+                                                        : currentStep === 'search' || currentStep === 'newPatient'
+                                                            ? 'bg-blue-600 text-white ring-4 ring-blue-100'
+                                                            : 'bg-slate-200 text-slate-500'
+                                                        }`}>
+                                                        {step1Complete ? '✓' : '1'}
+                                                    </div>
+                                                    <span className={`ml-2 text-sm font-medium ${step1Complete ? 'text-emerald-600' : 'text-slate-600'}`}>
+                                                        Patient
+                                                    </span>
                                                 </div>
-                                                <div className="max-h-48 overflow-y-auto">
-                                                    {modalSearchResults.map((patient: any) => (
-                                                        <div
-                                                            key={patient.patient_id}
-                                                            className="px-4 py-3 hover:bg-blue-50 border-b border-slate-100 last:border-0 flex items-center justify-between"
-                                                        >
-                                                            <div>
-                                                                <p className="font-bold text-slate-800">{patient.first_name} {patient.last_name}</p>
-                                                                <p className="text-sm text-slate-500">
-                                                                    {patient.gender}, {patient.age} yrs • ID: {patient.mrn_number}
-                                                                </p>
-                                                            </div>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handleDropdownSelect(patient)}
-                                                                className="px-3 py-1.5 text-blue-600 border border-blue-200 rounded-lg text-xs font-bold hover:bg-blue-50 transition"
+
+                                                {/* Connector 1-2 */}
+                                                <div className={`flex-1 h-1 mx-4 rounded ${step1Complete ? 'bg-emerald-300' : 'bg-slate-200'}`}></div>
+
+                                                {/* Step 2: Visit Details - Only green if Step 1 is also complete */}
+                                                <div className="flex items-center">
+                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${step2Complete
+                                                        ? 'bg-emerald-500 text-white'
+                                                        : currentStep === 'visitDetails'
+                                                            ? 'bg-blue-600 text-white ring-4 ring-blue-100'
+                                                            : 'bg-slate-200 text-slate-500'
+                                                        }`}>
+                                                        {step2Complete ? '✓' : '2'}
+                                                    </div>
+                                                    <span className={`ml-2 text-sm font-medium ${step2Complete ? 'text-emerald-600' : 'text-slate-600'}`}>
+                                                        Visit Details
+                                                    </span>
+                                                </div>
+
+                                                {/* Connector 2-3 */}
+                                                <div className={`flex-1 h-1 mx-4 rounded ${step2Complete ? 'bg-emerald-300' : 'bg-slate-200'}`}></div>
+
+                                                {/* Step 3: Payment - Only green if Step 1 & 2 are complete */}
+                                                <div className="flex items-center">
+                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${step3Complete
+                                                        ? 'bg-emerald-500 text-white'
+                                                        : currentStep === 'payment'
+                                                            ? 'bg-blue-600 text-white ring-4 ring-blue-100'
+                                                            : 'bg-slate-200 text-slate-500'
+                                                        }`}>
+                                                        {step3Complete ? '✓' : '3'}
+                                                    </div>
+                                                    <span className={`ml-2 text-sm font-medium ${step3Complete ? 'text-emerald-600' : 'text-slate-600'}`}>
+                                                        Payment
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
+                                </div>
+                            )}
+
+                            <form onSubmit={handleSubmit} className="p-5 space-y-7">
+                                {/* Form Sections content... (Keep existing logic but styled) */}
+                                {/* Patient Information Section */}
+                                <div className="bg-gradient-to-br from-blue-50/30 to-slate-50/50 p-6 rounded-2xl border border-blue-100/60 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_10px_20px_-2px_rgba(0,0,0,0.04)]">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h3 className="text-[15px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                                            <User className="w-4 h-4 text-blue-500" /> Patient Details
+                                        </h3>
+                                        {(opdForm.contact_number || selectedPatient) && (
+                                            <button
+                                                type="button"
+                                                onClick={handleClearPatient}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white border border-rose-200 hover:border-rose-600 rounded-lg transition-all text-[11px] font-bold shadow-sm active:scale-95 group"
+                                            >
+                                                <X className="w-3.5 h-3.5 transition-transform group-hover:rotate-90" />
+                                                Clear Patient
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {/* Patient Form Fields - Phone-first workflow (synced from dashboard) */}
+                                    {!editingOpdId && (
+                                        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                                            {/* Row 1: Phone Number | Name */}
+                                            <div className="md:col-span-2 relative">
+                                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Phone Number {opdForm.is_mlc ? '(Optional for MLC)' : <span className="text-red-500">*</span>}</label>
+                                                <input
+                                                    ref={phoneInputRef}
+                                                    type="tel"
+                                                    required={!opdForm.is_mlc}
+                                                    value={opdForm.contact_number}
+                                                    onChange={(e) => {
+                                                        const value = e.target.value.replace(/\D/g, "");
+                                                        if (value.length <= 10) {
+                                                            setOpdForm({ ...opdForm, contact_number: value });
+                                                            // Trigger search when phone number is 8+ digits
+                                                            if (value.length >= 8) {
+                                                                setModalSearchQuery(value);
+                                                            } else {
+                                                                setModalSearchResults([]);
+                                                            }
+                                                        }
+                                                    }}
+                                                    maxLength={10}
+                                                    className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${((opdForm.contact_number.length === 10 || !!selectedPatient) && !editingOpdId) ? 'bg-slate-50 cursor-not-allowed text-slate-600' : ''}`}
+                                                    placeholder="10-digit number"
+                                                    autoFocus
+                                                    disabled={((opdForm.contact_number.length === 10 || !!selectedPatient) && !editingOpdId)}
+                                                />
+
+                                                {/* Existing Patients Dropdown */}
+                                                {modalSearchResults.length > 0 && opdForm.contact_number.length >= 8 && (
+                                                    <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-50">
+                                                        <div className="flex items-center justify-between px-4 py-2 bg-slate-50 border-b border-slate-100">
+                                                            <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Existing Patients Found</span>
+                                                        </div>
+                                                        <div className="max-h-48 overflow-y-auto">
+                                                            {modalSearchResults.map((patient: any) => (
+                                                                <div
+                                                                    key={patient.patient_id}
+                                                                    className="px-4 py-3 hover:bg-blue-50 border-b border-slate-100 last:border-0 flex items-center justify-between"
+                                                                >
+                                                                    <div>
+                                                                        <p className="font-bold text-slate-800">{patient.first_name} {patient.last_name}</p>
+                                                                        <p className="text-sm text-slate-500">
+                                                                            {patient.gender}, {patient.age} yrs • ID: {patient.mrn_number}
+                                                                        </p>
+                                                                    </div>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleDropdownSelect(patient)}
+                                                                        className="px-3 py-1.5 text-blue-600 border border-blue-200 rounded-lg text-xs font-bold hover:bg-blue-50 transition"
+                                                                    >
+                                                                        Select
+                                                                    </button>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                        {/* Only show Add New Patient if NOT from Convert to OPD */}
+                                                        {!isFromConvertToOPD && (
+                                                            <div
+                                                                className="px-4 py-3 bg-slate-50 border-t border-slate-100 flex items-center gap-2 cursor-pointer hover:bg-blue-50 transition"
+                                                                onClick={() => setModalSearchResults([])}
                                                             >
-                                                                Select
-                                                            </button>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                                {/* Only show Add New Patient if NOT from Convert to OPD */}
-                                                {!isFromConvertToOPD && (
-                                                    <div
-                                                        className="px-4 py-3 bg-slate-50 border-t border-slate-100 flex items-center gap-2 cursor-pointer hover:bg-blue-50 transition"
-                                                        onClick={() => setModalSearchResults([])}
-                                                    >
-                                                        <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center">
-                                                            <Plus className="w-4 h-4" />
-                                                        </div>
-                                                        <span className="font-semibold text-blue-600 whitespace-nowrap text-sm">Add New Patient (Friends / Family)</span>
+                                                                <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center">
+                                                                    <Plus className="w-4 h-4" />
+                                                                </div>
+                                                                <span className="font-semibold text-blue-600 whitespace-nowrap text-sm">Add New Patient (Friends / Family)</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+
+                                                {/* Loading indicator */}
+                                                {isSearching && opdForm.contact_number.length >= 8 && (
+                                                    <div className="absolute right-3 top-9">
+                                                        <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
                                                     </div>
                                                 )}
                                             </div>
-                                        )}
 
-                                        {/* Loading indicator */}
-                                        {isSearching && opdForm.contact_number.length >= 8 && (
-                                            <div className="absolute right-3 top-9">
-                                                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                                            <div className={`md:col-span-4 ${((opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && !opdForm.is_mlc) || (!!selectedPatient && !!selectedPatient.contact_number) ? 'cursor-not-allowed' : ''}`}>
+                                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Name {opdForm.is_mlc ? <span className="text-slate-400 font-normal">(Optional)</span> : <span className="text-red-500">*</span>}</label>
+                                                <input
+                                                    type="text"
+                                                    required={!opdForm.is_mlc}
+                                                    value={opdForm.first_name + (opdForm.last_name ? ' ' + opdForm.last_name : '')}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        const parts = val.split(' ');
+                                                        const first = parts[0];
+                                                        const last = parts.slice(1).join(' ');
+                                                        setOpdForm({ ...opdForm, first_name: first, last_name: last });
+                                                    }}
+                                                    className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${((opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && !opdForm.is_mlc) || (!!selectedPatient && !!selectedPatient.contact_number) ? 'bg-slate-50/80 text-slate-900 font-bold cursor-not-allowed border-slate-300' : ''}`}
+                                                    placeholder="e.g. John Doe"
+                                                    disabled={((opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && !opdForm.is_mlc) || (!!selectedPatient && !!selectedPatient.contact_number)}
+                                                />
                                             </div>
-                                        )}
-                                    </div>
-
-                                    <div className={`md:col-span-4 ${((opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && !opdForm.is_mlc) || (!!selectedPatient && !!selectedPatient.contact_number) ? 'cursor-not-allowed' : ''}`}>
-                                        <label className="block text-sm font-semibold text-slate-700 mb-1.5">Name {opdForm.is_mlc ? <span className="text-slate-400 font-normal">(Optional)</span> : <span className="text-red-500">*</span>}</label>
-                                        <input
-                                            type="text"
-                                            required={!opdForm.is_mlc}
-                                            value={opdForm.first_name + (opdForm.last_name ? ' ' + opdForm.last_name : '')}
-                                            onChange={(e) => {
-                                                const val = e.target.value;
-                                                const parts = val.split(' ');
-                                                const first = parts[0];
-                                                const last = parts.slice(1).join(' ');
-                                                setOpdForm({ ...opdForm, first_name: first, last_name: last });
-                                            }}
-                                            className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${((opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && !opdForm.is_mlc) || (!!selectedPatient && !!selectedPatient.contact_number) ? 'bg-slate-50/80 text-slate-900 font-bold cursor-not-allowed border-slate-300' : ''}`}
-                                            placeholder="e.g. John Doe"
-                                            disabled={((opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && !opdForm.is_mlc) || (!!selectedPatient && !!selectedPatient.contact_number)}
-                                        />
-                                    </div>
-                                    {(() => {
-                                        const isPatientDetailsLocked = ((opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && !opdForm.is_mlc) || (!!selectedPatient && !!selectedPatient.contact_number);
-                                        return (
-                                            <>
-                                                <div className={isPatientDetailsLocked ? 'cursor-not-allowed' : ''}>
-                                                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Age {opdForm.is_mlc ? <span className="text-slate-400 font-normal">(Optional)</span> : <span className="text-red-500">*</span>}</label>
-                                                    <input
-                                                        type="number"
-                                                        required={!opdForm.is_mlc}
-                                                        min="1"
-                                                        max="110"
-                                                        value={opdForm.age}
-                                                        onChange={(e) => {
-                                                            const val = e.target.value;
-                                                            if (val === '' || (parseInt(val) >= 1 && parseInt(val) <= 110)) {
-                                                                setOpdForm({ ...opdForm, age: val });
-                                                            } else if (parseInt(val) > 110) {
-                                                                setOpdForm({ ...opdForm, age: '110' });
-                                                            }
-                                                        }}
-                                                        disabled={isPatientDetailsLocked}
-                                                        className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isPatientDetailsLocked ? 'bg-slate-50/80 text-slate-900 font-bold cursor-not-allowed border-slate-300' : ''}`}
-                                                        placeholder="1-110"
-                                                    />
-                                                </div>
-                                                <div className={isPatientDetailsLocked ? 'cursor-not-allowed' : ''}>
-                                                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Gender {opdForm.is_mlc ? <span className="text-slate-400 font-normal">(Optional)</span> : <span className="text-red-500">*</span>}</label>
-                                                    <select
-                                                        required={!opdForm.is_mlc}
-                                                        value={opdForm.gender}
-                                                        onChange={(e) => setOpdForm({ ...opdForm, gender: e.target.value })}
-                                                        disabled={isPatientDetailsLocked}
-                                                        className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isPatientDetailsLocked ? 'bg-slate-50/80 text-slate-900 font-bold cursor-not-allowed border-slate-300' : ''}`}
-                                                    >
-                                                        <option value="">Select</option>
-                                                        <option value="Male">Male</option>
-                                                        <option value="Female">Female</option>
-                                                        <option value="Pediatric">Pediatric</option>
-                                                        <option value="Other">Other</option>
-                                                    </select>
-                                                </div>
-                                                <div className={`md:col-span-2 ${isPatientDetailsLocked ? 'cursor-not-allowed' : ''}`}>
-                                                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Blood Group</label>
-                                                    <select
-                                                        value={opdForm.blood_group}
-                                                        onChange={(e) => setOpdForm({ ...opdForm, blood_group: e.target.value })}
-                                                        disabled={isPatientDetailsLocked}
-                                                        className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isPatientDetailsLocked ? 'bg-slate-50/80 text-slate-900 font-bold cursor-not-allowed border-slate-300' : ''}`}
-                                                    >
-                                                        <option value="">Unknown</option>
-                                                        <option value="A+">A+</option>
-                                                        <option value="A-">A-</option>
-                                                        <option value="B+">B+</option>
-                                                        <option value="B-">B-</option>
-                                                        <option value="O+">O+</option>
-                                                        <option value="O-">O-</option>
-                                                        <option value="AB+">AB+</option>
-                                                        <option value="AB-">AB-</option>
-                                                    </select>
-                                                </div>
-                                                <div className={`md:col-span-2 ${isPatientDetailsLocked ? 'cursor-not-allowed' : ''}`}>
-                                                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Aadhaar Number</label>
-                                                    <input
-                                                        type="text"
-                                                        value={opdForm.adhaar_number}
-                                                        onChange={(e) => {
-                                                            const value = e.target.value.replace(/\D/g, "");
-                                                            if (value.length <= 12) setOpdForm({ ...opdForm, adhaar_number: value });
-                                                        }}
-                                                        maxLength={12}
-                                                        disabled={isPatientDetailsLocked}
-                                                        className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isPatientDetailsLocked ? 'bg-slate-50/80 text-slate-900 font-bold cursor-not-allowed border-slate-300' : ''}`}
-                                                        placeholder="12-digit Aadhaar"
-                                                    />
-                                                </div>
-
-                                                {/* Address Details Section */}
-                                                <div className={`md:col-span-6 mt-4 ${isPatientDetailsLocked ? 'cursor-not-allowed' : ''}`}>
-                                                    <h4 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">ADDRESS DETAILS</h4>
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                        <div>
-                                                            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Address Line 1</label>
+                                            {(() => {
+                                                const isPatientDetailsLocked = ((opdForm.contact_number.length < 10 || modalSearchResults.length > 0) && !selectedPatient && !opdForm.is_mlc) || (!!selectedPatient && !!selectedPatient.contact_number);
+                                                return (
+                                                    <>
+                                                        <div className={isPatientDetailsLocked ? 'cursor-not-allowed' : ''}>
+                                                            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Age {opdForm.is_mlc ? <span className="text-slate-400 font-normal">(Optional)</span> : <span className="text-red-500">*</span>}</label>
                                                             <input
-                                                                type="text"
-                                                                value={opdForm.address_line1}
-                                                                onChange={(e) => setOpdForm({ ...opdForm, address_line1: e.target.value })}
+                                                                type="number"
+                                                                required={!opdForm.is_mlc}
+                                                                min="1"
+                                                                max="110"
+                                                                value={opdForm.age}
+                                                                onChange={(e) => {
+                                                                    const val = e.target.value;
+                                                                    if (val === '' || (parseInt(val) >= 1 && parseInt(val) <= 110)) {
+                                                                        setOpdForm({ ...opdForm, age: val });
+                                                                    } else if (parseInt(val) > 110) {
+                                                                        setOpdForm({ ...opdForm, age: '110' });
+                                                                    }
+                                                                }}
                                                                 disabled={isPatientDetailsLocked}
                                                                 className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isPatientDetailsLocked ? 'bg-slate-50/80 text-slate-900 font-bold cursor-not-allowed border-slate-300' : ''}`}
-                                                                placeholder="House No, Street"
+                                                                placeholder="1-110"
                                                             />
                                                         </div>
-                                                        <div>
-                                                            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Address Line 2</label>
-                                                            <input
-                                                                type="text"
-                                                                value={opdForm.address_line2}
-                                                                onChange={(e) => setOpdForm({ ...opdForm, address_line2: e.target.value })}
+                                                        <div className={isPatientDetailsLocked ? 'cursor-not-allowed' : ''}>
+                                                            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Gender {opdForm.is_mlc ? <span className="text-slate-400 font-normal">(Optional)</span> : <span className="text-red-500">*</span>}</label>
+                                                            <select
+                                                                required={!opdForm.is_mlc}
+                                                                value={opdForm.gender}
+                                                                onChange={(e) => setOpdForm({ ...opdForm, gender: e.target.value })}
                                                                 disabled={isPatientDetailsLocked}
                                                                 className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isPatientDetailsLocked ? 'bg-slate-50/80 text-slate-900 font-bold cursor-not-allowed border-slate-300' : ''}`}
-                                                                placeholder="Area, Landmark"
-                                                            />
+                                                            >
+                                                                <option value="">Select</option>
+                                                                <option value="Male">Male</option>
+                                                                <option value="Female">Female</option>
+                                                                <option value="Pediatric">Pediatric</option>
+                                                                <option value="Other">Other</option>
+                                                            </select>
                                                         </div>
-                                                    </div>
-                                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
-                                                        <div>
-                                                            <label className="block text-sm font-semibold text-slate-700 mb-1.5">City</label>
-                                                            <input
-                                                                type="text"
-                                                                value={opdForm.city}
-                                                                onChange={(e) => setOpdForm({ ...opdForm, city: e.target.value })}
+                                                        <div className={`md:col-span-2 ${isPatientDetailsLocked ? 'cursor-not-allowed' : ''}`}>
+                                                            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Blood Group</label>
+                                                            <select
+                                                                value={opdForm.blood_group}
+                                                                onChange={(e) => setOpdForm({ ...opdForm, blood_group: e.target.value })}
                                                                 disabled={isPatientDetailsLocked}
                                                                 className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isPatientDetailsLocked ? 'bg-slate-50/80 text-slate-900 font-bold cursor-not-allowed border-slate-300' : ''}`}
-                                                                placeholder=""
-                                                            />
+                                                            >
+                                                                <option value="">Unknown</option>
+                                                                <option value="A+">A+</option>
+                                                                <option value="A-">A-</option>
+                                                                <option value="B+">B+</option>
+                                                                <option value="B-">B-</option>
+                                                                <option value="O+">O+</option>
+                                                                <option value="O-">O-</option>
+                                                                <option value="AB+">AB+</option>
+                                                                <option value="AB-">AB-</option>
+                                                            </select>
                                                         </div>
-                                                        <div>
-                                                            <label className="block text-sm font-semibold text-slate-700 mb-1.5">State</label>
+                                                        <div className={`md:col-span-2 ${isPatientDetailsLocked ? 'cursor-not-allowed' : ''}`}>
+                                                            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Aadhaar Number</label>
                                                             <input
                                                                 type="text"
-                                                                value={opdForm.state}
-                                                                onChange={(e) => setOpdForm({ ...opdForm, state: e.target.value })}
-                                                                disabled={isPatientDetailsLocked}
-                                                                className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isPatientDetailsLocked ? 'bg-slate-50/80 text-slate-900 font-bold cursor-not-allowed border-slate-300' : ''}`}
-                                                                placeholder=""
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Pincode</label>
-                                                            <input
-                                                                type="text"
-                                                                value={opdForm.pincode}
+                                                                value={opdForm.adhaar_number}
                                                                 onChange={(e) => {
                                                                     const value = e.target.value.replace(/\D/g, "");
-                                                                    if (value.length <= 6) setOpdForm({ ...opdForm, pincode: value });
+                                                                    if (value.length <= 12) setOpdForm({ ...opdForm, adhaar_number: value });
                                                                 }}
-                                                                maxLength={6}
+                                                                maxLength={12}
                                                                 disabled={isPatientDetailsLocked}
                                                                 className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isPatientDetailsLocked ? 'bg-slate-50/80 text-slate-900 font-bold cursor-not-allowed border-slate-300' : ''}`}
-                                                                placeholder=""
+                                                                placeholder="12-digit Aadhaar"
+                                                            />
+                                                        </div>
+
+                                                        {/* Address Details Section */}
+                                                        <div className={`md:col-span-6 mt-4 ${isPatientDetailsLocked ? 'cursor-not-allowed' : ''}`}>
+                                                            <h4 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">ADDRESS DETAILS</h4>
+                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                                <div>
+                                                                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Address Line 1</label>
+                                                                    <input
+                                                                        type="text"
+                                                                        value={opdForm.address_line1}
+                                                                        onChange={(e) => setOpdForm({ ...opdForm, address_line1: e.target.value })}
+                                                                        disabled={isPatientDetailsLocked}
+                                                                        className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isPatientDetailsLocked ? 'bg-slate-50/80 text-slate-900 font-bold cursor-not-allowed border-slate-300' : ''}`}
+                                                                        placeholder="House No, Street"
+                                                                    />
+                                                                </div>
+                                                                <div>
+                                                                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Address Line 2</label>
+                                                                    <input
+                                                                        type="text"
+                                                                        value={opdForm.address_line2}
+                                                                        onChange={(e) => setOpdForm({ ...opdForm, address_line2: e.target.value })}
+                                                                        disabled={isPatientDetailsLocked}
+                                                                        className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isPatientDetailsLocked ? 'bg-slate-50/80 text-slate-900 font-bold cursor-not-allowed border-slate-300' : ''}`}
+                                                                        placeholder="Area, Landmark"
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
+                                                                <div>
+                                                                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">City</label>
+                                                                    <input
+                                                                        type="text"
+                                                                        value={opdForm.city}
+                                                                        onChange={(e) => setOpdForm({ ...opdForm, city: e.target.value })}
+                                                                        disabled={isPatientDetailsLocked}
+                                                                        className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isPatientDetailsLocked ? 'bg-slate-50/80 text-slate-900 font-bold cursor-not-allowed border-slate-300' : ''}`}
+                                                                        placeholder=""
+                                                                    />
+                                                                </div>
+                                                                <div>
+                                                                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">State</label>
+                                                                    <input
+                                                                        type="text"
+                                                                        value={opdForm.state}
+                                                                        onChange={(e) => setOpdForm({ ...opdForm, state: e.target.value })}
+                                                                        disabled={isPatientDetailsLocked}
+                                                                        className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isPatientDetailsLocked ? 'bg-slate-50/80 text-slate-900 font-bold cursor-not-allowed border-slate-300' : ''}`}
+                                                                        placeholder=""
+                                                                    />
+                                                                </div>
+                                                                <div>
+                                                                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Pincode</label>
+                                                                    <input
+                                                                        type="text"
+                                                                        value={opdForm.pincode}
+                                                                        onChange={(e) => {
+                                                                            const value = e.target.value.replace(/\D/g, "");
+                                                                            if (value.length <= 6) setOpdForm({ ...opdForm, pincode: value });
+                                                                        }}
+                                                                        maxLength={6}
+                                                                        disabled={isPatientDetailsLocked}
+                                                                        className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isPatientDetailsLocked ? 'bg-slate-50/80 text-slate-900 font-bold cursor-not-allowed border-slate-300' : ''}`}
+                                                                        placeholder=""
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </>
+                                                );
+                                            })()}
+                                        </div>
+                                    )}
+
+                                    {/* Edit Mode - Show all fields */}
+                                    {editingOpdId && (
+                                        <div className="space-y-4">
+                                            {(() => {
+                                                // Lock logic: Dependent on SAVED record state, not current input
+                                                // This prevents fields from locking immediately while user is typing a new number
+                                                const originalOpdEntry = opdEntries.find((e: any) => e.opd_id === editingOpdId);
+                                                const hasValidPhoneOnRecord = originalOpdEntry?.contact_number && originalOpdEntry.contact_number.length >= 10;
+                                                const isLocked = !opdForm.is_mlc || hasValidPhoneOnRecord;
+
+                                                return (
+                                                    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                                                        <div className="md:col-span-4">
+                                                            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Name {!opdForm.is_mlc && <span className="text-red-500">*</span>}</label>
+                                                            <input
+                                                                type="text"
+                                                                required={!opdForm.is_mlc}
+                                                                value={opdForm.first_name + (opdForm.last_name ? ' ' + opdForm.last_name : '')}
+                                                                onChange={(e) => {
+                                                                    const val = e.target.value;
+                                                                    const parts = val.split(' ');
+                                                                    const first = parts[0];
+                                                                    const last = parts.slice(1).join(' ');
+                                                                    setOpdForm({ ...opdForm, first_name: first, last_name: last });
+                                                                }}
+                                                                disabled={isLocked}
+                                                                className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isLocked ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : ''}`}
+                                                                placeholder="e.g. John Doe"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Age {!opdForm.is_mlc && <span className="text-red-500">*</span>}</label>
+                                                            <input
+                                                                type="number"
+                                                                required={!opdForm.is_mlc}
+                                                                min="1"
+                                                                max="110"
+                                                                value={opdForm.age}
+                                                                onChange={(e) => {
+                                                                    const val = e.target.value;
+                                                                    if (val === '' || (parseInt(val) >= 1 && parseInt(val) <= 110)) {
+                                                                        setOpdForm({ ...opdForm, age: val });
+                                                                    } else if (parseInt(val) > 110) {
+                                                                        setOpdForm({ ...opdForm, age: '110' });
+                                                                    }
+                                                                }}
+                                                                disabled={isLocked}
+                                                                className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isLocked ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : ''}`}
+                                                                placeholder="1-110"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Gender {!opdForm.is_mlc && <span className="text-red-500">*</span>}</label>
+                                                            <select required={!opdForm.is_mlc} value={opdForm.gender} onChange={(e) => setOpdForm({ ...opdForm, gender: e.target.value })}
+                                                                disabled={isLocked}
+                                                                className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isLocked ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : ''}`}>
+                                                                <option value="">Select</option>
+                                                                <option value="Male">Male</option>
+                                                                <option value="Female">Female</option>
+                                                                <option value="Pediatric">Pediatric</option>
+                                                                <option value="Other">Other</option>
+                                                            </select>
+                                                        </div>
+
+                                                        {/* Edit Mode Phone Number - Simple Input (No Search) */}
+                                                        <div className="md:col-span-2 relative">
+                                                            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Phone Number</label>
+                                                            <input
+                                                                type="tel"
+                                                                value={opdForm.contact_number}
+                                                                onChange={(e) => {
+                                                                    const value = e.target.value.replace(/\D/g, "");
+                                                                    if (value.length <= 10) {
+                                                                        setOpdForm({ ...opdForm, contact_number: value });
+                                                                    }
+                                                                }}
+                                                                disabled={isLocked}
+                                                                className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isLocked ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : ''}`}
+                                                                placeholder="10-digit number"
+                                                            />
+                                                        </div>
+                                                        <div className="md:col-span-2">
+                                                            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Blood Group</label>
+                                                            <select value={opdForm.blood_group} onChange={(e) => setOpdForm({ ...opdForm, blood_group: e.target.value })}
+                                                                disabled={isLocked}
+                                                                className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isLocked ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : ''}`}>
+                                                                <option value="">Unknown</option>
+                                                                <option value="A+">A+</option>
+                                                                <option value="A-">A-</option>
+                                                                <option value="B+">B+</option>
+                                                                <option value="B-">B-</option>
+                                                                <option value="O+">O+</option>
+                                                                <option value="O-">O-</option>
+                                                                <option value="AB+">AB+</option>
+                                                                <option value="AB-">AB-</option>
+                                                            </select>
+                                                        </div>
+                                                        <div className="md:col-span-2">
+                                                            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Aadhaar Number</label>
+                                                            <input
+                                                                type="text"
+                                                                value={opdForm.adhaar_number}
+                                                                onChange={(e) => {
+                                                                    const value = e.target.value.replace(/\D/g, "");
+                                                                    if (value.length <= 12) setOpdForm({ ...opdForm, adhaar_number: value });
+                                                                }}
+                                                                maxLength={12}
+                                                                disabled={isLocked}
+                                                                className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isLocked ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : ''}`}
+                                                                placeholder="12-digit Aadhaar"
                                                             />
                                                         </div>
                                                     </div>
-                                                </div>
-                                            </>
-                                        );
-                                    })()}
-                                </div>
-                            )}
-
-                            {/* Edit Mode - Show all fields */}
-                            {editingOpdId && (
-                                <div className="space-y-4">
-                                    {(() => {
-                                        // Lock logic: Dependent on SAVED record state, not current input
-                                        // This prevents fields from locking immediately while user is typing a new number
-                                        const originalOpdEntry = opdEntries.find((e: any) => e.opd_id === editingOpdId);
-                                        const hasValidPhoneOnRecord = originalOpdEntry?.contact_number && originalOpdEntry.contact_number.length >= 10;
-                                        const isLocked = !opdForm.is_mlc || hasValidPhoneOnRecord;
-
-                                        return (
-                                            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                                                <div className="md:col-span-4">
-                                                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Name {!opdForm.is_mlc && <span className="text-red-500">*</span>}</label>
-                                                    <input
-                                                        type="text"
-                                                        required={!opdForm.is_mlc}
-                                                        value={opdForm.first_name + (opdForm.last_name ? ' ' + opdForm.last_name : '')}
-                                                        onChange={(e) => {
-                                                            const val = e.target.value;
-                                                            const parts = val.split(' ');
-                                                            const first = parts[0];
-                                                            const last = parts.slice(1).join(' ');
-                                                            setOpdForm({ ...opdForm, first_name: first, last_name: last });
-                                                        }}
-                                                        disabled={isLocked}
-                                                        className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isLocked ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : ''}`}
-                                                        placeholder="e.g. John Doe"
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Age {!opdForm.is_mlc && <span className="text-red-500">*</span>}</label>
-                                                    <input
-                                                        type="number"
-                                                        required={!opdForm.is_mlc}
-                                                        min="1"
-                                                        max="110"
-                                                        value={opdForm.age}
-                                                        onChange={(e) => {
-                                                            const val = e.target.value;
-                                                            if (val === '' || (parseInt(val) >= 1 && parseInt(val) <= 110)) {
-                                                                setOpdForm({ ...opdForm, age: val });
-                                                            } else if (parseInt(val) > 110) {
-                                                                setOpdForm({ ...opdForm, age: '110' });
-                                                            }
-                                                        }}
-                                                        disabled={isLocked}
-                                                        className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isLocked ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : ''}`}
-                                                        placeholder="1-110"
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Gender {!opdForm.is_mlc && <span className="text-red-500">*</span>}</label>
-                                                    <select required={!opdForm.is_mlc} value={opdForm.gender} onChange={(e) => setOpdForm({ ...opdForm, gender: e.target.value })}
-                                                        disabled={isLocked}
-                                                        className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isLocked ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : ''}`}>
-                                                        <option value="">Select</option>
-                                                        <option value="Male">Male</option>
-                                                        <option value="Female">Female</option>
-                                                        <option value="Pediatric">Pediatric</option>
-                                                        <option value="Other">Other</option>
-                                                    </select>
-                                                </div>
-
-                                                {/* Edit Mode Phone Number - Simple Input (No Search) */}
-                                                <div className="md:col-span-2 relative">
-                                                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Phone Number</label>
-                                                    <input
-                                                        type="tel"
-                                                        value={opdForm.contact_number}
-                                                        onChange={(e) => {
-                                                            const value = e.target.value.replace(/\D/g, "");
-                                                            if (value.length <= 10) {
-                                                                setOpdForm({ ...opdForm, contact_number: value });
-                                                            }
-                                                        }}
-                                                        disabled={isLocked}
-                                                        className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isLocked ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : ''}`}
-                                                        placeholder="10-digit number"
-                                                    />
-                                                </div>
-                                                <div className="md:col-span-2">
-                                                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Blood Group</label>
-                                                    <select value={opdForm.blood_group} onChange={(e) => setOpdForm({ ...opdForm, blood_group: e.target.value })}
-                                                        disabled={isLocked}
-                                                        className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isLocked ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : ''}`}>
-                                                        <option value="">Unknown</option>
-                                                        <option value="A+">A+</option>
-                                                        <option value="A-">A-</option>
-                                                        <option value="B+">B+</option>
-                                                        <option value="B-">B-</option>
-                                                        <option value="O+">O+</option>
-                                                        <option value="O-">O-</option>
-                                                        <option value="AB+">AB+</option>
-                                                        <option value="AB-">AB-</option>
-                                                    </select>
-                                                </div>
-                                                <div className="md:col-span-2">
-                                                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Aadhaar Number</label>
-                                                    <input
-                                                        type="text"
-                                                        value={opdForm.adhaar_number}
-                                                        onChange={(e) => {
-                                                            const value = e.target.value.replace(/\D/g, "");
-                                                            if (value.length <= 12) setOpdForm({ ...opdForm, adhaar_number: value });
-                                                        }}
-                                                        maxLength={12}
-                                                        disabled={isLocked}
-                                                        className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isLocked ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : ''}`}
-                                                        placeholder="12-digit Aadhaar"
-                                                    />
-                                                </div>
-                                            </div>
-                                        );
-                                    })()}
-
-
-                                    {/* Address Details for Edit Mode */}
-                                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">ADDRESS DETAILS</h4>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Address Line 1</label>
-                                                <input type="text" value={opdForm.address_line1} onChange={(e) => setOpdForm({ ...opdForm, address_line1: e.target.value })}
-                                                    disabled={!opdForm.is_mlc || opdForm.contact_number.length >= 10}
-                                                    className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${(!opdForm.is_mlc || opdForm.contact_number.length >= 10) ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : ''}`} placeholder="House No, Street" />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Address Line 2</label>
-                                                <input type="text" value={opdForm.address_line2} onChange={(e) => setOpdForm({ ...opdForm, address_line2: e.target.value })}
-                                                    disabled={!opdForm.is_mlc || opdForm.contact_number.length >= 10}
-                                                    className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${(!opdForm.is_mlc || opdForm.contact_number.length >= 10) ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : ''}`} placeholder="Area, Landmark" />
-                                            </div>
-                                        </div>
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
-                                            <div>
-                                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">City</label>
-                                                <input type="text" value={opdForm.city} onChange={(e) => setOpdForm({ ...opdForm, city: e.target.value })}
-                                                    disabled={!opdForm.is_mlc || opdForm.contact_number.length >= 10}
-                                                    className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${(!opdForm.is_mlc || opdForm.contact_number.length >= 10) ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : ''}`} />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">State</label>
-                                                <input type="text" value={opdForm.state} onChange={(e) => setOpdForm({ ...opdForm, state: e.target.value })}
-                                                    disabled={!opdForm.is_mlc || opdForm.contact_number.length >= 10}
-                                                    className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${(!opdForm.is_mlc || opdForm.contact_number.length >= 10) ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : ''}`} />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Pincode</label>
-                                                <input
-                                                    type="text"
-                                                    value={opdForm.pincode}
-                                                    onChange={(e) => {
-                                                        const value = e.target.value.replace(/\D/g, "");
-                                                        if (value.length <= 6) setOpdForm({ ...opdForm, pincode: value });
-                                                    }}
-                                                    maxLength={6}
-                                                    disabled={!opdForm.is_mlc || opdForm.contact_number.length >= 10}
-                                                    className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${(!opdForm.is_mlc || opdForm.contact_number.length >= 10) ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : ''}`} />
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Visit Details Section */}
-                        <div className="bg-gradient-to-br from-indigo-50/30 to-slate-50/50 p-6 rounded-2xl border border-indigo-100/60 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_10px_20px_-2px_rgba(0,0,0,0.04)]">
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                                    <Activity className="w-4 h-4 text-indigo-500" /> Visit Information
-                                </h3>
-                                <div className="flex gap-3">
-                                    <input
-                                        type="date"
-                                        value={opdForm.visit_date}
-                                        onChange={(e) => setOpdForm({ ...opdForm, visit_date: e.target.value })}
-                                        className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 shadow-sm transition-all"
-                                    />
-                                    <input
-                                        type="time"
-                                        value={opdForm.visit_time}
-                                        onChange={(e) => setOpdForm({ ...opdForm, visit_time: e.target.value })}
-                                        className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 shadow-sm transition-all"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
-                                {/* MLC Toggle - Highlighted - PRESERVED */}
-                                <div className="md:col-span-12 flex items-center gap-3 bg-red-50/80 p-4 rounded-xl border border-red-200/60 animate-in fade-in slide-in-from-top-2 mb-2 shadow-sm">
-                                    <input
-                                        id="mlc-toggle"
-                                        type="checkbox"
-                                        checked={opdForm.is_mlc}
-                                        // Locked if editing an existing MLC case
-                                        disabled={!!editingOpdId && opdForm.is_mlc}
-                                        onChange={(e) => {
-                                            const isChecked = e.target.checked;
-                                            setOpdForm({
-                                                ...opdForm,
-                                                is_mlc: isChecked,
-                                                visit_type: isChecked ? 'Emergency' : 'Walk-in',
-                                                visit_date: isChecked ? new Date().toLocaleDateString('en-CA') : opdForm.visit_date,
-                                                visit_time: isChecked ? new Date().toTimeString().slice(0, 5) : opdForm.visit_time
-                                            });
-                                        }}
-                                        className={`w-5 h-5 text-red-600 border-gray-300 rounded focus:ring-red-500 transition-all cursor-pointer ${!!editingOpdId && opdForm.is_mlc ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                    />
-                                    <label htmlFor="mlc-toggle" className={`text-[15px] font-bold text-red-800 select-none ${!!editingOpdId && opdForm.is_mlc ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
-                                        Mark as Medical Legal Case (MLC)
-                                    </label>
-                                </div>
-
-                                <div className="md:col-span-4 lg:col-span-4">
-                                    <label className="block text-sm font-bold text-slate-500 uppercase tracking-widest mb-2">Visit Type <span className="text-red-500">*</span></label>
-                                    <div className="relative">
-                                        <select
-                                            required
-                                            value={opdForm.visit_type}
-                                            onChange={(e) => setOpdForm({ ...opdForm, visit_type: e.target.value })}
-                                            disabled={opdForm.is_mlc}
-                                            className={`w-full px-4 h-[52px] text-sm bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-bold text-slate-700 appearance-none cursor-pointer ${opdForm.is_mlc ? 'bg-slate-100 cursor-not-allowed opacity-70' : ''}`}
-                                        >
-                                            <option value="Walk-in">Walk-in</option>
-                                            <option value="Appointment">Appointment</option>
-                                            <option value="Follow-up">Follow-up</option>
-                                            <option value="Emergency">Emergency</option>
-                                            <option value="Referral">Referral</option>
-                                        </select>
-                                        <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-slate-400 group-hover:text-slate-600 transition-colors">
-                                            <ChevronDown className="w-4 h-4 ml-1" />
-                                        </div>
-                                    </div>
-
-                                    {/* Clinical Hours Warning - Moved inside column */}
-                                    {(() => {
-                                        if (!branchDetails?.clinic_schedule || !opdForm.visit_time || opdForm.is_mlc) return null;
-
-                                        let schedule = branchDetails.clinic_schedule;
-                                        if (typeof schedule === 'string') {
-                                            try { schedule = JSON.parse(schedule); } catch (e) { return null; }
-                                        }
-
-                                        if (schedule?.startTime && schedule?.endTime) {
-                                            const visitTime = opdForm.visit_time; // HH:MM
-                                            const startTime = schedule.startTime; // HH:MM
-                                            const endTime = schedule.endTime; // HH:MM
-
-                                            if (visitTime < startTime || visitTime > endTime) {
-                                                return (
-                                                    <div className="mt-2 flex items-start gap-1 text-amber-600 text-xs font-medium bg-amber-50/50 p-2 rounded-lg border border-amber-100">
-                                                        <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
-                                                        <span>Outside Clinical Hours ({startTime} - {endTime})</span>
-                                                    </div>
                                                 );
-                                            }
-                                        }
-                                        return null;
-                                    })()}
-                                </div>
+                                            })()}
 
-                                <div className="md:col-span-8 lg:col-span-8">
-                                    {hasAppointment ? (
-                                        <div className="bg-blue-50 border border-blue-200 rounded-xl px-5 py-3 h-[52px] flex flex-col justify-center">
-                                            <p className="text-[10px] text-blue-600 font-bold uppercase tracking-widest leading-tight">Assigned Doctor</p>
-                                            <p className="font-bold text-slate-800 text-sm">Dr. {appointmentDoctorName}</p>
+
+                                            {/* Address Details for Edit Mode */}
+                                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">ADDRESS DETAILS</h4>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    <div>
+                                                        <label className="block text-sm font-semibold text-slate-700 mb-1.5">Address Line 1</label>
+                                                        <input type="text" value={opdForm.address_line1} onChange={(e) => setOpdForm({ ...opdForm, address_line1: e.target.value })}
+                                                            disabled={!opdForm.is_mlc || opdForm.contact_number.length >= 10}
+                                                            className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${(!opdForm.is_mlc || opdForm.contact_number.length >= 10) ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : ''}`} placeholder="House No, Street" />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-sm font-semibold text-slate-700 mb-1.5">Address Line 2</label>
+                                                        <input type="text" value={opdForm.address_line2} onChange={(e) => setOpdForm({ ...opdForm, address_line2: e.target.value })}
+                                                            disabled={!opdForm.is_mlc || opdForm.contact_number.length >= 10}
+                                                            className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${(!opdForm.is_mlc || opdForm.contact_number.length >= 10) ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : ''}`} placeholder="Area, Landmark" />
+                                                    </div>
+                                                </div>
+                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
+                                                    <div>
+                                                        <label className="block text-sm font-semibold text-slate-700 mb-1.5">City</label>
+                                                        <input type="text" value={opdForm.city} onChange={(e) => setOpdForm({ ...opdForm, city: e.target.value })}
+                                                            disabled={!opdForm.is_mlc || opdForm.contact_number.length >= 10}
+                                                            className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${(!opdForm.is_mlc || opdForm.contact_number.length >= 10) ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : ''}`} />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-sm font-semibold text-slate-700 mb-1.5">State</label>
+                                                        <input type="text" value={opdForm.state} onChange={(e) => setOpdForm({ ...opdForm, state: e.target.value })}
+                                                            disabled={!opdForm.is_mlc || opdForm.contact_number.length >= 10}
+                                                            className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${(!opdForm.is_mlc || opdForm.contact_number.length >= 10) ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : ''}`} />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-sm font-semibold text-slate-700 mb-1.5">Pincode</label>
+                                                        <input
+                                                            type="text"
+                                                            value={opdForm.pincode}
+                                                            onChange={(e) => {
+                                                                const value = e.target.value.replace(/\D/g, "");
+                                                                if (value.length <= 6) setOpdForm({ ...opdForm, pincode: value });
+                                                            }}
+                                                            maxLength={6}
+                                                            disabled={!opdForm.is_mlc || opdForm.contact_number.length >= 10}
+                                                            className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${(!opdForm.is_mlc || opdForm.contact_number.length >= 10) ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : ''}`} />
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
-                                    ) : (
-                                        <>
-                                            <label className="block text-sm font-bold text-slate-500 uppercase tracking-widest mb-2">Assign Doctor <span className="text-red-500">*</span></label>
-                                            <SearchableSelect
-                                                options={doctors.map(doc => {
-                                                    const availInfo = getDoctorAvailabilityInfo(doc.doctor_id, opdForm.visit_date);
-                                                    const today = new Date().toISOString().split('T')[0];
-                                                    const queueCount = opdEntries.filter((e: any) =>
-                                                        e.doctor_id === doc.doctor_id && e.visit_status !== 'Completed'
-                                                    ).length;
-                                                    const apptCount = allAppointments.filter((a: any) => {
-                                                        if (!a.appointment_date) return false;
-                                                        const apptDate = new Date(a.appointment_date).toISOString().split('T')[0];
-                                                        return a.doctor_id === doc.doctor_id &&
-                                                            apptDate === today &&
-                                                            ['Scheduled', 'Confirmed'].includes(a.appointment_status);
-                                                    }).length;
-                                                    return {
-                                                        value: doc.doctor_id.toString(),
-                                                        label: `Dr. ${doc.first_name} ${doc.last_name}`,
-                                                        code: doc.specialization,
-                                                        category: doc.department_name,
-                                                        availability: availInfo,
-                                                        stats: [
-                                                            { label: 'Queue', value: queueCount, color: queueCount > 0 ? 'blue' as const : 'slate' as const },
-                                                            { label: 'Appts', value: apptCount, color: apptCount > 0 ? 'amber' as const : 'slate' as const }
-                                                        ],
-                                                        disabled: availInfo.status === 'unavailable'
-                                                    };
-                                                })}
-                                                categories={['All', ...branchDepartments.map(d => d.department_name)]}
-                                                selectedCategory={selectedDepartment}
-                                                onCategoryChange={setSelectedDepartment}
-                                                value={opdForm.doctor_id}
-                                                onChange={(val) => {
-                                                    const selectedDoc = doctors.find((d: any) => d.doctor_id.toString() === val);
-                                                    const baseFee = parseFloat(selectedDoc?.consultation_fee?.toString() || '0');
-                                                    setOpdForm(prev => ({
-                                                        ...prev,
-                                                        doctor_id: val,
-                                                        consultation_fee: baseFee.toString()
-                                                    }));
-                                                }}
-                                                placeholder="Search by name or specialization..."
-                                            />
-                                        </>
                                     )}
                                 </div>
 
-                                {/* Referral Fields */}
-                                {opdForm.visit_type === 'Referral' && (
-                                    <div className="md:col-span-4 grid grid-cols-1 md:grid-cols-2 gap-4 bg-blue-50/50 p-4 rounded-xl border border-blue-100">
-                                        <div>
-                                            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Referral Hospital <span className="text-red-500">*</span></label>
-                                            <input type="text" required value={opdForm.referral_hospital} onChange={(e) => setOpdForm({ ...opdForm, referral_hospital: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl" placeholder="Hospital Name" />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Referral Doctor <span className="text-red-500">*</span></label>
-                                            <input type="text" required value={opdForm.referral_doctor_name} onChange={(e) => setOpdForm({ ...opdForm, referral_doctor_name: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl" placeholder="Doctor Name" />
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* MLC Fields */}
-                                {opdForm.is_mlc && (
-                                    <div className="md:col-span-12 bg-red-50/40 p-5 rounded-2xl border border-red-200/50 animate-in fade-in slide-in-from-top-2">
-                                        <h4 className="text-sm font-bold text-red-700 uppercase tracking-wider mb-4 flex items-center gap-2">
-                                            <AlertCircle className="w-4 h-4" /> MLC Details
-                                        </h4>
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                            <div>
-                                                <label className="block text-sm font-bold text-red-700 mb-1.5">Attender Name</label>
-                                                <input type="text" value={opdForm.attender_name} onChange={(e) => setOpdForm({ ...opdForm, attender_name: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-red-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500 text-[15px] font-medium" />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-bold text-red-700 mb-1.5">Attender Contact (Type & Enter)</label>
-                                                <MultiInputTags
-                                                    value={opdForm.attender_contact_number}
-                                                    onChange={(val) => setOpdForm({ ...opdForm, attender_contact_number: val })}
-                                                    placeholder="e.g. 9876543210"
-                                                    maxLength={15}
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-bold text-red-700 mb-1.5">MLC Remarks</label>
-                                                <textarea value={opdForm.mlc_remarks} onChange={(e) => setOpdForm({ ...opdForm, mlc_remarks: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-red-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500 text-[15px] font-medium" rows={2} placeholder="Explain nature of incident..." />
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Complaint & Symptoms - Hide for MLC cases */}
-                        {!opdForm.is_mlc && (
-                            <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_10px_20px_-2px_rgba(0,0,0,0.04)]">
-                                <h3 className="text-[15px] font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2"><FileText className="w-4 h-4 text-slate-400" /> Clinical Notes</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="relative">
-                                        <label className="block text-sm font-semibold text-slate-700 mb-1.5">Chief Complaint</label>
-                                        <textarea
-                                            value={opdForm.chief_complaint}
-                                            onChange={(e) => setOpdForm({ ...opdForm, chief_complaint: e.target.value })}
-                                            onFocus={() => setShowComplaintSuggestions(true)}
-                                            onBlur={() => setTimeout(() => setShowComplaintSuggestions(false), 200)}
-                                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium resize-none"
-                                            rows={2}
-                                            placeholder="Type or click suggestions below..."
-                                        />
-                                        {/* AI-Powered Suggestions */}
-                                        {(aiComplaintLoading || aiComplaintSuggestions.length > 0) && (
-                                            <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                                                <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-wider flex items-center gap-1">
-                                                    {aiComplaintLoading ? (
-                                                        <span className="animate-pulse">✨ AI suggesting...</span>
-                                                    ) : (
-                                                        <>✨ AI Suggested</>
-                                                    )}
-                                                </span>
-                                                {aiComplaintSuggestions.map((suggestion) => (
-                                                    <button
-                                                        key={suggestion}
-                                                        type="button"
-                                                        onClick={() => {
-                                                            const current = opdForm.chief_complaint || '';
-                                                            const newValue = current ? current + ', ' + suggestion : suggestion;
-                                                            setOpdForm({ ...opdForm, chief_complaint: newValue });
-                                                        }}
-                                                        className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-all hover:scale-105 ${opdForm.chief_complaint?.includes(suggestion)
-                                                            ? 'bg-indigo-100 text-indigo-700 border-indigo-300'
-                                                            : 'bg-indigo-50 text-indigo-600 border-indigo-200 hover:bg-indigo-100 hover:border-indigo-300'
-                                                            }`}
-                                                    >
-                                                        {suggestion}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        )}
-                                        {/* Quick Suggestion Chips */}
-                                        <div className="flex flex-wrap gap-1.5 mt-2">
-                                            {commonComplaints
-                                                .filter(c =>
-                                                    !opdForm.chief_complaint ||
-                                                    c.toLowerCase().includes(opdForm.chief_complaint.toLowerCase()) ||
-                                                    showComplaintSuggestions
-                                                )
-                                                .slice(0, showComplaintSuggestions ? 21 : 6)
-                                                .map((complaint) => (
-                                                    <button
-                                                        key={complaint}
-                                                        type="button"
-                                                        onClick={() => {
-                                                            const current = opdForm.chief_complaint || '';
-                                                            // Check if complaint is already in the text
-                                                            const isSelected = current.split(', ').some(c => c.trim() === complaint);
-
-                                                            let newValue;
-                                                            if (isSelected) {
-                                                                // Remove the complaint
-                                                                newValue = current
-                                                                    .split(', ')
-                                                                    .filter(c => c.trim() !== complaint)
-                                                                    .join(', ');
-                                                            } else {
-                                                                // Add the complaint
-                                                                newValue = current
-                                                                    ? current + ', ' + complaint
-                                                                    : complaint;
-                                                            }
-                                                            setOpdForm({ ...opdForm, chief_complaint: newValue });
-                                                        }}
-                                                        className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-all hover:scale-105 ${opdForm.chief_complaint?.includes(complaint)
-                                                            ? 'bg-blue-100 text-blue-700 border-blue-300'
-                                                            : 'bg-white text-slate-600 border-slate-200 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600'
-                                                            }`}
-                                                    >
-                                                        {complaint}
-                                                    </button>
-                                                ))
-                                            }
-                                            {!showComplaintSuggestions && commonComplaints.length > 6 && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setShowComplaintSuggestions(true)}
-                                                    className="px-2.5 py-1 text-xs font-medium text-blue-600 hover:underline"
-                                                >
-                                                    +{commonComplaints.length - 6} more...
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-semibold text-slate-700 mb-1.5">Symptoms</label>
-                                        <textarea
-                                            value={opdForm.symptoms}
-                                            onChange={(e) => setOpdForm({ ...opdForm, symptoms: e.target.value })}
-                                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium resize-none"
-                                            rows={3}
-                                            placeholder="Observed symptoms..."
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Vital Signs */}
-                        <div className="bg-gradient-to-br from-purple-50/40 to-violet-50/30 p-6 rounded-2xl border border-purple-100/60 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_10px_20px_-2px_rgba(0,0,0,0.04)]">
-                            <h3 className="text-[15px] font-bold text-purple-500 uppercase tracking-wider mb-4 flex items-center gap-2"><Activity className="w-4 h-4" /> Vital Signs</h3>
-                            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
-                                <div>
-                                    <label className="block text-sm font-bold text-purple-600/80 mb-1">BP Sys</label>
-                                    <div className="relative">
-                                        <input
-                                            type="text"
-                                            value={opdForm.vital_signs.bp_systolic}
-                                            onChange={(e) => setOpdForm({ ...opdForm, vital_signs: { ...opdForm.vital_signs, bp_systolic: e.target.value } })}
-                                            className="w-full px-3 py-2 bg-white border border-purple-100 rounded-lg focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 text-sm"
-                                            placeholder="mmHg"
-                                        />
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold text-purple-600/80 mb-1">BP Dia</label>
-                                    <div className="relative">
-                                        <input
-                                            type="text"
-                                            value={opdForm.vital_signs.bp_diastolic}
-                                            onChange={(e) => setOpdForm({ ...opdForm, vital_signs: { ...opdForm.vital_signs, bp_diastolic: e.target.value } })}
-                                            className="w-full px-3 py-2 bg-white border border-purple-100 rounded-lg focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 text-sm"
-                                            placeholder="mmHg"
-                                        />
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold text-purple-600/80 mb-1">Pulse</label>
-                                    <input
-                                        type="text"
-                                        value={opdForm.vital_signs.pulse}
-                                        onChange={(e) => setOpdForm({ ...opdForm, vital_signs: { ...opdForm.vital_signs, pulse: e.target.value } })}
-                                        className="w-full px-3 py-2 bg-white border border-purple-100 rounded-lg focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 text-sm"
-                                        placeholder="bpm"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold text-purple-600/80 mb-1">Temp</label>
-                                    <input
-                                        type="text"
-                                        value={opdForm.vital_signs.temperature}
-                                        onChange={(e) => setOpdForm({ ...opdForm, vital_signs: { ...opdForm.vital_signs, temperature: e.target.value } })}
-                                        className="w-full px-3 py-2 bg-white border border-purple-100 rounded-lg focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 text-sm"
-                                        placeholder="°F"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold text-purple-600/80 mb-1">Weight</label>
-                                    <input
-                                        type="text"
-                                        value={opdForm.vital_signs.weight}
-                                        onChange={(e) => setOpdForm({ ...opdForm, vital_signs: { ...opdForm.vital_signs, weight: e.target.value } })}
-                                        className="w-full px-3 py-2 bg-white border border-purple-100 rounded-lg focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 text-sm"
-                                        placeholder="kg"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold text-purple-600/80 mb-1">Height</label>
-                                    <input
-                                        type="text"
-                                        value={opdForm.vital_signs.height}
-                                        onChange={(e) => setOpdForm({ ...opdForm, vital_signs: { ...opdForm.vital_signs, height: e.target.value } })}
-                                        className="w-full px-3 py-2 bg-white border border-purple-100 rounded-lg focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 text-sm"
-                                        placeholder="cm"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold text-purple-600/80 mb-1">SpO2</label>
-                                    <input
-                                        type="text"
-                                        value={opdForm.vital_signs.spo2}
-                                        onChange={(e) => setOpdForm({ ...opdForm, vital_signs: { ...opdForm.vital_signs, spo2: e.target.value } })}
-                                        className="w-full px-3 py-2 bg-white border border-purple-100 rounded-lg focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 text-sm"
-                                        placeholder="%"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold text-purple-600/80 mb-1">GRBS</label>
-                                    <input
-                                        type="text"
-                                        value={opdForm.vital_signs.grbs}
-                                        onChange={(e) => setOpdForm({ ...opdForm, vital_signs: { ...opdForm.vital_signs, grbs: e.target.value } })}
-                                        className="w-full px-3 py-2 bg-white border border-purple-100 rounded-lg focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 text-sm"
-                                        placeholder="mg/dL"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Payment Section - Simple */}
-                        <div className="bg-gradient-to-br from-emerald-50/30 to-slate-50/50 p-6 rounded-2xl border border-emerald-100/60 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_10px_20px_-2px_rgba(0,0,0,0.04)] flex justify-between items-end">
-                            <div>
-                                <h3 className="text-[15px] font-bold text-slate-600 uppercase tracking-wider mb-3 flex items-center gap-2"><svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Payment Details</h3>
-                                <div className="flex gap-4 items-end">
-                                    <div>
-                                        <label className="block text-sm font-semibold text-slate-500 mb-1">Consultation Fee</label>
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold">₹</span>
+                                {/* Visit Details Section */}
+                                <div className="bg-gradient-to-br from-indigo-50/30 to-slate-50/50 p-6 rounded-2xl border border-indigo-100/60 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_10px_20px_-2px_rgba(0,0,0,0.04)]">
+                                    <div className="flex justify-between items-center mb-6">
+                                        <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                                            <Activity className="w-4 h-4 text-indigo-500" /> Visit Information
+                                        </h3>
+                                        <div className="flex gap-3">
                                             <input
-                                                type="number"
-                                                value={opdForm.consultation_fee}
-                                                readOnly
-                                                className="w-32 pl-7 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium focus:outline-none cursor-not-allowed text-slate-500"
-                                                placeholder="0.00"
+                                                type="date"
+                                                value={opdForm.visit_date}
+                                                onChange={(e) => setOpdForm({ ...opdForm, visit_date: e.target.value })}
+                                                className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 shadow-sm transition-all"
+                                            />
+                                            <input
+                                                type="time"
+                                                value={opdForm.visit_time}
+                                                onChange={(e) => setOpdForm({ ...opdForm, visit_time: e.target.value })}
+                                                className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 shadow-sm transition-all"
                                             />
                                         </div>
                                     </div>
-                                    {opdForm.is_mlc && (
-                                        <div className="animate-in fade-in slide-in-from-left-2">
-                                            <label className="block text-sm font-semibold text-red-600 mb-1">MLC Fee</label>
-                                            <div className="relative">
-                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold">₹</span>
-                                                <input
-                                                    type="text"
-                                                    value={branchDetails?.mlc_fee || '0'}
-                                                    disabled
-                                                    className="w-24 pl-7 pr-3 py-2 bg-red-50 border border-red-100 rounded-lg text-sm font-bold text-red-700 cursor-not-allowed"
-                                                />
-                                            </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
+                                        {/* MLC Toggle - Highlighted - PRESERVED */}
+                                        <div className="md:col-span-12 flex items-center gap-3 bg-red-50/80 p-4 rounded-xl border border-red-200/60 animate-in fade-in slide-in-from-top-2 mb-2 shadow-sm">
+                                            <input
+                                                id="mlc-toggle"
+                                                type="checkbox"
+                                                checked={opdForm.is_mlc}
+                                                // Locked if editing an existing MLC case
+                                                disabled={!!editingOpdId && opdForm.is_mlc}
+                                                onChange={(e) => {
+                                                    const isChecked = e.target.checked;
+                                                    setOpdForm({
+                                                        ...opdForm,
+                                                        is_mlc: isChecked,
+                                                        visit_type: isChecked ? 'Emergency' : 'Walk-in',
+                                                        visit_date: isChecked ? new Date().toLocaleDateString('en-CA') : opdForm.visit_date,
+                                                        visit_time: isChecked ? new Date().toTimeString().slice(0, 5) : opdForm.visit_time
+                                                    });
+                                                }}
+                                                className={`w-5 h-5 text-red-600 border-gray-300 rounded focus:ring-red-500 transition-all cursor-pointer ${!!editingOpdId && opdForm.is_mlc ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                            />
+                                            <label htmlFor="mlc-toggle" className={`text-[15px] font-bold text-red-800 select-none ${!!editingOpdId && opdForm.is_mlc ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+                                                Mark as Medical Legal Case (MLC)
+                                            </label>
                                         </div>
-                                    )}
-                                    <div className="flex-1 min-w-[200px]">
-                                        <label className="block text-sm font-semibold text-slate-500 mb-1">Payment Preference <span className="text-red-500">*</span></label>
-                                        <div className="relative">
-                                            {opdForm.payment_status === 'Paid' && !!editingOpdId ? (
-                                                <div className="w-full px-4 py-2.5 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
-                                                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                                                    <span className="font-bold text-green-700">Paid</span>
+
+                                        <div className="md:col-span-4 lg:col-span-4">
+                                            <label className="block text-sm font-bold text-slate-500 uppercase tracking-widest mb-2">Visit Type <span className="text-red-500">*</span></label>
+                                            <div className="relative">
+                                                <select
+                                                    required
+                                                    value={opdForm.visit_type}
+                                                    onChange={(e) => setOpdForm({ ...opdForm, visit_type: e.target.value })}
+                                                    disabled={opdForm.is_mlc}
+                                                    className={`w-full px-4 h-[52px] text-sm bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-bold text-slate-700 appearance-none cursor-pointer ${opdForm.is_mlc ? 'bg-slate-100 cursor-not-allowed opacity-70' : ''}`}
+                                                >
+                                                    <option value="Walk-in">Walk-in</option>
+                                                    <option value="Appointment">Appointment</option>
+                                                    <option value="Follow-up">Follow-up</option>
+                                                    <option value="Emergency">Emergency</option>
+                                                    <option value="Referral">Referral</option>
+                                                </select>
+                                                <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-slate-400 group-hover:text-slate-600 transition-colors">
+                                                    <ChevronDown className="w-4 h-4 ml-1" />
+                                                </div>
+                                            </div>
+
+                                            {/* Clinical Hours Warning - Moved inside column */}
+                                            {(() => {
+                                                if (!branchDetails?.clinic_schedule || !opdForm.visit_time || opdForm.is_mlc) return null;
+
+                                                let schedule = branchDetails.clinic_schedule;
+                                                if (typeof schedule === 'string') {
+                                                    try { schedule = JSON.parse(schedule); } catch (e) { return null; }
+                                                }
+
+                                                if (schedule?.startTime && schedule?.endTime) {
+                                                    const visitTime = opdForm.visit_time; // HH:MM
+                                                    const startTime = schedule.startTime; // HH:MM
+                                                    const endTime = schedule.endTime; // HH:MM
+
+                                                    if (visitTime < startTime || visitTime > endTime) {
+                                                        return (
+                                                            <div className="mt-2 flex items-start gap-1 text-amber-600 text-xs font-medium bg-amber-50/50 p-2 rounded-lg border border-amber-100">
+                                                                <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                                                                <span>Outside Clinical Hours ({startTime} - {endTime})</span>
+                                                            </div>
+                                                        );
+                                                    }
+                                                }
+                                                return null;
+                                            })()}
+                                        </div>
+
+                                        <div className="md:col-span-8 lg:col-span-8">
+                                            {hasAppointment ? (
+                                                <div className="bg-blue-50 border border-blue-200 rounded-xl px-5 py-3 h-[52px] flex flex-col justify-center">
+                                                    <p className="text-[10px] text-blue-600 font-bold uppercase tracking-widest leading-tight">Assigned Doctor</p>
+                                                    <p className="font-bold text-slate-800 text-sm">Dr. {appointmentDoctorName}</p>
                                                 </div>
                                             ) : (
                                                 <>
-                                                    <select
-                                                        value={paymentChoice}
-                                                        onChange={(e) => {
-                                                            const val = e.target.value as 'PayNow' | 'PayLater';
-                                                            setPaymentChoice(val);
-                                                            setOpdForm(prev => ({ ...prev, payment_status: val === 'PayNow' ? 'Paid' : 'Pending' }));
+                                                    <label className="block text-sm font-bold text-slate-500 uppercase tracking-widest mb-2">Assign Doctor <span className="text-red-500">*</span></label>
+                                                    <SearchableSelect
+                                                        options={doctors.map(doc => {
+                                                            const availInfo = getDoctorAvailabilityInfo(doc.doctor_id, opdForm.visit_date);
+                                                            const today = new Date().toISOString().split('T')[0];
+                                                            const queueCount = opdEntries.filter((e: any) =>
+                                                                e.doctor_id === doc.doctor_id && e.visit_status !== 'Completed'
+                                                            ).length;
+                                                            const apptCount = allAppointments.filter((a: any) => {
+                                                                if (!a.appointment_date) return false;
+                                                                const apptDate = new Date(a.appointment_date).toISOString().split('T')[0];
+                                                                return a.doctor_id === doc.doctor_id &&
+                                                                    apptDate === today &&
+                                                                    ['Scheduled', 'Confirmed'].includes(a.appointment_status);
+                                                            }).length;
+                                                            return {
+                                                                value: doc.doctor_id.toString(),
+                                                                label: `Dr. ${doc.first_name} ${doc.last_name}`,
+                                                                code: doc.specialization,
+                                                                category: doc.department_name,
+                                                                availability: availInfo,
+                                                                stats: [
+                                                                    { label: 'Queue', value: queueCount, color: queueCount > 0 ? 'blue' as const : 'slate' as const },
+                                                                    { label: 'Appts', value: apptCount, color: apptCount > 0 ? 'amber' as const : 'slate' as const }
+                                                                ],
+                                                                disabled: availInfo.status === 'unavailable'
+                                                            };
+                                                        })}
+                                                        categories={['All', ...branchDepartments.map(d => d.department_name)]}
+                                                        selectedCategory={selectedDepartment}
+                                                        onCategoryChange={setSelectedDepartment}
+                                                        value={opdForm.doctor_id}
+                                                        onChange={(val) => {
+                                                            const selectedDoc = doctors.find((d: any) => d.doctor_id.toString() === val);
+                                                            const baseFee = parseFloat(selectedDoc?.consultation_fee?.toString() || '0');
+                                                            setOpdForm(prev => ({
+                                                                ...prev,
+                                                                doctor_id: val,
+                                                                consultation_fee: baseFee.toString()
+                                                            }));
                                                         }}
-                                                        className="w-full pl-3 pr-10 py-2.5 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-700 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
-                                                    >
-                                                        <option value="PayNow">Pay Now</option>
-                                                        <option value="PayLater">Pay Later</option>
-                                                    </select>
-                                                    <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-500">
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                                                    </div>
+                                                        placeholder="Search by name or specialization..."
+                                                    />
                                                 </>
                                             )}
                                         </div>
+
+                                        {/* Referral Fields */}
+                                        {opdForm.visit_type === 'Referral' && (
+                                            <div className="md:col-span-4 grid grid-cols-1 md:grid-cols-2 gap-4 bg-blue-50/50 p-4 rounded-xl border border-blue-100">
+                                                <div>
+                                                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Referral Hospital <span className="text-red-500">*</span></label>
+                                                    <input type="text" required value={opdForm.referral_hospital} onChange={(e) => setOpdForm({ ...opdForm, referral_hospital: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl" placeholder="Hospital Name" />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Referral Doctor <span className="text-red-500">*</span></label>
+                                                    <input type="text" required value={opdForm.referral_doctor_name} onChange={(e) => setOpdForm({ ...opdForm, referral_doctor_name: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl" placeholder="Doctor Name" />
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* MLC Fields */}
+                                        {opdForm.is_mlc && (
+                                            <div className="md:col-span-12 bg-red-50/40 p-5 rounded-2xl border border-red-200/50 animate-in fade-in slide-in-from-top-2">
+                                                <h4 className="text-sm font-bold text-red-700 uppercase tracking-wider mb-4 flex items-center gap-2">
+                                                    <AlertCircle className="w-4 h-4" /> MLC Details
+                                                </h4>
+                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                    <div>
+                                                        <label className="block text-sm font-bold text-red-700 mb-1.5">Attender Name</label>
+                                                        <input type="text" value={opdForm.attender_name} onChange={(e) => setOpdForm({ ...opdForm, attender_name: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-red-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500 text-[15px] font-medium" />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-sm font-bold text-red-700 mb-1.5">Attender Contact (Type & Enter)</label>
+                                                        <MultiInputTags
+                                                            value={opdForm.attender_contact_number}
+                                                            onChange={(val) => setOpdForm({ ...opdForm, attender_contact_number: val })}
+                                                            placeholder="e.g. 9876543210"
+                                                            maxLength={15}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-sm font-bold text-red-700 mb-1.5">MLC Remarks</label>
+                                                        <textarea value={opdForm.mlc_remarks} onChange={(e) => setOpdForm({ ...opdForm, mlc_remarks: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-red-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500 text-[15px] font-medium" rows={2} placeholder="Explain nature of incident..." />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
-                            </div>
-                            <div className="text-right bg-white/60 px-5 py-3 rounded-xl border border-slate-100">
-                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Total Fee</p>
-                                <p className="text-3xl font-extrabold text-slate-800">
-                                    ₹{(() => {
-                                        let fee = parseFloat(opdForm.consultation_fee || '0');
-                                        if (opdForm.is_mlc && branchDetails?.mlc_fee) {
-                                            fee += parseFloat(branchDetails.mlc_fee);
-                                        }
-                                        return fee;
-                                    })()}
-                                </p>
-                            </div>
-                        </div>
 
-                        {/* Action Buttons */}
-                        <div className="pt-4 border-t border-slate-200/80 flex items-center justify-between">
+                                {/* Complaint & Symptoms - Hide for MLC cases */}
+                                {!opdForm.is_mlc && (
+                                    <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_10px_20px_-2px_rgba(0,0,0,0.04)]">
+                                        <h3 className="text-[15px] font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2"><FileText className="w-4 h-4 text-slate-400" /> Clinical Notes</h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="relative">
+                                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Chief Complaint</label>
+                                                <textarea
+                                                    value={opdForm.chief_complaint}
+                                                    onChange={(e) => setOpdForm({ ...opdForm, chief_complaint: e.target.value })}
+                                                    onFocus={() => setShowComplaintSuggestions(true)}
+                                                    onBlur={() => setTimeout(() => setShowComplaintSuggestions(false), 200)}
+                                                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium resize-none"
+                                                    rows={2}
+                                                    placeholder="Type or click suggestions below..."
+                                                />
+                                                {/* AI-Powered Suggestions */}
+                                                {(aiComplaintLoading || aiComplaintSuggestions.length > 0) && (
+                                                    <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                                                        <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-wider flex items-center gap-1">
+                                                            {aiComplaintLoading ? (
+                                                                <span className="animate-pulse">✨ AI suggesting...</span>
+                                                            ) : (
+                                                                <>✨ AI Suggested</>
+                                                            )}
+                                                        </span>
+                                                        {aiComplaintSuggestions.map((suggestion) => (
+                                                            <button
+                                                                key={suggestion}
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const current = opdForm.chief_complaint || '';
+                                                                    const newValue = current ? current + ', ' + suggestion : suggestion;
+                                                                    setOpdForm({ ...opdForm, chief_complaint: newValue });
+                                                                }}
+                                                                className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-all hover:scale-105 ${opdForm.chief_complaint?.includes(suggestion)
+                                                                    ? 'bg-indigo-100 text-indigo-700 border-indigo-300'
+                                                                    : 'bg-indigo-50 text-indigo-600 border-indigo-200 hover:bg-indigo-100 hover:border-indigo-300'
+                                                                    }`}
+                                                            >
+                                                                {suggestion}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                                {/* Quick Suggestion Chips */}
+                                                <div className="flex flex-wrap gap-1.5 mt-2">
+                                                    {commonComplaints
+                                                        .filter(c =>
+                                                            !opdForm.chief_complaint ||
+                                                            c.toLowerCase().includes(opdForm.chief_complaint.toLowerCase()) ||
+                                                            showComplaintSuggestions
+                                                        )
+                                                        .slice(0, showComplaintSuggestions ? 21 : 6)
+                                                        .map((complaint) => (
+                                                            <button
+                                                                key={complaint}
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const current = opdForm.chief_complaint || '';
+                                                                    // Check if complaint is already in the text
+                                                                    const isSelected = current.split(', ').some(c => c.trim() === complaint);
 
-                            {/* Duplicate Warning Message */}
-                            <div className="flex-1 mr-4">
-                                {duplicateWarning && (
-                                    <div className="flex items-center gap-2 px-3 py-2 bg-red-50 text-red-700 text-xs font-bold rounded-lg border border-red-100 animate-in fade-in slide-in-from-left-2">
-                                        <AlertCircle size={14} />
-                                        {duplicateWarning}
+                                                                    let newValue;
+                                                                    if (isSelected) {
+                                                                        // Remove the complaint
+                                                                        newValue = current
+                                                                            .split(', ')
+                                                                            .filter(c => c.trim() !== complaint)
+                                                                            .join(', ');
+                                                                    } else {
+                                                                        // Add the complaint
+                                                                        newValue = current
+                                                                            ? current + ', ' + complaint
+                                                                            : complaint;
+                                                                    }
+                                                                    setOpdForm({ ...opdForm, chief_complaint: newValue });
+                                                                }}
+                                                                className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-all hover:scale-105 ${opdForm.chief_complaint?.includes(complaint)
+                                                                    ? 'bg-blue-100 text-blue-700 border-blue-300'
+                                                                    : 'bg-white text-slate-600 border-slate-200 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600'
+                                                                    }`}
+                                                            >
+                                                                {complaint}
+                                                            </button>
+                                                        ))
+                                                    }
+                                                    {!showComplaintSuggestions && commonComplaints.length > 6 && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setShowComplaintSuggestions(true)}
+                                                            className="px-2.5 py-1 text-xs font-medium text-blue-600 hover:underline"
+                                                        >
+                                                            +{commonComplaints.length - 6} more...
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Symptoms</label>
+                                                <textarea
+                                                    value={opdForm.symptoms}
+                                                    onChange={(e) => setOpdForm({ ...opdForm, symptoms: e.target.value })}
+                                                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium resize-none"
+                                                    rows={3}
+                                                    placeholder="Observed symptoms..."
+                                                />
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
-                            </div>
 
-                            <div className="flex gap-4">
-                                <button
-                                    type="button"
-                                    onClick={() => { setShowModal(false); resetForm(); }}
-                                    className="px-6 py-3 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition font-bold"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={loading || !!duplicateWarning}
-                                    className={`px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg hover:shadow-blue-500/30 transition-all font-bold flex items-center gap-2 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed ${duplicateWarning ? 'from-slate-400 to-slate-500 hover:shadow-none' : ''}`}
-                                >
-                                    {loading ? 'Saving...' : (editingOpdId ? 'Update Visit' : 'Register Visit')}
-                                </button>
-                            </div>
+                                {/* Vital Signs */}
+                                <div className="bg-gradient-to-br from-purple-50/40 to-violet-50/30 p-6 rounded-2xl border border-purple-100/60 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_10px_20px_-2px_rgba(0,0,0,0.04)]">
+                                    <h3 className="text-[15px] font-bold text-purple-500 uppercase tracking-wider mb-4 flex items-center gap-2"><Activity className="w-4 h-4" /> Vital Signs</h3>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-bold text-purple-600/80 mb-1">BP Sys</label>
+                                            <div className="relative">
+                                                <input
+                                                    type="text"
+                                                    value={opdForm.vital_signs.bp_systolic}
+                                                    onChange={(e) => setOpdForm({ ...opdForm, vital_signs: { ...opdForm.vital_signs, bp_systolic: e.target.value } })}
+                                                    className="w-full px-3 py-2 bg-white border border-purple-100 rounded-lg focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 text-sm"
+                                                    placeholder="mmHg"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-bold text-purple-600/80 mb-1">BP Dia</label>
+                                            <div className="relative">
+                                                <input
+                                                    type="text"
+                                                    value={opdForm.vital_signs.bp_diastolic}
+                                                    onChange={(e) => setOpdForm({ ...opdForm, vital_signs: { ...opdForm.vital_signs, bp_diastolic: e.target.value } })}
+                                                    className="w-full px-3 py-2 bg-white border border-purple-100 rounded-lg focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 text-sm"
+                                                    placeholder="mmHg"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-bold text-purple-600/80 mb-1">Pulse</label>
+                                            <input
+                                                type="text"
+                                                value={opdForm.vital_signs.pulse}
+                                                onChange={(e) => setOpdForm({ ...opdForm, vital_signs: { ...opdForm.vital_signs, pulse: e.target.value } })}
+                                                className="w-full px-3 py-2 bg-white border border-purple-100 rounded-lg focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 text-sm"
+                                                placeholder="bpm"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-bold text-purple-600/80 mb-1">Temp</label>
+                                            <input
+                                                type="text"
+                                                value={opdForm.vital_signs.temperature}
+                                                onChange={(e) => setOpdForm({ ...opdForm, vital_signs: { ...opdForm.vital_signs, temperature: e.target.value } })}
+                                                className="w-full px-3 py-2 bg-white border border-purple-100 rounded-lg focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 text-sm"
+                                                placeholder="°F"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-bold text-purple-600/80 mb-1">Weight</label>
+                                            <input
+                                                type="text"
+                                                value={opdForm.vital_signs.weight}
+                                                onChange={(e) => setOpdForm({ ...opdForm, vital_signs: { ...opdForm.vital_signs, weight: e.target.value } })}
+                                                className="w-full px-3 py-2 bg-white border border-purple-100 rounded-lg focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 text-sm"
+                                                placeholder="kg"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-bold text-purple-600/80 mb-1">Height</label>
+                                            <input
+                                                type="text"
+                                                value={opdForm.vital_signs.height}
+                                                onChange={(e) => setOpdForm({ ...opdForm, vital_signs: { ...opdForm.vital_signs, height: e.target.value } })}
+                                                className="w-full px-3 py-2 bg-white border border-purple-100 rounded-lg focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 text-sm"
+                                                placeholder="cm"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-bold text-purple-600/80 mb-1">SpO2</label>
+                                            <input
+                                                type="text"
+                                                value={opdForm.vital_signs.spo2}
+                                                onChange={(e) => setOpdForm({ ...opdForm, vital_signs: { ...opdForm.vital_signs, spo2: e.target.value } })}
+                                                className="w-full px-3 py-2 bg-white border border-purple-100 rounded-lg focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 text-sm"
+                                                placeholder="%"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-bold text-purple-600/80 mb-1">GRBS</label>
+                                            <input
+                                                type="text"
+                                                value={opdForm.vital_signs.grbs}
+                                                onChange={(e) => setOpdForm({ ...opdForm, vital_signs: { ...opdForm.vital_signs, grbs: e.target.value } })}
+                                                className="w-full px-3 py-2 bg-white border border-purple-100 rounded-lg focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 text-sm"
+                                                placeholder="mg/dL"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Payment Section - Simple */}
+                                <div className="bg-gradient-to-br from-emerald-50/30 to-slate-50/50 p-6 rounded-2xl border border-emerald-100/60 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_10px_20px_-2px_rgba(0,0,0,0.04)] flex justify-between items-end">
+                                    <div>
+                                        <h3 className="text-[15px] font-bold text-slate-600 uppercase tracking-wider mb-3 flex items-center gap-2"><svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Payment Details</h3>
+                                        <div className="flex gap-4 items-end">
+                                            <div>
+                                                <label className="block text-sm font-semibold text-slate-500 mb-1">Consultation Fee</label>
+                                                <div className="relative">
+                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold">₹</span>
+                                                    <input
+                                                        type="number"
+                                                        value={opdForm.consultation_fee}
+                                                        readOnly
+                                                        className="w-32 pl-7 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium focus:outline-none cursor-not-allowed text-slate-500"
+                                                        placeholder="0.00"
+                                                    />
+                                                </div>
+                                            </div>
+                                            {opdForm.is_mlc && (
+                                                <div className="animate-in fade-in slide-in-from-left-2">
+                                                    <label className="block text-sm font-semibold text-red-600 mb-1">MLC Fee</label>
+                                                    <div className="relative">
+                                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold">₹</span>
+                                                        <input
+                                                            type="text"
+                                                            value={branchDetails?.mlc_fee || '0'}
+                                                            disabled
+                                                            className="w-24 pl-7 pr-3 py-2 bg-red-50 border border-red-100 rounded-lg text-sm font-bold text-red-700 cursor-not-allowed"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            )}
+                                            <div className="flex-1 min-w-[200px]">
+                                                <label className="block text-sm font-semibold text-slate-500 mb-1">Payment Preference <span className="text-red-500">*</span></label>
+                                                <div className="relative">
+                                                    {wasInitiallyPaid && !!editingOpdId ? (
+                                                        <div className="w-full px-4 py-2.5 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
+                                                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                                                            <span className="font-bold text-green-700">Paid</span>
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <select
+                                                                value={paymentChoice}
+                                                                onChange={(e) => {
+                                                                    const val = e.target.value as 'PayNow' | 'PayLater';
+                                                                    setPaymentChoice(val);
+                                                                    setOpdForm(prev => ({ ...prev, payment_status: val === 'PayNow' ? 'Paid' : 'Pending' }));
+                                                                }}
+                                                                className="w-full pl-3 pr-10 py-2.5 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-700 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
+                                                            >
+                                                                <option value="PayNow">Pay Now</option>
+                                                                <option value="PayLater">Pay Later</option>
+                                                            </select>
+                                                            <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-500">
+                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="text-right bg-white/60 px-5 py-3 rounded-xl border border-slate-100">
+                                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Total Fee</p>
+                                        <p className="text-3xl font-extrabold text-slate-800">
+                                            ₹{(() => {
+                                                let fee = parseFloat(opdForm.consultation_fee || '0');
+                                                if (opdForm.is_mlc && branchDetails?.mlc_fee) {
+                                                    fee += parseFloat(branchDetails.mlc_fee);
+                                                }
+                                                return fee;
+                                            })()}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Action Buttons */}
+                                <div className="pt-4 border-t border-slate-200/80 flex items-center justify-between">
+
+                                    {/* Duplicate Warning Message */}
+                                    <div className="flex-1 mr-4">
+                                        {duplicateWarning && (
+                                            <div className="flex items-center gap-2 px-3 py-2 bg-red-50 text-red-700 text-xs font-bold rounded-lg border border-red-100 animate-in fade-in slide-in-from-left-2">
+                                                <AlertCircle size={14} />
+                                                {duplicateWarning}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="flex gap-4">
+                                        <button
+                                            type="button"
+                                            onClick={() => { setShowModal(false); resetForm(); }}
+                                            className="px-6 py-3 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition font-bold"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            disabled={loading || !!duplicateWarning}
+                                            className={`px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg hover:shadow-blue-500/30 transition-all font-bold flex items-center gap-2 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed ${duplicateWarning ? 'from-slate-400 to-slate-500 hover:shadow-none' : ''}`}
+                                        >
+                                            {loading ? 'Saving...' : (editingOpdId ? 'Update Visit' : 'Register Visit')}
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
                         </div>
-                    </form>
-                </div>
-            </div >
-        )
-    }
-    {/* Redundant old Bill Modal - Commented out to use standard BillingModal */ }
-    {/* 
+                    </div >
+                )
+            }
+            {/* Redundant old Bill Modal - Commented out to use standard BillingModal */}
+            {/* 
                 showBillModal && billData && (
                     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4 print:p-0 print:bg-white print:fixed print:inset-0 print:z-[100] print-modal">
                         <div className="bg-white rounded-lg shadow-2xl max-w-3xl w-full overflow-hidden print:shadow-none print:w-full print:max-w-none">
@@ -3223,210 +3226,210 @@ export default function OpdEntryPage() {
                 )
              */}
 
-    {/* Cancel Confirmation Modal */ }
-    {
-        showCancelModal && (
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full border border-slate-100 p-6 animate-in zoom-in-95 duration-200">
-                    <div className="flex flex-col items-center text-center">
-                        <div className="w-12 h-12 bg-red-50 text-red-500 rounded-full flex items-center justify-center mb-4">
-                            <X className="w-6 h-6" />
-                        </div>
-                        <h3 className="text-lg font-bold text-slate-800 mb-1">Cancel {appointmentToCancel?.isOpdCancel ? 'OPD Entry' : 'Appointment'}?</h3>
-                        <p className="text-sm text-slate-500 mb-6">
-                            Are you sure you want to cancel for <br />
-                            <span className="font-bold text-slate-800">{appointmentToCancel?.patient_name}</span>?
-                        </p>
+            {/* Cancel Confirmation Modal */}
+            {
+                showCancelModal && (
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full border border-slate-100 p-6 animate-in zoom-in-95 duration-200">
+                            <div className="flex flex-col items-center text-center">
+                                <div className="w-12 h-12 bg-red-50 text-red-500 rounded-full flex items-center justify-center mb-4">
+                                    <X className="w-6 h-6" />
+                                </div>
+                                <h3 className="text-lg font-bold text-slate-800 mb-1">Cancel {appointmentToCancel?.isOpdCancel ? 'OPD Entry' : 'Appointment'}?</h3>
+                                <p className="text-sm text-slate-500 mb-6">
+                                    Are you sure you want to cancel for <br />
+                                    <span className="font-bold text-slate-800">{appointmentToCancel?.patient_name}</span>?
+                                </p>
 
-                        <div className="w-full mb-6 text-left">
-                            <label className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Reason</label>
-                            <select
-                                value={cancelReason}
-                                onChange={(e) => setCancelReason(e.target.value)}
-                                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none"
-                            >
-                                <option value="Patient Request">Patient Request</option>
-                                <option value="Doctor Unavailable">Doctor Unavailable</option>
-                                <option value="Scheduling Conflict">Scheduling Conflict</option>
-                                <option value="No Show">No Show (Pre-emptive)</option>
-                                <option value="Other">Other</option>
-                            </select>
-                        </div>
-
-                        <div className="flex gap-3 w-full">
-                            <button
-                                onClick={() => setShowCancelModal(false)}
-                                className="flex-1 px-4 py-2 border border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-50 transition"
-                            >
-                                Keep It
-                            </button>
-                            <button
-                                onClick={confirmCancel}
-                                disabled={loading}
-                                className="flex-1 px-4 py-2 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 shadow-lg shadow-red-500/30 transition"
-                            >
-                                {loading ? '...' : 'Yes, Cancel'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        )
-    }
-
-    {/* Reschedule Modal */ }
-    {
-        showRescheduleModal && (
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto border border-white/20">
-                    <div className="sticky top-0 bg-gradient-to-r from-amber-500 to-orange-600 text-white px-6 py-4 flex justify-between items-center rounded-t-2xl">
-                        <h2 className="text-xl font-bold flex items-center gap-2">
-                            <CalendarClock className="w-6 h-6" />
-                            {appointmentToReschedule?.isNewAppointment ? 'Re-Appoint Patient' : 'Reschedule Appointment'}
-                        </h2>
-                        <button onClick={() => setShowRescheduleModal(false)} className="text-white hover:bg-white/20 p-2 rounded-lg transition">
-                            <X className="w-6 h-6" />
-                        </button>
-                    </div>
-
-                    <form onSubmit={handleReschedule} className="p-6 space-y-6">
-                        <div className="bg-amber-50 rounded-lg p-4 mb-4 border border-amber-100">
-                            <p className="text-sm text-amber-800 flex items-center gap-2">
-                                <User className="w-4 h-4" />
-                                {appointmentToReschedule?.isNewAppointment ? 'Booking for:' : 'Rescheduling for:'} <span className="font-bold">{appointmentToReschedule?.patient_name}</span>
-                            </p>
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Doctor</label>
-                            <SearchableSelect
-                                label=""
-                                options={doctorOptions}
-                                value={rescheduleForm.doctor_id}
-                                onChange={(val) => { setRescheduleForm({ ...rescheduleForm, doctor_id: val }); setRescheduleError(null); }}
-                                placeholder="Select Doctor"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
-                            <input
-                                type="date"
-                                required
-                                value={rescheduleForm.appointment_date}
-                                onChange={(e) => { setRescheduleForm({ ...rescheduleForm, appointment_date: e.target.value }); setRescheduleError(null); }}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500"
-                                min={new Date().toISOString().split('T')[0]}
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Time Slot *</label>
-                            {/* Category Tabs */}
-                            <div className="flex gap-2 mb-3 bg-gray-100 p-1 rounded-xl">
-                                {[
-                                    { id: 'Morning', icon: Sun, label: 'Morning' },
-                                    { id: 'Afternoon', icon: CloudSun, label: 'Afternoon' },
-                                    { id: 'Evening', icon: Moon, label: 'Evening' }
-                                ].map((cat) => (
-                                    <button
-                                        key={cat.id}
-                                        type="button"
-                                        onClick={() => setTimeSlotCategory(cat.id as any)}
-                                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all ${timeSlotCategory === cat.id
-                                            ? 'bg-white text-amber-600 shadow-sm'
-                                            : 'text-gray-500 hover:text-gray-700'
-                                            }`}
+                                <div className="w-full mb-6 text-left">
+                                    <label className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Reason</label>
+                                    <select
+                                        value={cancelReason}
+                                        onChange={(e) => setCancelReason(e.target.value)}
+                                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none"
                                     >
-                                        <cat.icon className="w-4 h-4" />
-                                        {cat.label}
+                                        <option value="Patient Request">Patient Request</option>
+                                        <option value="Doctor Unavailable">Doctor Unavailable</option>
+                                        <option value="Scheduling Conflict">Scheduling Conflict</option>
+                                        <option value="No Show">No Show (Pre-emptive)</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+
+                                <div className="flex gap-3 w-full">
+                                    <button
+                                        onClick={() => setShowCancelModal(false)}
+                                        className="flex-1 px-4 py-2 border border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-50 transition"
+                                    >
+                                        Keep It
                                     </button>
-                                ))}
+                                    <button
+                                        onClick={confirmCancel}
+                                        disabled={loading}
+                                        className="flex-1 px-4 py-2 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 shadow-lg shadow-red-500/30 transition"
+                                    >
+                                        {loading ? '...' : 'Yes, Cancel'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+
+            {/* Reschedule Modal */}
+            {
+                showRescheduleModal && (
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                        <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto border border-white/20">
+                            <div className="sticky top-0 bg-gradient-to-r from-amber-500 to-orange-600 text-white px-6 py-4 flex justify-between items-center rounded-t-2xl">
+                                <h2 className="text-xl font-bold flex items-center gap-2">
+                                    <CalendarClock className="w-6 h-6" />
+                                    {appointmentToReschedule?.isNewAppointment ? 'Re-Appoint Patient' : 'Reschedule Appointment'}
+                                </h2>
+                                <button onClick={() => setShowRescheduleModal(false)} className="text-white hover:bg-white/20 p-2 rounded-lg transition">
+                                    <X className="w-6 h-6" />
+                                </button>
                             </div>
 
-                            {/* Time Grid */}
-                            <div className="grid grid-cols-4 md:grid-cols-6 gap-2 mb-2 max-h-60 overflow-y-auto">
-                                {(() => {
-                                    const slots = generateTimeSlotsFromSchedule(rescheduleForm.doctor_id, rescheduleForm.appointment_date);
-                                    const filteredSlots = slots.filter((slot: any) => {
-                                        const time = typeof slot === 'string' ? slot : slot.time;
-                                        const hour = parseInt(time?.split(':')[0] || '0');
-                                        if (timeSlotCategory === 'Morning') return hour >= 6 && hour < 12;
-                                        if (timeSlotCategory === 'Afternoon') return hour >= 12 && hour < 17;
-                                        if (timeSlotCategory === 'Evening') return hour >= 17 && hour < 22;
-                                        return false;
-                                    });
+                            <form onSubmit={handleReschedule} className="p-6 space-y-6">
+                                <div className="bg-amber-50 rounded-lg p-4 mb-4 border border-amber-100">
+                                    <p className="text-sm text-amber-800 flex items-center gap-2">
+                                        <User className="w-4 h-4" />
+                                        {appointmentToReschedule?.isNewAppointment ? 'Booking for:' : 'Rescheduling for:'} <span className="font-bold">{appointmentToReschedule?.patient_name}</span>
+                                    </p>
+                                </div>
 
-                                    if (filteredSlots.length === 0) {
-                                        return (
-                                            <div className="col-span-full text-center py-4 text-xs font-bold text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                                                No {timeSlotCategory.toLowerCase()} slots available.
-                                            </div>
-                                        );
-                                    }
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Doctor</label>
+                                    <SearchableSelect
+                                        label=""
+                                        options={doctorOptions}
+                                        value={rescheduleForm.doctor_id}
+                                        onChange={(val) => { setRescheduleForm({ ...rescheduleForm, doctor_id: val }); setRescheduleError(null); }}
+                                        placeholder="Select Doctor"
+                                    />
+                                </div>
 
-                                    return filteredSlots.map((slot: any) => {
-                                        const time = typeof slot === 'string' ? slot : slot.time;
-                                        const isBooked = (typeof slot === 'object' && slot.status === 'booked') || bookedSlots.includes(time);
-                                        const isSelected = rescheduleForm.appointment_time === time;
-                                        return (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
+                                    <input
+                                        type="date"
+                                        required
+                                        value={rescheduleForm.appointment_date}
+                                        onChange={(e) => { setRescheduleForm({ ...rescheduleForm, appointment_date: e.target.value }); setRescheduleError(null); }}
+                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                                        min={new Date().toISOString().split('T')[0]}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Time Slot *</label>
+                                    {/* Category Tabs */}
+                                    <div className="flex gap-2 mb-3 bg-gray-100 p-1 rounded-xl">
+                                        {[
+                                            { id: 'Morning', icon: Sun, label: 'Morning' },
+                                            { id: 'Afternoon', icon: CloudSun, label: 'Afternoon' },
+                                            { id: 'Evening', icon: Moon, label: 'Evening' }
+                                        ].map((cat) => (
                                             <button
-                                                key={time}
+                                                key={cat.id}
                                                 type="button"
-                                                disabled={isBooked}
-                                                onClick={() => { !isBooked && !bookedSlots.includes(time) && setRescheduleForm({ ...rescheduleForm, appointment_time: time }); setRescheduleError(null); }}
-                                                className={`py-2 px-1 text-xs font-bold rounded-lg border transition-all relative ${isBooked || bookedSlots.includes(time)
-                                                    ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed opacity-60'
-                                                    : isSelected
-                                                        ? 'bg-amber-500 border-amber-500 text-white font-bold ring-2 ring-amber-200 shadow-md transform scale-105'
-                                                        : 'bg-white border-slate-200 text-slate-600 hover:border-amber-300 hover:bg-amber-50'
+                                                onClick={() => setTimeSlotCategory(cat.id as any)}
+                                                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all ${timeSlotCategory === cat.id
+                                                    ? 'bg-white text-amber-600 shadow-sm'
+                                                    : 'text-gray-500 hover:text-gray-700'
                                                     }`}
                                             >
-                                                {time}
-                                                {isBooked && (
-                                                    <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5 items-center justify-center bg-red-100 rounded-full border border-red-200">
-                                                        <span className="block h-1.5 w-1.5 rounded-full bg-red-500"></span>
-                                                    </span>
-                                                )}
+                                                <cat.icon className="w-4 h-4" />
+                                                {cat.label}
                                             </button>
-                                        )
-                                    });
-                                })()}
-                            </div>
-                        </div>
+                                        ))}
+                                    </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Reason</label>
-                            <textarea
-                                rows={2}
-                                value={rescheduleForm.reason}
-                                onChange={(e) => setRescheduleForm({ ...rescheduleForm, reason: e.target.value })}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500"
-                                placeholder="e.g., Patient requested change"
-                            />
-                        </div>
+                                    {/* Time Grid */}
+                                    <div className="grid grid-cols-4 md:grid-cols-6 gap-2 mb-2 max-h-60 overflow-y-auto">
+                                        {(() => {
+                                            const slots = generateTimeSlotsFromSchedule(rescheduleForm.doctor_id, rescheduleForm.appointment_date);
+                                            const filteredSlots = slots.filter((slot: any) => {
+                                                const time = typeof slot === 'string' ? slot : slot.time;
+                                                const hour = parseInt(time?.split(':')[0] || '0');
+                                                if (timeSlotCategory === 'Morning') return hour >= 6 && hour < 12;
+                                                if (timeSlotCategory === 'Afternoon') return hour >= 12 && hour < 17;
+                                                if (timeSlotCategory === 'Evening') return hour >= 17 && hour < 22;
+                                                return false;
+                                            });
 
-                        {rescheduleError && (
-                            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg flex items-center gap-2">
-                                <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                                <p className="text-sm font-medium">{rescheduleError}</p>
-                            </div>
-                        )}
+                                            if (filteredSlots.length === 0) {
+                                                return (
+                                                    <div className="col-span-full text-center py-4 text-xs font-bold text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                                                        No {timeSlotCategory.toLowerCase()} slots available.
+                                                    </div>
+                                                );
+                                            }
 
-                        <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-                            <button type="button" onClick={() => setShowRescheduleModal(false)} className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium">
-                                Cancel
-                            </button>
-                            <button type="submit" disabled={loading || !!rescheduleError || !rescheduleForm.appointment_time} className={`flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-lg hover:from-amber-600 hover:to-orange-700 transition font-medium shadow-lg shadow-amber-500/30 ${loading || !!rescheduleError || !rescheduleForm.appointment_time ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                                <CalendarClock className="w-5 h-5" />
-                                {loading ? 'Updating...' : (appointmentToReschedule?.isNewAppointment ? 'Schedule' : 'Confirm New Time')}
-                            </button>
+                                            return filteredSlots.map((slot: any) => {
+                                                const time = typeof slot === 'string' ? slot : slot.time;
+                                                const isBooked = (typeof slot === 'object' && slot.status === 'booked') || bookedSlots.includes(time);
+                                                const isSelected = rescheduleForm.appointment_time === time;
+                                                return (
+                                                    <button
+                                                        key={time}
+                                                        type="button"
+                                                        disabled={isBooked}
+                                                        onClick={() => { !isBooked && !bookedSlots.includes(time) && setRescheduleForm({ ...rescheduleForm, appointment_time: time }); setRescheduleError(null); }}
+                                                        className={`py-2 px-1 text-xs font-bold rounded-lg border transition-all relative ${isBooked || bookedSlots.includes(time)
+                                                            ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed opacity-60'
+                                                            : isSelected
+                                                                ? 'bg-amber-500 border-amber-500 text-white font-bold ring-2 ring-amber-200 shadow-md transform scale-105'
+                                                                : 'bg-white border-slate-200 text-slate-600 hover:border-amber-300 hover:bg-amber-50'
+                                                            }`}
+                                                    >
+                                                        {time}
+                                                        {isBooked && (
+                                                            <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5 items-center justify-center bg-red-100 rounded-full border border-red-200">
+                                                                <span className="block h-1.5 w-1.5 rounded-full bg-red-500"></span>
+                                                            </span>
+                                                        )}
+                                                    </button>
+                                                )
+                                            });
+                                        })()}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Reason</label>
+                                    <textarea
+                                        rows={2}
+                                        value={rescheduleForm.reason}
+                                        onChange={(e) => setRescheduleForm({ ...rescheduleForm, reason: e.target.value })}
+                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                                        placeholder="e.g., Patient requested change"
+                                    />
+                                </div>
+
+                                {rescheduleError && (
+                                    <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg flex items-center gap-2">
+                                        <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                                        <p className="text-sm font-medium">{rescheduleError}</p>
+                                    </div>
+                                )}
+
+                                <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+                                    <button type="button" onClick={() => setShowRescheduleModal(false)} className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium">
+                                        Cancel
+                                    </button>
+                                    <button type="submit" disabled={loading || !!rescheduleError || !rescheduleForm.appointment_time} className={`flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-lg hover:from-amber-600 hover:to-orange-700 transition font-medium shadow-lg shadow-amber-500/30 ${loading || !!rescheduleError || !rescheduleForm.appointment_time ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                        <CalendarClock className="w-5 h-5" />
+                                        {loading ? 'Updating...' : (appointmentToReschedule?.isNewAppointment ? 'Schedule' : 'Confirm New Time')}
+                                    </button>
+                                </div>
+                            </form>
                         </div>
-                    </form>
-                </div>
-            </div>
-        )
-    }
+                    </div>
+                )
+            }
 
             <style jsx global>{`
                 @media print {
@@ -3472,43 +3475,43 @@ export default function OpdEntryPage() {
                 }}
             />
 
-    {/* Invoice Modal */ }
-    {
-        showInvoice && selectedBill && (
-            <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 print:p-0 print:bg-white print:absolute print:inset-0">
-                <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto print:shadow-none print:w-full print:max-w-none print:h-auto print:overflow-visible">
-                    <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 print:hidden">
-                        <h2 className="text-lg font-bold text-gray-800">Invoice Preview</h2>
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => window.print()}
-                                className="p-2 text-gray-600 hover:bg-gray-200 rounded-lg flex items-center gap-2"
-                            >
-                                <Printer className="w-4 h-4" /> Print
-                            </button>
-                            <button
-                                onClick={() => setShowInvoice(false)}
-                                className="p-2 hover:bg-red-50 text-gray-500 hover:text-red-500 rounded-lg"
-                            >
-                                <X className="w-5 h-5" />
-                            </button>
+            {/* Invoice Modal */}
+            {
+                showInvoice && selectedBill && (
+                    <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 print:p-0 print:bg-white print:absolute print:inset-0">
+                        <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto print:shadow-none print:w-full print:max-w-none print:h-auto print:overflow-visible">
+                            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 print:hidden">
+                                <h2 className="text-lg font-bold text-gray-800">Invoice Preview</h2>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => window.print()}
+                                        className="p-2 text-gray-600 hover:bg-gray-200 rounded-lg flex items-center gap-2"
+                                    >
+                                        <Printer className="w-4 h-4" /> Print
+                                    </button>
+                                    <button
+                                        onClick={() => setShowInvoice(false)}
+                                        className="p-2 hover:bg-red-50 text-gray-500 hover:text-red-500 rounded-lg"
+                                    >
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="print:block">
+                                <InvoiceTemplate
+                                    billData={selectedBill}
+                                    hospitalData={{
+                                        name: user?.hospital_name,
+                                        address: user?.address_line1 || 'Hospital Address',
+                                        phone: user?.contact_number,
+                                        email: user?.email
+                                    }}
+                                />
+                            </div>
                         </div>
                     </div>
-                    <div className="print:block">
-                        <InvoiceTemplate
-                            billData={selectedBill}
-                            hospitalData={{
-                                name: user?.hospital_name,
-                                address: user?.address_line1 || 'Hospital Address',
-                                phone: user?.contact_number,
-                                email: user?.email
-                            }}
-                        />
-                    </div>
-                </div>
-            </div>
-        )
-    }
+                )
+            }
         </div >
     );
 }

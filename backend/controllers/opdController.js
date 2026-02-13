@@ -1021,6 +1021,46 @@ class OpdController {
                     }
 
                     updates.consultation_fee = (baseFee + mlcFee).toString();
+
+                    // 1.1 Synchronize with Billing if exist
+                    const billRes = await query(`SELECT bill_master_id, total_amount, pending_amount, paid_amount FROM billing_master WHERE opd_id = $1`, [id]);
+                    if (billRes.rows.length > 0) {
+                        const billMaster = billRes.rows[0];
+                        const billMasterId = billMaster.bill_master_id;
+
+                        // Calculate difference for Consultation Fee
+                        const consultationDetailRes = await query(
+                            `SELECT bill_detail_id, final_price FROM bill_details WHERE bill_master_id = $1 AND service_type = 'consultation'`,
+                            [billMasterId]
+                        );
+
+                        if (consultationDetailRes.rows.length > 0) {
+                            const detail = consultationDetailRes.rows[0];
+                            const oldConsFee = parseFloat(detail.final_price || '0');
+                            const newConsFee = baseFee; // This is the base fee we want for 'consultation' item
+
+                            if (oldConsFee !== newConsFee) {
+                                // Update ONLY the consultation line item
+                                await query(
+                                    `UPDATE bill_details SET unit_price = $1, subtotal = $1, final_price = $1, updated_at = CURRENT_TIMESTAMP WHERE bill_detail_id = $2`,
+                                    [newConsFee, detail.bill_detail_id]
+                                );
+
+                                // Calculate new master totals
+                                const diff = newConsFee - oldConsFee;
+                                const newTotal = parseFloat(billMaster.total_amount || '0') + diff;
+                                const newPending = parseFloat(billMaster.pending_amount || '0') + diff;
+
+                                // Update Master record
+                                await query(
+                                    `UPDATE billing_master SET total_amount = $1, pending_amount = $2, updated_at = CURRENT_TIMESTAMP WHERE bill_master_id = $3`,
+                                    [newTotal, newPending, billMasterId]
+                                );
+
+                                console.log(`OPD Update: Adjusted Bill ${billMasterId} totals. Diff: ${diff}`);
+                            }
+                        }
+                    }
                 }
             }
 
