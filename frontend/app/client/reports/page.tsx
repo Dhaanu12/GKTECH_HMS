@@ -1168,7 +1168,11 @@ export default function ClientAdminReports() {
                                     return (
                                         <button
                                             key={tab.id}
-                                            onClick={() => setActiveTab(tab.id)}
+                                            onClick={() => {
+                                                setData(null);
+                                                setError(null);
+                                                setActiveTab(tab.id);
+                                            }}
                                             className={`
                                                 group relative flex items-center gap-3 px-6 py-4 rounded-xl font-semibold text-sm transition-all duration-300 whitespace-nowrap min-w-fit
                                                 ${isActive
