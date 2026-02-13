@@ -9,6 +9,7 @@ interface QueueDetailsModalProps {
     doctors: any[];
     departments: any[];
     todayTotal?: number;
+    yesterdayTotal?: number;
     doctorSchedules?: any[];
     appointments?: any[];
 }
@@ -20,6 +21,7 @@ const QueueDetailsModal: React.FC<QueueDetailsModalProps> = ({
     doctors,
     departments,
     todayTotal = 0,
+    yesterdayTotal = 0,
     doctorSchedules = [],
     appointments = []
 }) => {
@@ -27,7 +29,7 @@ const QueueDetailsModal: React.FC<QueueDetailsModalProps> = ({
     const [selectedDept, setSelectedDept] = useState('All');
     const [selectedDocId, setSelectedDocId] = useState('All');
     const [currentTime, setCurrentTime] = useState(new Date());
-    const [activeTab, setActiveTab] = useState<'up-next' | 'in-consultation'>('up-next');
+    const [activeTab, setActiveTab] = useState<'priority' | 'up-next' | 'in-consultation'>('up-next');
 
     useEffect(() => {
         if (isOpen) {
@@ -206,7 +208,7 @@ const QueueDetailsModal: React.FC<QueueDetailsModalProps> = ({
             return acc;
         }, []);
 
-    const activeList = activeTab === 'up-next' ? upNextList : inConsultationList;
+    const activeList = activeTab === 'priority' ? priorityQueue : (activeTab === 'up-next' ? upNextList : inConsultationList);
 
     const calculateWaitTime = (checkedInTime: string) => {
         if (!checkedInTime) return '0m';
@@ -261,71 +263,81 @@ const QueueDetailsModal: React.FC<QueueDetailsModalProps> = ({
         return doc ? `Dr. ${doc.first_name} ${doc.last_name}` : 'Unknown Doctor';
     };
 
-    const QueueTable = ({ data, type }: { data: any[], type: 'priority' | 'regular' }) => (
-        <div className={`overflow-hidden rounded-[20px] border ${type === 'priority' ? 'border-red-100 shadow-red-500/5' : 'border-slate-200/60 shadow-sm'} bg-white mb-6`}>
-            {/* Table Header */}
-            {/* Table Header */}
-            {type === 'priority' ? (
-                <div className="px-6 py-4 border-b bg-red-50/50 border-red-100 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600 shadow-sm border border-red-200">
+    const QueueTable = ({ data }: { data: any[] }) => (
+        <div className={`overflow-hidden rounded-[20px] border border-slate-200/60 shadow-sm bg-white mb-6`}>
+            {/* Table Header with 3 Tabs */}
+            <div className="p-2 border-b bg-slate-50/50 border-slate-100">
+                <div className="flex bg-slate-100/80 p-1.5 rounded-2xl w-full relative gap-1.5">
+                    {/* Tab: Priority Queue (MLC) */}
+                    <button
+                        onClick={() => setActiveTab('priority')}
+                        className={`flex-1 flex items-center justify-center gap-4 py-3.5 px-6 rounded-xl transition-all duration-300 ${activeTab === 'priority'
+                            ? 'bg-white shadow-sm ring-1 ring-red-100 text-red-900 border border-red-100'
+                            : 'text-slate-500 hover:bg-red-50/50 hover:text-red-700'
+                            }`}
+                    >
+                        <div className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors shrink-0 ${activeTab === 'priority' ? 'bg-red-100 text-red-600' : 'bg-slate-200/50 text-slate-400'
+                            }`}>
                             <AlertCircle className="w-5 h-5" />
                         </div>
-                        <div>
-                            <h3 className="text-base font-bold text-red-900">Priority Queue (MLC)</h3>
-                            <p className="text-xs font-medium text-red-600">{data.length} Patients Waiting</p>
+                        <div className="flex items-center gap-3 overflow-hidden">
+                            <span className={`text-base font-bold whitespace-nowrap ${activeTab === 'priority' ? 'text-red-900' : 'text-current'}`}>
+                                Priority Que
+                            </span>
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0" />
+                            <span className="text-sm font-bold opacity-60 whitespace-nowrap">
+                                {priorityQueue.length} MLC
+                            </span>
                         </div>
-                    </div>
-                </div>
-            ) : (
-                <div className="p-2 border-b bg-slate-50/50 border-slate-100">
-                    <div className="flex bg-slate-100/80 p-1.5 rounded-2xl w-full relative">
-                        {/* Tab: Up Next */}
-                        <button
-                            onClick={() => setActiveTab('up-next')}
-                            className={`flex-1 flex items-center justify-center gap-3 py-3 px-4 rounded-xl transition-all duration-300 ${activeTab === 'up-next'
-                                ? 'bg-white shadow-sm ring-1 ring-black/5 text-slate-800'
-                                : 'text-slate-500 hover:bg-slate-200/50 hover:text-slate-700'
-                                }`}
-                        >
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${activeTab === 'up-next' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-200/50 text-slate-400'
-                                }`}>
-                                <Users className="w-4 h-4" />
-                            </div>
-                            <div className="text-left">
-                                <p className={`text-sm font-bold leading-tight ${activeTab === 'up-next' ? 'text-slate-900' : 'text-current'}`}>
-                                    Up Next
-                                </p>
-                                <p className="text-[11px] font-medium opacity-70">
-                                    {upNextList.length} Waiting
-                                </p>
-                            </div>
-                        </button>
+                    </button>
 
-                        {/* Tab: In-Consultation */}
-                        <button
-                            onClick={() => setActiveTab('in-consultation')}
-                            className={`flex-1 flex items-center justify-center gap-3 py-3 px-4 rounded-xl transition-all duration-300 ${activeTab === 'in-consultation'
-                                ? 'bg-white shadow-sm ring-1 ring-black/5 text-slate-800'
-                                : 'text-slate-500 hover:bg-slate-200/50 hover:text-slate-700'
-                                }`}
-                        >
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${activeTab === 'in-consultation' ? 'bg-blue-50 text-blue-600' : 'bg-slate-200/50 text-slate-400'
-                                }`}>
-                                <Users className="w-4 h-4" />
-                            </div>
-                            <div className="text-left">
-                                <p className={`text-sm font-bold leading-tight ${activeTab === 'in-consultation' ? 'text-slate-900' : 'text-current'}`}>
-                                    In-Consultation
-                                </p>
-                                <p className="text-[11px] font-medium opacity-70">
-                                    {inConsultationList.length} Active
-                                </p>
-                            </div>
-                        </button>
-                    </div>
+                    {/* Tab: Up Next */}
+                    <button
+                        onClick={() => setActiveTab('up-next')}
+                        className={`flex-1 flex items-center justify-center gap-4 py-3.5 px-6 rounded-xl transition-all duration-300 ${activeTab === 'up-next'
+                            ? 'bg-white shadow-sm ring-1 ring-indigo-100 text-slate-800 border border-indigo-100'
+                            : 'text-slate-500 hover:bg-slate-200/50 hover:text-slate-700'
+                            }`}
+                    >
+                        <div className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors shrink-0 ${activeTab === 'up-next' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-200/50 text-slate-400'
+                            }`}>
+                            <Users className="w-5 h-5" />
+                        </div>
+                        <div className="flex items-center gap-3 overflow-hidden">
+                            <span className={`text-base font-bold whitespace-nowrap ${activeTab === 'up-next' ? 'text-slate-900' : 'text-current'}`}>
+                                Up Next
+                            </span>
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0" />
+                            <span className="text-sm font-bold opacity-60 whitespace-nowrap">
+                                {upNextList.length} Waiting
+                            </span>
+                        </div>
+                    </button>
+
+                    {/* Tab: In-Consultation */}
+                    <button
+                        onClick={() => setActiveTab('in-consultation')}
+                        className={`flex-1 flex items-center justify-center gap-4 py-3.5 px-6 rounded-xl transition-all duration-300 ${activeTab === 'in-consultation'
+                            ? 'bg-white shadow-sm ring-1 ring-blue-100 text-slate-800 border border-indigo-100'
+                            : 'text-slate-500 hover:bg-slate-200/50 hover:text-slate-700'
+                            }`}
+                    >
+                        <div className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors shrink-0 ${activeTab === 'in-consultation' ? 'bg-blue-50 text-blue-600' : 'bg-slate-200/50 text-slate-400'
+                            }`}>
+                            <Users className="w-5 h-5" />
+                        </div>
+                        <div className="flex items-center gap-3 overflow-hidden">
+                            <span className={`text-base font-bold whitespace-nowrap ${activeTab === 'in-consultation' ? 'text-slate-900' : 'text-current'}`}>
+                                In-Consultation
+                            </span>
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0" />
+                            <span className="text-sm font-bold opacity-60 whitespace-nowrap">
+                                {inConsultationList.length} Active
+                            </span>
+                        </div>
+                    </button>
                 </div>
-            )}
+            </div>
 
             <table className="w-full">
                 <thead className="bg-slate-50/30 border-b border-slate-100">
@@ -335,7 +347,7 @@ const QueueDetailsModal: React.FC<QueueDetailsModalProps> = ({
                         <th className="text-left py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-widest">Doctor & Dept</th>
                         <th className="text-left py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-widest">Status</th>
                         <th className="text-right py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-widest pr-8">
-                            {type === 'regular' && activeTab === 'in-consultation' ? 'Consultation Time' : 'Wait Time'}
+                            {activeTab === 'in-consultation' ? 'Consultation Time' : (activeTab === 'priority' ? 'Active Time' : 'Wait Time')}
                         </th>
                     </tr>
                 </thead>
@@ -345,7 +357,7 @@ const QueueDetailsModal: React.FC<QueueDetailsModalProps> = ({
 
                         // Calculate time display
                         let timeDisplay = '';
-                        const showConsultationTime = type === 'regular' && activeTab === 'in-consultation';
+                        const showConsultationTime = activeTab === 'in-consultation';
                         if (showConsultationTime) {
                             const startTime = entry.consultation_start_time || entry.updated_at;
                             if (startTime) {
@@ -377,7 +389,7 @@ const QueueDetailsModal: React.FC<QueueDetailsModalProps> = ({
                                 </td>
                                 <td className="py-5 px-6">
                                     <div className="flex items-center gap-4">
-                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shadow-sm ${type === 'priority' ? 'bg-red-100 text-red-600' : 'bg-indigo-50 text-indigo-600'}`}>
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shadow-sm ${entry.is_mlc ? 'bg-red-100 text-red-600' : 'bg-indigo-50 text-indigo-600'}`}>
                                             {entry.patient_first_name[0]}
                                         </div>
                                         <div>
@@ -430,7 +442,13 @@ const QueueDetailsModal: React.FC<QueueDetailsModalProps> = ({
         completed: entries.filter(e => e.visit_status === 'Completed').length,
     };
 
-    const growthPercent = 12;
+    let growthPercent = 0;
+    if (yesterdayTotal === 0) {
+        growthPercent = stats.total > 0 ? 100 : 0;
+    } else {
+        growthPercent = Math.round(((stats.total - yesterdayTotal) / yesterdayTotal) * 100);
+    }
+    const isPositive = growthPercent >= 0;
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
@@ -460,8 +478,8 @@ const QueueDetailsModal: React.FC<QueueDetailsModalProps> = ({
                             <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Total Visits Today</span>
                             <div className="flex items-baseline gap-3 relative z-10">
                                 <span className="text-4xl font-extrabold text-slate-800 tracking-tight">{stats.total}</span>
-                                <span className="text-sm font-bold px-2.5 py-1 rounded-lg text-emerald-600 bg-emerald-50 border border-emerald-100">
-                                    +{growthPercent}%
+                                <span className={`text-sm font-bold px-2.5 py-1 rounded-lg border ${isPositive ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-rose-600 bg-rose-50 border-rose-100'}`}>
+                                    {isPositive ? '+' : ''}{growthPercent}%
                                 </span>
                             </div>
                         </div>
@@ -485,22 +503,29 @@ const QueueDetailsModal: React.FC<QueueDetailsModalProps> = ({
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-2 h-4 w-full">
-                                <div
-                                    className="h-full rounded-lg bg-amber-400 shadow-sm transition-all duration-500"
-                                    style={{ width: `${Math.max((stats.waiting / (stats.total || 1)) * 100, 2)}%` }}
-                                    title={`Waiting: ${stats.waiting}`}
-                                />
-                                <div
-                                    className="h-full rounded-lg bg-blue-500 shadow-sm transition-all duration-500"
-                                    style={{ width: `${Math.max((stats.inConsultation / (stats.total || 1)) * 100, 2)}%` }}
-                                    title={`In-Consultation: ${stats.inConsultation}`}
-                                />
-                                <div
-                                    className="h-full rounded-lg bg-emerald-500 shadow-sm transition-all duration-500"
-                                    style={{ width: `${Math.max((stats.completed / (stats.total || 1)) * 100, 2)}%` }}
-                                    title={`Completed: ${stats.completed}`}
-                                />
+                            <div className="h-5 w-full rounded-full bg-slate-100/80 shadow-inner p-1 flex gap-1 items-center overflow-hidden">
+                                {(() => {
+                                    const breakdownTotal = stats.waiting + stats.inConsultation + stats.completed || 1;
+                                    return (
+                                        <>
+                                            <div
+                                                className="h-full rounded-full bg-amber-400 shadow-sm transition-all duration-700"
+                                                style={{ width: `${(stats.waiting / breakdownTotal) * 100}%` }}
+                                                title={`Waiting: ${stats.waiting}`}
+                                            />
+                                            <div
+                                                className="h-full rounded-full bg-blue-500 shadow-sm transition-all duration-700"
+                                                style={{ width: `${(stats.inConsultation / breakdownTotal) * 100}%` }}
+                                                title={`In-Consultation: ${stats.inConsultation}`}
+                                            />
+                                            <div
+                                                className="h-full rounded-full bg-emerald-500 shadow-sm transition-all duration-700"
+                                                style={{ width: `${(stats.completed / breakdownTotal) * 100}%` }}
+                                                title={`Completed: ${stats.completed}`}
+                                            />
+                                        </>
+                                    );
+                                })()}
                             </div>
 
                             <div className="flex items-center justify-between mt-4 px-1">
@@ -572,17 +597,11 @@ const QueueDetailsModal: React.FC<QueueDetailsModalProps> = ({
                         </div>
                     ) : (
                         <>
-                            {priorityQueue.length > 0 && (
-                                <QueueTable data={priorityQueue} type="priority" />
-                            )}
+                            <QueueTable data={activeList} />
 
-                            {(upNextList.length > 0 || inConsultationList.length > 0 || regularQueue.length > 0) && (
-                                <QueueTable data={activeList} type="regular" />
-                            )}
-
-                            {priorityQueue.length === 0 && regularQueue.length === 0 && (
+                            {activeList.length === 0 && (
                                 <div className="text-center py-20">
-                                    <p className="text-xl font-medium text-slate-500">No matching entries found.</p>
+                                    <p className="text-xl font-medium text-slate-500">No entries found in this tab.</p>
                                 </div>
                             )}
                         </>

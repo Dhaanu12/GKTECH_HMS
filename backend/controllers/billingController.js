@@ -25,7 +25,8 @@ class BillingController {
                 discount_type,
                 discount_value,
                 total_amount,
-                paid_amount
+                paid_amount,
+                discount_remarks
             } = req.body;
 
             const branch_id = req.body.branch_id || req.user.branch_id;
@@ -66,15 +67,24 @@ class BillingController {
                         status = 'Paid',
                         discount_type = $6,
                         discount_value = $7,
-                        updated_by = $8,
-                        updated_at = CURRENT_TIMESTAMP
-                    WHERE bill_master_id = $9
+                        discount_remarks = $8,
+                        updated_by = $9,
+                        updated_at = CURRENT_TIMESTAMP,
+                        billing_date = CURRENT_TIMESTAMP,
+                        contact_number = $11,
+                        patient_name = $12,
+                        patient_address = $13
+                    WHERE bill_master_id = $10
                 `, [
                     total_amount, paid_amount || total_amount, pending_amount,
                     payment_mode, payment_status,
                     discount_type || 'none', discount_value || 0,
+                    discount_remarks || null,
                     staffCode, // updated_by
-                    bill_master_id
+                    bill_master_id,
+                    contact_number,
+                    patient_name,
+                    patient_address
                 ]);
 
             } else {
@@ -115,13 +125,13 @@ class BillingController {
                         patient_id, mrn_number, patient_name, patient_address, contact_number,
                         billing_date, total_amount, paid_amount, pending_amount,
                         payment_mode, payment_status, status,
-                        discount_type, discount_value, created_by, invoice_type
+                        discount_type, discount_value, discount_remarks, created_by, invoice_type
                     ) VALUES (
                         $1, $2, $3, $4, $5,
                         $6, $7, $8, $9, $10,
                         $11, $12, $13, $14,
                         $15, $16, 'Paid',
-                        $17, $18, $19, $20
+                        $17, $18, $19, $20, $21
                     ) RETURNING bill_master_id
                 `;
 
@@ -130,7 +140,8 @@ class BillingController {
                     patient_id, mrn_number, patient_name, patient_address, contact_number,
                     billing_date || new Date(), total_amount, paid_amount || total_amount, pending_amount,
                     payment_mode, payment_status,
-                    discount_type || 'none', discount_value || 0, staffCode, // created_by
+                    discount_type || 'none', discount_value || 0, discount_remarks || null,
+                    staffCode, // created_by
                     is_mlc ? 'Emergency' : 'OPD' // invoice_type
                 ];
 
@@ -242,11 +253,11 @@ class BillingController {
 
             if (startDate) {
                 params.push(startDate);
-                queryText += ` AND bm.billing_date >= $${params.length}`;
+                queryText += ` AND DATE(bm.billing_date) >= $${params.length}`;
             }
             if (endDate) {
                 params.push(endDate);
-                queryText += ` AND bm.billing_date <= $${params.length}`;
+                queryText += ` AND DATE(bm.billing_date) <= $${params.length}`;
             }
             if (status) {
                 params.push(status);
@@ -263,7 +274,7 @@ class BillingController {
                 )`;
             }
 
-            queryText += ` ORDER BY bm.created_at DESC LIMIT 100`;
+            queryText += ` ORDER BY bm.updated_at DESC, bm.created_at DESC LIMIT 100`;
 
             const result = await query(queryText, params);
 

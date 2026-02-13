@@ -13,6 +13,7 @@ import MultiInputTags from './components/MultiInputTags';
 import QueueDetailsModal from './components/QueueDetailsModal';
 
 import { format } from 'date-fns';
+import InvoiceTemplate from '@/components/billing/InvoiceTemplate';
 import { useAI, AIInsightCard } from '@/components/ai';
 import { getDashboardInsights } from '@/lib/api/ai';
 
@@ -132,6 +133,26 @@ export default function ReceptionistDashboard() {
     // Chief Complaint Auto-Suggest
     const [showComplaintSuggestions, setShowComplaintSuggestions] = useState(false);
     const [showQueueModal, setShowQueueModal] = useState(false);
+
+    // Invoice View State
+    const [showInvoice, setShowInvoice] = useState(false);
+    const [selectedBill, setSelectedBill] = useState<any>(null);
+
+    const handleViewInvoice = async (billId: number) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.get(`${API_URL}/billing/${billId}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setSelectedBill({
+                ...response.data.data.bill,
+                items: response.data.data.items
+            });
+            setShowInvoice(true);
+        } catch (error) {
+            console.error('Error fetching bill details:', error);
+        }
+    };
 
     useEffect(() => {
         if (showQueueModal) {
@@ -2338,7 +2359,8 @@ export default function ReceptionistDashboard() {
                                                                 stats: [
                                                                     { label: 'Queue', value: queueCount, color: queueCount > 0 ? 'blue' as const : 'slate' as const },
                                                                     { label: 'Appts', value: apptCount, color: apptCount > 0 ? 'amber' as const : 'slate' as const }
-                                                                ]
+                                                                ],
+                                                                disabled: availInfo.status === 'unavailable'
                                                             };
                                                         })}
                                                         categories={['All', ...branchDepartments.map(d => d.department_name)]}
@@ -3196,10 +3218,13 @@ export default function ReceptionistDashboard() {
                     setAppointmentsRefreshKey(prev => prev + 1);
                 }}
                 opdData={billData || newOpdData} // Prioritize full data from billData (GET) over partial data from newOpdData (POST)
-                onSuccess={() => {
+                onSuccess={(data) => {
                     fetchStats();
                     fetchFollowUps();
                     setAppointmentsRefreshKey(prev => prev + 1);
+                    if (data && data.bill_master_id) {
+                        handleViewInvoice(data.bill_master_id);
+                    }
                 }}
             />
 
@@ -3214,6 +3239,42 @@ export default function ReceptionistDashboard() {
                 doctorSchedules={doctorSchedules}
                 appointments={allAppointments}
             />
+
+            {/* Invoice Modal */}
+            {showInvoice && selectedBill && (
+                <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 print:p-0 print:bg-white print:absolute print:inset-0">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto print:shadow-none print:w-full print:max-w-none print:h-auto print:overflow-visible">
+                        <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 print:hidden">
+                            <h2 className="text-lg font-bold text-gray-800">Invoice Preview</h2>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => window.print()}
+                                    className="p-2 text-gray-600 hover:bg-gray-200 rounded-lg flex items-center gap-2"
+                                >
+                                    <Printer className="w-4 h-4" /> Print
+                                </button>
+                                <button
+                                    onClick={() => setShowInvoice(false)}
+                                    className="p-2 hover:bg-red-50 text-gray-500 hover:text-red-500 rounded-lg"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+                        </div>
+                        <div className="print:block">
+                            <InvoiceTemplate
+                                billData={selectedBill}
+                                hospitalData={{
+                                    name: user?.hospital_name,
+                                    address: user?.address_line1 || 'Hospital Address',
+                                    phone: user?.contact_number,
+                                    email: user?.email
+                                }}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
         </div >
     );
 }

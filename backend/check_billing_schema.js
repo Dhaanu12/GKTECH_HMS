@@ -17,18 +17,9 @@ async function checkSchema() {
             SELECT column_name, data_type 
             FROM information_schema.columns 
             WHERE table_name = 'billing_master'
-            AND column_name = 'created_by';
+            ORDER BY column_name;
         `);
         console.table(res1.rows);
-
-        console.log('Checking bill_details schema...');
-        const res2 = await pool.query(`
-            SELECT column_name, data_type 
-            FROM information_schema.columns 
-            WHERE table_name = 'bill_details'
-            AND column_name = 'created_by';
-        `);
-        console.table(res2.rows);
 
     } catch (err) {
         console.error('Error:', err);
