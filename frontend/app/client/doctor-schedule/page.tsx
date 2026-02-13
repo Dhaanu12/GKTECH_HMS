@@ -11,6 +11,8 @@ import { useAuth } from '../../../lib/AuthContext';
 import { Search, Bell, Plus } from 'lucide-react';
 
 // Types
+import { OpdEntry } from '../../../components/doctor-schedule/SidebarWidgets';
+
 export interface Doctor {
     doctor_id: number;
     first_name: string;
@@ -21,12 +23,14 @@ export interface Doctor {
     start_time: string; // HH:mm:ss
     end_time: string; // HH:mm:ss
     avg_consultation_time: number;
+    patients_waiting?: number;
 }
 
 export default function DoctorSchedulePage() {
     const { user } = useAuth();
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     const [doctors, setDoctors] = useState<Doctor[]>([]);
+    const [opdQueue, setOpdQueue] = useState<OpdEntry[]>([]);
     const [loading, setLoading] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -65,9 +69,37 @@ export default function DoctorSchedulePage() {
         }
     };
 
+    const fetchOpdQueue = async () => {
+        try {
+            const formattedDate = format(selectedDate, 'yyyy-MM-dd');
+            const branchId = user?.branch_id || 1;
+
+            const response = await fetch(`http://localhost:5000/api/opd?startDate=${formattedDate}&endDate=${formattedDate}&branch_id=${branchId}`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.status === 'success') {
+                    // Filter for active/waiting patients if needed, or pass all for the widget to filter
+                    // Dashboard widget usually shows active/waiting
+                    const activeQueue = data.data.opdEntries.filter((entry: OpdEntry) =>
+                        ['Registered', 'In-consultation', 'Waiting'].includes(entry.visit_status)
+                    );
+                    setOpdQueue(activeQueue);
+                }
+            }
+        } catch (err) {
+            console.error("Failed to fetch OPD queue", err);
+        }
+    };
+
     useEffect(() => {
         if (user) {
             fetchDoctors();
+            fetchOpdQueue();
         }
     }, [selectedDate, user]);
 
@@ -156,7 +188,7 @@ export default function DoctorSchedulePage() {
                 {/* Right Column: Widgets */}
                 <div className="lg:col-span-1 space-y-8">
                     <AvailableDoctorsWidget doctors={doctors} />
-                    <OPDQueueWidget />
+                    <OPDQueueWidget queue={opdQueue} />
                 </div>
             </div>
 

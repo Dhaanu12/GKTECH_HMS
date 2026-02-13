@@ -59,7 +59,7 @@ export const KPIGrid = ({ data }: { data: any }) => {
             <KPICard
                 title="Total Patients"
                 value={data?.kpi?.total_patients_today || 0}
-                subtext="Today"
+                subtext="Total"
                 color="blue"
             />
             <KPICard
