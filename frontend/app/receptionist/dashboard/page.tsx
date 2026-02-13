@@ -2329,9 +2329,13 @@ export default function ReceptionistDashboard() {
 
                                         <div className="md:col-span-8 lg:col-span-8">
                                             {hasAppointment ? (
-                                                <div className="bg-blue-50 border border-blue-200 rounded-xl px-5 py-3 h-[52px] flex flex-col justify-center">
-                                                    <p className="text-[10px] text-blue-600 font-bold uppercase tracking-widest leading-tight">Assigned Doctor</p>
-                                                    <p className="font-bold text-slate-800 text-sm">Dr. {appointmentDoctorName}</p>
+                                                <div className="w-full">
+                                                    <label className="block text-sm font-bold text-slate-500 uppercase tracking-widest mb-2">Assigned Doctor</label>
+                                                    <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 h-[52px] flex items-center">
+                                                        <p className="font-bold text-slate-800 text-sm">
+                                                            {appointmentDoctorName.toLowerCase().startsWith('dr.') ? appointmentDoctorName : `Dr. ${appointmentDoctorName}`}
+                                                        </p>
+                                                    </div>
                                                 </div>
                                             ) : (
                                                 <>
