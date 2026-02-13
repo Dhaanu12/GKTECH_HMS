@@ -922,9 +922,18 @@ export default function ClientAdminReports() {
 
                 // Only include date params if user has set them
                 const params: any = {};
+                console.log('📅 Date Filter State:', {
+                    useCustomDates,
+                    startDate: dateRange.startDate,
+                    endDate: dateRange.endDate
+                });
+
                 if (useCustomDates && dateRange.startDate && dateRange.endDate) {
                     params.startDate = dateRange.startDate;
                     params.endDate = dateRange.endDate;
+                    console.log('✅ Adding date params to request:', params);
+                } else {
+                    console.log('⏭️ No custom dates - using backend defaults');
                 }
 
                 let res;
@@ -970,15 +979,20 @@ export default function ClientAdminReports() {
         };
 
         fetchData();
-    }, [activeTab, fetchTrigger]);
+    }, [activeTab, fetchTrigger, useCustomDates]);
 
     const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setDateRange(prev => ({ ...prev, [e.target.name]: e.target.value }));
     };
 
     const handleApplyFilter = () => {
+        console.log('🔘 Apply Filter clicked!', {
+            currentDateRange: dateRange,
+            currentUseCustomDates: useCustomDates
+        });
         setUseCustomDates(true);
         setFetchTrigger(prev => prev + 1);
+        console.log('📤 State updates dispatched: useCustomDates=true, fetchTrigger incremented');
     };
 
     const handleResetDates = () => {
