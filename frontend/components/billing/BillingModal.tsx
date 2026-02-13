@@ -42,10 +42,12 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, opdData, o
         if (opdData.opd_id) {
             try {
                 const token = localStorage.getItem('token');
-                const response = await axios.get(
-                    `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/billing/pending/${opdData.opd_id}`,
-                    { headers: { Authorization: `Bearer ${token}` } }
-                );
+                const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+                const url = opdData.bill_master_id
+                    ? `${baseUrl}/billing/pending/${opdData.opd_id}?bill_master_id=${opdData.bill_master_id}`
+                    : `${baseUrl}/billing/pending/${opdData.opd_id}`;
+
+                const response = await axios.get(url, { headers: { Authorization: `Bearer ${token}` } });
 
                 const { items: fetchedItems, patient_phone, caretaker_phone } = response.data.data;
 
@@ -194,21 +196,26 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, opdData, o
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
+            const discountPayload = discount.type !== 'none' ? { discount_type: discount.type, discount_value: discount.value } : {};
             const payload = {
                 opd_id: opdData.opd_id,
                 opd_number: opdData.opd_number,
+                bill_master_id: opdData.bill_master_id,
                 branch_id: opdData.branch_id,
                 patient_id: opdData.patient_id,
-                mrn_number: opdData.mrn_number || opdData.patient?.mrn_number,
-                patient_name: `${opdData.patient_first_name || opdData.patient?.first_name} ${opdData.patient_last_name || opdData.patient?.last_name || ''}`.trim(),
+                mrn_number: opdData.mrn_number,
+                patient_name: `${opdData.patient_first_name} ${opdData.patient_last_name}`,
                 contact_number: contactNumber,
-                payment_mode: isPayLater ? 'Cash' : paymentMode,
-                items: items.filter(i => i.status !== 'Cancelled'),
-                discount_type: discount.type,
-                discount_value: discount.value,
-                discount_remarks: discountRemarks, // Pass to backend
+                patient_address: `${opdData.patient?.address || ''} ${opdData.patient?.address_line2 || ''}`.trim(),
+                billing_date: new Date(),
+                payment_mode: (paymentMode === 'cash' || paymentMode === 'Cash') ? 'Cash' :
+                    (paymentMode === 'upi' || paymentMode === 'UPI') ? 'UPI' :
+                        (paymentMode === 'card' || paymentMode === 'Card') ? 'Card' : 'Cash',
+                items: items,
+                ...discountPayload,
                 total_amount: totals.total,
-                paid_amount: isPayLater ? 0 : totals.total
+                paid_amount: isPayLater ? 0 : totals.total,
+                discount_remarks: discountRemarks
             };
 
             const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/billing`, payload, {
