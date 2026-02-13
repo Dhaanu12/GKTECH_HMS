@@ -584,7 +584,13 @@ class OpdController {
 
             const result = await client.query(`
                 UPDATE opd_entries 
-                SET visit_status = $1, updated_at = CURRENT_TIMESTAMP
+                SET 
+                    visit_status = $1, 
+                    updated_at = CURRENT_TIMESTAMP,
+                    consultation_start_time = CASE 
+                        WHEN $1 = 'In-consultation' AND consultation_start_time IS NULL THEN CURRENT_TIMESTAMP 
+                        ELSE consultation_start_time 
+                    END
                 WHERE opd_id = $2 AND branch_id = $3
                 RETURNING *
             `, [visit_status, id, branch_id]);

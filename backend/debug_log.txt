@@ -149,3 +149,11 @@
 2026-02-11T05:53:39.204Z - Params: [55]
 2026-02-11T05:53:39.207Z - Query returned 13 rows.
 >>>>>>> origin/beta
+2026-02-13T01:42:49.660Z - getAllPatients called. User: 180, Branch: 55
+2026-02-13T01:42:49.694Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-13T01:42:49.698Z - Params: [55]
+2026-02-13T01:42:49.725Z - Query returned 5 rows.
+2026-02-13T01:42:49.778Z - getAllPatients called. User: 180, Branch: 55
+2026-02-13T01:42:49.780Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-13T01:42:49.786Z - Params: [55]
+2026-02-13T01:42:49.805Z - Query returned 5 rows.

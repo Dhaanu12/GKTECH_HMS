@@ -3211,6 +3211,8 @@ export default function ReceptionistDashboard() {
                 departments={branchDepartments}
                 yesterdayTotal={dashboardStats.yesterdayVisits}
                 todayTotal={dashboardStats.todayVisits}
+                doctorSchedules={doctorSchedules}
+                appointments={allAppointments}
             />
         </div >
     );

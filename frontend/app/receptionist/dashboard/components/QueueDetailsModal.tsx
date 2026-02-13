@@ -9,6 +9,8 @@ interface QueueDetailsModalProps {
     doctors: any[];
     departments: any[];
     todayTotal?: number;
+    doctorSchedules?: any[];
+    appointments?: any[];
 }
 
 const QueueDetailsModal: React.FC<QueueDetailsModalProps> = ({
@@ -17,15 +19,19 @@ const QueueDetailsModal: React.FC<QueueDetailsModalProps> = ({
     entries,
     doctors,
     departments,
-    todayTotal = 0
+    todayTotal = 0,
+    doctorSchedules = [],
+    appointments = []
 }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedDept, setSelectedDept] = useState('All');
     const [selectedDocId, setSelectedDocId] = useState('All');
     const [currentTime, setCurrentTime] = useState(new Date());
+    const [activeTab, setActiveTab] = useState<'up-next' | 'in-consultation'>('up-next');
 
     useEffect(() => {
         if (isOpen) {
+            setCurrentTime(new Date());
             const timer = setInterval(() => setCurrentTime(new Date()), 30000);
             return () => clearInterval(timer);
         }
@@ -33,10 +39,132 @@ const QueueDetailsModal: React.FC<QueueDetailsModalProps> = ({
 
     if (!isOpen) return null;
 
+    // --- Availability Logic (Copied & Adapted from Dashboard) ---
+
+    const formatTime12Hour = (time24: string) => {
+        if (!time24) return '';
+        const [hours, minutes] = time24.split(':').map(Number);
+        const period = hours >= 12 ? 'PM' : 'AM';
+        const h = hours % 12 || 12;
+        return `${h}:${minutes.toString().padStart(2, '0')} ${period}`;
+    };
+
+    const generateTimeSlotsFromSchedule = (doctorId: string, selectedDate: string) => {
+        if (!doctorId || !selectedDate) return [];
+
+        const date = new Date(selectedDate);
+        const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
+
+        const doctorDaySchedules = doctorSchedules.filter(
+            (schedule: any) =>
+                schedule.doctor_id === parseInt(doctorId) &&
+                schedule.day_of_week === dayOfWeek
+        );
+
+        if (doctorDaySchedules.length === 0) return [];
+
+        const slots: string[] = [];
+        doctorDaySchedules.forEach((schedule: any) => {
+            const startTime = schedule.start_time;
+            const endTime = schedule.end_time;
+            const consultationTime = schedule.avg_consultation_time || 30;
+
+            const parseTime = (timeStr: string) => {
+                const [hours, minutes] = timeStr.split(':').map(Number);
+                const d = new Date();
+                d.setHours(hours, minutes, 0, 0);
+                return d;
+            };
+
+            let current = parseTime(startTime);
+            const end = parseTime(endTime);
+
+            const now = new Date();
+            const isToday = new Date(selectedDate).toDateString() === now.toDateString();
+            const cutoffTime = new Date(now.getTime() + 15 * 60000); // 15 min buffer
+
+            while (current < end) {
+                if (isToday) {
+                    const slotTime = new Date(now);
+                    slotTime.setHours(current.getHours(), current.getMinutes(), 0, 0);
+                    if (slotTime > cutoffTime) {
+                        const timeStr = current.toTimeString().slice(0, 5);
+                        slots.push(timeStr);
+                    }
+                } else {
+                    const timeStr = current.toTimeString().slice(0, 5);
+                    slots.push(timeStr);
+                }
+                current = new Date(current.getTime() + consultationTime * 60000);
+            }
+        });
+
+        const uniqueSlots = Array.from(new Set(slots)).sort();
+        return uniqueSlots.map(time => {
+            const isBooked = appointments.some((appt: any) => {
+                let aptDate = '';
+                if (appt.appointment_date) {
+                    const d = new Date(appt.appointment_date);
+                    aptDate = format(d, 'yyyy-MM-dd');
+                }
+                const aptTime = appt.appointment_time ? appt.appointment_time.slice(0, 5) : '';
+                return (
+                    appt.doctor_id === parseInt(doctorId) &&
+                    aptDate === selectedDate &&
+                    aptTime === time &&
+                    ['Scheduled', 'Confirmed'].includes(appt.appointment_status)
+                );
+            });
+            return { time, status: isBooked ? 'booked' : 'available' };
+        }).filter(s => s.status === 'available');
+    };
+
+    const getDoctorAvailabilityInfo = (doctorId: number) => {
+        const dateStr = format(currentTime, 'yyyy-MM-dd');
+        const dayOfWeek = currentTime.toLocaleDateString('en-US', { weekday: 'long' });
+
+        const schedules = doctorSchedules.filter((s: any) =>
+            s.doctor_id === doctorId && s.day_of_week === dayOfWeek
+        );
+
+        if (schedules.length === 0) return { status: 'unavailable', text: 'Unavailable today' };
+
+        const shiftText = schedules.map((s: any) =>
+            `${formatTime12Hour(s.start_time)} - ${formatTime12Hour(s.end_time)}`
+        ).join(', ');
+
+        const remainingSlots = generateTimeSlotsFromSchedule(doctorId.toString(), dateStr);
+
+        if (remainingSlots && remainingSlots.length > 0) {
+            return { status: 'available', text: shiftText };
+        }
+
+        // No slots logic
+        const nowMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
+        const futureShifts = schedules.filter((s: any) => {
+            const [h, m] = s.start_time.split(':').map(Number);
+            return (h * 60 + m) > nowMinutes;
+        });
+
+        if (futureShifts.length > 0) {
+            const nextShift = futureShifts.sort((a: any, b: any) => {
+                const [ah, am] = a.start_time.split(':').map(Number);
+                const [bh, bm] = b.start_time.split(':').map(Number);
+                return (ah * 60 + am) - (bh * 60 + bm);
+            })[0];
+            // Still considered "available" to be in the list, but maybe with next shift info?
+            // User just said "if unavailable say unavailable". 
+            // Logic in dashboard: returns 'next'. 
+            return { status: 'next', text: `Next: ${formatTime12Hour(nextShift.start_time)}` };
+        }
+
+        return { status: 'unavailable', text: 'Unavailable' };
+    };
+
+
     // Filter Logic
     const filteredEntries = entries
         .filter(entry => {
-            // Filter out completed and cancelled visits
             if (['Completed', 'Cancelled'].includes(entry.visit_status)) return false;
 
             const matchesSearch = searchQuery === '' ||
@@ -51,15 +179,34 @@ const QueueDetailsModal: React.FC<QueueDetailsModalProps> = ({
             return matchesSearch && matchesDept && matchesDoc;
         })
         .sort((a, b) => {
-            // Sort by check-in time (oldest first - FIFO)
             const timeA = new Date(a.checked_in_time).getTime();
             const timeB = new Date(b.checked_in_time).getTime();
             return timeA - timeB;
         });
 
-    // Split Queues
     const priorityQueue = filteredEntries.filter(e => e.is_mlc);
     const regularQueue = filteredEntries.filter(e => !e.is_mlc);
+
+    // Group regular queue items by doctor to get unique/one-per-doc lists
+    const inConsultationList = regularQueue
+        .filter(e => e.visit_status === 'In-consultation')
+        .reduce((acc: any[], current) => {
+            if (!acc.find(item => item.doctor_id === current.doctor_id)) {
+                acc.push(current);
+            }
+            return acc;
+        }, []);
+
+    const upNextList = regularQueue
+        .filter(e => e.visit_status === 'Registered')
+        .reduce((acc: any[], current) => {
+            if (!acc.find(item => item.doctor_id === current.doctor_id)) {
+                acc.push(current);
+            }
+            return acc;
+        }, []);
+
+    const activeList = activeTab === 'up-next' ? upNextList : inConsultationList;
 
     const calculateWaitTime = (checkedInTime: string) => {
         if (!checkedInTime) return '0m';
@@ -104,30 +251,81 @@ const QueueDetailsModal: React.FC<QueueDetailsModalProps> = ({
         }
     };
 
+    const sortedDoctors = [...doctors].sort((a, b) =>
+        (a.first_name || '').localeCompare(b.first_name || '')
+    );
+
+    const getSelectedDoctorName = () => {
+        if (selectedDocId === 'All') return 'All Doctors';
+        const doc = doctors.find(d => d.doctor_id.toString() === selectedDocId);
+        return doc ? `Dr. ${doc.first_name} ${doc.last_name}` : 'Unknown Doctor';
+    };
+
     const QueueTable = ({ data, type }: { data: any[], type: 'priority' | 'regular' }) => (
         <div className={`overflow-hidden rounded-[20px] border ${type === 'priority' ? 'border-red-100 shadow-red-500/5' : 'border-slate-200/60 shadow-sm'} bg-white mb-6`}>
             {/* Table Header */}
-            <div className={`px-6 py-4 border-b ${type === 'priority' ? 'bg-red-50/50 border-red-100' : 'bg-slate-50/50 border-slate-100'} flex items-center justify-between`}>
-                <div className="flex items-center gap-3">
-                    {type === 'priority' ? (
+            {/* Table Header */}
+            {type === 'priority' ? (
+                <div className="px-6 py-4 border-b bg-red-50/50 border-red-100 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600 shadow-sm border border-red-200">
                             <AlertCircle className="w-5 h-5" />
                         </div>
-                    ) : (
-                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 shadow-sm border border-blue-200">
-                            <Users className="w-5 h-5" />
+                        <div>
+                            <h3 className="text-base font-bold text-red-900">Priority Queue (MLC)</h3>
+                            <p className="text-xs font-medium text-red-600">{data.length} Patients Waiting</p>
                         </div>
-                    )}
-                    <div>
-                        <h3 className={`text-base font-bold ${type === 'priority' ? 'text-red-900' : 'text-slate-800'}`}>
-                            {type === 'priority' ? 'Priority Queue (MLC)' : 'Standard Queue'}
-                        </h3>
-                        <p className={`text-xs font-medium ${type === 'priority' ? 'text-red-600' : 'text-slate-500'}`}>
-                            {data.length} Patients Waiting
-                        </p>
                     </div>
                 </div>
-            </div>
+            ) : (
+                <div className="p-2 border-b bg-slate-50/50 border-slate-100">
+                    <div className="flex bg-slate-100/80 p-1.5 rounded-2xl w-full relative">
+                        {/* Tab: Up Next */}
+                        <button
+                            onClick={() => setActiveTab('up-next')}
+                            className={`flex-1 flex items-center justify-center gap-3 py-3 px-4 rounded-xl transition-all duration-300 ${activeTab === 'up-next'
+                                ? 'bg-white shadow-sm ring-1 ring-black/5 text-slate-800'
+                                : 'text-slate-500 hover:bg-slate-200/50 hover:text-slate-700'
+                                }`}
+                        >
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${activeTab === 'up-next' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-200/50 text-slate-400'
+                                }`}>
+                                <Users className="w-4 h-4" />
+                            </div>
+                            <div className="text-left">
+                                <p className={`text-sm font-bold leading-tight ${activeTab === 'up-next' ? 'text-slate-900' : 'text-current'}`}>
+                                    Up Next
+                                </p>
+                                <p className="text-[11px] font-medium opacity-70">
+                                    {upNextList.length} Waiting
+                                </p>
+                            </div>
+                        </button>
+
+                        {/* Tab: In-Consultation */}
+                        <button
+                            onClick={() => setActiveTab('in-consultation')}
+                            className={`flex-1 flex items-center justify-center gap-3 py-3 px-4 rounded-xl transition-all duration-300 ${activeTab === 'in-consultation'
+                                ? 'bg-white shadow-sm ring-1 ring-black/5 text-slate-800'
+                                : 'text-slate-500 hover:bg-slate-200/50 hover:text-slate-700'
+                                }`}
+                        >
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${activeTab === 'in-consultation' ? 'bg-blue-50 text-blue-600' : 'bg-slate-200/50 text-slate-400'
+                                }`}>
+                                <Users className="w-4 h-4" />
+                            </div>
+                            <div className="text-left">
+                                <p className={`text-sm font-bold leading-tight ${activeTab === 'in-consultation' ? 'text-slate-900' : 'text-current'}`}>
+                                    In-Consultation
+                                </p>
+                                <p className="text-[11px] font-medium opacity-70">
+                                    {inConsultationList.length} Active
+                                </p>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+            )}
 
             <table className="w-full">
                 <thead className="bg-slate-50/30 border-b border-slate-100">
@@ -136,12 +334,38 @@ const QueueDetailsModal: React.FC<QueueDetailsModalProps> = ({
                         <th className="text-left py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-widest">Patient Details</th>
                         <th className="text-left py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-widest">Doctor & Dept</th>
                         <th className="text-left py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-widest">Status</th>
-                        <th className="text-right py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-widest pr-8">Wait Time</th>
+                        <th className="text-right py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-widest pr-8">
+                            {type === 'regular' && activeTab === 'in-consultation' ? 'Consultation Time' : 'Wait Time'}
+                        </th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                     {data.map((entry) => {
                         const colors = getTokenStyle(entry);
+
+                        // Calculate time display
+                        let timeDisplay = '';
+                        const showConsultationTime = type === 'regular' && activeTab === 'in-consultation';
+                        if (showConsultationTime) {
+                            const startTime = entry.consultation_start_time || entry.updated_at;
+                            if (startTime) {
+                                const start = new Date(startTime).getTime();
+                                const now = new Date().getTime();
+                                const diff = Math.max(0, Math.floor((now - start) / 60000));
+                                if (diff >= 60) {
+                                    const h = Math.floor(diff / 60);
+                                    const m = diff % 60;
+                                    timeDisplay = `${h}h ${m}m`;
+                                } else {
+                                    timeDisplay = `${diff}m`;
+                                }
+                            } else {
+                                timeDisplay = '-';
+                            }
+                        } else {
+                            timeDisplay = calculateWaitTime(entry.checked_in_time);
+                        }
+
                         return (
                             <tr key={entry.opd_id} className="group hover:bg-slate-50/80 transition-colors">
                                 <td className="py-5 px-6 pl-8">
@@ -181,12 +405,12 @@ const QueueDetailsModal: React.FC<QueueDetailsModalProps> = ({
                                 <td className="py-5 px-6 text-right pr-8">
                                     <div className="flex flex-col items-end">
                                         <span className="text-lg font-bold text-slate-700 tabular-nums tracking-tight">
-                                            {calculateWaitTime(entry.checked_in_time)}
+                                            {timeDisplay}
                                         </span>
                                         <div className="flex items-center gap-1.5 mt-1 opacity-70">
                                             <Clock className="w-3.5 h-3.5 text-slate-400" />
                                             <span className="text-xs font-semibold text-slate-500">
-                                                Since {entry.checked_in_time ? format(new Date(entry.checked_in_time), 'hh:mm a') : '--:--'}
+                                                {showConsultationTime ? 'Duration' : `Since ${entry.checked_in_time ? format(new Date(entry.checked_in_time), 'hh:mm a') : '--:--'}`}
                                             </span>
                                         </div>
                                     </div>
@@ -206,17 +430,13 @@ const QueueDetailsModal: React.FC<QueueDetailsModalProps> = ({
         completed: entries.filter(e => e.visit_status === 'Completed').length,
     };
 
-    // Calculate growth (mock logic for demo, or real if yesterday data exists)
-    const growthPercent = 12; // Placeholder or calculate if yesterday total available
+    const growthPercent = 12;
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
             <div className="bg-[#F8FAFC] w-full max-w-6xl h-[90vh] rounded-[32px] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300 border border-white/50 ring-1 ring-white/20">
 
-                {/* Header & Stats Section */}
                 <div className="px-8 pt-8 pb-6 flex flex-col gap-8 bg-white/80 backdrop-blur-xl border-b border-slate-200/60 sticky top-0 z-20 shadow-sm/50">
-
-                    {/* Top Bar */}
                     <div className="flex items-start justify-between">
                         <div>
                             <h2 className="text-3xl font-bold text-slate-800 flex items-center gap-3 tracking-tight">
@@ -232,9 +452,7 @@ const QueueDetailsModal: React.FC<QueueDetailsModalProps> = ({
                         </button>
                     </div>
 
-                    {/* Stats Cards Row */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {/* Total Asset Value Style Card */}
                         <div className="bg-white p-6 rounded-[24px] shadow-sm border border-slate-100 flex flex-col justify-center relative overflow-hidden group">
                             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                                 <Users className="w-16 h-16 text-slate-400" />
@@ -248,7 +466,6 @@ const QueueDetailsModal: React.FC<QueueDetailsModalProps> = ({
                             </div>
                         </div>
 
-                        {/* Line Distribution Graph */}
                         <div className="md:col-span-2 bg-white p-6 rounded-[24px] shadow-sm border border-slate-100 flex flex-col justify-center">
                             <div className="flex items-center justify-between mb-4">
                                 <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Queue Status Breakdown</span>
@@ -295,9 +512,7 @@ const QueueDetailsModal: React.FC<QueueDetailsModalProps> = ({
                     </div>
                 </div>
 
-                {/* Control Bar (Filters) */}
                 <div className="px-8 py-4 bg-white border-b border-slate-200/60 flex flex-col md:flex-row items-center gap-4 sticky top-[230px] z-10 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)]">
-                    {/* Search Field */}
                     <div className="relative flex-1 w-full">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                         <input
@@ -309,34 +524,15 @@ const QueueDetailsModal: React.FC<QueueDetailsModalProps> = ({
                         />
                     </div>
 
-                    {/* Date Selector (Static/Read-only) */}
                     <div className="bg-slate-50 px-5 py-3 rounded-xl flex items-center gap-3 border border-transparent cursor-default">
                         <Calendar className="w-5 h-5 text-slate-400" />
                         <span className="text-sm font-bold text-slate-600">{format(new Date(), 'dd MMM, yyyy')}</span>
                     </div>
 
-                    {/* Dropdowns */}
                     <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto">
                         <div className="bg-slate-50 px-5 py-3 rounded-xl flex items-center gap-2 min-w-fit cursor-pointer hover:bg-slate-100 transition-colors group relative border border-transparent hover:border-slate-200">
                             <span className="text-sm font-bold text-slate-600 group-hover:text-slate-800">
-                                {selectedDept === 'All' ? 'Department' : selectedDept}
-                            </span>
-                            <ChevronDown className="w-4 h-4 text-slate-400 ml-2" />
-                            <select
-                                value={selectedDept}
-                                onChange={(e) => setSelectedDept(e.target.value)}
-                                className="absolute inset-0 opacity-0 cursor-pointer"
-                            >
-                                <option value="All">All Departments</option>
-                                {departments.map(dept => (
-                                    <option key={dept.department_id} value={dept.department_name}>{dept.department_name}</option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div className="bg-slate-50 px-5 py-3 rounded-xl flex items-center gap-2 min-w-fit cursor-pointer hover:bg-slate-100 transition-colors group relative border border-transparent hover:border-slate-200">
-                            <span className="text-sm font-bold text-slate-600 group-hover:text-slate-800">
-                                {selectedDocId === 'All' ? 'Doctor' : 'Selected Doctor'}
+                                {getSelectedDoctorName()}
                             </span>
                             <ChevronDown className="w-4 h-4 text-slate-400 ml-2" />
                             <select
@@ -345,20 +541,28 @@ const QueueDetailsModal: React.FC<QueueDetailsModalProps> = ({
                                 className="absolute inset-0 opacity-0 cursor-pointer"
                             >
                                 <option value="All">All Doctors</option>
-                                {doctors.map(doc => (
-                                    <option key={doc.doctor_id} value={doc.doctor_id.toString()}>
-                                        Dr. {doc.first_name} {doc.last_name}
-                                    </option>
-                                ))}
+                                {sortedDoctors.map(doc => {
+                                    const availability = getDoctorAvailabilityInfo(doc.doctor_id);
+                                    const isUnavailable = availability.status === 'unavailable';
+
+                                    return (
+                                        <option
+                                            key={doc.doctor_id}
+                                            value={doc.doctor_id.toString()}
+                                            disabled={isUnavailable}
+                                            className={isUnavailable ? 'text-red-500 bg-red-50 italic font-medium' : 'text-slate-900'}
+                                        >
+                                            Dr. {doc.first_name} {doc.last_name} {isUnavailable ? '(Unavailable)' : ''}
+                                        </option>
+                                    );
+                                })}
                             </select>
                         </div>
                     </div>
                 </div>
 
-                {/* Table Content */}
                 <div className="flex-1 overflow-auto bg-[#F8FAFC] px-8 py-8">
                     {filteredEntries.length === 0 ? (
-                        // If no entries at all (but total > 0 maybe?), or just empty queue
                         <div className="flex flex-col items-center justify-center h-full opacity-60 min-h-[400px]">
                             <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-6">
                                 <Users className="w-10 h-10 text-slate-400" />
@@ -372,11 +576,10 @@ const QueueDetailsModal: React.FC<QueueDetailsModalProps> = ({
                                 <QueueTable data={priorityQueue} type="priority" />
                             )}
 
-                            {regularQueue.length > 0 && (
-                                <QueueTable data={regularQueue} type="regular" />
+                            {(upNextList.length > 0 || inConsultationList.length > 0 || regularQueue.length > 0) && (
+                                <QueueTable data={activeList} type="regular" />
                             )}
 
-                            {/* If filters hide everything but search has potential matches */}
                             {priorityQueue.length === 0 && regularQueue.length === 0 && (
                                 <div className="text-center py-20">
                                     <p className="text-xl font-medium text-slate-500">No matching entries found.</p>
