@@ -25,19 +25,9 @@ async function getAssignedBranchIds(user) {
         : [user.branch_id].filter(Boolean);
 }
 
-// Helper to set timezone for pool connections? 
-// pg pool doesn't have a simple 'on connect' for every client easily without event listener.
-// But we relied on DEFAULT value in DB for inserts. For valid DATE object retrieval, node-pg converts based on local system time usually.
-// Let's focus on logic.
-
 // Helper to check status
 const calculateStatus = (data) => {
     // Critical Fields (All must be present for 'Pending')
-    // Personal/Professional: doctor_name, mobile_number, speciality_type, department_id, medical_council_membership_number, council, clinic_name, address
-    // Identity: pan_card_number, aadhar_card_number (or their uploads? Requirement implied fields)
-    // Bank: bank_name, bank_branch, bank_address, bank_account_number, bank_ifsc_code
-    // Files: photo_upload_path, pan_upload_path, aadhar_upload_path, clinic_photo_path, kyc_upload_path
-
     // Helper: is non-empty string or present
     const isPresent = (val) => val && val.toString().trim() !== '';
 
@@ -52,9 +42,6 @@ const calculateStatus = (data) => {
     const missing = requiredFields.filter(field => !isPresent(data[field]));
 
     // If NO missing fields, it's Pending. Otherwise Initialization.
-    // Note: 'Active' is set by Accountant later. We only toggle between Initialization and Pending here.
-    // If NO missing fields, it's Pending. Otherwise Initialization.
-    // Note: 'Active' is set by Accountant later. We only toggle between Initialization and Pending here.
     return missing.length === 0 ? 'Pending' : 'Initialization';
 };
 
@@ -142,7 +129,6 @@ exports.createReferralDoctor = async (req, res) => {
 
         if (uniquenessCheck.isDuplicate) {
             // Delete uploaded files if validation fails to prevent orphan files
-            // (Implementation optional but good practice - skipping for brevity/safety unless specific requirement)
             return res.status(400).json({ success: false, message: `${uniquenessCheck.field} already exists.` });
         }
 
@@ -186,7 +172,7 @@ exports.createReferralDoctor = async (req, res) => {
             sanitizeNumeric(geo_latitude), sanitizeNumeric(geo_longitude), sanitizeNumeric(geo_accuracy), created_by, clinic_name,
             req.user ? req.user.branch_id : null,
             status,
-            req.body.referral_means, req.body.means_id
+            req.body.referral_means, sanitizeNumeric(req.body.means_id)
         ];
 
         const result = await pool.query(query, values);
@@ -347,11 +333,6 @@ exports.updateReferralDoctor = async (req, res) => {
 
 exports.getAllReferralDoctors = async (req, res) => {
     try {
-        // Join to get Agent Name or Doctor Name if referred by them
-        /*
-          referral_means = 'Agent' -> join referral_agents on means_id
-          referral_means = 'Doctor' -> join referral_doctor_module on means_id
-        */
         let query = `
             SELECT rdm.*, 
                    ra.name as referral_agent_name, 
@@ -366,11 +347,20 @@ exports.getAllReferralDoctors = async (req, res) => {
         `;
         const params = [];
 
-        // Filter by assigned branch IDs
+        // 1. Tenant Scope (Mandatory if meaningful)
+        const tenantId = req.user.hospital_id || req.user.tenant_id;
+        if (tenantId) {
+            query += ` AND rdm.tenant_id = $${params.length + 1}`;
+            params.push(tenantId);
+        }
+
+        // 2. Branch Scope (Optional refinement)
         const branchIds = await getAssignedBranchIds(req.user);
         if (branchIds.length > 0) {
-            query += ` AND rdm.branch_id = ANY($${params.length + 1})`;
+            // Show if in my branch OR created by me
+            query += ` AND (rdm.branch_id = ANY($${params.length + 1}) OR rdm.created_by = $${params.length + 2})`;
             params.push(branchIds);
+            params.push(req.user.username || req.user.user_id.toString());
         }
 
         // Accountant Flow: Filter out 'Initialization' state
@@ -417,6 +407,7 @@ exports.getAllReferralDoctors = async (req, res) => {
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };
+
 exports.getReferralDoctorById = async (req, res) => {
     console.log('getReferralDoctorById hit! params:', req.params);
     try {
