@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Search, Check, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Check, X, ChevronLeft, ChevronRight, Download, Upload } from 'lucide-react';
 
 interface Service {
     service_id: number;
@@ -32,6 +32,8 @@ export default function MedicalServicesSelector({
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [downloading, setDownloading] = useState(false);
+    const [uploading, setUploading] = useState(false);
     const limit = 50;
 
     useEffect(() => {
@@ -164,14 +166,130 @@ export default function MedicalServicesSelector({
         }
     };
 
+    const handleDownloadExcel = async () => {
+        if (!hospitalId && !branchId) return;
+
+        setDownloading(true);
+        try {
+            const token = localStorage.getItem('token');
+            const entityType = branchId ? 'branch' : 'hospital';
+            const entityId = branchId || hospitalId;
+
+            const response = await axios.get(
+                `http://localhost:5000/api/medical-services/${entityType}/${entityId}/excel-download`,
+                {
+                    headers: { Authorization: `Bearer ${token}` },
+                    responseType: 'blob'
+                }
+            );
+
+            // Create download link
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `medical-services-${entityType}-${entityId}.xlsx`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (error: any) {
+            console.error('Error downloading Excel:', error);
+            alert(error.response?.data?.message || 'Failed to download Excel file');
+        } finally {
+            setDownloading(false);
+        }
+    };
+
+    const handleUploadExcel = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file || !hospitalId && !branchId) return;
+
+        setUploading(true);
+        try {
+            const token = localStorage.getItem('token');
+            const entityType = branchId ? 'branch' : 'hospital';
+            const entityId = branchId || hospitalId;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await axios.post(
+                `http://localhost:5000/api/medical-services/${entityType}/${entityId}/excel-upload`,
+                formData,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        'Content-Type': 'multipart/form-data'
+                    }
+                }
+            );
+
+            alert(response.data.message || 'Services imported successfully!');
+
+            // Refresh the data
+            if (branchId) {
+                await fetchExistingBranchServices();
+            } else if (hospitalId) {
+                await fetchExistingHospitalServices();
+            }
+            await fetchServices();
+
+            if (onSave) {
+                onSave(Array.from(selectedServiceIds));
+            }
+        } catch (error: any) {
+            console.error('Error uploading Excel:', error);
+            const errorMsg = error.response?.data?.message || 'Failed to upload Excel file';
+            const errors = error.response?.data?.errors;
+
+            if (errors && errors.length > 0) {
+                alert(`${errorMsg}:\n\n${errors.join('\n')}`);
+            } else {
+                alert(errorMsg);
+            }
+        } finally {
+            setUploading(false);
+            // Reset file input
+            event.target.value = '';
+        }
+    };
+
     return (
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
             {/* Header */}
             <div className="border-b border-gray-200 p-4">
-                <h3 className="text-lg font-semibold text-gray-900">Select Medical Services</h3>
-                <p className="text-sm text-gray-500 mt-1">
-                    Selected: {selectedServiceIds.size} of {total} services
-                </p>
+                <div className="flex justify-between items-start">
+                    <div>
+                        <h3 className="text-lg font-semibold text-gray-900">Select Medical Services</h3>
+                        <p className="text-sm text-gray-500 mt-1">
+                            Selected: {selectedServiceIds.size} of {total} services
+                        </p>
+                    </div>
+                    {!readOnly && (
+                        <div className="flex gap-2">
+                            <button
+                                onClick={handleDownloadExcel}
+                                disabled={downloading}
+                                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Download Excel template"
+                            >
+                                <Download className="w-4 h-4" />
+                                {downloading ? 'Downloading...' : 'Download Excel'}
+                            </button>
+                            <label className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors cursor-pointer disabled:opacity-50">
+                                <Upload className="w-4 h-4" />
+                                {uploading ? 'Uploading...' : 'Upload Excel'}
+                                <input
+                                    type="file"
+                                    accept=".xlsx,.xls"
+                                    onChange={handleUploadExcel}
+                                    disabled={uploading}
+                                    className="hidden"
+                                />
+                            </label>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Category Tabs */}

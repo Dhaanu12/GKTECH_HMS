@@ -18,6 +18,9 @@ router.get('/stats', authorize('CLIENT_ADMIN'), clientAdminController.getDashboa
 // GET /api/clientadmins/analytics - Get comprehensive analytics for logged-in Client Admin
 router.get('/analytics', authorize('CLIENT_ADMIN', 'RECEPTIONIST'), clientAdminController.getAnalytics);
 
+// GET /api/clientadmins/executive-stats - Get executive dashboard stats
+router.get('/executive-stats', authorize('CLIENT_ADMIN'), clientAdminController.getExecutiveStats);
+
 // --- NEW Reporting System Routes ---
 const reportingController = require('../controllers/reportingController');
 

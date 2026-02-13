@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment } from 'react';
 import axios from 'axios';
-import { Plus, Edit2, ChevronDown, ChevronRight, IndianRupee, Trash2, Copy, Save, X } from 'lucide-react';
+import { Plus, Edit2, ChevronDown, ChevronRight, IndianRupee, Trash2, Copy, Save, X, Download, Upload } from 'lucide-react';
 import PackageModal from './PackageModal';
 
 const API_URL = 'http://localhost:5000/api';
@@ -34,6 +34,8 @@ export default function BillingSetupFormNew({ branchId, onClose, branches = [] }
     const [showPackageModal, setShowPackageModal] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [editingRows, setEditingRows] = useState<Map<number, { patient_charge: string; b2b_charge: string; special_charge: string; package_items?: any[] }>>(new Map());
+    const [downloading, setDownloading] = useState(false);
+    const [uploading, setUploading] = useState(false);
 
     useEffect(() => {
         if (branchId) {
@@ -157,6 +159,16 @@ export default function BillingSetupFormNew({ branchId, onClose, branches = [] }
         }
     };
 
+    const cancelEdit = (index: number) => {
+        const newSelectedIds = new Set(selectedIds);
+        newSelectedIds.delete(index);
+        setSelectedIds(newSelectedIds);
+
+        const newEditingRows = new Map(editingRows);
+        newEditingRows.delete(index);
+        setEditingRows(newEditingRows);
+    };
+
     const handleBulkEdit = () => {
         if (selectedIds.size === 0) {
             alert('Please select at least one service');
@@ -210,6 +222,77 @@ export default function BillingSetupFormNew({ branchId, onClose, branches = [] }
         s.category?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    const handleDownloadExcel = async () => {
+        if (!branchId) return;
+
+        setDownloading(true);
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.get(
+                `${API_URL}/billing-setup/branch/${branchId}/excel-download`,
+                {
+                    headers: { Authorization: `Bearer ${token}` },
+                    responseType: 'blob'
+                }
+            );
+
+            // Create download link
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `billing-setup-branch-${branchId}.xlsx`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (error: any) {
+            console.error('Error downloading Excel:', error);
+            alert(error.response?.data?.message || 'Failed to download Excel file');
+        } finally {
+            setDownloading(false);
+        }
+    };
+
+    const handleUploadExcel = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file || !branchId) return;
+
+        setUploading(true);
+        try {
+            const token = localStorage.getItem('token');
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await axios.post(
+                `${API_URL}/billing-setup/branch/${branchId}/excel-upload`,
+                formData,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        'Content-Type': 'multipart/form-data'
+                    }
+                }
+            );
+
+            alert(response.data.message || 'Billing configured successfully from Excel!');
+            await fetchServicesWithPricing();
+        } catch (error: any) {
+            console.error('Error uploading Excel:', error);
+            const errorMsg = error.response?.data?.message || 'Failed to upload Excel file';
+            const errors = error.response?.data?.errors;
+
+            if (errors && errors.length > 0) {
+                alert(`${errorMsg}:\n\n${errors.join('\n')}`);
+            } else {
+                alert(errorMsg);
+            }
+        } finally {
+            setUploading(false);
+            // Reset file input
+            event.target.value = '';
+        }
+    };
+
     return (
         <div className="w-full">
             {/* Header */}
@@ -218,6 +301,13 @@ export default function BillingSetupFormNew({ branchId, onClose, branches = [] }
                     <h2 className="text-2xl font-bold text-gray-900">Billing Configuration</h2>
                     <p className="text-sm text-gray-500 mt-1">Manage pricing for all medical services</p>
                 </div>
+                <button
+                    onClick={onClose}
+                    className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                    title="Close"
+                >
+                    <X className="w-6 h-6 text-gray-500" />
+                </button>
             </div>
 
             {/* Actions Bar */}
@@ -240,6 +330,25 @@ export default function BillingSetupFormNew({ branchId, onClose, branches = [] }
                                 Bulk Edit ({selectedIds.size})
                             </button>
                         )}
+                        <button
+                            onClick={handleDownloadExcel}
+                            disabled={downloading}
+                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center gap-2 disabled:opacity-50"
+                        >
+                            <Download className="w-4 h-4" />
+                            {downloading ? 'Downloading...' : 'Download Excel'}
+                        </button>
+                        <label className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition flex items-center gap-2 cursor-pointer">
+                            <Upload className="w-4 h-4" />
+                            {uploading ? 'Uploading...' : 'Upload Excel'}
+                            <input
+                                type="file"
+                                accept=".xlsx,.xls"
+                                onChange={handleUploadExcel}
+                                disabled={uploading}
+                                className="hidden"
+                            />
+                        </label>
                     </div>
                     <input
                         type="text"
@@ -361,13 +470,22 @@ export default function BillingSetupFormNew({ branchId, onClose, branches = [] }
                                                 </td>
                                                 <td className="p-3">
                                                     {isEditing ? (
-                                                        <button
-                                                            onClick={() => saveRow(idx, service)}
-                                                            className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm flex items-center gap-1"
-                                                        >
-                                                            <Save className="w-4 h-4" />
-                                                            Save
-                                                        </button>
+                                                        <div className="flex items-center gap-2">
+                                                            <button
+                                                                onClick={() => saveRow(idx, service)}
+                                                                className="p-1 bg-green-600 text-white rounded hover:bg-green-700"
+                                                                title="Save"
+                                                            >
+                                                                <Save className="w-4 h-4" />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => cancelEdit(idx)}
+                                                                className="p-1 bg-red-100 text-red-600 rounded hover:bg-red-200"
+                                                                title="Cancel"
+                                                            >
+                                                                <X className="w-4 h-4" />
+                                                            </button>
+                                                        </div>
                                                     ) : null}
                                                 </td>
                                             </tr>
@@ -431,7 +549,13 @@ export default function BillingSetupFormNew({ branchId, onClose, branches = [] }
             {/* Bulk Edit Modal */}
             {bulkEditMode && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-xl p-6 w-full max-w-md">
+                    <div className="bg-white rounded-xl p-6 w-full max-w-md relative">
+                        <button
+                            onClick={() => setBulkEditMode(false)}
+                            className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
                         <h3 className="text-xl font-bold mb-4">Bulk Edit Prices</h3>
                         <p className="text-sm text-gray-600 mb-4">Editing {selectedIds.size} services</p>
 
