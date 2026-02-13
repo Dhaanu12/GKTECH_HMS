@@ -713,16 +713,23 @@ class OpdController {
                 WHERE branch_id = $1 AND appointment_date = CURRENT_DATE
             `, [branch_id]);
 
-            // 5. Financial Stats (Today)
+            // 5. Queue Status (Today)
+            const queueResult = await query(`
+                SELECT COUNT(*) as queue_count
+                FROM opd_entries
+                WHERE branch_id = $1 AND visit_date = CURRENT_DATE
+                AND visit_status IN ('Registered', 'In-consultation')
+            `, [branch_id]);
+
+            // 6. Financial Stats (Today)
             const financialResult = await query(`
                 SELECT 
-                    SUM(CASE WHEN payment_status = 'Paid' THEN CAST(consultation_fee AS DECIMAL) ELSE 0 END) as collected_amount,
-                    COUNT(CASE WHEN payment_status = 'Paid' THEN 1 END) as collected_count,
-                    SUM(CASE WHEN payment_status = 'Pending' THEN CAST(consultation_fee AS DECIMAL) ELSE 0 END) as pending_amount,
-                    COUNT(CASE WHEN payment_status = 'Pending' THEN 1 END) as pending_count,
-                    COUNT(CASE WHEN visit_status IN ('Registered', 'In-consultation') THEN 1 END) as queue_count
-                FROM opd_entries 
-                WHERE branch_id = $1 AND visit_date = CURRENT_DATE
+                    COALESCE(SUM(CAST(paid_amount AS DECIMAL)), 0) as collected_amount,
+                    COUNT(CASE WHEN CAST(paid_amount AS DECIMAL) > 0 THEN 1 END) as collected_count,
+                    COALESCE(SUM(CAST(total_amount AS DECIMAL) - COALESCE(CAST(paid_amount AS DECIMAL), 0)), 0) as pending_amount,
+                    COUNT(CASE WHEN (CAST(total_amount AS DECIMAL) - COALESCE(CAST(paid_amount AS DECIMAL), 0)) > 0 THEN 1 END) as pending_count
+                FROM billing_master 
+                WHERE branch_id = $1 AND DATE(billing_date) = CURRENT_DATE AND status != 'Cancelled'
             `, [branch_id]);
 
             // 6. Yesterday's OPD Count (for growth comparison)
@@ -733,6 +740,7 @@ class OpdController {
             `, [branch_id]);
 
             const finStats = financialResult.rows[0];
+            const queueStats = queueResult.rows[0];
 
             res.status(200).json({
                 status: 'success',
@@ -742,7 +750,7 @@ class OpdController {
                         yesterdayOpd: parseInt(yesterdayOpdResult.rows[0].count),
                         newPatients: parseInt(patientsResult.rows[0].count),
                         todayAppointments: parseInt(apptResult.rows[0].count),
-                        pendingOpd: parseInt(finStats.queue_count || 0), // Queue (Registered + In-consultation)
+                        pendingOpd: parseInt(queueStats.queue_count || 0), // Queue (Registered + In-consultation)
 
                         // Financials
                         collectedAmount: parseFloat(finStats.collected_amount || 0),

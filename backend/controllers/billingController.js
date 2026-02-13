@@ -55,8 +55,10 @@ class BillingController {
             }
 
             // Calculate pending amount
-            const pending_amount = parseFloat(total_amount) - parseFloat(paid_amount || total_amount);
-            payment_status = pending_amount <= 0 ? 'Paid' : (parseFloat(paid_amount) > 0 ? 'Partial' : 'Unpaid');
+            // Fix: paid_amount || total_amount is wrong if paid_amount is 0. Only default if null/undefined.
+            const safePaidAmount = (paid_amount === undefined || paid_amount === null || paid_amount === '') ? total_amount : paid_amount;
+            const pending_amount = parseFloat(total_amount) - parseFloat(safePaidAmount);
+            payment_status = pending_amount <= 0 ? 'Paid' : (parseFloat(safePaidAmount) > 0 ? 'Partial' : 'Unpaid');
 
             if (existingBillQuery.rows.length > 0) {
                 // UPDATE Existing Bill

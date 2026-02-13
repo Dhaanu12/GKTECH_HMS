@@ -118,3 +118,11 @@
 2026-02-13T09:32:32.047Z - Executing SQL:  SELECT p.*, MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit, BOOL_OR(o.is_mlc) as is_ml...
 2026-02-13T09:32:32.049Z - Params: [178]
 2026-02-13T09:32:32.058Z - Query returned 3 rows.
+2026-02-13T10:43:30.701Z - getMyPatients called. User: 178, Role: DOCTOR
+2026-02-13T10:43:30.705Z - Executing SQL:  SELECT p.*, MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit, BOOL_OR(o.is_mlc) as is_ml...
+2026-02-13T10:43:30.709Z - Params: [178]
+2026-02-13T10:43:30.720Z - Query returned 2 rows.
+2026-02-13T10:43:30.750Z - getMyPatients called. User: 178, Role: DOCTOR
+2026-02-13T10:43:30.752Z - Executing SQL:  SELECT p.*, MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit, BOOL_OR(o.is_mlc) as is_ml...
+2026-02-13T10:43:30.754Z - Params: [178]
+2026-02-13T10:43:30.763Z - Query returned 2 rows.
