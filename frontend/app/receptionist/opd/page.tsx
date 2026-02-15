@@ -1556,6 +1556,12 @@ export default function OpdEntryPage() {
 
     const isPatientDetailsLocked = !!opdForm.patient_id && (!opdForm.is_mlc || (!!opdForm.contact_number && opdForm.contact_number.length >= 10));
 
+    const isRegisterDisabled = loading || !!duplicateWarning || !opdForm.doctor_id || (
+        opdForm.is_mlc
+            ? (!!opdForm.contact_number && opdForm.contact_number.length > 0 && opdForm.contact_number.length < 10)
+            : (!opdForm.first_name || !opdForm.last_name || !opdForm.age || !opdForm.gender || !opdForm.contact_number || opdForm.contact_number.length < 10)
+    );
+
     return (
         <div className="space-y-8 min-h-screen pb-20">
             {/* Minimalist Header */}
@@ -2051,7 +2057,8 @@ export default function OpdEntryPage() {
                                         <button
                                             type="button"
                                             onClick={handleSaveAndPrint}
-                                            className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition text-sm font-bold"
+                                            disabled={isRegisterDisabled}
+                                            className={`flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg transition text-sm font-bold ${isRegisterDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-200'}`}
                                         >
                                             <Printer className="w-4 h-4" />
                                             Save & Print
@@ -3072,8 +3079,8 @@ export default function OpdEntryPage() {
                                         </button>
                                         <button
                                             type="submit"
-                                            disabled={loading || !!duplicateWarning}
-                                            className={`px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg hover:shadow-blue-500/30 transition-all font-bold flex items-center gap-2 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed ${duplicateWarning ? 'from-slate-400 to-slate-500 hover:shadow-none' : ''}`}
+                                            disabled={isRegisterDisabled}
+                                            className={`px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg hover:shadow-blue-500/30 transition-all font-bold flex items-center gap-2 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed ${isRegisterDisabled ? 'from-slate-400 to-slate-500 hover:shadow-none' : ''}`}
                                         >
                                             {loading ? 'Saving...' : (editingOpdId ? 'Update Visit' : 'Register Visit')}
                                         </button>

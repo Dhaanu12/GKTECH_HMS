@@ -506,7 +506,7 @@ class OpdController {
             let queryText = `
                 SELECT o.*, 
                        p.first_name as patient_first_name, p.last_name as patient_last_name, p.mrn_number, p.contact_number, p.age, p.gender, p.blood_group,
-                       p.address as address_line1, p.address_line2, p.city, p.state, p.pincode, p.adhaar_number,
+                       p.address as address_line1, p.address_line2, p.city, p.state, p.pincode, p.adhaar_number, p.created_at as patient_created_at,
                        d.first_name as doctor_first_name, d.last_name as doctor_last_name, d.specialization,
                        co.next_visit_date,
                        dept.department_name
@@ -545,7 +545,9 @@ class OpdController {
                 queryParams.push(searchLower);
             }
 
-            queryText += ` AND o.visit_status NOT IN ('Cancelled', 'Rescheduled')`;
+            if (req.query.includeCancelled !== 'true') {
+                queryText += ` AND o.visit_status NOT IN ('Cancelled', 'Rescheduled')`;
+            }
 
             queryText += ` ORDER BY o.visit_date DESC, o.visit_time DESC LIMIT 50`;
 
