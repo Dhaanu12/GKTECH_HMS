@@ -154,6 +154,88 @@ exports.getDashboardStats = async (req, res) => {
             referral_patient_distribution = result.rows;
         } catch (e) { console.error('Error fetching patient distribution:', e); }
 
+        // 6. Referral Doctor Status Distribution (Self)
+        // Groups by status: Initialization, Pending, Active
+        let referral_doctor_status_distribution = [];
+        try {
+            let statusQuery = `
+                SELECT status, COUNT(*) as count 
+                FROM referral_doctor_module 
+                WHERE status != 'Deleted'
+                AND (marketing_spoc = $1 OR created_by = $2)
+            `;
+            const params = [userIdStr, username || ''];
+
+            if (tenantId) {
+                statusQuery += ` AND tenant_id = $${params.length + 1}`;
+                params.push(tenantId);
+            }
+
+            statusQuery += ` GROUP BY status`;
+
+            const result = await pool.query(statusQuery, params);
+            referral_doctor_status_distribution = result.rows;
+        } catch (e) { console.error('Error fetching doctor status distribution:', e); }
+
+        // 7. Added This Month Counts (Self)
+        let added_this_month = {
+            doctors: 0,
+            patients: 0,
+            agents: 0
+        };
+
+        try {
+            const startOfMonth = new Date();
+            startOfMonth.setDate(1);
+            startOfMonth.setHours(0, 0, 0, 0);
+
+            // Doctors This Month
+            let docMonthQuery = `
+                SELECT COUNT(*) FROM referral_doctor_module 
+                WHERE status != 'Deleted'
+                AND (marketing_spoc = $1 OR created_by = $2)
+                AND created_at >= $3
+            `;
+            let docParams = [userIdStr, username || '', startOfMonth];
+            if (tenantId) {
+                docMonthQuery += ` AND tenant_id = $4`;
+                docParams.push(tenantId);
+            }
+            const docRes = await pool.query(docMonthQuery, docParams);
+            added_this_month.doctors = parseInt(docRes.rows[0].count);
+
+            // Patients This Month
+            let patMonthQuery = `
+                SELECT COUNT(*) FROM referral_patients rp
+                LEFT JOIN referral_doctor_module rd ON rp.referral_doctor_id = rd.id
+                WHERE (rp.marketing_spoc = $1 OR rp.created_by = $2)
+                AND rp.created_at >= $3
+            `;
+            let patParams = [userIdStr, username || '', startOfMonth];
+            if (tenantId) {
+                patMonthQuery += ` AND (rp.tenant_id = $4 OR (rp.tenant_id IS NULL AND rd.tenant_id = $4))`;
+                patParams.push(tenantId);
+            }
+            const patRes = await pool.query(patMonthQuery, patParams);
+            added_this_month.patients = parseInt(patRes.rows[0].count);
+
+            // Agents This Month
+            let agentMonthQuery = `
+                SELECT COUNT(*) FROM referral_agents 
+                WHERE status != 'Deleted' 
+                AND (created_by = $1 OR created_by = $2)
+                AND created_at >= $3
+            `;
+            let agentParams = [userIdStr, username || '', startOfMonth];
+            if (tenantId) {
+                agentMonthQuery += ` AND tenant_id = $4`;
+                agentParams.push(tenantId);
+            }
+            const agentRes = await pool.query(agentMonthQuery, agentParams);
+            added_this_month.agents = parseInt(agentRes.rows[0].count);
+
+        } catch (e) { console.error('Error fetching monthly counts:', e); }
+
 
         // --- Team Stats (Only for Managers) ---
         // These stats must reflect the BROADER SCOPE (Full Branch/Hospital)
@@ -241,6 +323,8 @@ exports.getDashboardStats = async (req, res) => {
                 referral_agents,
                 referral_doctor_distribution,
                 referral_patient_distribution,
+                referral_doctor_status_distribution,
+                added_this_month,
                 team_stats: teamStats // Add team stats to response
             }
         });

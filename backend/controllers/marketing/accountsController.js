@@ -418,10 +418,20 @@ exports.upsertServicePercentage = async (req, res) => {
                 [referral_pay, cash_percentage, inpatient_percentage, status, updated_by, referral_doctor_id, service_type]
             );
 
-            // Auto-activate the doctor profile
-            await pool.query(
-                "UPDATE referral_doctor_module SET status = 'Active', updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata') WHERE id = $1 AND status != 'Active'",
+            // Count active services to update doctor status
+            const activeServicesCount = await pool.query(
+                `SELECT COUNT(*) FROM referral_doctor_service_percentage_module 
+                 WHERE referral_doctor_id = $1 AND referral_pay = 'Y' AND (cash_percentage > 0 OR inpatient_percentage > 0) AND status = 'Active'`,
                 [referral_doctor_id]
+            );
+
+            const hasActiveServices = parseInt(activeServicesCount.rows[0].count) > 0;
+            const newStatus = hasActiveServices ? 'Active' : 'Inactive';
+
+            // Update doctor status
+            await pool.query(
+                "UPDATE referral_doctor_module SET status = $1, updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata') WHERE id = $2",
+                [newStatus, referral_doctor_id]
             );
 
             return res.status(200).json({ success: true, data: result.rows[0] });
@@ -434,10 +444,20 @@ exports.upsertServicePercentage = async (req, res) => {
                 [referral_doctor_id, service_type, referral_pay, cash_percentage, inpatient_percentage, status, created_by]
             );
 
-            // Auto-activate the doctor profile
-            await pool.query(
-                "UPDATE referral_doctor_module SET status = 'Active', updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata') WHERE id = $1 AND status != 'Active'",
+            // Count active services to update doctor status
+            const activeServicesCount = await pool.query(
+                `SELECT COUNT(*) FROM referral_doctor_service_percentage_module 
+                 WHERE referral_doctor_id = $1 AND referral_pay = 'Y' AND (cash_percentage > 0 OR inpatient_percentage > 0) AND status = 'Active'`,
                 [referral_doctor_id]
+            );
+
+            const hasActiveServices = parseInt(activeServicesCount.rows[0].count) > 0;
+            const newStatus = hasActiveServices ? 'Active' : 'Inactive';
+
+            // Update doctor status
+            await pool.query(
+                "UPDATE referral_doctor_module SET status = $1, updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata') WHERE id = $2",
+                [newStatus, referral_doctor_id]
             );
 
             return res.status(201).json({ success: true, data: result.rows[0] });

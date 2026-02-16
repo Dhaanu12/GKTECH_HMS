@@ -421,6 +421,68 @@ export default function ReferralPaymentReports() {
                         </div>
                     </div>
 
+                    {/* Doctor & Patient Lists */}
+                    {!loading && Object.keys(groupedReports).length > 0 && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Referral Doctors List */}
+                            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                                <div className="px-5 py-3 bg-gray-50/50 border-b border-gray-100 flex items-center justify-between">
+                                    <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+                                        <Users className="w-4 h-4 text-purple-500" />
+                                        Referral Doctors
+                                    </h3>
+                                    <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">{uniqueDoctorsCount}</span>
+                                </div>
+                                <div className="max-h-[260px] overflow-y-auto divide-y divide-gray-50">
+                                    {Object.entries(groupedReports)
+                                        .sort(([, a], [, b]) => b.totalPayout - a.totalPayout)
+                                        .map(([docName, doctor], idx) => (
+                                            <div key={docName} className="px-5 py-2.5 flex items-center justify-between hover:bg-gray-50/50 transition-colors">
+                                                <div className="flex items-center gap-3">
+                                                    <span className="w-6 h-6 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center text-[10px] font-bold flex-shrink-0">{idx + 1}</span>
+                                                    <span className="text-sm font-semibold text-gray-800">{docName}</span>
+                                                </div>
+                                                <span className="text-xs font-bold text-gray-600">₹{doctor.totalPayout.toLocaleString()}</span>
+                                            </div>
+                                        ))}
+                                </div>
+                            </div>
+
+                            {/* Referral Patients List */}
+                            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                                <div className="px-5 py-3 bg-gray-50/50 border-b border-gray-100 flex items-center justify-between">
+                                    <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+                                        <User className="w-4 h-4 text-orange-500" />
+                                        Referral Patients
+                                    </h3>
+                                    <span className="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">{uniquePatientsCount}</span>
+                                </div>
+                                <div className="max-h-[260px] overflow-y-auto divide-y divide-gray-50">
+                                    {Object.entries(groupedReports).flatMap(([docName, doctor]) =>
+                                        Object.entries(doctor.patients).map(([patName, patient]) => ({
+                                            patientName: patName,
+                                            doctorName: docName,
+                                            payout: patient.totalPayout
+                                        }))
+                                    )
+                                        .sort((a, b) => b.payout - a.payout)
+                                        .map((item, idx) => (
+                                            <div key={`${item.doctorName}-${item.patientName}`} className="px-5 py-2.5 flex items-center justify-between hover:bg-gray-50/50 transition-colors">
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    <span className="w-6 h-6 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center text-[10px] font-bold flex-shrink-0">{idx + 1}</span>
+                                                    <div className="min-w-0">
+                                                        <p className="text-sm font-semibold text-gray-800 truncate">{item.patientName}</p>
+                                                        <p className="text-[10px] text-gray-400 truncate">via {item.doctorName}</p>
+                                                    </div>
+                                                </div>
+                                                <span className="text-xs font-bold text-gray-600 flex-shrink-0">₹{item.payout.toLocaleString()}</span>
+                                            </div>
+                                        ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                         <div className="px-6 py-4 bg-gray-50/50 border-b border-gray-100 flex items-center justify-between">
                             <h2 className="text-sm font-bold text-gray-800 flex items-center gap-2">

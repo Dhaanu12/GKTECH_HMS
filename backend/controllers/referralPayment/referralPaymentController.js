@@ -158,6 +158,8 @@ exports.uploadReferralData = async (req, res) => {
         const batchId = batchResult.rows[0].id;
 
         let totalBatchReferralAmount = 0;
+        let skippedCount = 0;
+        let skippedDetails = [];
 
         // Cache services and doctor percentages to avoid N+1 queries
         // Fetch all services map: Name -> Cost (Default cost from hospital_services?)
@@ -183,7 +185,8 @@ exports.uploadReferralData = async (req, res) => {
 
         // Loop through Excel Rows
         console.log(`Processing ${data.length} rows from Excel...`);
-        for (const row of data) {
+        for (const [index, row] of data.entries()) {
+            const rowNumber = index + 2; // Excel row number (1-based, plus header)
             const patientName = row['PATIENT NAME'] || null;
             const ipNumber = row['IP NUMBER'] || null;
             const serviceDate = convertExcelDate(row['SERVICE DATE']);
@@ -194,7 +197,10 @@ exports.uploadReferralData = async (req, res) => {
             const paymentMode = row['PAYMENT MODE'] || null;
 
             if (!patientName || !doctorName) {
-                console.log('⚠️ Skipping row - missing patient name or doctor name:', { patientName, doctorName });
+                const msg = `Row ${rowNumber}: Skipping - missing PATIENT NAME or DOCTOR NAME.`;
+                console.log(`⚠️ ${msg}`);
+                skippedCount++;
+                skippedDetails.push(msg);
                 continue; // Skip empty rows
             }
 
@@ -208,22 +214,37 @@ exports.uploadReferralData = async (req, res) => {
 
             // Find Doctor ID by MCI (Scoped to THIS hospital)
             const doctorQuery = await client.query(
-                "SELECT id, doctor_name, referral_pay FROM referral_doctor_module WHERE medical_council_membership_number = $1 AND tenant_id = $2",
+                "SELECT id, doctor_name, referral_pay, status FROM referral_doctor_module WHERE medical_council_membership_number = $1 AND tenant_id = $2",
                 [mciId, hospital_id]
             );
 
             let doctorId = null;
             let resolvedDoctorName = doctorName; // Default to Excel name
-
+            let doctorStatus = null;
             let headerId = null;
             let isUpdate = false;
 
             if (doctorQuery.rows.length > 0) {
-                doctorId = doctorQuery.rows[0].id;
-                resolvedDoctorName = doctorQuery.rows[0].doctor_name; // Use DB name to ensure correct assignment
-                console.log(`✓ Doctor found: ID=${doctorId}, Name=${resolvedDoctorName}`);
+                const doc = doctorQuery.rows[0];
+                // SKIP if Initialization
+                if (doc.status !== 'Active') {
+                    const msg = `Row ${rowNumber}: Doctor '${doc.doctor_name}' (MCI: ${mciId}) status is '${doc.status}'. Skipping (Required: 'Active').`;
+                    console.log(`⚠️ ${msg}`);
+                    skippedCount++;
+                    skippedDetails.push(msg);
+                    continue;
+                }
+
+                doctorId = doc.id;
+                resolvedDoctorName = doc.doctor_name;
+                doctorStatus = doc.status;
+                console.log(`✓ Doctor found: ID=${doctorId}, Name=${resolvedDoctorName}, Status=${doctorStatus}`);
             } else {
-                console.log(`⚠️ Doctor NOT found in database for MCI ID: ${mciId}. Data will be saved but with 0% commission.`);
+                const msg = `Row ${rowNumber}: Doctor '${doctorName}' (MCI: ${mciId}) NOT found in database.`;
+                console.log(`⚠️ ${msg}`);
+                skippedCount++;
+                skippedDetails.push(msg);
+                continue;
             }
 
             if (ipNumber && mciId && serviceDate) {
@@ -277,7 +298,6 @@ exports.uploadReferralData = async (req, res) => {
 
             // Iterate over dynamic columns (Services)
             const staticKeys = ['PATIENT NAME', 'IP NUMBER', 'SERVICE DATE', 'ADMISSION TYPE', 'DEPARTMENT', 'DOCTOR NAME', 'MEDICAL COUNCIL ID', 'PAYMENT MODE'];
-            let headerTotalAmount = 0; // Accumulator for THIS processing loop (not strict total if updating, but we recalc total at end)
 
             for (const key of Object.keys(row)) {
                 if (staticKeys.includes(key)) continue;
@@ -287,10 +307,12 @@ exports.uploadReferralData = async (req, res) => {
 
                 if (!value) continue;
 
-                const serviceCost = Number(value); // Assuming cell contains cost or we interpret it as cost. Requirement implies "value" or "cost".
-
+                const serviceCost = Number(value);
                 let percentage = 0;
-                if (doctorId && doctorServicePercentages[serviceName]) {
+
+                if (doctorStatus === 'Pending') {
+                    percentage = 0;
+                } else if (doctorId && doctorServicePercentages[serviceName]) {
                     if (paymentMode && paymentMode.toLowerCase() === 'cash') {
                         percentage = doctorServicePercentages[serviceName].cash || 0;
                     } else {
@@ -301,8 +323,6 @@ exports.uploadReferralData = async (req, res) => {
                 const referralAmount = (serviceCost * percentage) / 100;
 
                 // Check or Insert Detail
-                // Requirement: "only add new data"
-                // If we are updating an existing header, we check if this service exists.
                 if (isUpdate) {
                     const existingDetail = await client.query(
                         "SELECT id FROM referral_payment_details WHERE payment_header_id = $1 AND service_name = $2",
@@ -320,8 +340,8 @@ exports.uploadReferralData = async (req, res) => {
                     } else {
                         // Insert new detail
                         await client.query(
-                            `INSERT INTO referral_payment_details
-                            (payment_header_id, service_name, service_cost, referral_percentage, referral_amount, created_by, updated_by)
+                            `INSERT INTO referral_payment_details 
+                            (payment_header_id, service_name, service_cost, referral_percentage, referral_amount, created_by, updated_by) 
                             VALUES ($1, $2, $3, $4, $5, $6, $6)`,
                             [headerId, serviceName, serviceCost, percentage, referralAmount, created_by]
                         );
@@ -329,13 +349,14 @@ exports.uploadReferralData = async (req, res) => {
                 } else {
                     // New header, always insert
                     await client.query(
-                        `INSERT INTO referral_payment_details
-                        (payment_header_id, service_name, service_cost, referral_percentage, referral_amount, created_by, updated_by)
+                        `INSERT INTO referral_payment_details 
+                        (payment_header_id, service_name, service_cost, referral_percentage, referral_amount, created_by, updated_by) 
                         VALUES ($1, $2, $3, $4, $5, $6, $6)`,
                         [headerId, serviceName, serviceCost, percentage, referralAmount, created_by]
                     );
                 }
             }
+
 
             // Recalculate and Update Header Total (Accurate sum of all details)
             const sumResult = await client.query(
@@ -383,7 +404,9 @@ exports.uploadReferralData = async (req, res) => {
             success: true,
             message: 'File processed successfully',
             batch_id: batchId,
-            total_records: data.length,
+            total_records: data.length - skippedCount,
+            skipped_records: skippedCount,
+            skipped_details: skippedDetails,
             total_amount: totalBatchReferralAmount
         });
 
@@ -421,11 +444,12 @@ exports.getPaymentReports = async (req, res) => {
                 d.referral_amount,
                 b.file_name,
                 rd.marketing_spoc,
-                rd.id as referral_doctor_id
+                rd.id as referral_doctor_id,
+                rd.status as doctor_status
             FROM referral_payment_header h
             JOIN referral_payment_upload_batch b ON h.batch_id = b.id
             LEFT JOIN referral_payment_details d ON h.id = d.payment_header_id
-            LEFT JOIN referral_doctor_module rd ON h.medical_council_id = rd.medical_council_membership_number
+            LEFT JOIN referral_doctor_module rd ON h.medical_council_id = rd.medical_council_membership_number AND b.hospital_id = rd.tenant_id
             WHERE 1=1
         `;
 
@@ -517,7 +541,7 @@ exports.getAgentReferralReports = async (req, res) => {
             doctor_counts AS (
                 SELECT means_id, COUNT(*) as d_count
                 FROM referral_doctor_module
-                WHERE referral_means = 'Agent'
+                WHERE referral_means = 'Agent' AND status != 'Initialization'
         `;
 
         if (fromDate) {
@@ -608,7 +632,7 @@ exports.getAgentDashboardStats = async (req, res) => {
             doctor_counts AS (
                 SELECT means_id, COUNT(*) as d_count
                 FROM referral_doctor_module
-                WHERE referral_means = 'Agent'
+                WHERE referral_means = 'Agent' AND status != 'Initialization'
                 GROUP BY means_id
             )
             SELECT 
@@ -631,5 +655,108 @@ exports.getAgentDashboardStats = async (req, res) => {
     } catch (error) {
         console.error('Error fetching agent stats:', error);
         res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
+exports.recalculateCommission = async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const { headerId } = req.body;
+        const updated_by = req.user ? (req.user.username || req.user.user_id.toString()) : 'unknown';
+
+        if (!headerId) {
+            return res.status(400).json({ success: false, message: 'Header ID is required' });
+        }
+
+        await client.query('BEGIN');
+
+        // 1. Fetch Header and Doctor Info
+        const headerRes = await client.query(
+            `SELECT h.id, h.medical_council_id, h.payment_mode, rd.id as doctor_id, rd.status as doctor_status 
+             FROM referral_payment_header h
+             LEFT JOIN referral_doctor_module rd ON h.medical_council_id = rd.medical_council_membership_number
+             WHERE h.id = $1`,
+            [headerId]
+        );
+
+        if (headerRes.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ success: false, message: 'Header not found' });
+        }
+
+        const { medical_council_id, payment_mode, doctor_id, doctor_status } = headerRes.rows[0];
+
+        if (!doctor_id) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ success: false, message: 'Doctor not found for this record' });
+        }
+
+        if (doctor_status !== 'Active') {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ success: false, message: `Doctor is still ${doctor_status}. Cannot calculate.` });
+        }
+
+        // 2. Fetch Percentages
+        let doctorServicePercentages = {};
+        const pctQuery = await client.query(
+            "SELECT service_type, cash_percentage, inpatient_percentage FROM referral_doctor_service_percentage_module WHERE referral_doctor_id = $1",
+            [doctor_id]
+        );
+        pctQuery.rows.forEach(r => {
+            doctorServicePercentages[r.service_type] = {
+                cash: Number(r.cash_percentage),
+                ipd: Number(r.inpatient_percentage)
+            };
+        });
+
+        // 3. Fetch Details
+        const detailsRes = await client.query(
+            "SELECT id, service_name, service_cost FROM referral_payment_details WHERE payment_header_id = $1",
+            [headerId]
+        );
+
+        let totalReferralAmount = 0;
+
+        // 4. Update each detail
+        for (const detail of detailsRes.rows) {
+            const serviceName = detail.service_name;
+            const serviceCost = Number(detail.service_cost);
+
+            let percentage = 0;
+            if (doctorServicePercentages[serviceName]) {
+                if (payment_mode && payment_mode.toLowerCase() === 'cash') {
+                    percentage = doctorServicePercentages[serviceName].cash || 0;
+                } else {
+                    percentage = doctorServicePercentages[serviceName].ipd || 0;
+                }
+            }
+
+            const referralAmount = (serviceCost * percentage) / 100;
+            totalReferralAmount += referralAmount;
+
+            await client.query(
+                `UPDATE referral_payment_details 
+                 SET referral_percentage = $1, referral_amount = $2, updated_by = $3, updated_at = NOW()
+                 WHERE id = $4`,
+                [percentage, referralAmount, updated_by, detail.id]
+            );
+        }
+
+        // 5. Update Header Total
+        await client.query(
+            "UPDATE referral_payment_header SET total_referral_amount = $1, updated_by = $2, updated_at = NOW() WHERE id = $3",
+            [totalReferralAmount, updated_by, headerId]
+        );
+
+        await client.query('COMMIT');
+
+        res.status(200).json({ success: true, message: 'Commission recalculated successfully', total_referral_amount: totalReferralAmount });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error recalculating commission:', error);
+        res.status(500).json({ success: false, message: 'Server error recalculating commission' });
+    } finally {
+        client.release();
     }
 };

@@ -404,7 +404,7 @@ exports.getAllReferralDoctors = async (req, res) => {
         res.status(200).json({ success: true, data: processedData });
     } catch (error) {
         console.error('Error fetching referral doctors:', error);
-        res.status(500).json({ success: false, message: 'Server error' });
+        res.status(500).json({ success: false, message: 'Server error: ' + error.message });
     }
 };
 

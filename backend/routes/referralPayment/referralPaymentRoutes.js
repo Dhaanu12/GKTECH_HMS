@@ -41,4 +41,7 @@ router.get('/reports', authenticate, authorize('ACCOUNTANT', 'ACCOUNTANT_MANAGER
 router.get('/agent-reports', authenticate, authorize('ACCOUNTANT', 'ACCOUNTANT_MANAGER', 'MRKT_EXEC', 'MRKT_MNGR', 'COO', 'SUPER_ADMIN'), referralPaymentController.getAgentReferralReports);
 router.get('/agent-stats', authenticate, authorize('ACCOUNTANT', 'ACCOUNTANT_MANAGER', 'MRKT_EXEC', 'MRKT_MNGR', 'COO', 'SUPER_ADMIN'), referralPaymentController.getAgentDashboardStats);
 
+// 5. Recalculate Commission
+router.put('/recalculate', authenticate, authorize('ACCOUNTANT', 'ACCOUNTANT_MANAGER', 'SUPER_ADMIN'), referralPaymentController.recalculateCommission);
+
 module.exports = router;

@@ -10,7 +10,7 @@ export default function ReferralPaymentUpload() {
     const [file, setFile] = useState<File | null>(null);
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
-    const [uploadStats, setUploadStats] = useState<{ batchId: number, count: number, amount: number } | null>(null);
+    const [uploadStats, setUploadStats] = useState<{ batchId: number, count: number, skipped: number, skippedDetails?: string[], amount: number } | null>(null);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -67,6 +67,8 @@ export default function ReferralPaymentUpload() {
                 setUploadStats({
                     batchId: response.data.batch_id,
                     count: response.data.total_records,
+                    skipped: response.data.skipped_records || 0,
+                    skippedDetails: response.data.skipped_details || [],
                     amount: response.data.total_amount
                 });
                 setFile(null); // Reset file input
@@ -178,10 +180,30 @@ export default function ReferralPaymentUpload() {
                                         <p className="text-2xl font-bold">{uploadStats.count}</p>
                                     </div>
                                     <div className="bg-white/10 rounded-lg p-4 backdrop-blur-sm">
+                                        <p className="text-blue-100 text-sm">Skipped Records</p>
+                                        <p className="text-2xl font-bold text-yellow-300">{uploadStats.skipped}</p>
+                                    </div>
+                                    <div className="col-span-2 bg-white/10 rounded-lg p-4 backdrop-blur-sm">
                                         <p className="text-blue-100 text-sm">Total Amount</p>
                                         <p className="text-2xl font-bold">₹{uploadStats.amount.toLocaleString()}</p>
                                     </div>
                                 </div>
+
+                                {uploadStats.skipped > 0 && uploadStats.skippedDetails && uploadStats.skippedDetails.length > 0 && (
+                                    <div className="bg-white/10 rounded-lg p-4 backdrop-blur-sm mt-4 border border-yellow-500/30">
+                                        <p className="text-yellow-300 text-sm font-bold mb-2 flex items-center gap-2">
+                                            <AlertCircle className="w-4 h-4" />
+                                            Skipped Records Details
+                                        </p>
+                                        <div className="max-h-40 overflow-y-auto space-y-1 pr-2 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
+                                            {uploadStats.skippedDetails.map((detail, idx) => (
+                                                <p key={idx} className="text-xs text-blue-100 font-mono bg-white/5 p-1.5 rounded border border-white/5">
+                                                    {detail}
+                                                </p>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                                 <p className="text-sm text-blue-200 mt-4 leading-relaxed">
                                     The uploaded data has been successfully saved to the database. You can now view detailed reports in the Reports section.
                                 </p>

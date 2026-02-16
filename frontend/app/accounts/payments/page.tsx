@@ -19,6 +19,7 @@ import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 import { getAgentReferralReports, AgentReportRow } from '@/lib/api/referralPayment';
+import { getReferralDoctors, getReferralPatients } from '@/lib/api/marketing';
 
 type TabType = 'upload' | 'reports' | 'agent-reports';
 
@@ -1118,10 +1119,26 @@ function AgentReportsTab() {
     const [fromDate, setFromDate] = useState('');
     const [toDate, setToDate] = useState('');
     const [showAnalytics, setShowAnalytics] = useState(true);
+    const [refDoctors, setRefDoctors] = useState<any[]>([]);
+    const [refPatients, setRefPatients] = useState<any[]>([]);
 
     useEffect(() => {
         setQuickFilter('thisMonth'); // Default to this month
+        fetchRefLists();
     }, []);
+
+    const fetchRefLists = async () => {
+        try {
+            const [docRes, patRes] = await Promise.all([
+                getReferralDoctors(),
+                getReferralPatients()
+            ]);
+            if (docRes.success) setRefDoctors(docRes.data);
+            if (patRes.success) setRefPatients(patRes.data);
+        } catch (error) {
+            console.error('Error fetching ref lists:', error);
+        }
+    };
 
     useEffect(() => {
         fetchReports();
@@ -1376,6 +1393,76 @@ function AgentReportsTab() {
                     </div>
                 </div>
             </div>
+
+            {/* Referral Doctor & Patient Lists */}
+            {!loading && (refDoctors.some(d => d.referral_means === 'Agent') || refPatients.some(p => p.referral_means === 'Agent')) && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Referral Doctors List */}
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                        <div className="px-5 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+                            <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+                                <Users className="w-4 h-4 text-purple-500" />
+                                Referral Doctors (via Agent)
+                            </h3>
+                            <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
+                                {refDoctors.filter(d => d.referral_means === 'Agent' && ['Active', 'Pending'].includes(d.status)).length}
+                            </span>
+                        </div>
+                        <div className="max-h-[260px] overflow-y-auto divide-y divide-gray-50">
+                            {refDoctors.filter(d => d.referral_means === 'Agent' && ['Active', 'Pending'].includes(d.status)).map((doc, idx) => (
+                                <div key={doc.id || idx} className="px-5 py-2.5 flex items-center justify-between hover:bg-gray-50/50 transition-colors">
+                                    <div className="flex items-center gap-3">
+                                        <span className="w-6 h-6 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center text-[10px] font-bold flex-shrink-0">{idx + 1}</span>
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-semibold text-gray-800 truncate">{doc.doctor_name}</p>
+                                            <p className="text-[10px] text-gray-400 truncate">
+                                                {doc.clinic_name ? `${doc.clinic_name} • ` : ''}
+                                                via {doc.means_name || 'Agent'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${doc.status === 'Active' ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
+                                        {doc.status || 'Active'}
+                                    </span>
+                                </div>
+                            ))}
+                            {refDoctors.filter(d => d.referral_means === 'Agent' && ['Active', 'Pending'].includes(d.status)).length === 0 && (
+                                <div className="p-4 text-center text-xs text-gray-500">No doctors referred via agents</div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Referral Patients List */}
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                        <div className="px-5 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+                            <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+                                <User className="w-4 h-4 text-orange-500" />
+                                Referral Patients (via Agent)
+                            </h3>
+                            <span className="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">
+                                {refPatients.filter(p => p.referral_means === 'Agent').length}
+                            </span>
+                        </div>
+                        <div className="max-h-[260px] overflow-y-auto divide-y divide-gray-50">
+                            {refPatients.filter(p => p.referral_means === 'Agent').map((pat, idx) => (
+                                <div key={pat.id || idx} className="px-5 py-2.5 flex items-center justify-between hover:bg-gray-50/50 transition-colors">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <span className="w-6 h-6 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center text-[10px] font-bold flex-shrink-0">{idx + 1}</span>
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-semibold text-gray-800 truncate">{pat.patient_name}</p>
+                                            <p className="text-[10px] text-gray-400 truncate">via {pat.means_name || 'Agent'}</p>
+                                        </div>
+                                    </div>
+                                    <span className="text-[10px] font-medium text-gray-500 flex-shrink-0 bg-gray-100 px-2 py-0.5 rounded-full">Agent</span>
+                                </div>
+                            ))}
+                            {refPatients.filter(p => p.referral_means === 'Agent').length === 0 && (
+                                <div className="p-4 text-center text-xs text-gray-500">No patients referred via agents</div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Table */}
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
