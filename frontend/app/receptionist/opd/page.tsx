@@ -1559,7 +1559,7 @@ export default function OpdEntryPage() {
     const isRegisterDisabled = loading || !!duplicateWarning || !opdForm.doctor_id || (
         opdForm.is_mlc
             ? (!!opdForm.contact_number && opdForm.contact_number.length > 0 && opdForm.contact_number.length < 10)
-            : (!opdForm.first_name || !opdForm.last_name || !opdForm.age || !opdForm.gender || !opdForm.contact_number || opdForm.contact_number.length < 10)
+            : (!opdForm.first_name || !opdForm.age || !opdForm.gender || !opdForm.contact_number || opdForm.contact_number.length < 10)
     );
 
     return (

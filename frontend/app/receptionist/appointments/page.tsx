@@ -7,6 +7,7 @@ import { useAuth } from '../../../lib/AuthContext';
 import SearchableSelect from '../../../components/ui/SearchableSelect';
 import BookAppointmentModal from '../components/BookAppointmentModal';
 import RescheduleAppointmentModal from '../components/RescheduleAppointmentModal';
+import ConvertToOpdModal from './components/ConvertToOpdModal';
 import { useAI } from '@/components/ai';
 import { format } from 'date-fns';
 
@@ -25,6 +26,7 @@ export default function AppointmentsPage() {
     const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
     const [activeTab, setActiveTab] = useState('All');
     const [doctorSchedules, setDoctorSchedules] = useState<any[]>([]);
+    const [branchDetails, setBranchDetails] = useState<any>(null); // For clinical hours warning
 
 
     // Reschedule & Cancel States
@@ -91,34 +93,6 @@ export default function AppointmentsPage() {
         return 'bg-slate-50 border-slate-200 text-slate-600';
     };
 
-
-
-    const [opdForm, setOpdForm] = useState({
-        first_name: '',
-        last_name: '',
-        age: '',
-        gender: '',
-        contact_number: '',
-        doctor_id: '',
-        visit_type: 'Walk-in',
-        visit_date: new Date().toISOString().split('T')[0],
-        visit_time: new Date().toTimeString().slice(0, 5),
-        chief_complaint: '',
-        symptoms: '',
-        vital_signs: {
-            bp_systolic: '',
-            bp_diastolic: '',
-            pulse: '',
-            temperature: '',
-            weight: '',
-            height: '',
-            spo2: ''
-        },
-        consultation_fee: '',
-        payment_status: 'Pending',
-        adhaar_number: '',
-        blood_group: ''
-    });
 
 
 
@@ -197,12 +171,29 @@ export default function AppointmentsPage() {
         }
     };
 
+    const fetchBranchDetails = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            if (user?.branch_id) {
+                const response = await axios.get(`http://localhost:5000/api/branches/${user.branch_id}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                setBranchDetails(response.data.data.branch);
+            }
+        } catch (error) {
+            console.error('Error fetching branch details:', error);
+        }
+    };
+
 
 
     // Effect to fetch schedules on mount
     useEffect(() => {
         fetchDoctorSchedules();
-    }, []);
+        if (user?.branch_id) {
+            fetchBranchDetails();
+        }
+    }, [user?.branch_id]);
 
 
 
@@ -245,75 +236,11 @@ export default function AppointmentsPage() {
 
 
     const convertToOPD = (appointment: any) => {
-        // Split patient name into first and last
-        const nameParts = appointment.patient_name?.split(' ') || ['', ''];
-        const firstName = nameParts[0] || '';
-        const lastName = nameParts.slice(1).join(' ') || '';
-
-        // Find the doctor to get consultation fee
-        const selectedDoc = doctors.find((d: any) => d.doctor_id === appointment.doctor_id);
-        const consultationFee = selectedDoc?.consultation_fee?.toString() || '';
-
-        setOpdForm({
-            first_name: firstName,
-            last_name: lastName,
-            age: appointment.age?.toString() || '',
-            gender: appointment.gender || '',
-            contact_number: appointment.phone_number || '',
-            doctor_id: appointment.doctor_id || '',
-            visit_type: 'Appointment',
-            visit_date: new Date().toISOString().split('T')[0],
-            visit_time: new Date().toTimeString().slice(0, 5),
-            chief_complaint: appointment.reason_for_visit || '',
-            symptoms: appointment.notes || '',
-            vital_signs: {
-                bp_systolic: '',
-                bp_diastolic: '',
-                pulse: '',
-                temperature: '',
-                weight: '',
-                height: '',
-                spo2: ''
-            },
-            consultation_fee: consultationFee,
-            payment_status: 'Pending',
-            adhaar_number: '',
-            blood_group: ''
-        });
-
         setSelectedAppointment(appointment);
         setShowOpdModal(true);
     };
 
-    const handleCreateOPD = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoading(true);
-        try {
-            const token = localStorage.getItem('token');
-            const payload = {
-                ...opdForm,
-                patient_id: selectedAppointment?.patient_id,
-                appointment_id: selectedAppointment?.appointment_id,
-                vital_signs: JSON.stringify(opdForm.vital_signs)
-            };
 
-            await axios.post(`${API_URL}/opd`, payload, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-
-
-
-            alert('OPD Entry created successfully!');
-            setShowOpdModal(false);
-            setSelectedAppointment(null);
-            fetchAppointments();
-        } catch (error: any) {
-            console.error('Error creating OPD entry:', error);
-            alert(error.response?.data?.message || 'Failed to create OPD entry');
-        } finally {
-            setLoading(false);
-        }
-    };
 
 
 
@@ -570,155 +497,23 @@ export default function AppointmentsPage() {
                 appointments={appointments}
             />
 
-            {/* OPD Conversion Modal (Same as OPD Entry but pre-filled) */}
-            {
-                showOpdModal && (
-                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                        <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto border border-white/20">
-                            <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex justify-between items-center rounded-t-2xl">
-                                <div>
-                                    <h2 className="text-xl font-bold">Convert Appointment to OPD Entry</h2>
-                                    <p className="text-sm text-blue-100 mt-1">Appointment: {selectedAppointment?.appointment_number}</p>
-                                </div>
-                                <button onClick={() => { setShowOpdModal(false); setSelectedAppointment(null); }} className="text-white hover:bg-white/20 p-2 rounded-lg transition">
-                                    <X className="w-6 h-6" />
-                                </button>
-                            </div>
 
-                            <form onSubmit={handleCreateOPD} className="p-6 space-y-6">
-                                {/* Patient Info (Pre-filled) */}
-                                <div className="bg-gradient-to-br from-gray-50 to-blue-50/30 rounded-lg p-5 border border-blue-100">
-                                    <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                                        <User className="w-4 h-4 text-blue-600" />
-                                        Patient Information
-                                    </h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                                        <div><label className="block text-sm font-medium text-gray-700 mb-1">First Name *</label><input type="text" required value={opdForm.first_name} onChange={(e) => setOpdForm({ ...opdForm, first_name: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" /></div>
-                                        <div><label className="block text-sm font-medium text-gray-700 mb-1">Last Name *</label><input type="text" required value={opdForm.last_name} onChange={(e) => setOpdForm({ ...opdForm, last_name: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" /></div>
-                                        <div><label className="block text-sm font-medium text-gray-700 mb-1">Age *</label><input
-                                            type="number"
-                                            required
-                                            value={opdForm.age}
-                                            onChange={(e) => {
-                                                const value = e.target.value;
-                                                if (value === '' || (parseInt(value) >= 0 && value.length <= 3)) {
-                                                    setOpdForm({ ...opdForm, age: value });
-                                                }
-                                            }}
-                                            onInput={(e) => {
-                                                const input = e.target as HTMLInputElement;
-                                                if (input.value.length > 3) {
-                                                    input.value = input.value.slice(0, 3);
-                                                }
-                                            }}
-                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                                            placeholder="Max 3 digits"
-                                            min="0"
-                                            max="999"
-                                        /></div>
-                                        <div><label className="block text-sm font-medium text-gray-700 mb-1">Gender *</label><select required value={opdForm.gender} onChange={(e) => setOpdForm({ ...opdForm, gender: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"><option value="">Select</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option><option value="Pediatric">Pediatric</option></select></div>
-                                        <div><label className="block text-sm font-medium text-gray-700 mb-1">Phone *</label>
-                                            <input
-                                                type="tel"
-                                                required
-                                                value={opdForm.contact_number}
-                                                onChange={(e) => {
-                                                    const value = e.target.value.replace(/\D/g, "");
-                                                    if (value.length <= 10) {
-                                                        setOpdForm({ ...opdForm, contact_number: value });
-                                                    }
-                                                }}
-                                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                                                placeholder="10-digit number"
-                                                maxLength={10}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Blood Group</label>
-                                            <select value={opdForm.blood_group} onChange={(e) => setOpdForm({ ...opdForm, blood_group: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                                                <option value="">Select</option>
-                                                <option value="A+">A+</option>
-                                                <option value="A-">A-</option>
-                                                <option value="B+">B+</option>
-                                                <option value="B-">B-</option>
-                                                <option value="O+">O+</option>
-                                                <option value="O-">O-</option>
-                                                <option value="AB+">AB+</option>
-                                                <option value="AB-">AB-</option>
-                                            </select>
-                                        </div>
-                                        <div className="md:col-span-1">
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Adhaar Number *</label>
-                                            <input
-                                                type="text"
-                                                required
-                                                value={opdForm.adhaar_number}
-                                                onChange={(e) => {
-                                                    const value = e.target.value.replace(/\D/g, "");
-                                                    if (value.length <= 12) {
-                                                        setOpdForm({ ...opdForm, adhaar_number: value });
-                                                    }
-                                                }}
-                                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                                                placeholder="12-digit UID"
-                                                maxLength={12}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Visit Details */}
-                                <div className="bg-gradient-to-br from-gray-50 to-blue-50/30 rounded-lg p-5 border border-blue-100">
-                                    <h3 className="text-sm font-semibold text-gray-900 mb-4">Visit Details</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                        <div><label className="block text-sm font-medium text-gray-700 mb-1">Visit Type</label><select value={opdForm.visit_type} onChange={(e) => setOpdForm({ ...opdForm, visit_type: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"><option value="Walk-in">Walk-in</option><option value="Appointment">Appointment</option><option value="Follow-up">Follow-up</option><option value="Emergency">Emergency</option><option value="Referral">Referral</option></select></div>
-                                        <div><label className="block text-sm font-medium text-gray-700 mb-1">Date</label><input type="date" value={opdForm.visit_date} onChange={(e) => setOpdForm({ ...opdForm, visit_date: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" /></div>
-                                        <div><label className="block text-sm font-medium text-gray-700 mb-1">Time</label><input type="time" value={opdForm.visit_time} onChange={(e) => setOpdForm({ ...opdForm, visit_time: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" /></div>
-                                        <div><SearchableSelect label="Doctor *" options={doctorOptions} value={opdForm.doctor_id} onChange={(val) => setOpdForm({ ...opdForm, doctor_id: val })} placeholder="Select Doctor" /></div>
-                                    </div>
-                                </div>
-
-                                {/* Clinical Info */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Chief Complaint *</label><textarea required rows={3} value={opdForm.chief_complaint} onChange={(e) => setOpdForm({ ...opdForm, chief_complaint: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="Main reason for visit..." /></div>
-                                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Symptoms</label><textarea rows={3} value={opdForm.symptoms} onChange={(e) => setOpdForm({ ...opdForm, symptoms: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="Observed symptoms..." /></div>
-                                </div>
-
-                                {/* Vitals */}
-                                <div className="bg-gradient-to-br from-purple-50 to-pink-50/30 rounded-lg p-5 border border-purple-100">
-                                    <h3 className="text-sm font-semibold text-gray-900 mb-4">Vital Signs</h3>
-                                    <div className="grid grid-cols-2 md:grid-cols-7 gap-3">
-                                        <div><label className="block text-xs font-medium text-gray-500 mb-1">BP Sys</label><input type="text" value={opdForm.vital_signs.bp_systolic} onChange={(e) => setOpdForm({ ...opdForm, vital_signs: { ...opdForm.vital_signs, bp_systolic: e.target.value } })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="mmHg" /></div>
-                                        <div><label className="block text-xs font-medium text-gray-500 mb-1">BP Dia</label><input type="text" value={opdForm.vital_signs.bp_diastolic} onChange={(e) => setOpdForm({ ...opdForm, vital_signs: { ...opdForm.vital_signs, bp_diastolic: e.target.value } })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="mmHg" /></div>
-                                        <div><label className="block text-xs font-medium text-gray-500 mb-1">Pulse</label><input type="text" value={opdForm.vital_signs.pulse} onChange={(e) => setOpdForm({ ...opdForm, vital_signs: { ...opdForm.vital_signs, pulse: e.target.value } })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="bpm" /></div>
-                                        <div><label className="block text-xs font-medium text-gray-500 mb-1">Temp</label><input type="text" value={opdForm.vital_signs.temperature} onChange={(e) => setOpdForm({ ...opdForm, vital_signs: { ...opdForm.vital_signs, temperature: e.target.value } })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="°F" /></div>
-                                        <div><label className="block text-xs font-medium text-gray-500 mb-1">Weight</label><input type="text" value={opdForm.vital_signs.weight} onChange={(e) => setOpdForm({ ...opdForm, vital_signs: { ...opdForm.vital_signs, weight: e.target.value } })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="kg" /></div>
-                                        <div><label className="block text-xs font-medium text-gray-500 mb-1">Height</label><input type="text" value={opdForm.vital_signs.height} onChange={(e) => setOpdForm({ ...opdForm, vital_signs: { ...opdForm.vital_signs, height: e.target.value } })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="cm" /></div>
-                                        <div><label className="block text-xs font-medium text-gray-500 mb-1">SpO2</label><input type="text" value={opdForm.vital_signs.spo2} onChange={(e) => setOpdForm({ ...opdForm, vital_signs: { ...opdForm.vital_signs, spo2: e.target.value } })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="%" /></div>
-                                    </div>
-                                </div>
-
-                                {/* Payment */}
-                                <div className="bg-gradient-to-br from-green-50 to-emerald-50/30 rounded-lg p-5 border border-green-100">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div><label className="block text-sm font-medium text-gray-700 mb-1">Consultation Fee</label><div className="relative"><span className="absolute left-3 top-2.5 text-gray-500">₹</span><input type="number" value={opdForm.consultation_fee} onChange={(e) => setOpdForm({ ...opdForm, consultation_fee: e.target.value })} className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="0.00" /></div></div>
-                                        <div><label className="block text-sm font-medium text-gray-700 mb-1">Payment Status</label><select value={opdForm.payment_status} onChange={(e) => setOpdForm({ ...opdForm, payment_status: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"><option value="Pending">Pending</option><option value="Paid">Paid</option><option value="Partial">Partial</option><option value="Waived">Waived</option></select></div>
-                                    </div>
-                                </div>
-
-                                {/* Submit */}
-                                <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-                                    <button type="button" onClick={() => { setShowOpdModal(false); setSelectedAppointment(null); }} className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium">Cancel</button>
-                                    <button type="submit" disabled={loading} className="flex items-center gap-2 px-8 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition font-medium shadow-lg shadow-blue-500/30">
-                                        <Save className="w-5 h-5" />
-                                        {loading ? 'Creating...' : 'Create OPD Entry'}
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                )
-            }
+            {/* OPD Conversion Modal */}
+            <ConvertToOpdModal
+                isOpen={showOpdModal}
+                onClose={() => { setShowOpdModal(false); setSelectedAppointment(null); }}
+                appointment={selectedAppointment}
+                doctors={doctors}
+                branchDetails={branchDetails}
+                todayOpdEntries={[]} // Optionally fetch or leave empty if not critical for this view
+                allAppointments={appointments}
+                onSuccess={() => {
+                    fetchAppointments();
+                    setShowOpdModal(false);
+                    setSelectedAppointment(null);
+                    // Optionally refresh stats or show success message if not handled in modal
+                }}
+            />
 
             {/* Cancel Confirmation Modal */}
             {

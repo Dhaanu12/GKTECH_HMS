@@ -788,6 +788,7 @@ export default function ReceptionistDashboard() {
             const token = localStorage.getItem('token');
             const payload = {
                 ...formData,
+                last_name: formData.last_name?.trim() || '.',
                 // Prioritize formData.patient_id (which is updated by handleDropdownSelect)
                 // Fallback to selectedPatient?.patient_id if formData one is missing/empty
                 patient_id: formData.patient_id || selectedPatient?.patient_id,
@@ -1356,7 +1357,7 @@ export default function ReceptionistDashboard() {
     const isRegisterDisabled = loading || !!duplicateWarning || !opdForm.doctor_id || (
         opdForm.is_mlc
             ? (!!opdForm.contact_number && opdForm.contact_number.length > 0 && opdForm.contact_number.length < 10)
-            : (!selectedPatient && (!opdForm.first_name || !opdForm.last_name || !opdForm.age || !opdForm.gender || !opdForm.contact_number || opdForm.contact_number.length < 10))
+            : (!selectedPatient && (!opdForm.first_name || !opdForm.age || !opdForm.gender || !opdForm.contact_number || opdForm.contact_number.length < 10))
     );
 
     return (
