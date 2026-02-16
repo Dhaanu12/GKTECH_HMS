@@ -41,45 +41,69 @@ export function AvailableDoctorsWidget({ doctors }: WidgetProps) {
     );
 }
 
-export function OPDQueueWidget() {
-    const queue = [
-        { id: 'JD', name: 'John Doe', token: '#42', doctor: 'Dr. Smith', active: true },
-        { id: 'AS', name: 'Alice Spring', token: '#43', status: 'Waiting', time: '10m' },
-        { id: 'MR', name: 'Mark Ruffalo', token: '#44', status: 'Waiting', time: '25m' },
-    ];
+export interface OpdEntry {
+    opd_id: number;
+    patient_id: number;
+    patient_first_name: string;
+    patient_last_name: string;
+    token_number: string;
+    visit_status: string;
+    doctor_first_name: string;
+    doctor_last_name: string;
+    is_active?: boolean; // Derived or from DB
+    visit_time?: string;
+}
+
+interface OPDQueueWidgetProps {
+    queue: OpdEntry[];
+}
+
+export function OPDQueueWidget({ queue = [] }: OPDQueueWidgetProps) {
 
     return (
-        <div className="bg-[#1e293b] rounded-3xl p-6 shadow-xl text-white relative overflow-hidden">
+        <div className="">
             {/* Background decoration */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-fullblur-3xl -mr-10 -mt-10" />
+            {/* <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl -mr-10 -mt-10" /> */}
 
-            <div className="flex justify-between items-start mb-8 relative z-10">
+            {/* <div className="flex justify-between items-start mb-8 relative z-10">
                 <div>
                     <h3 className="font-bold text-lg">OPD</h3>
                     <h3 className="font-bold text-lg">Queue</h3>
                 </div>
                 <span className="px-2 py-1 bg-slate-800/80 backdrop-blur-sm rounded text-[10px] text-slate-300 font-mono border border-slate-700">LIVE</span>
-            </div>
+            </div> */}
 
-            <div className="space-y-4 relative z-10">
-                {queue.map((item, idx) => (
-                    <div key={idx} className={`p-3 rounded-2xl flex items-center gap-4 ${item.active ? 'bg-[#334155] border border-slate-600' : 'hover:bg-slate-800/50 transition border border-transparent'}`}>
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shadow-lg ${item.active ? 'bg-[#0ea5e9] text-white' : 'bg-slate-700 text-slate-400'}`}>
-                            {item.id}
-                        </div>
-                        <div className="flex-1">
-                            <h4 className="text-sm font-bold">{item.name}</h4>
-                            <p className="text-[10px] text-slate-400 font-medium mt-0.5">Token {item.token} • {item.active ? item.doctor : 'Waiting'}</p>
-                        </div>
-                        {item.active && <div className="w-2 h-2 rounded-full bg-[#10b981] animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />}
-                        {item.time && <span className="text-[10px] text-slate-500 font-mono">{item.time}</span>}
-                    </div>
-                ))}
-            </div>
+            {/* <div className="space-y-4 relative z-10 max-h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent pr-2">
+                {queue.length > 0 ? (
+                    queue.map((item, idx) => {
+                        const isActive = item.visit_status === 'In-consultation';
+                        const initials = `${item.patient_first_name?.[0] || ''}${item.patient_last_name?.[0] || ''}`;
+                        return (
+                            <div key={item.opd_id} className={`p-3 rounded-2xl flex items-center gap-4 ${isActive ? 'bg-[#334155] border border-slate-600' : 'hover:bg-slate-800/50 transition border border-transparent'}`}>
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shadow-lg ${isActive ? 'bg-[#0ea5e9] text-white' : 'bg-slate-700 text-slate-400'}`}>
+                                    {initials}
+                                </div>
+                                <div className="flex-1">
+                                    <h4 className="text-sm font-bold">{item.patient_first_name} {item.patient_last_name}</h4>
+                                    <p className="text-[10px] text-slate-400 font-medium mt-0.5">
+                                        Token {item.token_number} • {isActive ? `Dr. ${item.doctor_first_name}` : item.visit_status}
+                                    </p>
+                                </div> */}
+            {/* {isActive && <div className="w-2 h-2 rounded-full bg-[#10b981] animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />} */}
+            {/* {item.visit_time && <span className="text-[10px] text-slate-500 font-mono">{format(new Date(`1970-01-01T${item.visit_time}`), 'hh:mm a')}</span>} */}
+            {/* </div> */}
+            {/* ); */}
+            {/* }) */}
+            {/* ) : ( */}
+            {/* <div className="text-slate-400 text-center text-xs py-8"> */}
+            {/* No patients in queue */}
+            {/* </div> */}
+            {/* )} */}
+            {/* </div> */}
 
-            <button className="w-full mt-8 py-3.5 rounded-xl bg-[#0ea5e9] hover:bg-[#0284c7] transition font-semibold text-xs shadow-lg shadow-blue-500/20 tracking-wide uppercase">
-                View Full Queue
-            </button>
+            {/* <button className="w-full mt-8 py-3.5 rounded-xl bg-[#0ea5e9] hover:bg-[#0284c7] transition font-semibold text-xs shadow-lg shadow-blue-500/20 tracking-wide uppercase"> */}
+            {/* View Full Queue */}
+            {/* </button> */}
         </div>
     );
 }

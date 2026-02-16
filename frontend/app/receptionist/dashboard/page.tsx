@@ -7,10 +7,12 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import SearchableSelect from '../../../components/ui/SearchableSelect';
 import { Plus, Search, FileText, X, Save, User, Printer, Clock, AlertCircle, AlertTriangle, Calendar, Phone, ArrowRight, Bell, Sparkles, Activity, Users, ChevronLeft, ChevronDown, Check, Sun, CloudSun, Moon, Info, Filter } from 'lucide-react';
+import QueueDetailsModal from './components/QueueDetailsModal';
+import VisitsDetailsModal from './components/VisitsDetailsModal';
 import UpcomingAppointments from './components/UpcomingAppointments';
 import BillingModal from '../../../components/billing/BillingModal';
 import MultiInputTags from './components/MultiInputTags';
-import QueueDetailsModal from './components/QueueDetailsModal';
+
 
 import { format } from 'date-fns';
 import InvoiceTemplate from '@/components/billing/InvoiceTemplate';
@@ -133,8 +135,12 @@ export default function ReceptionistDashboard() {
     // Chief Complaint Auto-Suggest
     const [showComplaintSuggestions, setShowComplaintSuggestions] = useState(false);
     const [showQueueModal, setShowQueueModal] = useState(false);
+    const [showVisitsModal, setShowVisitsModal] = useState(false);
 
-    // Invoice View State
+    // --- Feedback State ---
+    const [todayFeedback, setTodayFeedback] = useState([]);
+
+    // --- Billing State ---
     const [showInvoice, setShowInvoice] = useState(false);
     const [selectedBill, setSelectedBill] = useState<any>(null);
 
@@ -293,7 +299,7 @@ export default function ReceptionistDashboard() {
         age: '',
         gender: '',
         doctor_id: '',
-        appointment_date: new Date().toLocaleDateString('en-CA'),
+        appointment_date: new Date().toISOString().split('T')[0],
         appointment_time: '',
         reason_for_visit: '',
         notes: ''
@@ -400,6 +406,7 @@ export default function ReceptionistDashboard() {
             fetchBranchDetails();
             fetchDoctors();
             fetchTodayOpdEntries();
+            fetchStats();
         }
     }, [user?.branch_id]);
 
@@ -781,6 +788,7 @@ export default function ReceptionistDashboard() {
             const token = localStorage.getItem('token');
             const payload = {
                 ...formData,
+                last_name: formData.last_name?.trim() || '.',
                 // Prioritize formData.patient_id (which is updated by handleDropdownSelect)
                 // Fallback to selectedPatient?.patient_id if formData one is missing/empty
                 patient_id: formData.patient_id || selectedPatient?.patient_id,
@@ -818,6 +826,8 @@ export default function ReceptionistDashboard() {
             const token = localStorage.getItem('token');
             if (!token) return;
 
+            const todayStr = format(new Date(), 'yyyy-MM-dd');
+
             const response = await axios.get('http://localhost:5000/api/opd/stats', {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -832,8 +842,25 @@ export default function ReceptionistDashboard() {
                 collectedAmount: stats.collectedAmount || 0,
                 collectedCount: stats.collectedCount || 0
             });
+            // 5. Fetch Today's Feedback
+            try {
+                const feedbackRes = await axios.get(`${API_URL}/feedback`, {
+                    params: {
+                        startDate: todayStr,
+                        endDate: todayStr,
+                        limit: 100 // Reasonable limit for a single day
+                    },
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (feedbackRes.data.success) {
+                    setTodayFeedback(feedbackRes.data.data);
+                }
+            } catch (error) {
+                console.error('Error fetching feedback:', error);
+            }
+
         } catch (error: any) {
-            console.error('Error fetching dashboard stats:', error);
+            console.error('Error fetching dashboard data:', error);
             if (axios.isAxiosError(error) && error.response?.status === 401) {
                 router.push('/login');
             }
@@ -892,7 +919,7 @@ export default function ReceptionistDashboard() {
             const token = localStorage.getItem('token');
             const today = format(new Date(), 'yyyy-MM-dd');
             const response = await axios.get('http://localhost:5000/api/opd', {
-                params: { startDate: today, endDate: today },
+                params: { startDate: today, endDate: today, includeCancelled: 'true' },
                 headers: { Authorization: `Bearer ${token}` }
             });
             setTodayOpdEntries(response.data.data.opdEntries || []);
@@ -1327,6 +1354,11 @@ export default function ReceptionistDashboard() {
         // Trigger generic refresh
         setAppointmentsRefreshKey(prev => prev + 1);
     }
+    const isRegisterDisabled = loading || !!duplicateWarning || !opdForm.doctor_id || (
+        opdForm.is_mlc
+            ? (!!opdForm.contact_number && opdForm.contact_number.length > 0 && opdForm.contact_number.length < 10)
+            : (!selectedPatient && (!opdForm.first_name || !opdForm.age || !opdForm.gender || !opdForm.contact_number || opdForm.contact_number.length < 10))
+    );
 
     return (
         <div className="flex flex-col h-[calc(100vh-156px)] w-full space-y-4 overflow-hidden pb-0">
@@ -1432,7 +1464,19 @@ export default function ReceptionistDashboard() {
                             <div className="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center text-white group-hover:scale-110 transition-transform shadow-lg shadow-blue-500/30">
                                 <Calendar className="w-6 h-6" />
                             </div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-100 px-2 py-1 rounded-full">TODAY</span>
+                            <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-100 px-2 py-1 rounded-full">TODAY</span>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setShowVisitsModal(true);
+                                    }}
+                                    className="p-1.5 hover:bg-blue-200/50 rounded-full transition-colors text-blue-600 group/info"
+                                    title="View Visit Details"
+                                >
+                                    <Info className="w-4 h-4 group-hover/info:scale-110 transition-transform" />
+                                </button>
+                            </div>
                         </div>
                         <p className="text-4xl font-bold text-blue-700">{dashboardStats.todayVisits}</p>
                         <p className="text-sm font-medium text-blue-600 mt-1">Today's Visits</p>
@@ -1667,7 +1711,8 @@ export default function ReceptionistDashboard() {
                                         <button
                                             type="button"
                                             onClick={handleSaveAndPrint}
-                                            className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition text-sm font-bold"
+                                            disabled={isRegisterDisabled}
+                                            className={`flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg transition text-sm font-bold ${isRegisterDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-200'}`}
                                         >
                                             <Printer className="w-4 h-4" />
                                             Save & Print
@@ -2329,9 +2374,13 @@ export default function ReceptionistDashboard() {
 
                                         <div className="md:col-span-8 lg:col-span-8">
                                             {hasAppointment ? (
-                                                <div className="bg-blue-50 border border-blue-200 rounded-xl px-5 py-3 h-[52px] flex flex-col justify-center">
-                                                    <p className="text-[10px] text-blue-600 font-bold uppercase tracking-widest leading-tight">Assigned Doctor</p>
-                                                    <p className="font-bold text-slate-800 text-sm">Dr. {appointmentDoctorName}</p>
+                                                <div className="w-full">
+                                                    <label className="block text-sm font-bold text-slate-500 uppercase tracking-widest mb-2">Assigned Doctor</label>
+                                                    <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 h-[52px] flex items-center">
+                                                        <p className="font-bold text-slate-800 text-sm">
+                                                            {appointmentDoctorName.toLowerCase().startsWith('dr.') ? appointmentDoctorName : `Dr. ${appointmentDoctorName}`}
+                                                        </p>
+                                                    </div>
                                                 </div>
                                             ) : (
                                                 <>
@@ -2692,8 +2741,8 @@ export default function ReceptionistDashboard() {
                                         </button>
                                         <button
                                             type="submit"
-                                            disabled={loading || !!duplicateWarning || (!selectedPatient && (opdForm.is_mlc ? (opdForm.contact_number.length > 0 && opdForm.contact_number.length < 10) : (opdForm.contact_number.length < 10 || modalSearchResults.length > 0)))}
-                                            className={`px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg hover:shadow-blue-500/30 transition-all font-bold flex items-center gap-2 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed ${duplicateWarning ? 'from-slate-400 to-slate-500 hover:shadow-none' : ''}`}
+                                            disabled={isRegisterDisabled}
+                                            className={`px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg hover:shadow-blue-500/30 transition-all font-bold flex items-center gap-2 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed ${isRegisterDisabled ? 'from-slate-400 to-slate-500 hover:shadow-none' : ''}`}
                                         >
                                             {loading ? 'Saving...' : 'Register Visit'}
                                         </button>
@@ -3238,6 +3287,16 @@ export default function ReceptionistDashboard() {
                 todayTotal={dashboardStats.todayVisits}
                 doctorSchedules={doctorSchedules}
                 appointments={allAppointments}
+            />
+
+            {/* Today's Visits Info Modal */}
+            <VisitsDetailsModal
+                isOpen={showVisitsModal}
+                onClose={() => setShowVisitsModal(false)}
+                entries={todayOpdEntries}
+                doctors={doctors}
+                departments={branchDepartments}
+                feedbacks={todayFeedback}
             />
 
             {/* Invoice Modal */}

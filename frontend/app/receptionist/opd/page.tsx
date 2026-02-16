@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Plus, Search, FileText, X, Save, User, Printer, Clock, AlertCircle, Calendar, Phone, ArrowRight, Bell, CalendarClock, Sun, CloudSun, Moon, RefreshCw, Activity, ChevronDown } from 'lucide-react';
+import { Plus, Search, FileText, X, Save, User, Printer, Clock, AlertCircle, Calendar, Phone, ArrowRight, Bell, CalendarClock, Sun, CloudSun, Moon, RefreshCw, Activity, ChevronDown, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../../lib/AuthContext';
 import SearchableSelect from '../../../components/ui/SearchableSelect';
 import MultiInputTags from '../dashboard/components/MultiInputTags';
@@ -59,7 +60,10 @@ interface OpdFormState {
 
 export default function OpdEntryPage() {
     const { user } = useAuth();
+    const router = useRouter();
+    const searchParams = useSearchParams();
     const [loading, setLoading] = useState(false);
+    const [highlightedOpdId, setHighlightedOpdId] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [selectedPatient, setSelectedPatient] = useState<any>(null);
@@ -126,6 +130,7 @@ export default function OpdEntryPage() {
     const [hasAppointment, setHasAppointment] = useState(false);
     const [appointmentDoctorName, setAppointmentDoctorName] = useState('');
     const [paymentChoice, setPaymentChoice] = useState<'PayNow' | 'PayLater'>('PayNow');
+    const [wasInitiallyPaid, setWasInitiallyPaid] = useState(false);
     const [editingOpdId, setEditingOpdId] = useState<number | null>(null);
     const [branchDetails, setBranchDetails] = useState<any>(null);
     const [branchDepartments, setBranchDepartments] = useState<any[]>([]);
@@ -177,6 +182,31 @@ export default function OpdEntryPage() {
         doctor_id: '',
         reason: ''
     });
+
+    // Smooth Scroll & Highlight Logic
+    useEffect(() => {
+        const highlightId = searchParams.get('highlight');
+        if (highlightId && opdEntries.length > 0) {
+            // Wait for DOM to render
+            setTimeout(() => {
+                const element = document.getElementById(`opd-row-${highlightId}`);
+                if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    setHighlightedOpdId(highlightId);
+
+                    // Clear highlight after 3 seconds
+                    setTimeout(() => {
+                        setHighlightedOpdId(null);
+                        // Optional: clean up URL
+                        const currentParams = new URLSearchParams(window.location.search);
+                        currentParams.delete('highlight');
+                        const newUrl = `${window.location.pathname}${currentParams.toString() ? '?' + currentParams.toString() : ''}`;
+                        window.history.replaceState({}, '', newUrl);
+                    }, 3000);
+                }
+            }, 600);
+        }
+    }, [searchParams, opdEntries]);
 
 
     const [opdForm, setOpdForm] = useState<OpdFormState>({
@@ -1023,8 +1053,8 @@ export default function OpdEntryPage() {
         try {
             const savedEntry = await saveEntry();
 
-            // Only show bill modal for NEW entries with PayNow, not for updates
-            if (paymentChoice === 'PayNow' && savedEntry && !editingOpdId) {
+            // Trigger billing flow for both NEW and UPDATES when PayNow is selected
+            if (paymentChoice === 'PayNow' && savedEntry && !wasInitiallyPaid) {
                 const opdId = typeof savedEntry === 'number' ? savedEntry : savedEntry.opd_id;
                 if (opdId) {
                     setNewOpdData(savedEntry); // Set this to trigger reset on modal close
@@ -1150,6 +1180,7 @@ export default function OpdEntryPage() {
         setIsFromConvertToOPD(false);
         setPendingPatientData(null);
         setPaymentChoice('PayNow');
+        setWasInitiallyPaid(false);
         setSelectedDepartment('All');
     };
 
@@ -1227,6 +1258,7 @@ export default function OpdEntryPage() {
 
         // Set Payment Choice based on status
         setPaymentChoice(entry.payment_status === 'Paid' ? 'PayNow' : 'PayLater');
+        setWasInitiallyPaid(entry.payment_status === 'Paid');
 
         setShowModal(true);
     };
@@ -1523,6 +1555,12 @@ export default function OpdEntryPage() {
     });
 
     const isPatientDetailsLocked = !!opdForm.patient_id && (!opdForm.is_mlc || (!!opdForm.contact_number && opdForm.contact_number.length >= 10));
+
+    const isRegisterDisabled = loading || !!duplicateWarning || !opdForm.doctor_id || (
+        opdForm.is_mlc
+            ? (!!opdForm.contact_number && opdForm.contact_number.length > 0 && opdForm.contact_number.length < 10)
+            : (!opdForm.first_name || !opdForm.age || !opdForm.gender || !opdForm.contact_number || opdForm.contact_number.length < 10)
+    );
 
     return (
         <div className="space-y-8 min-h-screen pb-20">
@@ -1848,9 +1886,10 @@ export default function OpdEntryPage() {
                                 const colors = themeColors[theme];
 
                                 return (
-                                    <div
-                                        key={entry.opd_id}
-                                        className={`group bg-white rounded-2xl p-4 border border-slate-100 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col md:flex-row items-center relative overflow-hidden ${colors.hoverBorder}`}
+                                    <div key={entry.opd_id} id={`opd-row-${entry.opd_id}`} className={`group bg-white rounded-2xl p-4 border transition-all duration-300 flex flex-col md:flex-row items-center relative overflow-hidden ${highlightedOpdId === entry.opd_id.toString()
+                                        ? 'ring-[6px] ring-blue-500/20 border-blue-500 border-2 shadow-2xl z-20 animate-row-pulse'
+                                        : `border-slate-100 shadow-sm hover:shadow-md ${colors.hoverBorder}`
+                                        }`}
                                     >
                                         {/* Left Accent Bar */}
                                         <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${entry.visit_status === 'Completed' ? 'bg-emerald-500' :
@@ -1946,13 +1985,13 @@ export default function OpdEntryPage() {
                                             <div className="flex items-center gap-1.5 w-full">
                                                 {/* Edit Button */}
                                                 <button
-                                                    onClick={() => entry.visit_status !== 'Completed' && handleEditOpd(entry)}
-                                                    className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg transition-all font-bold text-xs ${entry.visit_status === 'Completed'
+                                                    onClick={() => (entry.visit_status !== 'Completed' || entry.is_mlc) && handleEditOpd(entry)}
+                                                    className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg transition-all font-bold text-xs ${entry.visit_status === 'Completed' && !entry.is_mlc
                                                         ? 'bg-slate-50 text-slate-300 cursor-not-allowed pointer-events-none'
                                                         : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-800'
                                                         }`}
-                                                    title={entry.visit_status === 'Completed' ? "Cannot edit completed visit" : "Edit OPD Entry"}
-                                                    disabled={entry.visit_status === 'Completed'}
+                                                    title={entry.visit_status === 'Completed' && !entry.is_mlc ? "Cannot edit completed visit" : "Edit OPD Entry"}
+                                                    disabled={entry.visit_status === 'Completed' && !entry.is_mlc}
                                                 >
                                                     Edit
                                                 </button>
@@ -1993,7 +2032,7 @@ export default function OpdEntryPage() {
                             }))
                     }
                 </div>
-            </div>
+            </div >
 
             {/* Glass Modal for Entry */}
             {
@@ -2018,7 +2057,8 @@ export default function OpdEntryPage() {
                                         <button
                                             type="button"
                                             onClick={handleSaveAndPrint}
-                                            className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition text-sm font-bold"
+                                            disabled={isRegisterDisabled}
+                                            className={`flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg transition text-sm font-bold ${isRegisterDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-200'}`}
                                         >
                                             <Printer className="w-4 h-4" />
                                             Save & Print
@@ -2974,7 +3014,7 @@ export default function OpdEntryPage() {
                                             <div className="flex-1 min-w-[200px]">
                                                 <label className="block text-sm font-semibold text-slate-500 mb-1">Payment Preference <span className="text-red-500">*</span></label>
                                                 <div className="relative">
-                                                    {opdForm.payment_status === 'Paid' && !!editingOpdId ? (
+                                                    {wasInitiallyPaid && !!editingOpdId ? (
                                                         <div className="w-full px-4 py-2.5 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
                                                             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                                                             <span className="font-bold text-green-700">Paid</span>
@@ -3039,8 +3079,8 @@ export default function OpdEntryPage() {
                                         </button>
                                         <button
                                             type="submit"
-                                            disabled={loading || !!duplicateWarning}
-                                            className={`px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg hover:shadow-blue-500/30 transition-all font-bold flex items-center gap-2 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed ${duplicateWarning ? 'from-slate-400 to-slate-500 hover:shadow-none' : ''}`}
+                                            disabled={isRegisterDisabled}
+                                            className={`px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg hover:shadow-blue-500/30 transition-all font-bold flex items-center gap-2 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed ${isRegisterDisabled ? 'from-slate-400 to-slate-500 hover:shadow-none' : ''}`}
                                         >
                                             {loading ? 'Saving...' : (editingOpdId ? 'Update Visit' : 'Register Visit')}
                                         </button>
@@ -3443,40 +3483,58 @@ export default function OpdEntryPage() {
             />
 
             {/* Invoice Modal */}
-            {showInvoice && selectedBill && (
-                <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 print:p-0 print:bg-white print:absolute print:inset-0">
-                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto print:shadow-none print:w-full print:max-w-none print:h-auto print:overflow-visible">
-                        <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 print:hidden">
-                            <h2 className="text-lg font-bold text-gray-800">Invoice Preview</h2>
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() => window.print()}
-                                    className="p-2 text-gray-600 hover:bg-gray-200 rounded-lg flex items-center gap-2"
-                                >
-                                    <Printer className="w-4 h-4" /> Print
-                                </button>
-                                <button
-                                    onClick={() => setShowInvoice(false)}
-                                    className="p-2 hover:bg-red-50 text-gray-500 hover:text-red-500 rounded-lg"
-                                >
-                                    <X className="w-5 h-5" />
-                                </button>
+            {
+                showInvoice && selectedBill && (
+                    <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 print:p-0 print:bg-white print:absolute print:inset-0">
+                        <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto print:shadow-none print:w-full print:max-w-none print:h-auto print:overflow-visible">
+                            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 print:hidden">
+                                <h2 className="text-lg font-bold text-gray-800">Invoice Preview</h2>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => window.print()}
+                                        className="p-2 text-gray-600 hover:bg-gray-200 rounded-lg flex items-center gap-2"
+                                    >
+                                        <Printer className="w-4 h-4" /> Print
+                                    </button>
+                                    <button
+                                        onClick={() => setShowInvoice(false)}
+                                        className="p-2 hover:bg-red-50 text-gray-500 hover:text-red-500 rounded-lg"
+                                    >
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="print:block">
+                                <InvoiceTemplate
+                                    billData={selectedBill}
+                                    hospitalData={{
+                                        name: user?.hospital_name,
+                                        address: user?.address_line1 || 'Hospital Address',
+                                        phone: user?.contact_number,
+                                        email: user?.email
+                                    }}
+                                />
                             </div>
                         </div>
-                        <div className="print:block">
-                            <InvoiceTemplate
-                                billData={selectedBill}
-                                hospitalData={{
-                                    name: user?.hospital_name,
-                                    address: user?.address_line1 || 'Hospital Address',
-                                    phone: user?.contact_number,
-                                    email: user?.email
-                                }}
-                            />
-                        </div>
                     </div>
-                </div>
-            )}
+                )
+            }
         </div >
     );
+}
+
+// Add animation styles at the end of the file
+const style = document.createElement('style');
+style.innerHTML = `
+@keyframes rowPulse {
+  0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+  50% { box-shadow: 0 25px 30px -5px rgb(59 130 246 / 0.2), 0 0 0 12px rgba(59, 130, 246, 0.1); }
+  100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+}
+.animate-row-pulse {
+  animation: rowPulse 1.5s ease-in-out infinite;
+}
+`;
+if (typeof document !== 'undefined') {
+    document.head.appendChild(style);
 }

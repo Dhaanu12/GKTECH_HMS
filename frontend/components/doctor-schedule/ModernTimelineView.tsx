@@ -110,7 +110,7 @@ export default function ModernTimelineView({ doctors, date, onAddClick }: Modern
                                         </div>
 
                                         <div className="flex items-center gap-3 mt-3">
-                                            <div className="flex -space-x-2">
+                                            {/* <div className="flex -space-x-2">
                                                 {[1, 2, 3].map(i => (
                                                     <div key={i} className="w-7 h-7 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-[9px] shadow-sm">
                                                         👤
@@ -119,8 +119,13 @@ export default function ModernTimelineView({ doctors, date, onAddClick }: Modern
                                                 <div className="w-7 h-7 rounded-full bg-slate-50 border-2 border-white flex items-center justify-center text-[10px] font-bold text-slate-500 shadow-sm">
                                                     +3
                                                 </div>
+                                            </div> */}
+                                            <div className="flex items-center gap-2 text-slate-500 bg-slate-50 px-3 py-1.5 rounded-full">
+                                                <span className="text-lg">👥</span>
+                                                <span className="text-xs font-bold">
+                                                    {doctor.patients_waiting || 0} Patients waiting
+                                                </span>
                                             </div>
-                                            <span className="text-xs text-slate-400 font-medium">5 Patients waiting</span>
                                         </div>
                                     </div>
                                 </div>

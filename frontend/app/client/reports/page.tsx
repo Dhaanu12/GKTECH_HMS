@@ -323,250 +323,6 @@
 
 // // Report Components
 // import BranchPerformance from '@/components/reports/BranchPerformance';
-// import StaffPerformance from '@/components/reports/StaffPerformance';
-
-// export default function ClientAdminReports() {
-//     const [activeTab, setActiveTab] = useState('overview');
-
-//     // Start with no date range - let API use defaults
-//     const [dateRange, setDateRange] = useState({
-//         startDate: '',
-//         endDate: ''
-//     });
-
-//     // Track if user has set custom dates
-//     const [useCustomDates, setUseCustomDates] = useState(false);
-
-//     const [loading, setLoading] = useState(false);
-//     const [data, setData] = useState<any>(null);
-//     const [error, setError] = useState<string | null>(null);
-//     const [fetchTrigger, setFetchTrigger] = useState(0);
-
-//     useEffect(() => {
-//         const fetchData = async () => {
-//             console.log('🔄 Fetching data...');
-//             setLoading(true);
-//             setData(null);
-//             setError(null);
-
-//             try {
-//                 const token = localStorage.getItem('token');
-//                 const headers = { Authorization: `Bearer ${token}` };
-
-//                 // Only include date params if user has set them
-//                 const params: any = {};
-//                 if (useCustomDates && dateRange.startDate && dateRange.endDate) {
-//                     params.startDate = dateRange.startDate;
-//                     params.endDate = dateRange.endDate;
-//                 }
-
-//                 let res;
-
-//                 if (activeTab === 'branch') {
-//                     res = await axios.get(
-//                         `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/clientadmins/reports/branch`,
-//                         { headers, params }
-//                     );
-//                 } else if (['doctor', 'nurse', 'receptionist'].includes(activeTab)) {
-//                     res = await axios.get(
-//                         `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/clientadmins/reports/staff`,
-//                         {
-//                             headers,
-//                             params: { ...params, type: activeTab.toUpperCase() }
-//                         }
-//                     );
-//                 } else {
-//                     // Overview - Use Executive Stats (same endpoint as dashboard)
-//                     res = await axios.get(
-//                         `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/clientadmins/executive-stats`,
-//                         { headers, params }
-//                     );
-//                 }
-
-//                 console.log('📥 Received response:', res.data);
-
-//                 // Handle response structure
-//                 if (res.data && res.data.data) {
-//                     setData(res.data.data);
-//                 } else if (res.data) {
-//                     setData(res.data);
-//                 } else {
-//                     throw new Error('No data received from server');
-//                 }
-
-//             } catch (error: any) {
-//                 console.error('❌ Error:', error);
-//                 setError(error.response?.data?.message || error.message || 'Failed to fetch data');
-//             } finally {
-//                 setLoading(false);
-//             }
-//         };
-
-//         fetchData();
-//     }, [activeTab, fetchTrigger]);
-
-//     const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-//         setDateRange(prev => ({ ...prev, [e.target.name]: e.target.value }));
-//     };
-
-//     const handleApplyFilter = () => {
-//         setUseCustomDates(true);
-//         setFetchTrigger(prev => prev + 1);
-//     };
-
-//     const handleResetDates = () => {
-//         setDateRange({ startDate: '', endDate: '' });
-//         setUseCustomDates(false);
-//         setFetchTrigger(prev => prev + 1);
-//     };
-
-//     const handleExportPDF = () => {
-//         window.print();
-//     };
-
-//     const tabs = [
-//         {
-//             id: 'overview',
-//             label: 'Executive Overview',
-//             icon: TrendingUp,
-//             gradient: 'from-blue-500 to-indigo-600',
-//             iconBg: 'from-blue-100 to-indigo-100',
-//             iconColor: 'text-blue-600'
-//         },
-//         {
-//             id: 'branch',
-//             label: 'Branch Performance',
-//             icon: Building2,
-//             gradient: 'from-purple-500 to-pink-600',
-//             iconBg: 'from-purple-100 to-pink-100',
-//             iconColor: 'text-purple-600'
-//         },
-//         {
-//             id: 'doctor',
-//             label: 'Doctor Analytics',
-//             icon: Stethoscope,
-//             gradient: 'from-emerald-500 to-teal-600',
-//             iconBg: 'from-emerald-100 to-teal-100',
-//             iconColor: 'text-emerald-600'
-//         },
-//         {
-//             id: 'nurse',
-//             label: 'Nurse Performance',
-//             icon: UserCheck,
-//             gradient: 'from-cyan-500 to-blue-600',
-//             iconBg: 'from-cyan-100 to-blue-100',
-//             iconColor: 'text-cyan-600'
-//         },
-//         {
-//             id: 'receptionist',
-//             label: 'Reception Stats',
-//             icon: UserCog,
-//             gradient: 'from-orange-500 to-red-600',
-//             iconBg: 'from-orange-100 to-red-100',
-//             iconColor: 'text-orange-600'
-//         }
-//     ];
-
-//     const activeTabInfo = tabs.find(t => t.id === activeTab);
-
-//     return (
-//         <div className="space-y-6 pb-20 print:p-0">
-//             {/* Premium Header */}
-//             <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 rounded-3xl shadow-2xl p-8 print:hidden">
-//                 {/* Background Pattern */}
-//                 <div className="absolute inset-0 opacity-10">
-//                     <div className="absolute inset-0" style={{
-//                         backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)',
-//                         backgroundSize: '40px 40px'
-//                     }}></div>
-//                 </div>
-
-//                 <div className="relative z-10 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
-//                     {/* Title Section */}
-//                     <div className="space-y-3">
-//                         <div className="flex items-center gap-4">
-//                             <div className="p-4 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-2xl shadow-lg transform rotate-3">
-//                                 <BarChart3 className="w-8 h-8 text-white" />
-//                             </div>
-//                             <div>
-//                                 <h1 className="text-4xl font-bold text-white tracking-tight">
-//                                     Advanced Analytics
-//                                 </h1>
-//                                 <p className="text-blue-200 text-sm font-medium mt-1 flex items-center gap-2">
-//                                     <Sparkles className="w-4 h-4" />
-//                                     Real-time insights and comprehensive reporting
-//                                 </p>
-//                             </div>
-//                         </div>
-//                     </div>
-
-//                     {/* Date Controls */}
-//                     <div className="flex flex-wrap items-center gap-3 bg-white/10 backdrop-blur-xl rounded-2xl p-4 border border-white/20 shadow-xl">
-//                         <div className="flex items-center gap-2 text-white/80">
-//                             <Calendar className="w-5 h-5" />
-//                             <span className="text-xs font-bold uppercase tracking-wider">Custom Period</span>
-//                         </div>
-//                         <input
-//                             type="date"
-//                             name="startDate"
-//                             value={dateRange.startDate}
-//                             onChange={handleDateChange}
-//                             placeholder="Start Date"
-//                             className="bg-white/90 backdrop-blur text-gray-900 border-0 rounded-xl px-4 py-2.5 text-sm font-semibold focus:ring-2 focus:ring-blue-400 focus:outline-none shadow-inner"
-//                         />
-//                         <span className="text-white/60 font-bold">→</span>
-//                         <input
-//                             type="date"
-//                             name="endDate"
-//                             value={dateRange.endDate}
-//                             onChange={handleDateChange}
-//                             placeholder="End Date"
-//                             className="bg-white/90 backdrop-blur text-gray-900 border-0 rounded-xl px-4 py-2.5 text-sm font-semibold focus:ring-2 focus:ring-blue-400 focus:outline-none shadow-inner"
-//                         />
-//                         <button
-//                             onClick={handleApplyFilter}
-//                             disabled={loading || !dateRange.startDate || !dateRange.endDate}
-//                             className="px-6 py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl hover:from-blue-600 hover:to-indigo-700 transition-all font-bold text-sm disabled:opacity-50 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center gap-2"
-//                         >
-//                             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-//                             Apply
-//                         </button>
-//                         {useCustomDates && (
-//                             <button
-//                                 onClick={handleResetDates}
-//                                 disabled={loading}
-//                                 className="px-4 py-2.5 bg-white/20 backdrop-blur-sm text-white rounded-xl hover:bg-white/30 transition-all font-bold text-sm disabled:opacity-50 border border-white/30 shadow-lg"
-//                                 title="Reset to default"
-//                             >
-//                                 Reset
-//                             </button>
-//                         )}
-//                         <button
-//                             onClick={handleExportPDF}
-//                             disabled={loading || !data}
-//                             className="px-5 py-2.5 bg-white/20 backdrop-blur-sm text-white rounded-xl hover:bg-white/30 transition-all font-bold text-sm disabled:opacity-50 border border-white/30 shadow-lg flex items-center gap-2"
-//                         >
-//                             <Download className="w-4 h-4" />
-//                             Export
-//                         </button>
-//                     </div>
-//                 </div>
-
-//                 {/* Date Range Indicator */}
-//                 {useCustomDates && dateRange.startDate && dateRange.endDate && (
-//                     <div className="relative z-10 mt-4 flex items-center gap-2 text-blue-200 text-sm">
-//                         <span className="font-semibold">Showing data from:</span>
-//                         <span className="px-3 py-1 bg-white/10 rounded-lg font-bold">
-//                             {dateRange.startDate} to {dateRange.endDate}
-//                         </span>
-//                     </div>
-//                 )}
-//                 {!useCustomDates && (
-//                     <div className="relative z-10 mt-4 flex items-center gap-2 text-blue-200 text-sm">
-//                         <span className="px-3 py-1 bg-white/10 rounded-lg font-semibold">
-//                             Showing all available data
-//                         </span>
-//                     </div>
 //                 )}
 //             </div>
 
@@ -771,46 +527,7 @@
 //                                             {data.efficiency ? (
 //                                                 <EfficiencyMetrics metrics={data.efficiency} />
 //                                             ) : (
-//                                                 <div className="flex items-center justify-center h-64 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
-//                                                     <p className="text-gray-400 text-sm">No efficiency data available</p>
-//                                                 </div>
-//                                             )}
-//                                         </div>
-//                                     </div>
-//                                 </section>
 
-//                                 {/* Patient Intelligence */}
-//                                 <section className="break-inside-avoid grid grid-cols-1 lg:grid-cols-2 gap-6">
-//                                     {/* Patient Retention */}
-//                                     <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-lg hover:shadow-xl transition-all">
-//                                         <div className="flex items-center gap-3 mb-6">
-//                                             <div className="p-3 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl text-white shadow-lg">
-//                                                 <UserCheck className="w-6 h-6" />
-//                                             </div>
-//                                             <div>
-//                                                 <h2 className="text-2xl font-bold text-gray-900">Patient Retention</h2>
-//                                                 <p className="text-sm text-gray-500 mt-1">Visit frequency analysis</p>
-//                                             </div>
-//                                         </div>
-//                                         <div className="h-64">
-//                                             {data.retention && data.retention.length > 0 ? (
-//                                                 <PatientRetentionChart data={data.retention} />
-//                                             ) : (
-//                                                 <div className="flex items-center justify-center h-full bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
-//                                                     <p className="text-gray-400 text-sm">No retention data available</p>
-//                                                 </div>
-//                                             )}
-//                                         </div>
-//                                     </div>
-
-//                                     {/* High Value Patients */}
-//                                     <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-lg hover:shadow-xl transition-all">
-//                                         {data.high_value_patients ? (
-//                                             <HighValuePatientsTable data={data.high_value_patients} />
-//                                         ) : (
-//                                             <div className="flex items-center justify-center h-full bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
-//                                                 <p className="text-gray-400 text-sm">No high value patient data available</p>
-//                                             </div>
 //                                         )}
 //                                     </div>
 //                                 </section>
@@ -877,9 +594,11 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Calendar, Download, TrendingUp, Building2, Stethoscope, UserCog, UserCheck, BarChart3, RefreshCw, Sparkles, Filter, X } from 'lucide-react';
+import { jsPDF } from 'jspdf';
+import { toPng } from 'html-to-image';
+import { Calendar, Download, TrendingUp, Building2, Stethoscope, UserCog, UserCheck, BarChart3, RefreshCw, Sparkles, Filter, X, Activity, Users } from 'lucide-react';
 
 // Dashboard Components for Overview
 import { KPIGrid } from '@/components/dashboard/KPIGrid';
@@ -895,14 +614,28 @@ import StaffPerformance from '@/components/reports/StaffPerformance';
 export default function ClientAdminReports() {
     const [activeTab, setActiveTab] = useState('overview');
 
-    // Start with no date range - let API use defaults
+    // Helper to get local date string YYYY-MM-DD
+    const getLocalDateString = (date: Date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    const todayDate = new Date();
+    const todayStr = getLocalDateString(todayDate);
+
+    // Default to Today
     const [dateRange, setDateRange] = useState({
-        startDate: '',
-        endDate: ''
+        startDate: todayStr,
+        endDate: todayStr
     });
 
+    const today = todayStr;
+
     // Track if user has set custom dates
-    const [useCustomDates, setUseCustomDates] = useState(false);
+    // For "Today" view, we treat it as custom dates being active so data loads immediately
+    const [useCustomDates, setUseCustomDates] = useState(true);
 
     const [loading, setLoading] = useState(false);
     const [data, setData] = useState<any>(null);
@@ -922,9 +655,18 @@ export default function ClientAdminReports() {
 
                 // Only include date params if user has set them
                 const params: any = {};
+                console.log('📅 Date Filter State:', {
+                    useCustomDates,
+                    startDate: dateRange.startDate,
+                    endDate: dateRange.endDate
+                });
+
                 if (useCustomDates && dateRange.startDate && dateRange.endDate) {
                     params.startDate = dateRange.startDate;
                     params.endDate = dateRange.endDate;
+                    console.log('✅ Adding date params to request:', params);
+                } else {
+                    console.log('⏭️ No custom dates - using backend defaults');
                 }
 
                 let res;
@@ -970,31 +712,112 @@ export default function ClientAdminReports() {
         };
 
         fetchData();
-    }, [activeTab, fetchTrigger]);
+    }, [activeTab, fetchTrigger, useCustomDates]);
 
     const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setDateRange(prev => ({ ...prev, [e.target.name]: e.target.value }));
+        const { name, value } = e.target;
+        setDateRange(prev => {
+            const newRange = { ...prev, [name]: value };
+            // If start date is moved ahead of end date, clear end date
+            if (name === 'startDate' && newRange.endDate && value > newRange.endDate) {
+                newRange.endDate = '';
+            }
+            return newRange;
+        });
+    };
+
+    const setQuickFilter = (type: 'today' | 'yesterday' | 'week' | 'month') => {
+        const d = new Date();
+        let start = new Date(d);
+        let end = new Date(d);
+
+        switch (type) {
+            case 'today':
+                // already set
+                break;
+            case 'yesterday':
+                start.setDate(d.getDate() - 1);
+                end.setDate(d.getDate() - 1);
+                break;
+            case 'week':
+                start.setDate(d.getDate() - 7);
+                break;
+            case 'month':
+                start.setDate(d.getDate() - 30);
+                break;
+        }
+
+        setDateRange({
+            startDate: getLocalDateString(start),
+            endDate: getLocalDateString(end)
+        });
+        setUseCustomDates(true);
+        // setFetchTrigger(prev => prev + 1); // useEffect will catch useCustomDates or activeTab, but maybe need trigger if values change?
+        // Actually, useEffect currently depends on `useCustomDates` and `fetchTrigger`.
+        // If I change `dateRange`, useEffect won't fire unless I add dateRange to deps or increment trigger.
+        // But dateRange changes on every keystroke, so we don't want to auto-fetch on dateRange change usually.
+        // For quick filters, we DO want to auto-fetch.
+        setFetchTrigger(prev => prev + 1);
     };
 
     const handleApplyFilter = () => {
+        console.log('🔘 Apply Filter clicked!', {
+            currentDateRange: dateRange,
+            currentUseCustomDates: useCustomDates
+        });
+        setUseCustomDates(true);
+        setFetchTrigger(prev => prev + 1);
+        console.log('📤 State updates dispatched: useCustomDates=true, fetchTrigger incremented');
+    };
+
+    const handleResetDates = () => {
+        // Reset to Today
+        const now = new Date();
+        const todayS = getLocalDateString(now);
+        setDateRange({ startDate: todayS, endDate: todayS });
         setUseCustomDates(true);
         setFetchTrigger(prev => prev + 1);
     };
 
-    const handleResetDates = () => {
-        setDateRange({ startDate: '', endDate: '' });
-        setUseCustomDates(false);
-        setFetchTrigger(prev => prev + 1);
-    };
+    const reportRef = useRef<HTMLDivElement>(null);
 
-    const handleExportPDF = () => {
-        window.print();
+    // ... (existing code)
+
+    const handleExportPDF = async () => {
+        if (!reportRef.current) return;
+
+        try {
+            // Show loading state specifically for export if needed, or just use global loading
+            // But global loading hides content! So we shouldn't use setLoading(true) in a way that unmounts content.
+            // We'll perform the export without setting the main loading state, or use a separate state.
+            // For now, let's just do it.
+
+            const dataUrl = await toPng(reportRef.current, {
+                quality: 0.95,
+                pixelRatio: 2,
+                filter: (node: HTMLElement) => {
+                    // Exclude elements with 'no-print' class
+                    return !node.classList?.contains('no-print');
+                }
+            });
+
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const imgProps = pdf.getImageProperties(dataUrl);
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+            pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            pdf.save(`Analytics_Report_${dateRange.startDate || 'all'}.pdf`);
+        } catch (err) {
+            console.error('PDF Export failed', err);
+            alert('Failed to generate PDF');
+        }
     };
 
     const tabs = [
         {
             id: 'overview',
-            label: 'Executive Overview',
+            label: 'Overview',
             icon: TrendingUp,
             gradient: 'from-blue-500 to-indigo-600',
             iconBg: 'bg-blue-500',
@@ -1043,33 +866,33 @@ export default function ClientAdminReports() {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 pb-20 print:bg-white print:p-0">
-            <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 print:p-0">
+            <div ref={reportRef} className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 print:p-0 bg-white/50">
 
                 {/* Premium Header Section */}
                 <div className="mb-8 print:hidden">
                     <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 overflow-hidden">
                         {/* Gradient Background Banner */}
-                        <div className={`relative bg-gradient-to-r ${activeTabInfo?.gradient} p-8`}>
+                        <div className={`relative bg-gradient-to-r ${activeTabInfo?.gradient} p-5`}>
                             <div className="absolute inset-0 opacity-10">
                                 <div className="absolute inset-0" style={{
                                     backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)',
-                                    backgroundSize: '32px 32px'
+                                    backgroundSize: '24px 24px'
                                 }}></div>
                             </div>
 
                             <div className="relative z-10">
                                 {/* Title Row */}
-                                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-6">
-                                    <div className="flex items-center gap-4">
-                                        <div className="p-4 bg-white/20 backdrop-blur-sm rounded-2xl shadow-xl">
-                                            <BarChart3 className="w-10 h-10 text-white" />
+                                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2.5 bg-white/20 backdrop-blur-sm rounded-xl shadow-lg">
+                                            <BarChart3 className="w-6 h-6 text-white" />
                                         </div>
                                         <div>
-                                            <h1 className="text-4xl font-bold text-white tracking-tight">
+                                            <h1 className="text-2xl font-bold text-white tracking-tight">
                                                 Analytics Dashboard
                                             </h1>
-                                            <p className="text-white/90 text-sm font-medium mt-1 flex items-center gap-2">
-                                                <Sparkles className="w-4 h-4" />
+                                            <p className="text-white/90 text-xs font-medium mt-0.5 flex items-center gap-1.5">
+                                                <Sparkles className="w-3 h-3" />
                                                 Comprehensive insights and performance metrics
                                             </p>
                                         </div>
@@ -1079,68 +902,90 @@ export default function ClientAdminReports() {
                                     <button
                                         onClick={handleExportPDF}
                                         disabled={loading || !data}
-                                        className="px-6 py-3 bg-white/20 backdrop-blur-sm text-white rounded-xl hover:bg-white/30 transition-all font-bold text-sm disabled:opacity-50 border border-white/30 shadow-lg flex items-center gap-2 hover:scale-105 transform duration-200"
+                                        className="no-print px-4 py-2 bg-white/20 backdrop-blur-sm text-white rounded-lg hover:bg-white/30 transition-all font-bold text-xs disabled:opacity-50 border border-white/30 shadow-md flex items-center gap-2 hover:scale-105 transform duration-200"
                                     >
-                                        <Download className="w-5 h-5" />
+                                        <Download className="w-4 h-4" />
                                         Export PDF
                                     </button>
                                 </div>
 
+
                                 {/* Date Filter Section */}
-                                <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20">
-                                    <div className="flex flex-wrap items-center gap-4">
+                                <div className="bg-white/10 backdrop-blur-xl rounded-xl p-4 border border-white/20">
+                                    <div className="flex flex-wrap items-center gap-3">
                                         <div className="flex items-center gap-2 text-white">
-                                            <Filter className="w-5 h-5" />
-                                            <span className="text-sm font-bold uppercase tracking-wider">Date Filter</span>
+                                            <Filter className="w-4 h-4" />
+                                            <span className="text-xs font-bold uppercase tracking-wider">Date Filter</span>
                                         </div>
 
-                                        <div className="flex flex-wrap items-center gap-3 flex-1">
-                                            <input
-                                                type="date"
-                                                name="startDate"
-                                                value={dateRange.startDate}
-                                                onChange={handleDateChange}
-                                                className="bg-white text-gray-900 border-0 rounded-xl px-4 py-2.5 text-sm font-semibold focus:ring-2 focus:ring-white/50 focus:outline-none shadow-lg min-w-[150px]"
-                                            />
-                                            <span className="text-white/80 font-bold">→</span>
-                                            <input
-                                                type="date"
-                                                name="endDate"
-                                                value={dateRange.endDate}
-                                                onChange={handleDateChange}
-                                                className="bg-white text-gray-900 border-0 rounded-xl px-4 py-2.5 text-sm font-semibold focus:ring-2 focus:ring-white/50 focus:outline-none shadow-lg min-w-[150px]"
-                                            />
+                                        <div className="flex flex-col gap-2 flex-1">
+                                            {/* Quick Filters */}
+                                            <div className="flex gap-2">
+                                                {[
+                                                    { label: 'Today', val: 'today' },
+                                                    { label: 'Yesterday', val: 'yesterday' },
+                                                    { label: 'Last 7 Days', val: 'week' },
+                                                    { label: 'Last 30 Days', val: 'month' }
+                                                ].map((opt) => (
+                                                    <button
+                                                        key={opt.val}
+                                                        onClick={() => setQuickFilter(opt.val as any)}
+                                                        className="px-2.5 py-1 text-[10px] font-bold text-white bg-white/20 hover:bg-white/30 rounded-md transition-all border border-white/10"
+                                                    >
+                                                        {opt.label}
+                                                    </button>
+                                                ))}
+                                            </div>
 
-                                            <button
-                                                onClick={handleApplyFilter}
-                                                disabled={loading || !dateRange.startDate || !dateRange.endDate}
-                                                className="px-6 py-2.5 bg-white text-gray-900 rounded-xl hover:bg-gray-100 transition-all font-bold text-sm disabled:opacity-50 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center gap-2"
-                                            >
-                                                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                                                Apply
-                                            </button>
-
-                                            {useCustomDates && (
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <input
+                                                    type="date"
+                                                    name="startDate"
+                                                    value={dateRange.startDate}
+                                                    max={today}
+                                                    onChange={handleDateChange}
+                                                    className="bg-white text-gray-900 border-0 rounded-lg px-3 py-1.5 text-xs font-semibold focus:ring-2 focus:ring-white/50 focus:outline-none shadow-md min-w-[120px]"
+                                                />
+                                                <span className="text-white/80 font-bold text-xs">→</span>
+                                                <input
+                                                    type="date"
+                                                    name="endDate"
+                                                    value={dateRange.endDate}
+                                                    min={dateRange.startDate}
+                                                    max={today}
+                                                    onChange={handleDateChange}
+                                                    className="bg-white text-gray-900 border-0 rounded-lg px-3 py-1.5 text-xs font-semibold focus:ring-2 focus:ring-white/50 focus:outline-none shadow-md min-w-[120px]"
+                                                />
                                                 <button
-                                                    onClick={handleResetDates}
-                                                    disabled={loading}
-                                                    className="px-4 py-2.5 bg-white/20 backdrop-blur-sm text-white rounded-xl hover:bg-white/30 transition-all font-bold text-sm disabled:opacity-50 border border-white/30 shadow-lg flex items-center gap-2"
-                                                    title="Reset to default"
+                                                    onClick={handleApplyFilter}
+                                                    disabled={loading || !dateRange.startDate || !dateRange.endDate}
+                                                    className="px-4 py-1.5 bg-white text-gray-900 rounded-lg hover:bg-gray-100 transition-all font-bold text-xs disabled:opacity-50 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 flex items-center gap-1.5"
                                                 >
-                                                    <X className="w-4 h-4" />
-                                                    Reset
+                                                    <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+                                                    Apply
                                                 </button>
-                                            )}
+                                                {useCustomDates && (
+                                                    <button
+                                                        onClick={handleResetDates}
+                                                        disabled={loading}
+                                                        className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded-lg hover:bg-white/30 transition-all font-bold text-xs disabled:opacity-50 border border-white/30 shadow-md flex items-center gap-1.5"
+                                                        title="Reset to Today"
+                                                    >
+                                                        <X className="w-3.5 h-3.5" />
+                                                        Reset
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
 
                                     {/* Active Filter Indicator */}
-                                    <div className="mt-4 flex items-center gap-2 text-white/90 text-sm">
+                                    <div className="mt-3 flex items-center gap-2 text-white/90 text-xs">
                                         {useCustomDates && dateRange.startDate && dateRange.endDate ? (
                                             <>
-                                                <Calendar className="w-4 h-4" />
+                                                <Calendar className="w-3.5 h-3.5" />
                                                 <span className="font-semibold">Period:</span>
-                                                <span className="px-3 py-1 bg-white/20 rounded-lg font-bold">
+                                                <span className="px-2 py-0.5 bg-white/20 rounded-md font-bold">
                                                     {new Date(dateRange.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                                                     {' → '}
                                                     {new Date(dateRange.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -1148,8 +993,8 @@ export default function ClientAdminReports() {
                                             </>
                                         ) : (
                                             <>
-                                                <Calendar className="w-4 h-4" />
-                                                <span className="px-3 py-1 bg-white/20 rounded-lg font-semibold">
+                                                <Calendar className="w-3.5 h-3.5" />
+                                                <span className="px-2 py-0.5 bg-white/20 rounded-md font-semibold">
                                                     All Available Data
                                                 </span>
                                             </>
@@ -1158,51 +1003,52 @@ export default function ClientAdminReports() {
                                 </div>
                             </div>
                         </div>
-
-                        {/* Tab Navigation */}
-                        <div className="bg-gray-50 border-t border-gray-200 p-4">
-                            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
-                                {tabs.map((tab) => {
-                                    const Icon = tab.icon;
-                                    const isActive = activeTab === tab.id;
-                                    return (
-                                        <button
-                                            key={tab.id}
-                                            onClick={() => {
-                                                setData(null);
-                                                setError(null);
-                                                setActiveTab(tab.id);
-                                            }}
-                                            className={`
-                                                group relative flex items-center gap-3 px-6 py-4 rounded-xl font-semibold text-sm transition-all duration-300 whitespace-nowrap min-w-fit
-                                                ${isActive
-                                                    ? `bg-gradient-to-r ${tab.gradient} text-white shadow-xl scale-105`
-                                                    : `bg-white text-gray-600 hover:bg-gray-100 hover:text-gray-900 shadow-sm hover:shadow-md border border-gray-200`
-                                                }
-                                            `}
-                                        >
-                                            <div className={`
-                                                p-2 rounded-lg transition-all
-                                                ${isActive
-                                                    ? 'bg-white/20'
-                                                    : `${tab.bgLight} ${tab.textColor}`
-                                                }
-                                            `}>
-                                                <Icon className={`w-5 h-5 ${isActive ? 'text-white' : ''}`} />
-                                            </div>
-                                            <span>{tab.label}</span>
-                                            {isActive && (
-                                                <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2">
-                                                    <div className="w-3 h-3 bg-white rounded-full shadow-lg"></div>
-                                                </div>
-                                            )}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
                     </div>
                 </div>
+                {/* Tab Navigation */}
+                <div className="bg-gray-50 border-t border-gray-200 p-4">
+                    <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+                        {tabs.map((tab) => {
+                            const Icon = tab.icon;
+                            const isActive = activeTab === tab.id;
+                            return (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => {
+                                        if (isActive) return;
+                                        setData(null);
+                                        setError(null);
+                                        setActiveTab(tab.id);
+                                    }}
+                                    className={`
+                                                group relative flex items-center gap-3 px-6 py-4 rounded-xl font-semibold text-sm transition-all duration-300 whitespace-nowrap min-w-fit
+                                                ${isActive
+                                            ? `bg-gradient-to-r ${tab.gradient} text-white shadow-xl scale-105`
+                                            : `bg-white text-gray-600 hover:bg-gray-100 hover:text-gray-900 shadow-sm hover:shadow-md border border-gray-200`
+                                        }
+                                            `}
+                                >
+                                    <div className={`
+                                                p-2 rounded-lg transition-all
+                                                ${isActive
+                                            ? 'bg-white/20'
+                                            : `${tab.bgLight} ${tab.textColor}`
+                                        }
+                                            `}>
+                                        <Icon className={`w-5 h-5 ${isActive ? 'text-white' : ''}`} />
+                                    </div>
+                                    <span>{tab.label}</span>
+                                    {isActive && (
+                                        <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2">
+                                            <div className="w-3 h-3 bg-white rounded-full shadow-lg"></div>
+                                        </div>
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+
 
                 {/* Content Area */}
                 <div className="min-h-[500px] print:min-h-0">
@@ -1486,10 +1332,10 @@ export default function ClientAdminReports() {
                         </>
                     )}
                 </div>
-            </div>
+            </div >
 
             {/* Print Styles */}
-            <style jsx global>{`
+            < style jsx global > {`
                 @media print {
                     @page { 
                         margin: 15mm;
@@ -1526,7 +1372,7 @@ export default function ClientAdminReports() {
                 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
                     background: #a0aec0;
                 }
-            `}</style>
-        </div>
+            `}</style >
+        </div >
     );
 }

@@ -1,642 +1,3 @@
-// // import React, { useState } from 'react';
-// // import {
-// //     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
-// // } from 'recharts';
-// // import { UserCheck, Clock, Activity, Search } from 'lucide-react';
-
-// // interface StaffData {
-// //     id: number;
-// //     first_name: string;
-// //     last_name: string;
-// //     role_detail: string;
-// //     task_count: string;
-// //     performance_metric: string;
-// //     // New optional fields
-// //     walk_in_count?: string;
-// //     referral_count?: string;
-// //     completed_appointments?: string;
-// //     total_appointments?: string;
-// //     late_days?: string;
-// //     absent_days?: string;
-// //     confirmed_appts?: string;
-// //     total_confirmed?: string;
-// //     opd_checkins?: string;
-// //     no_show_count?: string;
-// //     cancellations_handled?: string;
-// // }
-
-// // interface Props {
-// //     data: StaffData[];
-// //     type: 'DOCTOR' | 'NURSE' | 'RECEPTIONIST';
-// // }
-
-// // export default function StaffPerformance({ data, type }: Props) {
-// //     const [searchTerm, setSearchTerm] = useState('');
-
-// //     if (!data || !Array.isArray(data)) return <div className="p-4 text-center text-gray-500">No data available</div>;
-
-// //     const filteredData = data.filter(d =>
-// //         `${d.first_name} ${d.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
-// //     );
-
-// //     const chartData = filteredData.map(d => ({
-// //         name: `${d.first_name || 'Unknown'} ${d.last_name || ''}`,
-// //         Count: parseInt(d.task_count || '0'),
-// //         Metric: parseFloat(d.performance_metric || '0')
-// //     })).sort((a, b) => b.Metric - a.Metric).slice(0, 10);
-
-// //     const metricLabel = type === 'DOCTOR' ? 'Revenue (₹)' : type === 'NURSE' ? 'Present Days' : 'Cancellations/No-shows';
-// //     const countLabel = type === 'DOCTOR' ? 'Patients Seen' : type === 'NURSE' ? 'Shifts Assigned' : 'Total Interactions';
-
-// //     return (
-// //         <div className="space-y-8">
-// //             {/* Controls */}
-// //             <div className="flex justify-end">
-// //                 <div className="relative w-64">
-// //                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-// //                     <input
-// //                         type="text"
-// //                         placeholder={`Search ${type.toLowerCase()}...`}
-// //                         value={searchTerm}
-// //                         onChange={(e) => setSearchTerm(e.target.value)}
-// //                         className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-// //                     />
-// //                 </div>
-// //             </div>
-
-// //             {/* Performance Chart */}
-// //             <div className="glass-panel p-6 rounded-3xl border border-white/60">
-// //                 <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-// //                     <Activity className="w-5 h-5 text-blue-500" />
-// //                     Top Performers
-// //                 </h3>
-// //                 <div className="h-96">
-// //                     <ResponsiveContainer width="100%" height="100%">
-// //                         <BarChart data={chartData} layout="vertical" margin={{ left: 40 }}>
-// //                             <CartesianGrid strokeDasharray="3 3" horizontal={true} stroke="rgba(200,200,200,0.2)" />
-// //                             <XAxis type="number" hide />
-// //                             <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 12 }} />
-// //                             <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }} />
-// //                             <Legend />
-// //                             <Bar dataKey="Count" name={countLabel} fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={20} />
-// //                             <Bar dataKey="Metric" name={metricLabel} fill="#cbd5e1" radius={[0, 4, 4, 0]} barSize={20} />
-// //                         </BarChart>
-// //                     </ResponsiveContainer>
-// //                 </div>
-// //             </div>
-
-// //             {/* Detailed List */}
-// //             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-// //                 {filteredData.map((staff) => (
-// //                     <div key={staff.id} className="bg-white p-4 rounded-xl border border-gray-100 hover:shadow-md transition flex flex-col gap-4">
-// //                         <div className="flex items-center gap-4">
-// //                             <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-lg">
-// //                                 {(staff.first_name && staff.first_name.length > 0) ? staff.first_name[0] : '?'}
-// //                             </div>
-// //                             <div className="flex-1">
-// //                                 <h4 className="font-bold text-gray-800">{staff.first_name || 'Unknown'} {staff.last_name || ''}</h4>
-// //                                 <p className="text-xs text-gray-500 uppercase font-semibold tracking-wider">{staff.role_detail}</p>
-// //                             </div>
-// //                         </div>
-
-// //                         {/* Main Stats */}
-// //                         <div className="flex items-center justify-between text-sm py-2 border-t border-gray-50">
-// //                             <div className="flex flex-col">
-// //                                 <span className="text-gray-400 text-xs">{countLabel}</span>
-// //                                 <span className="font-semibold text-gray-700">{staff.task_count}</span>
-// //                             </div>
-// //                             <div className="flex flex-col text-right">
-// //                                 <span className="text-gray-400 text-xs">{metricLabel}</span>
-// //                                 <span className={`font-bold ${type === 'DOCTOR' ? 'text-emerald-600' : 'text-blue-600'}`}>
-// //                                     {type === 'DOCTOR' && '₹'}{parseFloat(staff.performance_metric || '0').toLocaleString()}
-// //                                 </span>
-// //                             </div>
-// //                         </div>
-
-// //                         {/* Detailed Stats Badge Area */}
-// //                         <div className="flex flex-wrap gap-2 text-xs">
-// //                             {/* Doctor Specifics */}
-// //                             {type === 'DOCTOR' && (
-// //                                 <>
-// //                                     <span className="px-2 py-1 bg-amber-50 text-amber-700 rounded-md border border-amber-100">
-// //                                         Walk-in: <b>{staff.walk_in_count || 0}</b>
-// //                                     </span>
-// //                                     <span className="px-2 py-1 bg-purple-50 text-purple-700 rounded-md border border-purple-100">
-// //                                         Ref: <b>{staff.referral_count || 0}</b>
-// //                                     </span>
-// //                                     {/* Conversion Rate */}
-// //                                     {parseInt(staff.total_appointments || '0') > 0 && (
-// //                                         <span className="px-2 py-1 bg-emerald-50 text-emerald-700 rounded-md border border-emerald-100">
-// //                                             Conv: <b>{Math.round((parseInt(staff.completed_appointments || '0') / parseInt(staff.total_appointments || '1')) * 100)}%</b>
-// //                                         </span>
-// //                                     )}
-// //                                 </>
-// //                             )}
-
-// //                             {/* Nurse Specifics */}
-// //                             {type === 'NURSE' && (
-// //                                 <>
-// //                                     <span className="px-2 py-1 bg-red-50 text-red-700 rounded-md border border-red-100">
-// //                                         Late: <b>{staff.late_days || 0}</b>
-// //                                     </span>
-// //                                     <span className="px-2 py-1 bg-gray-50 text-gray-700 rounded-md border border-gray-200">
-// //                                         Absent: <b>{staff.absent_days || 0}</b>
-// //                                     </span>
-// //                                 </>
-// //                             )}
-
-// //                             {/* Receptionist Specifics */}
-// //                             {type === 'RECEPTIONIST' && (
-// //                                 <>
-// //                                     <span className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-md border border-indigo-100" title="Appointments Confirmed">
-// //                                         Booked: <b>{staff.total_confirmed || staff.confirmed_appts || 0}</b>
-// //                                     </span>
-// //                                     <span className="px-2 py-1 bg-teal-50 text-teal-700 rounded-md border border-teal-100" title="OPD Check-ins">
-// //                                         OPD: <b>{staff.opd_checkins || 0}</b>
-// //                                     </span>
-// //                                     {/* No-Show Rate as quality indicator */}
-// //                                     {parseInt(staff.total_confirmed || '0') > 0 && (
-// //                                         <span className={`px-2 py-1 rounded-md border ${(parseInt(staff.no_show_count || '0') / parseInt(staff.total_confirmed || '1')) > 0.2
-// //                                                 ? 'bg-red-50 text-red-700 border-red-100'
-// //                                                 : 'bg-emerald-50 text-emerald-700 border-emerald-100'
-// //                                             }`} title="Conversion / Success Rate (Lower No-show is better)">
-// //                                             No-Show: <b>{Math.round((parseInt(staff.no_show_count || '0') / parseInt(staff.total_confirmed || '1')) * 100)}%</b>
-// //                                         </span>
-// //                                     )}
-// //                                     <span className="px-2 py-1 bg-orange-50 text-orange-700 rounded-md border border-orange-100" title="Cancellations Processed">
-// //                                         Cancelled: <b>{staff.cancellations_handled || 0}</b>
-// //                                     </span>
-// //                                 </>
-// //                             )}
-// //                         </div>
-// //                     </div>
-// //                 ))}
-// //             </div>
-// //         </div>
-// //     );
-// // }
-
-// import React, { useState } from 'react';
-// import {
-//     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
-// } from 'recharts';
-// import { UserCheck, Clock, Activity, Search, TrendingUp } from 'lucide-react';
-
-// interface StaffData {
-//     id: number;
-//     first_name: string;
-//     last_name: string;
-//     role_detail: string;
-//     task_count: string;
-//     performance_metric: string;
-//     // New optional fields
-//     walk_in_count?: string;
-//     referral_count?: string;
-//     completed_appointments?: string;
-//     total_appointments?: string;
-//     late_days?: string;
-//     absent_days?: string;
-//     confirmed_appts?: string;
-//     total_confirmed?: string;
-//     opd_checkins?: string;
-//     no_show_count?: string;
-//     cancellations_handled?: string;
-//     // New Lab Metrics (Nurse)
-//     labs_assigned?: string;
-//     labs_completed?: string;
-//     labs_pending?: string;
-//     patients_vitals_handled?: string;
-//     // New Receptionist Metrics
-//     appointments_converted?: string;
-//     payments_collected?: string;
-//     pending_amount?: string;
-// }
-
-// interface Props {
-//     data: StaffData[];
-//     type: 'DOCTOR' | 'NURSE' | 'RECEPTIONIST';
-// }
-
-// export default function StaffPerformance({ data, type }: Props) {
-//     const [searchTerm, setSearchTerm] = useState('');
-
-//     if (!data || !Array.isArray(data)) return <div className="p-4 text-center text-gray-500">No data available</div>;
-
-//     const filteredData = data.filter(d =>
-//         `${d.first_name} ${d.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
-//     );
-
-//     const metricLabel = type === 'DOCTOR' ? 'Revenue (₹)' : type === 'NURSE' ? 'Labs Completed' : 'Issues Handled';
-//     const countLabel = type === 'DOCTOR' ? 'Patients Seen' : type === 'NURSE' ? 'Labs Assigned' : 'Positive Actions';
-
-//     // Prepare chart data based on staff type with proper calculations
-//     const chartData = filteredData.map(d => {
-//         // Default to task_count/performance_metric, but override for Nurse
-//         let taskCount = parseInt(d.task_count || '0');
-//         let metric = parseFloat(d.performance_metric || '0');
-
-//         if (type === 'NURSE') {
-//             taskCount = parseInt(d.labs_assigned || '0');
-//             metric = parseInt(d.labs_completed || '0');
-//         }
-
-//         return {
-//             name: `${d.first_name || 'Unknown'} ${d.last_name || ''}`,
-//             Count: taskCount,
-//             Metric: metric,
-//             VitalsCount: type === 'NURSE' ? parseInt(d.patients_vitals_handled || '0') : 0,
-//             // Doctor-specific meaningful metrics
-//             AvgRevenue: type === 'DOCTOR' && taskCount > 0
-//                 ? metric / taskCount
-//                 : 0,
-//             CompletionRate: type === 'DOCTOR' && parseInt(d.total_appointments || '0') > 0
-//                 ? (parseInt(d.completed_appointments || '0') / parseInt(d.total_appointments || '1')) * 100
-//                 : 0,
-//             WalkInCount: type === 'DOCTOR' ? parseInt(d.walk_in_count || '0') : 0,
-//             ReferralCount: type === 'DOCTOR' ? parseInt(d.referral_count || '0') : 0
-//         };
-//     }).sort((a, b) => {
-//         // Sort logic: Doctors/Nurses by Metric (Rev/Labs), Receptionist by Count (Activity)
-//         if (type === 'RECEPTIONIST') return b.Count - a.Count;
-//         return b.Metric - a.Metric;
-//     }).slice(0, 10);
-
-//     return (
-//         <div className="space-y-8">
-//             {/* Controls */}
-//             <div className="flex justify-between items-center">
-//                 <div className="flex items-center gap-3">
-//                     <div className={`px-4 py-2 rounded-xl font-semibold ${type === 'DOCTOR' ? 'bg-blue-100 text-blue-700' :
-//                         type === 'NURSE' ? 'bg-purple-100 text-purple-700' :
-//                             'bg-emerald-100 text-emerald-700'
-//                         }`}>
-//                         {filteredData.length} {type.toLowerCase()}{filteredData.length !== 1 ? 's' : ''}
-//                     </div>
-//                 </div>
-
-//                 <div className="relative w-64">
-//                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-//                     <input
-//                         type="text"
-//                         placeholder={`Search ${type.toLowerCase()}...`}
-//                         value={searchTerm}
-//                         onChange={(e) => setSearchTerm(e.target.value)}
-//                         className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-//                     />
-//                 </div>
-//             </div>
-
-//             {/* Performance Charts */}
-//             {type === 'DOCTOR' ? (
-//                 <>
-//                     {/* Summary Stats for Doctors */}
-//                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pdf-capture">
-//                         <div className="glass-panel p-4 rounded-2xl border border-white/60">
-//                             <div className="flex items-center gap-3">
-//                                 <div className="p-3 bg-blue-100 rounded-xl">
-//                                     <UserCheck className="w-5 h-5 text-blue-600" />
-//                                 </div>
-//                                 <div>
-//                                     <p className="text-xs text-gray-500 font-semibold">Total Patients</p>
-//                                     <p className="text-2xl font-bold text-gray-800">
-//                                         {chartData.reduce((sum, d) => sum + d.Count, 0).toLocaleString()}
-//                                     </p>
-//                                 </div>
-//                             </div>
-//                         </div>
-
-//                         <div className="glass-panel p-4 rounded-2xl border border-white/60">
-//                             <div className="flex items-center gap-3">
-//                                 <div className="p-3 bg-emerald-100 rounded-xl">
-//                                     <TrendingUp className="w-5 h-5 text-emerald-600" />
-//                                 </div>
-//                                 <div>
-//                                     <p className="text-xs text-gray-500 font-semibold">Total Revenue</p>
-//                                     <p className="text-2xl font-bold text-emerald-600">
-//                                         ₹{chartData.reduce((sum, d) => sum + d.Metric, 0).toLocaleString()}
-//                                     </p>
-//                                 </div>
-//                             </div>
-//                         </div>
-
-//                         <div className="glass-panel p-4 rounded-2xl border border-white/60">
-//                             <div className="flex items-center gap-3">
-//                                 <div className="p-3 bg-amber-100 rounded-xl">
-//                                     <Activity className="w-5 h-5 text-amber-600" />
-//                                 </div>
-//                                 <div>
-//                                     <p className="text-xs text-gray-500 font-semibold">Avg per Patient</p>
-//                                     <p className="text-2xl font-bold text-gray-800">
-//                                         ₹{(chartData.reduce((sum, d) => sum + d.AvgRevenue, 0) / chartData.length).toFixed(0)}
-//                                     </p>
-//                                 </div>
-//                             </div>
-//                         </div>
-
-//                         <div className="glass-panel p-4 rounded-2xl border border-white/60">
-//                             <div className="flex items-center gap-3">
-//                                 <div className="p-3 bg-purple-100 rounded-xl">
-//                                     <Clock className="w-5 h-5 text-purple-600" />
-//                                 </div>
-//                                 <div>
-//                                     <p className="text-xs text-gray-500 font-semibold">Avg Completion</p>
-//                                     <p className="text-2xl font-bold text-gray-800">
-//                                         {(chartData.reduce((sum, d) => sum + d.CompletionRate, 0) / chartData.length).toFixed(1)}%
-//                                     </p>
-//                                 </div>
-//                             </div>
-//                         </div>
-//                     </div>
-
-//                     {/* Doctor Performance Charts Grid */}
-//                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-//                         {/* Patient Volume Chart */}
-//                         {/* Patient Volume Chart */}
-//                         <div className="glass-panel pdf-capture p-6 rounded-3xl border border-white/60">
-//                             <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-//                                 <UserCheck className="w-5 h-5 text-blue-500" />
-//                                 Patient Volume Comparison
-//                             </h3>
-//                             <div className="h-96">
-//                                 <ResponsiveContainer width="100%" height="100%">
-//                                     <BarChart data={chartData} layout="vertical" margin={{ left: 40, right: 20 }}>
-//                                         <CartesianGrid strokeDasharray="3 3" horizontal={true} stroke="rgba(200,200,200,0.2)" />
-//                                         <XAxis type="number" />
-//                                         <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 11 }} />
-//                                         <Tooltip
-//                                             cursor={{ fill: 'rgba(59, 130, 246, 0.1)' }}
-//                                             contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
-//                                         />
-//                                         <Legend />
-//                                         <Bar dataKey="Count" name="Patients Seen" fill="#3b82f6" radius={[0, 8, 8, 0]} />
-//                                     </BarChart>
-//                                 </ResponsiveContainer>
-//                             </div>
-//                         </div>
-
-//                         {/* Revenue Chart */}
-//                         {/* Revenue Chart */}
-//                         <div className="glass-panel pdf-capture p-6 rounded-3xl border border-white/60">
-//                             <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-//                                 <TrendingUp className="w-5 h-5 text-emerald-500" />
-//                                 Total Revenue Generated
-//                             </h3>
-//                             <div className="h-96">
-//                                 <ResponsiveContainer width="100%" height="100%">
-//                                     <BarChart data={chartData} layout="vertical" margin={{ left: 40, right: 20 }}>
-//                                         <CartesianGrid strokeDasharray="3 3" horizontal={true} stroke="rgba(200,200,200,0.2)" />
-//                                         <XAxis type="number" />
-//                                         <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 11 }} />
-//                                         <Tooltip
-//                                             cursor={{ fill: 'rgba(16, 185, 129, 0.1)' }}
-//                                             contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
-//                                             formatter={(value: number) => `₹${value.toLocaleString()}`}
-//                                         />
-//                                         <Legend />
-//                                         <Bar dataKey="Metric" name="Total Revenue (₹)" fill="#10b981" radius={[0, 8, 8, 0]} />
-//                                     </BarChart>
-//                                 </ResponsiveContainer>
-//                             </div>
-//                         </div>
-
-//                         {/* Average Revenue per Patient */}
-//                         {/* Average Revenue per Patient */}
-//                         <div className="glass-panel pdf-capture p-6 rounded-3xl border border-white/60">
-//                             <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-//                                 <Activity className="w-5 h-5 text-purple-500" />
-//                                 Revenue Efficiency (Avg per Patient)
-//                             </h3>
-//                             <div className="h-96">
-//                                 <ResponsiveContainer width="100%" height="100%">
-//                                     <BarChart data={chartData} layout="vertical" margin={{ left: 40, right: 20 }}>
-//                                         <CartesianGrid strokeDasharray="3 3" horizontal={true} stroke="rgba(200,200,200,0.2)" />
-//                                         <XAxis type="number" />
-//                                         <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 11 }} />
-//                                         <Tooltip
-//                                             cursor={{ fill: 'rgba(139, 92, 246, 0.1)' }}
-//                                             contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
-//                                             formatter={(value: number) => `₹${value.toFixed(2)}`}
-//                                         />
-//                                         <Legend />
-//                                         <Bar dataKey="AvgRevenue" name="Avg Revenue per Patient (₹)" fill="#8b5cf6" radius={[0, 8, 8, 0]} />
-//                                     </BarChart>
-//                                 </ResponsiveContainer>
-//                             </div>
-//                         </div>
-
-//                         {/* Completion Rate */}
-//                         {/* Completion Rate */}
-//                         <div className="glass-panel pdf-capture p-6 rounded-3xl border border-white/60">
-//                             <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-//                                 <Clock className="w-5 h-5 text-amber-500" />
-//                                 Appointment Completion Rate
-//                             </h3>
-//                             <div className="h-96">
-//                                 <ResponsiveContainer width="100%" height="100%">
-//                                     <BarChart data={chartData} layout="vertical" margin={{ left: 40, right: 20 }}>
-//                                         <CartesianGrid strokeDasharray="3 3" horizontal={true} stroke="rgba(200,200,200,0.2)" />
-//                                         <XAxis type="number" domain={[0, 100]} />
-//                                         <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 11 }} />
-//                                         <Tooltip
-//                                             cursor={{ fill: 'rgba(245, 158, 11, 0.1)' }}
-//                                             contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
-//                                             formatter={(value: number) => `${value.toFixed(1)}%`}
-//                                         />
-//                                         <Legend />
-//                                         <Bar dataKey="CompletionRate" name="Completion Rate (%)" fill="#f59e0b" radius={[0, 8, 8, 0]} />
-//                                     </BarChart>
-//                                 </ResponsiveContainer>
-//                             </div>
-//                         </div>
-//                     </div>
-//                 </>
-//             ) : (
-//                 /* Original chart for Nurses and Receptionists */
-//                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-//                     <div className="glass-panel pdf-capture p-6 rounded-3xl border border-white/60">
-//                         <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-//                             <Activity className="w-5 h-5 text-blue-500" />
-//                             Top Performers
-//                         </h3>
-//                         <div className="h-96">
-//                             <ResponsiveContainer width="100%" height="100%">
-//                                 <BarChart data={chartData} layout="vertical" margin={{ left: 40, right: 20 }}>
-//                                     <CartesianGrid strokeDasharray="3 3" horizontal={true} stroke="rgba(200,200,200,0.2)" />
-//                                     <XAxis type="number" />
-//                                     <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 12 }} />
-//                                     <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }} />
-//                                     <Legend />
-//                                     <Bar dataKey="Count" name={countLabel} fill={type === 'NURSE' ? '#8b5cf6' : '#3b82f6'} radius={[0, 8, 8, 0]} barSize={24} />
-//                                     <Bar
-//                                         dataKey="Metric"
-//                                         name={metricLabel}
-//                                         fill={type === 'RECEPTIONIST' ? '#ef4444' : '#10b981'}
-//                                         radius={[0, 8, 8, 0]}
-//                                         barSize={24}
-//                                     />
-//                                 </BarChart>
-//                             </ResponsiveContainer>
-//                         </div>
-//                     </div>
-
-//                     {/* Nurse Specific Vitals Chart */}
-//                     {type === 'NURSE' && (
-//                         <div className="glass-panel pdf-capture p-6 rounded-3xl border border-white/60">
-//                             <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-//                                 <UserCheck className="w-5 h-5 text-purple-500" />
-//                                 Patients Handled (Vitals)
-//                             </h3>
-//                             <div className="h-96">
-//                                 <ResponsiveContainer width="100%" height="100%">
-//                                     <BarChart data={chartData} layout="vertical" margin={{ left: 40, right: 20 }}>
-//                                         <CartesianGrid strokeDasharray="3 3" horizontal={true} stroke="rgba(200,200,200,0.2)" />
-//                                         <XAxis type="number" />
-//                                         <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 12 }} />
-//                                         <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }} />
-//                                         <Legend />
-//                                         <Bar dataKey="VitalsCount" name="Unique Patients (Vitals)" fill="#8b5cf6" radius={[0, 8, 8, 0]} barSize={24} />
-//                                     </BarChart>
-//                                 </ResponsiveContainer>
-//                             </div>
-//                         </div>
-//                     )}
-//                 </div>
-//             )}
-
-
-//             {/* Detailed List */}
-//             <div className="glass-panel rounded-3xl border border-white/60 overflow-hidden">
-//                 <div className="p-6 border-b border-gray-100">
-//                     <h3 className="text-lg font-bold text-slate-800">Individual Performance Details</h3>
-//                 </div>
-
-//                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-6">
-//                     {filteredData.map((staff) => (
-//                         <div key={staff.id} className="bg-white p-5 rounded-xl border border-gray-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-//                             <div className="flex items-center gap-4 mb-4">
-//                                 <div className={`w-14 h-14 rounded-full flex items-center justify-center font-bold text-xl ${type === 'DOCTOR' ? 'bg-blue-100 text-blue-600' :
-//                                     type === 'NURSE' ? 'bg-purple-100 text-purple-600' :
-//                                         'bg-emerald-100 text-emerald-600'
-//                                     }`}>
-//                                     {(staff.first_name && staff.first_name.length > 0) ? staff.first_name[0] : '?'}
-//                                 </div>
-//                                 <div className="flex-1">
-//                                     <h4 className="font-bold text-gray-800 text-base">
-//                                         {staff.first_name || 'Unknown'} {staff.last_name || ''}
-//                                     </h4>
-//                                     <p className="text-xs text-gray-500 uppercase font-semibold tracking-wider">{staff.role_detail}</p>
-//                                 </div>
-//                             </div>
-
-//                             {/* Main Stats */}
-//                             <div className="flex items-center justify-between py-3 mb-3 border-y border-gray-100">
-//                                 <div className="flex flex-col">
-//                                     <span className="text-gray-400 text-xs font-medium">{countLabel}</span>
-//                                     <span className="font-bold text-gray-700 text-lg">
-//                                         {type === 'NURSE' ? (staff.labs_assigned || 0) : staff.task_count}
-//                                     </span>
-//                                 </div>
-//                                 <div className="flex flex-col text-right">
-//                                     <span className="text-gray-400 text-xs font-medium">{metricLabel}</span>
-//                                     <span className={`font-bold text-lg ${type === 'DOCTOR' ? 'text-emerald-600' : type === 'NURSE' ? 'text-purple-600' : 'text-blue-600'}`}>
-//                                         {type === 'DOCTOR' && '₹'}
-//                                         {type === 'NURSE'
-//                                             ? (staff.labs_completed || 0)
-//                                             : parseFloat(staff.performance_metric || '0').toLocaleString()}
-//                                     </span>
-//                                 </div>
-//                             </div>
-
-//                             {/* Detailed Stats Badge Area */}
-//                             <div className="flex flex-wrap gap-2 text-xs">
-//                                 {/* Doctor Specifics */}
-//                                 {type === 'DOCTOR' && (
-//                                     <>
-//                                         <span className="px-2.5 py-1.5 bg-amber-50 text-amber-700 rounded-lg border border-amber-200 font-medium">
-//                                             Walk-in: <b>{staff.walk_in_count || 0}</b>
-//                                         </span>
-//                                         <span className="px-2.5 py-1.5 bg-purple-50 text-purple-700 rounded-lg border border-purple-200 font-medium">
-//                                             Referral: <b>{staff.referral_count || 0}</b>
-//                                         </span>
-//                                         {/* Average Revenue per Patient */}
-//                                         {parseInt(staff.task_count || '0') > 0 && (
-//                                             <span className="px-2.5 py-1.5 bg-blue-50 text-blue-700 rounded-lg border border-blue-200 font-medium">
-//                                                 Avg/Patient: <b>₹{Math.round(parseFloat(staff.performance_metric || '0') / parseInt(staff.task_count || '1'))}</b>
-//                                             </span>
-//                                         )}
-//                                         {/* Completion Rate */}
-//                                         {parseInt(staff.total_appointments || '0') > 0 && (
-//                                             <span className="px-2.5 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-200 font-medium">
-//                                                 Completion: <b>{Math.round((parseInt(staff.completed_appointments || '0') / parseInt(staff.total_appointments || '1')) * 100)}%</b>
-//                                             </span>
-//                                         )}
-//                                     </>
-//                                 )}
-
-//                                 {/* Nurse Specifics */}
-//                                 {type === 'NURSE' && (
-//                                     <>
-//                                         {/* Attendance Metrics (Now secondary) */}
-//                                         <span className="px-2.5 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-200 font-medium">
-//                                             Present: <b>{staff.performance_metric || 0}</b>
-//                                         </span>
-//                                         <span className="px-2.5 py-1.5 bg-blue-50 text-blue-700 rounded-lg border border-blue-200 font-medium">
-//                                             Shifts: <b>{staff.task_count || 0}</b>
-//                                         </span>
-//                                         <span className="px-2.5 py-1.5 bg-red-50 text-red-700 rounded-lg border border-red-200 font-medium">
-//                                             Late: <b>{staff.late_days || 0}</b>
-//                                         </span>
-//                                         <span className="px-2.5 py-1.5 bg-gray-100 text-gray-700 rounded-lg border border-gray-300 font-medium">
-//                                             Absent: <b>{staff.absent_days || 0}</b>
-//                                         </span>
-
-//                                         {parseInt(staff.labs_pending || '0') > 0 && (
-//                                             <span className="px-2.5 py-1.5 bg-yellow-50 text-yellow-700 rounded-lg border border-yellow-200 font-medium" title="Pending Labs">
-//                                                 Pending Labs: <b>{staff.labs_pending}</b>
-//                                             </span>
-//                                         )}
-//                                     </>
-//                                 )}
-
-//                                 {/* Receptionist Specifics */}
-//                                 {type === 'RECEPTIONIST' && (
-//                                     <>
-//                                         <span className="px-2.5 py-1.5 bg-teal-50 text-teal-700 rounded-lg border border-teal-200 font-medium" title="OPD Check-ins">
-//                                             OPD: <b>{staff.opd_checkins || 0}</b>
-//                                         </span>
-//                                         <span className="px-2.5 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg border border-indigo-200 font-medium" title="Total Appts">
-//                                             Booked: <b>{staff.total_confirmed || 0}</b>
-//                                         </span>
-//                                         <span className="px-2.5 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-200 font-medium" title="Completed Appts">
-//                                             Conv: <b>{staff.appointments_converted || 0}</b>
-//                                         </span>
-//                                         <span className="px-2.5 py-1.5 bg-orange-50 text-orange-700 rounded-lg border border-orange-200 font-medium" title="Cancelled">
-//                                             Cancelled: <b>{staff.cancellations_handled || 0}</b>
-//                                         </span>
-
-//                                         {/* Finance */}
-//                                         <div className="w-full mt-2 pt-2 border-t border-gray-100 flex gap-2">
-//                                             <span className="px-2.5 py-1.5 bg-green-50 text-green-700 rounded-lg border border-green-200 font-medium flex-1 text-center" title="Payments Collected">
-//                                                 ₹{parseFloat(staff.payments_collected || '0').toLocaleString()}
-//                                             </span>
-//                                             {parseFloat(staff.pending_amount || '0') > 0 && (
-//                                                 <span className="px-2.5 py-1.5 bg-red-50 text-red-700 rounded-lg border border-red-200 font-medium" title="Pending Payments">
-//                                                     Pending: ₹{parseFloat(staff.pending_amount || '0').toLocaleString()}
-//                                                 </span>
-//                                             )}
-//                                         </div>
-//                                     </>
-//                                 )}
-//                             </div>
-//                         </div>
-//                     ))}
-//                 </div>
-//             </div>
-//         </div >
-//     );
-// }
-
-
 import React, { useState } from 'react';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -669,6 +30,7 @@ interface StaffData {
     appointments_converted?: string;
     payments_collected?: string;
     pending_amount?: string;
+    emergency_count?: string;
 }
 
 interface Props {
@@ -732,7 +94,9 @@ export default function StaffPerformance({ data, type }: Props) {
                 cancelled: parseInt(d.cancellations_handled || '0'),
                 noShows: parseInt(d.no_show_count || '0'),
                 paymentsCollected: parseFloat(d.payments_collected || '0'),
-                pending: parseFloat(d.pending_amount || '0')
+                pending: parseFloat(d.pending_amount || '0'),
+                walkInCount: parseInt(d.walk_in_count || '0'),
+                emergencyCount: parseInt(d.emergency_count || '0')
             };
         }
     });
@@ -750,16 +114,18 @@ export default function StaffPerformance({ data, type }: Props) {
             const avgAttendance = chartData.reduce((sum: number, d: any) => sum + d.presentDays, 0) / chartData.length;
             return { totalLabs, totalVitals, avgAttendance };
         } else {
-            const totalBookings = chartData.reduce((sum: number, d: any) => sum + d.totalBooked, 0);
-            const totalPayments = chartData.reduce((sum: number, d: any) => sum + d.paymentsCollected, 0);
-            const avgConversion = chartData.reduce((sum: number, d: any) => {
-                return sum + (d.totalBooked > 0 ? (d.converted / d.totalBooked) * 100 : 0);
-            }, 0) / chartData.length;
-            return { totalBookings, totalPayments, avgConversion };
+            const totalOPD = chartData.reduce((sum: number, d: any) => sum + d.opdCheckins, 0);
+            const totalAppointments = chartData.reduce((sum: number, d: any) => sum + d.totalBooked, 0);
+            const totalConverted = chartData.reduce((sum: number, d: any) => sum + d.converted, 0);
+            const totalWalkIn = chartData.reduce((sum: number, d: any) => sum + d.walkInCount, 0);
+            const totalEmergency = chartData.reduce((sum: number, d: any) => sum + d.emergencyCount, 0);
+
+            const conversionRate = totalAppointments > 0 ? (totalConverted / totalAppointments) * 100 : 0;
+            return { totalOPD, totalAppointments, conversionRate, totalConverted, totalWalkIn, totalEmergency };
         }
     };
 
-    const stats = getSummaryStats();
+    const stats: any = getSummaryStats();
 
     // Sort data for ranking
     const topPerformers = [...chartData].sort((a: any, b: any) => {
@@ -797,102 +163,148 @@ export default function StaffPerformance({ data, type }: Props) {
             {/* Summary Cards */}
             {type === 'DOCTOR' && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-xl p-6 text-white">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
-                                <Users className="w-7 h-7" />
-                            </div>
+                    <div className="relative overflow-hidden bg-gradient-to-br from-blue-500 to-cyan-600 rounded-2xl shadow-lg border border-white/20 p-6 hover:shadow-xl transition-all">
+                        <div className="absolute inset-0 opacity-10">
+                            <div className="absolute inset-0" style={{
+                                backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)',
+                                backgroundSize: '20px 20px'
+                            }}></div>
                         </div>
-                        <p className="text-blue-100 text-sm font-medium mb-1">Total Patients Treated</p>
-                        <p className="text-4xl font-bold">{stats.totalPatients.toLocaleString()}</p>
+                        <div className="relative z-10">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="p-3 bg-white/20 backdrop-blur-md rounded-xl shadow-lg">
+                                    <Users className="w-7 h-7 text-white" />
+                                </div>
+                            </div>
+                            <p className="text-white/90 text-sm font-medium mb-1 uppercase tracking-wider">Total Patients Treated</p>
+                            <p className="text-4xl font-bold text-white">{stats.totalPatients.toLocaleString()}</p>
+                        </div>
                     </div>
 
-                    <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl shadow-xl p-6 text-white">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
-                                <DollarSign className="w-7 h-7" />
-                            </div>
+                    <div className="relative overflow-hidden bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl shadow-lg border border-white/20 p-6 hover:shadow-xl transition-all">
+                        <div className="absolute inset-0 opacity-10">
+                            <div className="absolute inset-0" style={{
+                                backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)',
+                                backgroundSize: '20px 20px'
+                            }}></div>
                         </div>
-                        <p className="text-emerald-100 text-sm font-medium mb-1">Total Revenue Generated</p>
-                        <p className="text-4xl font-bold">₹{stats.totalRevenue.toLocaleString()}</p>
+                        <div className="relative z-10">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="p-3 bg-white/20 backdrop-blur-md rounded-xl shadow-lg">
+                                    <DollarSign className="w-7 h-7 text-white" />
+                                </div>
+                            </div>
+                            <p className="text-white/90 text-sm font-medium mb-1 uppercase tracking-wider">Total Revenue Generated</p>
+                            <p className="text-4xl font-bold text-white">₹{stats.totalRevenue.toLocaleString()}</p>
+                        </div>
                     </div>
 
-                    <div className="bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl shadow-xl p-6 text-white">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
-                                <TrendingUp className="w-7 h-7" />
-                            </div>
+                    <div className="relative overflow-hidden bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl shadow-lg border border-white/20 p-6 hover:shadow-xl transition-all">
+                        <div className="absolute inset-0 opacity-10">
+                            <div className="absolute inset-0" style={{
+                                backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)',
+                                backgroundSize: '20px 20px'
+                            }}></div>
                         </div>
-                        <p className="text-purple-100 text-sm font-medium mb-1">Avg Completion Rate</p>
-                        <p className="text-4xl font-bold">{stats.avgCompletionRate.toFixed(1)}%</p>
+                        <div className="relative z-10">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="p-3 bg-white/20 backdrop-blur-md rounded-xl shadow-lg">
+                                    <TrendingUp className="w-7 h-7 text-white" />
+                                </div>
+                            </div>
+                            <p className="text-white/90 text-sm font-medium mb-1 uppercase tracking-wider">Avg Completion Rate</p>
+                            <p className="text-4xl font-bold text-white">{stats.avgCompletionRate.toFixed(1)}%</p>
+                        </div>
                     </div>
                 </div>
             )}
 
             {type === 'NURSE' && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl shadow-xl p-6 text-white">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
-                                <Activity className="w-7 h-7" />
+                    <div className="relative overflow-hidden bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl shadow-lg border border-white/20 p-6 hover:shadow-xl transition-all">
+                        <div className="relative z-10">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="p-3 bg-white/20 backdrop-blur-md rounded-xl shadow-lg">
+                                    <Activity className="w-7 h-7 text-white" />
+                                </div>
                             </div>
+                            <p className="text-white/90 text-sm font-medium mb-1 uppercase tracking-wider">Total Labs Completed</p>
+                            <p className="text-4xl font-bold text-white">{stats.totalLabs.toLocaleString()}</p>
                         </div>
-                        <p className="text-purple-100 text-sm font-medium mb-1">Total Labs Completed</p>
-                        <p className="text-4xl font-bold">{stats.totalLabs.toLocaleString()}</p>
                     </div>
 
-                    <div className="bg-gradient-to-br from-blue-500 to-cyan-600 rounded-2xl shadow-xl p-6 text-white">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
-                                <UserCheck className="w-7 h-7" />
+                    <div className="relative overflow-hidden bg-gradient-to-br from-blue-500 to-cyan-600 rounded-2xl shadow-lg border border-white/20 p-6 hover:shadow-xl transition-all">
+                        <div className="relative z-10">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="p-3 bg-white/20 backdrop-blur-md rounded-xl shadow-lg">
+                                    <UserCheck className="w-7 h-7 text-white" />
+                                </div>
                             </div>
+                            <p className="text-white/90 text-sm font-medium mb-1 uppercase tracking-wider">Patients Vitals Handled</p>
+                            <p className="text-4xl font-bold text-white">{stats.totalVitals.toLocaleString()}</p>
                         </div>
-                        <p className="text-blue-100 text-sm font-medium mb-1">Patients Vitals Handled</p>
-                        <p className="text-4xl font-bold">{stats.totalVitals.toLocaleString()}</p>
                     </div>
 
-                    <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl shadow-xl p-6 text-white">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
-                                <Clock className="w-7 h-7" />
+                    <div className="relative overflow-hidden bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl shadow-lg border border-white/20 p-6 hover:shadow-xl transition-all">
+                        <div className="relative z-10">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="p-3 bg-white/20 backdrop-blur-md rounded-xl shadow-lg">
+                                    <Clock className="w-7 h-7 text-white" />
+                                </div>
                             </div>
+                            <p className="text-white/90 text-sm font-medium mb-1 uppercase tracking-wider">Avg Attendance Days</p>
+                            <p className="text-4xl font-bold text-white">{stats.avgAttendance.toFixed(0)}</p>
                         </div>
-                        <p className="text-emerald-100 text-sm font-medium mb-1">Avg Attendance Days</p>
-                        <p className="text-4xl font-bold">{stats.avgAttendance.toFixed(0)}</p>
                     </div>
                 </div>
             )}
 
             {type === 'RECEPTIONIST' && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl shadow-xl p-6 text-white">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
-                                <Users className="w-7 h-7" />
+                    <div className="relative overflow-hidden bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl shadow-lg border border-white/20 p-6 hover:shadow-xl transition-all">
+                        <div className="relative z-10">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="p-3 bg-white/20 backdrop-blur-md rounded-xl shadow-lg">
+                                    <Activity className="w-7 h-7 text-white" />
+                                </div>
+                            </div>
+                            <p className="text-white/90 text-sm font-medium mb-1 uppercase tracking-wider">Total OPD Entries</p>
+                            <p className="text-4xl font-bold mb-2 text-white">{stats.totalOPD.toLocaleString()}</p>
+                            <div className="flex gap-3 text-xs font-semibold bg-white/20 p-2 rounded-lg text-white/90 backdrop-blur-sm">
+                                <span title="Walk-ins">Walk-in: {stats.totalWalkIn}</span>
+                                <span className="opacity-50">|</span>
+                                <span title="Appointments">Appt: {stats.totalConverted}</span>
+                                <span className="opacity-50">|</span>
+                                <span title="Emergency">Emergency: {stats.totalEmergency}</span>
                             </div>
                         </div>
-                        <p className="text-emerald-100 text-sm font-medium mb-1">Total Bookings</p>
-                        <p className="text-4xl font-bold">{stats.totalBookings.toLocaleString()}</p>
                     </div>
 
-                    <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-xl p-6 text-white">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
-                                <DollarSign className="w-7 h-7" />
+                    <div className="relative overflow-hidden bg-gradient-to-br from-blue-500 to-cyan-600 rounded-2xl shadow-lg border border-white/20 p-6 hover:shadow-xl transition-all">
+                        <div className="relative z-10">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="p-3 bg-white/20 backdrop-blur-md rounded-xl shadow-lg">
+                                    <Users className="w-7 h-7 text-white" />
+                                </div>
                             </div>
+                            <p className="text-white/90 text-sm font-medium mb-1 uppercase tracking-wider">Total Appointments</p>
+                            <p className="text-4xl font-bold text-white">{stats.totalAppointments.toLocaleString()}</p>
                         </div>
-                        <p className="text-blue-100 text-sm font-medium mb-1">Payments Collected</p>
-                        <p className="text-4xl font-bold">₹{stats.totalPayments.toLocaleString()}</p>
                     </div>
 
-                    <div className="bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl shadow-xl p-6 text-white">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
-                                <TrendingUp className="w-7 h-7" />
+                    <div className="relative overflow-hidden bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl shadow-lg border border-white/20 p-6 hover:shadow-xl transition-all">
+                        <div className="relative z-10">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="p-3 bg-white/20 backdrop-blur-md rounded-xl shadow-lg">
+                                    <TrendingUp className="w-7 h-7 text-white" />
+                                </div>
+                            </div>
+                            <p className="text-white/90 text-sm font-medium mb-1 uppercase tracking-wider">Conversion Success</p>
+                            <div className="flex items-baseline gap-2">
+                                <p className="text-4xl font-bold text-white">{stats.conversionRate.toFixed(1)}%</p>
+                                <span className="text-sm opacity-80 text-white/90">({stats.totalConverted.toLocaleString()} converted)</span>
                             </div>
                         </div>
-                        <p className="text-purple-100 text-sm font-medium mb-1">Avg Conversion Rate</p>
-                        <p className="text-4xl font-bold">{stats.avgConversion.toFixed(1)}%</p>
                     </div>
                 </div>
             )}
@@ -1181,107 +593,130 @@ export default function StaffPerformance({ data, type }: Props) {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredData.map((staff, index) => {
                         const Icon = type === 'DOCTOR' ? UserCheck : type === 'NURSE' ? Activity : Users;
-                        const colorClass = type === 'DOCTOR' ? 'blue' : type === 'NURSE' ? 'purple' : 'emerald';
+                        // Map type to gradient start/end colors
+                        const gradientClass = type === 'DOCTOR'
+                            ? 'from-blue-500 to-cyan-600'
+                            : type === 'NURSE'
+                                ? 'from-purple-500 to-pink-600'
+                                : 'from-emerald-500 to-teal-600';
+
+                        const borderClass = 'border-white/20';
 
                         return (
                             <div
                                 key={staff.id}
-                                className={`relative overflow-hidden bg-gradient-to-br from-${colorClass}-50 to-white rounded-2xl border-2 border-${colorClass}-200 p-6 hover:shadow-xl transition-all transform hover:-translate-y-1`}
+                                className={`relative overflow-hidden bg-gradient-to-br ${gradientClass} rounded-2xl border ${borderClass} p-6 hover:shadow-xl transition-all transform hover:-translate-y-1`}
                             >
+                                {/* Background Pattern */}
+                                <div className="absolute inset-0 opacity-10">
+                                    <div className="absolute inset-0" style={{
+                                        backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)',
+                                        backgroundSize: '20px 20px'
+                                    }}></div>
+                                </div>
+
                                 {/* Rank Badge for Top 3 */}
                                 {index < 3 && (
-                                    <div className={`absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${index === 0 ? 'bg-yellow-400 text-yellow-900' :
-                                            index === 1 ? 'bg-gray-300 text-gray-700' :
-                                                'bg-orange-400 text-orange-900'
+                                    <div className={`relative z-10 absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${index === 0 ? 'bg-yellow-400 text-yellow-900' :
+                                        index === 1 ? 'bg-gray-200 text-gray-700' :
+                                            'bg-orange-400 text-orange-900'
                                         }`}>
                                         {index + 1}
                                     </div>
                                 )}
 
-                                <div className="flex items-center gap-4 mb-4">
-                                    <div className={`w-16 h-16 rounded-full flex items-center justify-center font-bold text-2xl bg-${colorClass}-100 text-${colorClass}-600`}>
+                                <div className="relative z-10 flex items-center gap-4 mb-4">
+                                    <div className="w-16 h-16 rounded-full flex items-center justify-center font-bold text-2xl bg-white/20 text-white backdrop-blur-md shadow-inner border border-white/10">
                                         {(staff.first_name && staff.first_name.length > 0) ? staff.first_name[0].toUpperCase() : '?'}
                                     </div>
                                     <div className="flex-1">
-                                        <h4 className="font-bold text-gray-900 text-lg">
+                                        <h4 className="font-bold text-white text-lg">
                                             {staff.first_name || 'Unknown'} {staff.last_name || ''}
                                         </h4>
-                                        <p className="text-xs text-gray-500 uppercase font-semibold tracking-wider">{staff.role_detail}</p>
+                                        <p className="text-xs text-white/80 uppercase font-semibold tracking-wider">{staff.role_detail}</p>
                                     </div>
                                 </div>
 
                                 {/* Key Metrics - Type Specific */}
-                                {type === 'DOCTOR' && (
-                                    <div className="space-y-3 mb-4">
-                                        <div className="flex justify-between items-center p-3 bg-white rounded-xl border border-blue-100">
-                                            <span className="text-sm text-gray-600">Patients</span>
-                                            <span className="text-lg font-bold text-blue-600">{staff.task_count}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center p-3 bg-white rounded-xl border border-emerald-100">
-                                            <span className="text-sm text-gray-600">Revenue</span>
-                                            <span className="text-lg font-bold text-emerald-600">₹{parseFloat(staff.performance_metric || '0').toLocaleString()}</span>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {type === 'NURSE' && (
-                                    <div className="space-y-3 mb-4">
-                                        <div className="flex justify-between items-center p-3 bg-white rounded-xl border border-purple-100">
-                                            <span className="text-sm text-gray-600">Labs Done</span>
-                                            <span className="text-lg font-bold text-purple-600">{staff.labs_completed || 0}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center p-3 bg-white rounded-xl border border-blue-100">
-                                            <span className="text-sm text-gray-600">Vitals</span>
-                                            <span className="text-lg font-bold text-blue-600">{staff.patients_vitals_handled || 0}</span>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {type === 'RECEPTIONIST' && (
-                                    <div className="space-y-3 mb-4">
-                                        <div className="flex justify-between items-center p-3 bg-white rounded-xl border border-emerald-100">
-                                            <span className="text-sm text-gray-600">Bookings</span>
-                                            <span className="text-lg font-bold text-emerald-600">{staff.total_confirmed || 0}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center p-3 bg-white rounded-xl border border-blue-100">
-                                            <span className="text-sm text-gray-600">Payments</span>
-                                            <span className="text-lg font-bold text-blue-600">₹{parseFloat(staff.payments_collected || '0').toLocaleString()}</span>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Additional Badges */}
-                                <div className="flex flex-wrap gap-2 pt-3 border-t border-gray-200">
+                                <div className="relative z-10">
                                     {type === 'DOCTOR' && (
-                                        <>
-                                            <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-lg text-xs font-semibold">
-                                                Walk-in: {staff.walk_in_count || 0}
-                                            </span>
-                                            <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-lg text-xs font-semibold">
-                                                Referral: {staff.referral_count || 0}
-                                            </span>
-                                        </>
+                                        <div className="space-y-3 mb-4">
+                                            <div className="flex justify-between items-center p-3 bg-white/10 backdrop-blur-sm rounded-xl border border-white/10">
+                                                <span className="text-sm text-white/90">Patients</span>
+                                                <span className="text-lg font-bold text-white">{staff.task_count}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center p-3 bg-white/10 backdrop-blur-sm rounded-xl border border-white/10">
+                                                <span className="text-sm text-white/90">Revenue</span>
+                                                <span className="text-lg font-bold text-white">₹{parseFloat(staff.performance_metric || '0').toLocaleString()}</span>
+                                            </div>
+                                        </div>
                                     )}
+
                                     {type === 'NURSE' && (
-                                        <>
-                                            <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-semibold">
-                                                Present: {staff.performance_metric || 0}
-                                            </span>
-                                            <span className="px-3 py-1 bg-red-100 text-red-700 rounded-lg text-xs font-semibold">
-                                                Late: {staff.late_days || 0}
-                                            </span>
-                                        </>
+                                        <div className="space-y-3 mb-4">
+                                            <div className="flex justify-between items-center p-3 bg-white/10 backdrop-blur-sm rounded-xl border border-white/10">
+                                                <span className="text-sm text-white/90">Labs Done</span>
+                                                <span className="text-lg font-bold text-white">{staff.labs_completed || 0}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center p-3 bg-white/10 backdrop-blur-sm rounded-xl border border-white/10">
+                                                <span className="text-sm text-white/90">Vitals</span>
+                                                <span className="text-lg font-bold text-white">{staff.patients_vitals_handled || 0}</span>
+                                            </div>
+                                        </div>
                                     )}
+
                                     {type === 'RECEPTIONIST' && (
-                                        <>
-                                            <span className="px-3 py-1 bg-teal-100 text-teal-700 rounded-lg text-xs font-semibold">
-                                                OPD: {staff.opd_checkins || 0}
-                                            </span>
-                                            <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-lg text-xs font-semibold">
-                                                Cancelled: {staff.cancellations_handled || 0}
-                                            </span>
-                                        </>
+                                        <div className="space-y-3 mb-4">
+                                            <div className="flex justify-between items-center p-3 bg-white/10 backdrop-blur-sm rounded-xl border border-white/10">
+                                                <span className="text-sm text-white/90">Bookings</span>
+                                                <span className="text-lg font-bold text-white">{staff.total_confirmed || 0}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center p-3 bg-white/10 backdrop-blur-sm rounded-xl border border-white/10">
+                                                <span className="text-sm text-white/90">Payments</span>
+                                                <span className="text-lg font-bold text-white">₹{parseFloat(staff.payments_collected || '0').toLocaleString()}</span>
+                                            </div>
+                                        </div>
                                     )}
+
+                                    {/* Additional Badges */}
+                                    <div className="flex flex-wrap gap-2 pt-3 border-t border-white/20">
+                                        {type === 'DOCTOR' && (
+                                            <>
+                                                <span className="px-3 py-1 bg-white/20 text-white rounded-lg text-xs font-semibold backdrop-blur-md">
+                                                    Walk-in: {staff.walk_in_count || 0}
+                                                </span>
+                                                <span className="px-3 py-1 bg-white/20 text-white rounded-lg text-xs font-semibold backdrop-blur-md">
+                                                    Referral: {staff.referral_count || 0}
+                                                </span>
+                                            </>
+                                        )}
+                                        {type === 'NURSE' && (
+                                            <>
+                                                <span className="px-3 py-1 bg-white/20 text-white rounded-lg text-xs font-semibold backdrop-blur-md">
+                                                    Present: {staff.performance_metric || 0}
+                                                </span>
+                                                <span className="px-3 py-1 bg-white/20 text-white rounded-lg text-xs font-semibold backdrop-blur-md">
+                                                    Late: {staff.late_days || 0}
+                                                </span>
+                                            </>
+                                        )}
+                                        {type === 'RECEPTIONIST' && (
+                                            <>
+                                                <span className="px-3 py-1 bg-white/20 text-white rounded-lg text-xs font-semibold backdrop-blur-md">
+                                                    OPD: {staff.opd_checkins || 0}
+                                                </span>
+                                                <span className="px-3 py-1 bg-white/20 text-white rounded-lg text-xs font-semibold backdrop-blur-md">
+                                                    Walk-in: {staff.walk_in_count || 0}
+                                                </span>
+                                                <span className="px-3 py-1 bg-white/20 text-white rounded-lg text-xs font-semibold backdrop-blur-md">
+                                                    Emergency: {staff.emergency_count || 0}
+                                                </span>
+                                                <span className="px-3 py-1 bg-white/20 text-white rounded-lg text-xs font-semibold backdrop-blur-md">
+                                                    Cancelled: {staff.cancellations_handled || 0}
+                                                </span>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         );

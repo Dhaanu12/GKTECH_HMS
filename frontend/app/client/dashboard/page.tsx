@@ -1,221 +1,3 @@
-// 'use client';
-
-// import { useState, useEffect } from 'react';
-// import axios from 'axios';
-// import Link from 'next/link';
-// import { useAuth } from '@/lib/AuthContext';
-// import {
-//     Calendar, Sparkles, Building2, Users, Settings, FileText, ArrowRight
-// } from 'lucide-react';
-// import { AIInsightCard, AILoadingIndicator } from '@/components/ai';
-// import { getDashboardInsights } from '@/lib/api/ai';
-
-// // New Dashboard Components
-// import { KPIGrid } from '@/components/dashboard/KPIGrid';
-// import { RevenueTrendChart, RevenueBreakdownPie } from '@/components/dashboard/RevenueCharts';
-// import { TopDiagnosesChart, DiseaseTrendChart } from '@/components/dashboard/ClinicalCharts';
-// import { PeakHoursChart, EfficiencyMetrics } from '@/components/dashboard/OperationalCharts';
-// import { PatientRetentionChart, HighValuePatientsTable } from '@/components/dashboard/PatientCharts';
-
-// export default function ClientDashboard() {
-//     const { user } = useAuth();
-//     const [statsData, setStatsData] = useState<any>(null);
-//     const [loading, setLoading] = useState(true);
-
-//     // AI insights state
-//     const [aiInsights, setAiInsights] = useState<string | null>(null);
-//     const [aiInsightsLoading, setAiInsightsLoading] = useState(false);
-
-//     const fetchStats = async () => {
-//         try {
-//             const token = localStorage.getItem('token');
-//             const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/clientadmins/executive-stats`, {
-//                 headers: { Authorization: `Bearer ${token}` }
-//             });
-//             console.log('Dashboard Stats:', response.data.data);
-//             setStatsData(response.data.data);
-//         } catch (error) {
-//             console.error('Error fetching dashboard stats:', error);
-//         } finally {
-//             setLoading(false);
-//         }
-//     };
-
-//     useEffect(() => {
-//         fetchStats();
-//     }, []);
-
-//     const handleGenerateInsights = async () => {
-//         if (!statsData) return;
-
-//         setAiInsightsLoading(true);
-//         setAiInsights(null);
-
-//         try {
-//             const result = await getDashboardInsights({
-//                 totalPatients: statsData.kpi?.total_patients_today || 0,
-//                 revenueMonth: statsData.kpi?.revenue_month || 0,
-//                 diagnosisCount: statsData.diagnoses?.length || 0,
-//                 roleType: 'Client Admin',
-//                 hospitalName: user?.hospital_name || 'Unknown',
-//                 timestamp: new Date().toISOString(),
-//             });
-
-//             if (result.success) {
-//                 setAiInsights(result.message);
-//             } else {
-//                 setAiInsights(result.message);
-//             }
-//         } catch (err: any) {
-//             setAiInsights('Failed to generate insights. Please try again.');
-//         } finally {
-//             setAiInsightsLoading(false);
-//         }
-//     };
-
-//     if (loading) {
-//         return (
-//             <div className="flex items-center justify-center min-h-screen">
-//                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-//             </div>
-//         );
-//     }
-
-//     return (
-//         <div className="space-y-8 animate-in fade-in duration-500 pb-12">
-//             {/* Header with Smart Briefing */}
-//             <div className="flex flex-col md:flex-row justify-between items-end gap-4">
-//                 <div>
-//                     <h1 className="text-2xl font-bold text-slate-800">
-//                         Executive Dashboard
-//                     </h1>
-//                     <p className="text-slate-500 mt-1">Real-time overview of hospital performance.</p>
-//                 </div>
-
-//                 <div className="text-sm font-medium text-slate-400 bg-white/50 px-4 py-2 rounded-full border border-slate-200/50 backdrop-blur-sm self-center md:self-auto flex items-center gap-2">
-//                     <Calendar className="w-4 h-4" />
-//                     {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-//                 </div>
-//             </div>
-
-//             {/* ROW 1: Executive KPI Cards */}
-//             {statsData && <KPIGrid data={statsData} />}
-
-//             {/* ROW 2: Revenue Intelligence */}
-//             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-//                 <div className="lg:col-span-2">
-//                     {statsData?.revenue_trend && <RevenueTrendChart data={statsData.revenue_trend} />}
-//                 </div>
-//                 <div>
-//                     {statsData?.kpi && <RevenueBreakdownPie revenue={statsData.kpi.revenue_month} breakdown={statsData.revenue_breakdown} />}
-//                 </div>
-//             </div>
-
-//             {/* ROW 3: Clinical Intelligence */}
-//             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-//                 {statsData?.diagnoses && <TopDiagnosesChart data={statsData.diagnoses} />}
-//                 <DiseaseTrendChart data={[]} /> {/* Placeholder for now as backend returns empty */}
-//             </div>
-
-//             {/* ROW 4: Operational Efficiency */}
-//             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-//                 <div className="lg:col-span-2">
-//                     {statsData?.peak_hours && <PeakHoursChart data={statsData.peak_hours} />}
-//                 </div>
-//                 <div>
-//                     <EfficiencyMetrics metrics={statsData?.efficiency} />
-//                 </div>
-//             </div>
-
-//             {/* ROW 5: Patient Intelligence */}
-//             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-//                 <div>
-//                     {statsData?.retention && <PatientRetentionChart data={statsData.retention} />}
-//                 </div>
-//                 <div className="lg:col-span-2">
-//                     <HighValuePatientsTable data={statsData?.high_value_patients} />
-//                 </div>
-//             </div>
-
-//             {/* ROW 6: AI Insights Panel */}
-//             <div className="grid grid-cols-1 gap-6">
-//                 <div className="glass-panel p-6 rounded-3xl relative overflow-hidden">
-//                     <div className="flex items-center justify-between mb-6">
-//                         <div className="flex items-center gap-3">
-//                             <div className="p-2 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-lg text-white shadow-lg shadow-indigo-500/30">
-//                                 <Sparkles className="w-5 h-5" />
-//                             </div>
-//                             <div>
-//                                 <h3 className="text-lg font-bold text-slate-800">AI Insights</h3>
-//                                 <p className="text-xs text-slate-500">Powered by Gemini Pro</p>
-//                             </div>
-//                         </div>
-//                         <button
-//                             onClick={handleGenerateInsights}
-//                             disabled={aiInsightsLoading}
-//                             className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-medium text-sm hover:bg-slate-50 transition-all disabled:opacity-50"
-//                         >
-//                             <Sparkles className="w-4 h-4 text-purple-500" />
-//                             {aiInsightsLoading ? 'Analyzing...' : 'Generate New'}
-//                         </button>
-//                     </div>
-
-//                     <div className="bg-white/50 rounded-2xl p-1 border border-white/60 min-h-[150px]">
-//                         {aiInsightsLoading ? (
-//                             <AILoadingIndicator text="Analyzing hospital metrics and performance data..." />
-//                         ) : aiInsights ? (
-//                             <AIInsightCard
-//                                 title="Executive Summary"
-//                                 content={aiInsights}
-//                                 type="info"
-//                                 onDismiss={() => setAiInsights(null)}
-//                             />
-//                         ) : (
-//                             <div className="flex flex-col items-center justify-center py-10 text-center">
-//                                 <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center mb-4">
-//                                     <Sparkles className="w-8 h-8 text-indigo-300" />
-//                                 </div>
-//                                 <h4 className="text-slate-700 font-medium mb-1">No insights generated yet</h4>
-//                                 <p className="text-slate-500 text-sm max-w-sm">
-//                                     Generate an AI analysis to get a summary of your hospital's performance, resource allocation, and optimization tips.
-//                                 </p>
-//                                 <button
-//                                     onClick={handleGenerateInsights}
-//                                     className="mt-4 text-indigo-600 font-medium text-sm hover:underline"
-//                                 >
-//                                     Generate now &rarr;
-//                                 </button>
-//                             </div>
-//                         )}
-//                     </div>
-//                 </div>
-//             </div>
-
-//             {/* Quick Actions Footer - moved to bottom to not clutter dashboard */}
-//             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
-//                 {[
-//                     { title: 'Manage Branches', icon: Building2, href: '/client/branches', color: 'blue' },
-//                     { title: 'User Management', icon: Users, href: '/client/users', color: 'purple' },
-//                     { title: 'Clinic Setup', icon: Settings, href: '/client/clinic-setup', color: 'slate' },
-//                     { title: 'View Reports', icon: FileText, href: '/client/reports', color: 'emerald' }
-//                 ].map((action) => (
-//                     <Link
-//                         key={action.title}
-//                         href={action.href}
-//                         className="flex items-center gap-3 p-4 bg-white rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition-all"
-//                     >
-//                         <div className={`p-2 bg-${action.color}-50 text-${action.color}-600 rounded-lg`}>
-//                             <action.icon className="w-5 h-5" />
-//                         </div>
-//                         <span className="font-semibold text-slate-700 text-sm">{action.title}</span>
-//                     </Link>
-//                 ))}
-//             </div>
-//         </div>
-//     );
-// }
-
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -282,6 +64,14 @@ export default function ClientDashboard() {
         } finally {
             setAiInsightsLoading(false);
         }
+    };
+
+    // Helper to determine greeting based on time of day
+    const getGreeting = () => {
+        const hour = new Date().getHours();
+        if (hour < 12) return 'Good morning';
+        if (hour < 18) return 'Good afternoon';
+        return 'Good evening';
     };
 
     if (loading) {
@@ -371,39 +161,19 @@ export default function ClientDashboard() {
     ];
 
     return (
-        <div className="space-y-8 pb-12 max-w-7xl mx-auto">
-            {/* Welcome Header */}
-            <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 rounded-3xl shadow-2xl p-8">
-                {/* Background Pattern */}
-                <div className="absolute inset-0 opacity-10">
-                    <div className="absolute inset-0" style={{
-                        backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)',
-                        backgroundSize: '40px 40px'
-                    }}></div>
+        <div className="space-y-8 pb-12 max-w-7xl mx-auto animate-in fade-in duration-500">
+            {/* Header with Smart Greeting */}
+            <div className="flex flex-col md:flex-row justify-between items-end gap-4 mb-6">
+                <div>
+                    <h1 className="text-3xl font-bold text-slate-800 tracking-tight">
+                        {getGreeting()}, <span className="text-blue-600">{user?.first_name || 'Admin'}</span>
+                    </h1>
+                    <p className="text-slate-500 mt-2 font-medium">Here's your executive summary for today.</p>
                 </div>
 
-                <div className="relative z-10">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h1 className="text-4xl font-bold text-white mb-2">
-                                Welcome back, {user?.first_name || 'Admin'}!
-                            </h1>
-                            <p className="text-blue-200 text-lg flex items-center gap-2">
-                                <Calendar className="w-5 h-5" />
-                                {new Date().toLocaleDateString('en-US', {
-                                    weekday: 'long',
-                                    year: 'numeric',
-                                    month: 'long',
-                                    day: 'numeric'
-                                })}
-                            </p>
-                        </div>
-                        <div className="hidden md:block">
-                            <div className="p-4 bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20">
-                                <Activity className="w-12 h-12 text-white" />
-                            </div>
-                        </div>
-                    </div>
+                <div className="text-sm font-medium text-slate-500 bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm self-center md:self-auto flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-blue-500" />
+                    {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                 </div>
             </div>
 
@@ -423,16 +193,16 @@ export default function ClientDashboard() {
                         return (
                             <div
                                 key={index}
-                                className={`relative overflow-hidden bg-gradient-to-br ${kpi.bgGradient} rounded-2xl shadow-lg border border-white p-6 hover:shadow-xl transition-all transform hover:-translate-y-1`}
+                                className={`relative overflow-hidden bg-gradient-to-br ${kpi.gradient} rounded-2xl shadow-lg border border-white/20 p-6 hover:shadow-xl transition-all transform hover:-translate-y-1`}
                             >
                                 <div className="flex items-start justify-between mb-4">
-                                    <div className={`p-3 bg-gradient-to-br ${kpi.gradient} rounded-xl shadow-lg`}>
+                                    <div className={`p-3 bg-white/20 backdrop-blur-md rounded-xl shadow-lg`}>
                                         <Icon className="w-6 h-6 text-white" />
                                     </div>
                                 </div>
                                 <div>
-                                    <p className="text-sm font-medium text-gray-600 mb-1">{kpi.label}</p>
-                                    <p className="text-3xl font-bold text-gray-900">{kpi.value}</p>
+                                    <p className="text-sm font-medium text-white/90 mb-1">{kpi.label}</p>
+                                    <p className="text-3xl font-bold text-white">{kpi.value}</p>
                                 </div>
                             </div>
                         );
@@ -441,20 +211,20 @@ export default function ClientDashboard() {
             </div>
 
             {/* AI Insights */}
-            <div className="relative overflow-hidden bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-3xl shadow-lg border border-indigo-200 p-8">
+            <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 rounded-3xl shadow-lg border border-white/20 p-8">
                 {/* Background Glow */}
-                <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-indigo-300/30 to-purple-300/30 rounded-full blur-3xl"></div>
+                <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
 
                 <div className="relative z-10">
                     <div className="flex items-center justify-between mb-6">
                         <div className="flex items-center gap-4">
-                            <div className="p-3 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl text-white shadow-xl">
+                            <div className="p-3 bg-white/20 backdrop-blur-md rounded-2xl text-white shadow-xl">
                                 <Sparkles className="w-6 h-6" />
                             </div>
                             <div>
-                                <h3 className="text-2xl font-bold text-gray-900">AI Insights</h3>
-                                <p className="text-sm text-gray-600 flex items-center gap-2 mt-1">
-                                    <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                                <h3 className="text-2xl font-bold text-white">AI Insights</h3>
+                                <p className="text-sm text-indigo-100 flex items-center gap-2 mt-1">
+                                    <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
                                     Smart analysis of your operations
                                 </p>
                             </div>
@@ -462,14 +232,14 @@ export default function ClientDashboard() {
                         <button
                             onClick={handleGenerateInsights}
                             disabled={aiInsightsLoading}
-                            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all disabled:opacity-50 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                            className="flex items-center gap-2 px-6 py-3 bg-white text-indigo-600 rounded-xl font-semibold hover:bg-indigo-50 transition-all disabled:opacity-50 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                         >
                             <Sparkles className="w-5 h-5" />
                             {aiInsightsLoading ? 'Analyzing...' : 'Generate Insights'}
                         </button>
                     </div>
 
-                    <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-inner min-h-[120px]">
+                    <div className="bg-white/95 backdrop-blur-md rounded-2xl p-6 border border-white/50 shadow-inner min-h-[120px]">
                         {aiInsightsLoading ? (
                             <AILoadingIndicator text="Analyzing today's performance..." />
                         ) : aiInsights ? (
@@ -481,12 +251,12 @@ export default function ClientDashboard() {
                             />
                         ) : (
                             <div className="flex flex-col items-center justify-center py-8 text-center">
-                                <div className="w-16 h-16 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-2xl flex items-center justify-center mb-3 shadow-lg">
+                                <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center mb-3 shadow-lg">
                                     <Sparkles className="w-8 h-8 text-indigo-600" />
                                 </div>
                                 <h4 className="text-gray-900 font-bold mb-1">Get AI-Powered Insights</h4>
                                 <p className="text-gray-600 text-sm max-w-md">
-                                    Click "Generate Insights" to get smart recommendations
+                                    Click \"Generate Insights\" to get smart recommendations
                                 </p>
                             </div>
                         )}

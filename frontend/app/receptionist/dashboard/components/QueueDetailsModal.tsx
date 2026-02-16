@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Search, Calendar, ChevronDown, Users, Clock, AlertCircle } from 'lucide-react';
+import { X, Search, Calendar, ChevronDown, Users, Clock, AlertCircle, Eye } from 'lucide-react';
 import { format } from 'date-fns';
+import { useRouter } from 'next/navigation';
 
 interface QueueDetailsModalProps {
     isOpen: boolean;
@@ -30,6 +31,7 @@ const QueueDetailsModal: React.FC<QueueDetailsModalProps> = ({
     const [selectedDocId, setSelectedDocId] = useState('All');
     const [currentTime, setCurrentTime] = useState(new Date());
     const [activeTab, setActiveTab] = useState<'priority' | 'up-next' | 'in-consultation'>('up-next');
+    const router = useRouter();
 
     useEffect(() => {
         if (isOpen) {
@@ -342,13 +344,14 @@ const QueueDetailsModal: React.FC<QueueDetailsModalProps> = ({
             <table className="w-full">
                 <thead className="bg-slate-50/30 border-b border-slate-100">
                     <tr>
-                        <th className="text-left py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-widest pl-8">Token</th>
-                        <th className="text-left py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-widest">Patient Details</th>
-                        <th className="text-left py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-widest">Doctor & Dept</th>
-                        <th className="text-left py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-widest">Status</th>
-                        <th className="text-right py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-widest pr-8">
+                        <th className="text-left py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-widest pl-8">Token</th>
+                        <th className="text-left py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-widest">Patient Details</th>
+                        <th className="text-left py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-widest">Doctor & Dept</th>
+                        <th className="text-left py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-widest">Status</th>
+                        <th className="text-right py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-widest pr-8">
                             {activeTab === 'in-consultation' ? 'Consultation Time' : (activeTab === 'priority' ? 'Active Time' : 'Wait Time')}
                         </th>
+                        <th className="py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-widest text-center pr-8 w-[100px]">Actions</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -393,19 +396,27 @@ const QueueDetailsModal: React.FC<QueueDetailsModalProps> = ({
                                             {entry.patient_first_name[0]}
                                         </div>
                                         <div>
-                                            <p className="text-base font-bold text-slate-800">
-                                                {entry.patient_first_name} {entry.patient_last_name}
-                                            </p>
-                                            <p className="text-sm text-slate-500 font-medium">
-                                                {entry.age}Y / {entry.gender} • <span className="font-mono text-slate-400 bg-slate-100 px-1 rounded text-xs">{entry.mrn_number}</span>
-                                            </p>
+                                            <div className="flex items-center gap-2">
+                                                <p className="text-base font-bold text-slate-900">
+                                                    {entry.patient_first_name} {entry.patient_last_name}
+                                                </p>
+                                                <p className="text-sm text-slate-600 font-medium mt-0.5">
+                                                    {entry.age}Y / {entry.gender} • <span className="font-mono text-slate-500 bg-slate-100 px-1 rounded text-xs border border-slate-200">{entry.mrn_number}</span>
+                                                </p>
+                                                {entry.is_mlc && (
+                                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-600 border border-red-200 uppercase tracking-wide flex items-center gap-1">
+                                                        <AlertCircle className="w-3 h-3" />
+                                                        MLC Case
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 </td>
                                 <td className="py-5 px-6">
                                     <div>
-                                        <p className="text-sm font-bold text-slate-700">Dr. {entry.doctor_first_name} {entry.doctor_last_name}</p>
-                                        <p className="text-xs font-medium text-slate-500 bg-slate-100 inline-block px-2 py-0.5 rounded mt-1">{entry.department_name || 'General'}</p>
+                                        <p className="text-sm font-bold text-slate-800">Dr. {entry.doctor_first_name} {entry.doctor_last_name}</p>
+                                        <p className="text-xs font-medium text-slate-600 bg-slate-100 inline-block px-2 py-0.5 rounded mt-1 border border-slate-200">{entry.department_name || 'General'}</p>
                                     </div>
                                 </td>
                                 <td className="py-5 px-6">
@@ -427,6 +438,18 @@ const QueueDetailsModal: React.FC<QueueDetailsModalProps> = ({
                                         </div>
                                     </div>
                                 </td>
+                                <td className="py-5 px-6 text-center pr-8">
+                                    <button
+                                        onClick={() => {
+                                            onClose();
+                                            router.push(`/receptionist/opd?highlight=${entry.opd_id}`);
+                                        }}
+                                        className="p-2.5 rounded-xl bg-slate-50 text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-all duration-300 border border-slate-100 hover:border-blue-100 group/btn shadow-sm active:scale-90"
+                                        title="View in OPD Table"
+                                    >
+                                        <Eye className="w-5 h-5 group-hover/btn:scale-110 transition-transform" />
+                                    </button>
+                                </td>
                             </tr>
                         );
                     })}
@@ -442,13 +465,23 @@ const QueueDetailsModal: React.FC<QueueDetailsModalProps> = ({
         completed: entries.filter(e => e.visit_status === 'Completed').length,
     };
 
-    let growthPercent = 0;
-    if (yesterdayTotal === 0) {
-        growthPercent = stats.total > 0 ? 100 : 0;
-    } else {
-        growthPercent = Math.round(((stats.total - yesterdayTotal) / yesterdayTotal) * 100);
-    }
-    const isPositive = growthPercent >= 0;
+    // Calculate Average Wait Time for Registered Patients
+    const registeredPatients = entries.filter(e => e.visit_status === 'Registered');
+    let totalWaitMins = 0;
+    let maxWaitMins = 0;
+
+    registeredPatients.forEach(p => {
+        if (p.checked_in_time) {
+            const start = new Date(p.checked_in_time).getTime();
+            const now = currentTime.getTime();
+            const diff = Math.max(0, Math.floor((now - start) / 60000));
+            totalWaitMins += diff;
+            if (diff > maxWaitMins) maxWaitMins = diff;
+        }
+    });
+
+    const avgWaitTime = registeredPatients.length > 0 ? Math.round(totalWaitMins / registeredPatients.length) : 0;
+    const isWaitTimeHigh = avgWaitTime > 30; // Threshold for color change
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
@@ -473,13 +506,14 @@ const QueueDetailsModal: React.FC<QueueDetailsModalProps> = ({
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="bg-white p-6 rounded-[24px] shadow-sm border border-slate-100 flex flex-col justify-center relative overflow-hidden group">
                             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                                <Users className="w-16 h-16 text-slate-400" />
+                                <Clock className="w-16 h-16 text-amber-400" />
                             </div>
-                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Total Visits Today</span>
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">AVG. WAIT TIME</span>
                             <div className="flex items-baseline gap-3 relative z-10">
-                                <span className="text-4xl font-extrabold text-slate-800 tracking-tight">{stats.total}</span>
-                                <span className={`text-sm font-bold px-2.5 py-1 rounded-lg border ${isPositive ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-rose-600 bg-rose-50 border-rose-100'}`}>
-                                    {isPositive ? '+' : ''}{growthPercent}%
+                                <span className="text-4xl font-extrabold text-slate-800 tracking-tight">{avgWaitTime}<span className="text-xl ml-1 text-slate-500">min</span></span>
+                                <span className={`text-xs font-bold px-2.5 py-1 rounded-lg border flex items-center gap-1 ${maxWaitMins > 45 ? 'text-rose-700 bg-rose-50 border-rose-100' : 'text-amber-700 bg-amber-50 border-amber-100'}`}>
+                                    <Clock className="w-3 h-3" />
+                                    Longest: {maxWaitMins}m
                                 </span>
                             </div>
                         </div>

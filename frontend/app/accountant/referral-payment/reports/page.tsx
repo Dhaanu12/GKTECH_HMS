@@ -54,11 +54,22 @@ export default function ReferralPaymentReports() {
     const { user } = useAuth();
     const [reports, setReports] = useState<ReportRow[]>([]);
     const [loading, setLoading] = useState(true);
-    const [filters, setFilters] = useState({
-        fromDate: '',
-        toDate: '',
-        doctorId: ''
+    const [filters, setFilters] = useState(() => {
+        const today = new Date();
+        const toDate = today.toISOString().split('T')[0];
+        const lastMonth = new Date(today);
+        lastMonth.setMonth(today.getMonth() - 1);
+        const fromDate = lastMonth.toISOString().split('T')[0];
+        return {
+            fromDate,
+            toDate,
+            doctorId: ''
+        };
     });
+
+    // ... (rest of the component)
+
+    const maxDate = new Date().toISOString().split('T')[0];
     const [doctors, setDoctors] = useState<{ id: string, name: string }[]>([]);
     const [expandedDoctors, setExpandedDoctors] = useState<string[]>([]);
     const [expandedPatients, setExpandedPatients] = useState<string[]>([]);
@@ -404,6 +415,7 @@ export default function ReferralPaymentReports() {
                                         name="fromDate"
                                         value={filters.fromDate}
                                         onChange={handleFilterChange}
+                                        max={new Date().toISOString().split('T')[0]} // added max attribute
                                         className="w-full pl-3 pr-2 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all font-medium text-gray-700"
                                     />
                                 </div>
@@ -416,6 +428,7 @@ export default function ReferralPaymentReports() {
                                         name="toDate"
                                         value={filters.toDate}
                                         onChange={handleFilterChange}
+                                        max={new Date().toISOString().split('T')[0]} // added max attribute
                                         className="w-full pl-3 pr-2 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all font-medium text-gray-700"
                                     />
                                 </div>

@@ -506,7 +506,7 @@ class OpdController {
             let queryText = `
                 SELECT o.*, 
                        p.first_name as patient_first_name, p.last_name as patient_last_name, p.mrn_number, p.contact_number, p.age, p.gender, p.blood_group,
-                       p.address as address_line1, p.address_line2, p.city, p.state, p.pincode, p.adhaar_number,
+                       p.address as address_line1, p.address_line2, p.city, p.state, p.pincode, p.adhaar_number, p.created_at as patient_created_at,
                        d.first_name as doctor_first_name, d.last_name as doctor_last_name, d.specialization,
                        co.next_visit_date,
                        dept.department_name
@@ -545,7 +545,9 @@ class OpdController {
                 queryParams.push(searchLower);
             }
 
-            queryText += ` AND o.visit_status NOT IN ('Cancelled', 'Rescheduled')`;
+            if (req.query.includeCancelled !== 'true') {
+                queryText += ` AND o.visit_status NOT IN ('Cancelled', 'Rescheduled')`;
+            }
 
             queryText += ` ORDER BY o.visit_date DESC, o.visit_time DESC LIMIT 50`;
 
@@ -713,26 +715,38 @@ class OpdController {
                 WHERE branch_id = $1 AND appointment_date = CURRENT_DATE
             `, [branch_id]);
 
-            // 5. Financial Stats (Today)
+            // 5. Queue Status (Today)
+            const queueResult = await query(`
+                SELECT COUNT(*) as queue_count
+                FROM opd_entries
+                WHERE branch_id = $1 AND visit_date = CURRENT_DATE
+                AND visit_status IN ('Registered', 'In-consultation')
+            `, [branch_id]);
+
+            // 6. Financial Stats (Today)
             const financialResult = await query(`
                 SELECT 
-                    SUM(CASE WHEN payment_status = 'Paid' THEN CAST(consultation_fee AS DECIMAL) ELSE 0 END) as collected_amount,
-                    COUNT(CASE WHEN payment_status = 'Paid' THEN 1 END) as collected_count,
-                    SUM(CASE WHEN payment_status = 'Pending' THEN CAST(consultation_fee AS DECIMAL) ELSE 0 END) as pending_amount,
-                    COUNT(CASE WHEN payment_status = 'Pending' THEN 1 END) as pending_count,
-                    COUNT(CASE WHEN visit_status IN ('Registered', 'In-consultation') THEN 1 END) as queue_count
-                FROM opd_entries 
-                WHERE branch_id = $1 AND visit_date = CURRENT_DATE
+                    COALESCE(SUM(CAST(paid_amount AS DECIMAL)), 0) as collected_amount,
+                    COUNT(CASE WHEN CAST(paid_amount AS DECIMAL) > 0 THEN 1 END) as collected_count,
+                    COALESCE(SUM(CAST(total_amount AS DECIMAL) - COALESCE(CAST(paid_amount AS DECIMAL), 0)), 0) as pending_amount,
+                    COUNT(CASE WHEN (CAST(total_amount AS DECIMAL) - COALESCE(CAST(paid_amount AS DECIMAL), 0)) > 0 THEN 1 END) as pending_count
+                FROM billing_master 
+                WHERE branch_id = $1 AND DATE(billing_date) = CURRENT_DATE AND status != 'Cancelled'
             `, [branch_id]);
 
             // 6. Yesterday's OPD Count (for growth comparison)
             const yesterdayOpdResult = await query(`
                 SELECT COUNT(*) as count 
                 FROM opd_entries 
-                WHERE branch_id = $1 AND visit_date = CURRENT_DATE - INTERVAL '1 day'
+                WHERE branch_id = $1 AND visit_date = (
+                    SELECT MAX(visit_date) 
+                    FROM opd_entries 
+                    WHERE branch_id = $1 AND visit_date < CURRENT_DATE
+                )
             `, [branch_id]);
 
             const finStats = financialResult.rows[0];
+            const queueStats = queueResult.rows[0];
 
             res.status(200).json({
                 status: 'success',
@@ -742,7 +756,7 @@ class OpdController {
                         yesterdayOpd: parseInt(yesterdayOpdResult.rows[0].count),
                         newPatients: parseInt(patientsResult.rows[0].count),
                         todayAppointments: parseInt(apptResult.rows[0].count),
-                        pendingOpd: parseInt(finStats.queue_count || 0), // Queue (Registered + In-consultation)
+                        pendingOpd: parseInt(queueStats.queue_count || 0), // Queue (Registered + In-consultation)
 
                         // Financials
                         collectedAmount: parseFloat(finStats.collected_amount || 0),
@@ -1009,6 +1023,46 @@ class OpdController {
                     }
 
                     updates.consultation_fee = (baseFee + mlcFee).toString();
+
+                    // 1.1 Synchronize with Billing if exist
+                    const billRes = await query(`SELECT bill_master_id, total_amount, pending_amount, paid_amount FROM billing_master WHERE opd_id = $1`, [id]);
+                    if (billRes.rows.length > 0) {
+                        const billMaster = billRes.rows[0];
+                        const billMasterId = billMaster.bill_master_id;
+
+                        // Calculate difference for Consultation Fee
+                        const consultationDetailRes = await query(
+                            `SELECT bill_detail_id, final_price FROM bill_details WHERE bill_master_id = $1 AND service_type = 'consultation'`,
+                            [billMasterId]
+                        );
+
+                        if (consultationDetailRes.rows.length > 0) {
+                            const detail = consultationDetailRes.rows[0];
+                            const oldConsFee = parseFloat(detail.final_price || '0');
+                            const newConsFee = baseFee; // This is the base fee we want for 'consultation' item
+
+                            if (oldConsFee !== newConsFee) {
+                                // Update ONLY the consultation line item
+                                await query(
+                                    `UPDATE bill_details SET unit_price = $1, subtotal = $1, final_price = $1, updated_at = CURRENT_TIMESTAMP WHERE bill_detail_id = $2`,
+                                    [newConsFee, detail.bill_detail_id]
+                                );
+
+                                // Calculate new master totals
+                                const diff = newConsFee - oldConsFee;
+                                const newTotal = parseFloat(billMaster.total_amount || '0') + diff;
+                                const newPending = parseFloat(billMaster.pending_amount || '0') + diff;
+
+                                // Update Master record
+                                await query(
+                                    `UPDATE billing_master SET total_amount = $1, pending_amount = $2, updated_at = CURRENT_TIMESTAMP WHERE bill_master_id = $3`,
+                                    [newTotal, newPending, billMasterId]
+                                );
+
+                                console.log(`OPD Update: Adjusted Bill ${billMasterId} totals. Diff: ${diff}`);
+                            }
+                        }
+                    }
                 }
             }
 
