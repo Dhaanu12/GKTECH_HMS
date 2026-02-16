@@ -2408,8 +2408,7 @@ export default function ReceptionistDashboard() {
                                                                     { label: 'Queue', value: queueCount, color: queueCount > 0 ? 'blue' as const : 'slate' as const },
                                                                     { label: 'Appts', value: apptCount, color: apptCount > 0 ? 'amber' as const : 'slate' as const }
                                                                 ],
-                                                                // disabled: availInfo.status === 'unavailable' // Bypassing for testing: allow selecting unavailable doctors for now
-                                                                disabled: false
+                                                                disabled: availInfo.status === 'unavailable'
                                                             };
                                                         })}
                                                         categories={['All', ...branchDepartments.map(d => d.department_name)]}
