@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Plus, Calendar, FileText, X, Save, User, ArrowRight, Sun, CloudSun, Moon, Clock, CalendarClock, Check, Stethoscope, MapPin, Activity, Search, ChevronLeft, AlertCircle, Sparkles, Phone } from 'lucide-react';
+import { Plus, Calendar, FileText, X, Save, User, ArrowRight, Clock, Check, Stethoscope, MapPin, Activity, Search, ChevronLeft, AlertCircle, Phone } from 'lucide-react';
 import { useAuth } from '../../../lib/AuthContext';
 import SearchableSelect from '../../../components/ui/SearchableSelect';
 import BookAppointmentModal from '../components/BookAppointmentModal';
-import { useAI, AIInsightCard, AILoadingIndicator } from '@/components/ai';
-import { optimizeSchedule } from '@/lib/api/ai';
+import RescheduleAppointmentModal from '../components/RescheduleAppointmentModal';
+import { useAI } from '@/components/ai';
 import { format } from 'date-fns';
 
 const API_URL = 'http://localhost:5000/api';
@@ -23,7 +23,6 @@ export default function AppointmentsPage() {
     const [showModal, setShowModal] = useState(false);
     const [showOpdModal, setShowOpdModal] = useState(false);
     const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
-    const [timeSlotCategory, setTimeSlotCategory] = useState<'Morning' | 'Afternoon' | 'Evening'>('Morning');
     const [activeTab, setActiveTab] = useState('All');
     const [doctorSchedules, setDoctorSchedules] = useState<any[]>([]);
 
@@ -35,16 +34,7 @@ export default function AppointmentsPage() {
 
     const [showRescheduleModal, setShowRescheduleModal] = useState(false);
     const [appointmentToReschedule, setAppointmentToReschedule] = useState<any>(null);
-    const [rescheduleForm, setRescheduleForm] = useState({
-        appointment_date: '',
-        appointment_time: '',
-        doctor_id: '',
-        reason: ''
-    });
 
-    // AI scheduling state
-    const [aiSchedulingSuggestion, setAiSchedulingSuggestion] = useState<string | null>(null);
-    const [aiSchedulingLoading, setAiSchedulingLoading] = useState(false);
 
 
 
@@ -169,27 +159,7 @@ export default function AppointmentsPage() {
         }
     };
 
-    const generateTimeSlots = (category: 'Morning' | 'Afternoon' | 'Evening') => {
-        const slots = [];
-        let startHour, endHour;
 
-        if (category === 'Morning') {
-            startHour = 9; // 9:00 AM
-            endHour = 11;  // 11:30 AM (Last slot)
-        } else if (category === 'Afternoon') {
-            startHour = 12; // 12:00 PM
-            endHour = 15;   // 3:30 PM
-        } else {
-            startHour = 16; // 4:00 PM
-            endHour = 19;   // 7:30 PM
-        }
-
-        for (let h = startHour; h <= endHour; h++) {
-            slots.push(`${h.toString().padStart(2, '0')}:00`);
-            slots.push(`${h.toString().padStart(2, '0')}:30`);
-        }
-        return slots;
-    };
 
     const fetchDoctors = async () => {
         try {
@@ -269,82 +239,10 @@ export default function AppointmentsPage() {
 
     const openRescheduleModal = (appointment: any) => {
         setAppointmentToReschedule(appointment);
-        setRescheduleForm({
-            appointment_date: appointment.appointment_date.split('T')[0],
-            appointment_time: appointment.appointment_time,
-            doctor_id: appointment.doctor_id,
-            reason: ''
-        });
-
-        // Auto-select category based on time
-        const hour = parseInt(appointment.appointment_time.split(':')[0]);
-        if (hour < 12) setTimeSlotCategory('Morning');
-        else if (hour < 16) setTimeSlotCategory('Afternoon');
-        else setTimeSlotCategory('Evening');
-
         setShowRescheduleModal(true);
-
-        // Clear previous AI suggestion
-        setAiSchedulingSuggestion(null);
-    };
-
-    const handleGetAISchedulingSuggestion = async () => {
-        if (!appointmentToReschedule) return;
-
-        setAiSchedulingLoading(true);
-        setAiSchedulingSuggestion(null);
-
-        try {
-            // Get the selected doctor's name
-            const selectedDoctor = doctors.find((d: any) => d.doctor_id === parseInt(rescheduleForm.doctor_id));
-
-            const result = await optimizeSchedule({
-                doctorName: selectedDoctor?.name || appointmentToReschedule.doctor_name,
-                requestedTime: `${rescheduleForm.appointment_date} ${rescheduleForm.appointment_time}`,
-                patientName: appointmentToReschedule.patient_name,
-                availableSlots: [],
-            });
-
-            if (result.success) {
-                setAiSchedulingSuggestion(result.message);
-            } else {
-                setAiSchedulingSuggestion(result.message);
-            }
-        } catch (err) {
-            setAiSchedulingSuggestion('Failed to get scheduling suggestions.');
-        } finally {
-            setAiSchedulingLoading(false);
-        }
     };
 
 
-
-    const handleReschedule = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoading(true);
-        try {
-            const token = localStorage.getItem('token');
-            // Assuming we added a backend route for rescheduling or just updating
-            await axios.patch(`${API_URL}/appointments/${appointmentToReschedule.appointment_id}/reschedule`, {
-                appointment_date: rescheduleForm.appointment_date,
-                appointment_time: rescheduleForm.appointment_time,
-                doctor_id: rescheduleForm.doctor_id,
-                reason: rescheduleForm.reason
-            }, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-
-            alert('Appointment rescheduled successfully!');
-            fetchAppointments();
-            setShowRescheduleModal(false);
-            setAppointmentToReschedule(null);
-        } catch (error: any) {
-            console.error('Error rescheduling appointment:', error);
-            alert(error.response?.data?.message || 'Failed to reschedule appointment');
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const convertToOPD = (appointment: any) => {
         // Split patient name into first and last
@@ -874,146 +772,18 @@ export default function AppointmentsPage() {
             }
 
             {/* Reschedule Modal */}
-            {
-                showRescheduleModal && (
-                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                        <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto border border-white/20">
-                            <div className="sticky top-0 bg-gradient-to-r from-amber-500 to-orange-600 text-white px-6 py-4 flex justify-between items-center rounded-t-2xl">
-                                <h2 className="text-xl font-bold flex items-center gap-2">
-                                    <CalendarClock className="w-6 h-6" />
-                                    Reschedule Appointment
-                                </h2>
-                                <button onClick={() => setShowRescheduleModal(false)} className="text-white hover:bg-white/20 p-2 rounded-lg transition">
-                                    <X className="w-6 h-6" />
-                                </button>
-                            </div>
-
-                            <form onSubmit={handleReschedule} className="p-6 space-y-6">
-                                <div className="bg-amber-50 rounded-lg p-4 mb-4 border border-amber-100">
-                                    <p className="text-sm text-amber-800 flex items-center gap-2">
-                                        <User className="w-4 h-4" />
-                                        Rescheduling for: <span className="font-bold">{appointmentToReschedule?.patient_name}</span>
-                                    </p>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Doctor</label>
-                                    <SearchableSelect
-                                        label=""
-                                        options={doctorOptions}
-                                        value={rescheduleForm.doctor_id}
-                                        onChange={(val) => setRescheduleForm({ ...rescheduleForm, doctor_id: val })}
-                                        placeholder="Select Doctor"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">New Date *</label>
-                                    <input type="date" required value={rescheduleForm.appointment_date} onChange={(e) => setRescheduleForm({ ...rescheduleForm, appointment_date: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500" />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">New Time Slot *</label>
-                                    {/* Category Tabs */}
-                                    <div className="flex gap-2 mb-3 bg-gray-100 p-1 rounded-xl">
-                                        {[
-                                            { id: 'Morning', icon: Sun, label: 'Morning' },
-                                            { id: 'Afternoon', icon: CloudSun, label: 'Afternoon' },
-                                            { id: 'Evening', icon: Moon, label: 'Evening' }
-                                        ].map((cat) => (
-                                            <button
-                                                key={cat.id}
-                                                type="button"
-                                                onClick={() => setTimeSlotCategory(cat.id as any)}
-                                                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all ${timeSlotCategory === cat.id
-                                                    ? 'bg-white text-amber-600 shadow-sm'
-                                                    : 'text-gray-500 hover:text-gray-700'
-                                                    }`}
-                                            >
-                                                <cat.icon className="w-4 h-4" />
-                                                {cat.label}
-                                            </button>
-                                        ))}
-                                    </div>
-
-                                    {/* Time Grid */}
-                                    <div className="grid grid-cols-4 gap-2 mb-2">
-                                        {generateTimeSlots(timeSlotCategory).map((time) => (
-                                            <button
-                                                key={time}
-                                                type="button"
-                                                onClick={() => setRescheduleForm({ ...rescheduleForm, appointment_time: time })}
-                                                className={`py-2 px-1 text-sm rounded-lg border transition-all ${rescheduleForm.appointment_time === time
-                                                    ? 'bg-amber-500 border-amber-500 text-white font-bold ring-2 ring-amber-200'
-                                                    : 'border-gray-200 text-gray-600 hover:border-amber-300 hover:bg-amber-50'
-                                                    }`}
-                                            >
-                                                {time}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Reason for Rescheduling</label>
-                                    <textarea
-                                        rows={2}
-                                        value={rescheduleForm.reason}
-                                        onChange={(e) => setRescheduleForm({ ...rescheduleForm, reason: e.target.value })}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500"
-                                        placeholder="e.g., Patient requested change"
-                                    />
-                                </div>
-
-                                {/* AI Scheduling Suggestions */}
-                                <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-4 border border-indigo-100">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <div className="flex items-center gap-2">
-                                            <Sparkles className="w-4 h-4 text-indigo-600" />
-                                            <span className="text-sm font-medium text-indigo-800">AI Scheduling Assistant</span>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={handleGetAISchedulingSuggestion}
-                                            disabled={aiSchedulingLoading}
-                                            className="text-xs font-medium text-indigo-600 hover:text-indigo-700 disabled:opacity-50"
-                                        >
-                                            {aiSchedulingLoading ? 'Analyzing...' : 'Get Suggestion'}
-                                        </button>
-                                    </div>
-
-                                    {aiSchedulingLoading && (
-                                        <AILoadingIndicator text="Analyzing schedule..." variant="compact" />
-                                    )}
-                                    {aiSchedulingSuggestion && !aiSchedulingLoading && (
-                                        <AIInsightCard
-                                            title="Scheduling Recommendation"
-                                            content={aiSchedulingSuggestion}
-                                            type="info"
-                                            onDismiss={() => setAiSchedulingSuggestion(null)}
-                                        />
-                                    )}
-                                    {!aiSchedulingSuggestion && !aiSchedulingLoading && (
-                                        <p className="text-xs text-indigo-600/70">
-                                            Click "Get Suggestion" for AI recommendations on optimal scheduling.
-                                        </p>
-                                    )}
-                                </div>
-
-                                <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-                                    <button type="button" onClick={() => setShowRescheduleModal(false)} className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium">
-                                        Cancel
-                                    </button>
-                                    <button type="submit" disabled={loading} className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-lg hover:from-amber-600 hover:to-orange-700 transition font-medium shadow-lg shadow-amber-500/30">
-                                        <CalendarClock className="w-5 h-5" />
-                                        {loading ? 'Updating...' : 'Confirm New Time'}
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                )
-            }
+            <RescheduleAppointmentModal
+                isOpen={showRescheduleModal}
+                onClose={() => setShowRescheduleModal(false)}
+                onSuccess={() => {
+                    fetchAppointments();
+                    setShowRescheduleModal(false);
+                }}
+                appointment={appointmentToReschedule}
+                doctors={doctors}
+                doctorSchedules={doctorSchedules}
+                appointments={appointments}
+            />
         </div >
     );
 }
