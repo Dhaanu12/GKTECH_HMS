@@ -62,40 +62,64 @@ export default function BranchPerformance({ data }: Props) {
         <div className="space-y-6">
             {/* Overview Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-emerald-50 border border-emerald-200 rounded-2xl shadow-sm p-6">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="p-3 bg-emerald-100 rounded-xl">
-                            <IndianRupee className="w-8 h-8 text-emerald-600" />
-                        </div>
-                        <TrendingUp className="w-6 h-6 text-emerald-400 opacity-50" />
+                <div className="relative overflow-hidden bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl shadow-lg border border-white/20 p-6 hover:shadow-xl transition-all">
+                    <div className="absolute inset-0 opacity-10">
+                        <div className="absolute inset-0" style={{
+                            backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)',
+                            backgroundSize: '20px 20px'
+                        }}></div>
                     </div>
-                    <p className="text-emerald-700 text-sm font-medium mb-1">Total Revenue</p>
-                    <p className="text-4xl font-bold text-emerald-900">₹{totalRevenue.toLocaleString()}</p>
-                    <p className="text-emerald-600 text-xs mt-2">Across all branches</p>
+                    <div className="relative z-10">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="p-3 bg-white/20 backdrop-blur-md rounded-xl shadow-lg">
+                                <IndianRupee className="w-8 h-8 text-white" />
+                            </div>
+                            <TrendingUp className="w-6 h-6 text-white opacity-50" />
+                        </div>
+                        <p className="text-white/90 text-sm font-medium mb-1 uppercase tracking-wider">Total Revenue</p>
+                        <p className="text-4xl font-bold text-white">₹{totalRevenue.toLocaleString()}</p>
+                        <p className="text-white/80 text-xs mt-2 font-medium">Across all branches</p>
+                    </div>
                 </div>
 
-                <div className="bg-blue-50 border border-blue-200 rounded-2xl shadow-sm p-6">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="p-3 bg-blue-100 rounded-xl">
-                            <Users className="w-8 h-8 text-blue-600" />
-                        </div>
-                        <Activity className="w-6 h-6 text-blue-400 opacity-50" />
+                <div className="relative overflow-hidden bg-gradient-to-br from-blue-500 to-cyan-600 rounded-2xl shadow-lg border border-white/20 p-6 hover:shadow-xl transition-all">
+                    <div className="absolute inset-0 opacity-10">
+                        <div className="absolute inset-0" style={{
+                            backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)',
+                            backgroundSize: '20px 20px'
+                        }}></div>
                     </div>
-                    <p className="text-blue-700 text-sm font-medium mb-1">Total Patients</p>
-                    <p className="text-4xl font-bold text-blue-900">{totalPatients.toLocaleString()}</p>
-                    <p className="text-blue-600 text-xs mt-2">{totalAppointments} appointments</p>
+                    <div className="relative z-10">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="p-3 bg-white/20 backdrop-blur-md rounded-xl shadow-lg">
+                                <Users className="w-8 h-8 text-white" />
+                            </div>
+                            <Activity className="w-6 h-6 text-white opacity-50" />
+                        </div>
+                        <p className="text-white/90 text-sm font-medium mb-1 uppercase tracking-wider">Total Patients</p>
+                        <p className="text-4xl font-bold text-white">{totalPatients.toLocaleString()}</p>
+                        <p className="text-white/80 text-xs mt-2 font-medium">{totalAppointments} appointments</p>
+                    </div>
                 </div>
 
-                <div className="bg-purple-50 border border-purple-200 rounded-2xl shadow-sm p-6">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="p-3 bg-purple-100 rounded-xl">
-                            <Award className="w-8 h-8 text-purple-600" />
-                        </div>
-                        <MapPin className="w-6 h-6 text-purple-400 opacity-50" />
+                <div className="relative overflow-hidden bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl shadow-lg border border-white/20 p-6 hover:shadow-xl transition-all">
+                    <div className="absolute inset-0 opacity-10">
+                        <div className="absolute inset-0" style={{
+                            backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)',
+                            backgroundSize: '20px 20px'
+                        }}></div>
                     </div>
-                    <p className="text-purple-700 text-sm font-medium mb-1">Active Branches</p>
-                    <p className="text-4xl font-bold text-purple-900">{data.length}</p>
-                    <p className="text-purple-600 text-xs mt-2">Nationwide network</p>
+                    <div className="relative z-10">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="p-3 bg-white/20 backdrop-blur-md rounded-xl shadow-lg">
+                                <Award className="w-8 h-8 text-white" />
+                            </div>
+                            <MapPin className="w-6 h-6 text-white opacity-50" />
+                        </div>
+                        <p className="text-white/90 text-sm font-medium mb-1 uppercase tracking-wider">Active Branches</p>
+                        <p className="text-4xl font-bold text-white">{data.length}</p>
+                        <p className="text-white/80 text-xs mt-2 font-medium">Nationwide network</p>
+                    </div>
                 </div>
             </div>
 
@@ -157,7 +181,7 @@ export default function BranchPerformance({ data }: Props) {
                                     innerRadius={70}
                                     outerRadius={110}
                                     paddingAngle={3}
-                                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                                    label={({ name, percent }) => `${name}: ${((percent || 0) * 100).toFixed(0)}%`}
                                 >
                                     {chartData.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -243,23 +267,25 @@ export default function BranchPerformance({ data }: Props) {
             {/* Rankings Table */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Top by Revenue */}
-                <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl border border-emerald-200 p-6">
-                    <div className="flex items-center gap-2 mb-4">
-                        <Award className="w-5 h-5 text-emerald-600" />
-                        <h3 className="text-lg font-bold text-emerald-900">Top Revenue</h3>
+                <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl border border-white/20 p-6 shadow-lg text-white">
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="p-2 bg-white/20 backdrop-blur-md rounded-lg">
+                            <Award className="w-5 h-5 text-white" />
+                        </div>
+                        <h3 className="text-lg font-bold text-white">Top Revenue</h3>
                     </div>
                     <div className="space-y-3">
                         {rankedByRevenue.slice(0, 3).map((branch, index) => (
-                            <div key={index} className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-sm">
+                            <div key={index} className="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-xl p-3 shadow-inner border border-white/10">
                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${index === 0 ? 'bg-yellow-400 text-yellow-900' :
-                                    index === 1 ? 'bg-gray-300 text-gray-700' :
+                                    index === 1 ? 'bg-gray-200 text-gray-700' :
                                         'bg-orange-400 text-orange-900'
                                     }`}>
                                     {index + 1}
                                 </div>
                                 <div className="flex-1">
-                                    <p className="font-semibold text-gray-900 text-sm">{branch.name}</p>
-                                    <p className="text-emerald-600 font-bold text-xs">₹{branch.revenue.toLocaleString()}</p>
+                                    <p className="font-semibold text-white text-sm">{branch.name}</p>
+                                    <p className="text-emerald-100 font-bold text-xs">₹{branch.revenue.toLocaleString()}</p>
                                 </div>
                             </div>
                         ))}
@@ -267,23 +293,25 @@ export default function BranchPerformance({ data }: Props) {
                 </div>
 
                 {/* Top by Patients */}
-                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl border border-blue-200 p-6">
-                    <div className="flex items-center gap-2 mb-4">
-                        <Users className="w-5 h-5 text-blue-600" />
-                        <h3 className="text-lg font-bold text-blue-900">Most Patients</h3>
+                <div className="bg-gradient-to-br from-blue-500 to-cyan-600 rounded-2xl border border-white/20 p-6 shadow-lg text-white">
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="p-2 bg-white/20 backdrop-blur-md rounded-lg">
+                            <Users className="w-5 h-5 text-white" />
+                        </div>
+                        <h3 className="text-lg font-bold text-white">Most Patients</h3>
                     </div>
                     <div className="space-y-3">
                         {rankedByPatients.slice(0, 3).map((branch, index) => (
-                            <div key={index} className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-sm">
+                            <div key={index} className="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-xl p-3 shadow-inner border border-white/10">
                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${index === 0 ? 'bg-yellow-400 text-yellow-900' :
-                                    index === 1 ? 'bg-gray-300 text-gray-700' :
+                                    index === 1 ? 'bg-gray-200 text-gray-700' :
                                         'bg-orange-400 text-orange-900'
                                     }`}>
                                     {index + 1}
                                 </div>
                                 <div className="flex-1">
-                                    <p className="font-semibold text-gray-900 text-sm">{branch.name}</p>
-                                    <p className="text-blue-600 font-bold text-xs">{branch.patients} patients</p>
+                                    <p className="font-semibold text-white text-sm">{branch.name}</p>
+                                    <p className="text-blue-100 font-bold text-xs">{branch.patients} patients</p>
                                 </div>
                             </div>
                         ))}
@@ -291,23 +319,25 @@ export default function BranchPerformance({ data }: Props) {
                 </div>
 
                 {/* Most Efficient */}
-                <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl border border-purple-200 p-6">
-                    <div className="flex items-center gap-2 mb-4">
-                        <TrendingUp className="w-5 h-5 text-purple-600" />
-                        <h3 className="text-lg font-bold text-purple-900">Most Efficient</h3>
+                <div className="bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl border border-white/20 p-6 shadow-lg text-white">
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="p-2 bg-white/20 backdrop-blur-md rounded-lg">
+                            <TrendingUp className="w-5 h-5 text-white" />
+                        </div>
+                        <h3 className="text-lg font-bold text-white">Most Efficient</h3>
                     </div>
                     <div className="space-y-3">
                         {rankedByEfficiency.slice(0, 3).map((branch, index) => (
-                            <div key={index} className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-sm">
+                            <div key={index} className="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-xl p-3 shadow-inner border border-white/10">
                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${index === 0 ? 'bg-yellow-400 text-yellow-900' :
-                                    index === 1 ? 'bg-gray-300 text-gray-700' :
+                                    index === 1 ? 'bg-gray-200 text-gray-700' :
                                         'bg-orange-400 text-orange-900'
                                     }`}>
                                     {index + 1}
                                 </div>
                                 <div className="flex-1">
-                                    <p className="font-semibold text-gray-900 text-sm">{branch.name}</p>
-                                    <p className="text-purple-600 font-bold text-xs">₹{branch.revenuePerPatient.toFixed(0)}/patient</p>
+                                    <p className="font-semibold text-white text-sm">{branch.name}</p>
+                                    <p className="text-purple-100 font-bold text-xs">₹{branch.revenuePerPatient.toFixed(0)}/patient</p>
                                 </div>
                             </div>
                         ))}

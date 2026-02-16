@@ -163,111 +163,147 @@ export default function StaffPerformance({ data, type }: Props) {
             {/* Summary Cards */}
             {type === 'DOCTOR' && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="bg-blue-50 border border-blue-200 rounded-2xl shadow-sm p-6">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-3 bg-blue-100 rounded-xl">
-                                <Users className="w-7 h-7 text-blue-600" />
-                            </div>
+                    <div className="relative overflow-hidden bg-gradient-to-br from-blue-500 to-cyan-600 rounded-2xl shadow-lg border border-white/20 p-6 hover:shadow-xl transition-all">
+                        <div className="absolute inset-0 opacity-10">
+                            <div className="absolute inset-0" style={{
+                                backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)',
+                                backgroundSize: '20px 20px'
+                            }}></div>
                         </div>
-                        <p className="text-blue-700 text-sm font-medium mb-1">Total Patients Treated</p>
-                        <p className="text-4xl font-bold text-blue-900">{stats.totalPatients.toLocaleString()}</p>
+                        <div className="relative z-10">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="p-3 bg-white/20 backdrop-blur-md rounded-xl shadow-lg">
+                                    <Users className="w-7 h-7 text-white" />
+                                </div>
+                            </div>
+                            <p className="text-white/90 text-sm font-medium mb-1 uppercase tracking-wider">Total Patients Treated</p>
+                            <p className="text-4xl font-bold text-white">{stats.totalPatients.toLocaleString()}</p>
+                        </div>
                     </div>
 
-                    <div className="bg-emerald-50 border border-emerald-200 rounded-2xl shadow-sm p-6">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-3 bg-emerald-100 rounded-xl">
-                                <DollarSign className="w-7 h-7 text-emerald-600" />
-                            </div>
+                    <div className="relative overflow-hidden bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl shadow-lg border border-white/20 p-6 hover:shadow-xl transition-all">
+                        <div className="absolute inset-0 opacity-10">
+                            <div className="absolute inset-0" style={{
+                                backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)',
+                                backgroundSize: '20px 20px'
+                            }}></div>
                         </div>
-                        <p className="text-emerald-700 text-sm font-medium mb-1">Total Revenue Generated</p>
-                        <p className="text-4xl font-bold text-emerald-900">₹{stats.totalRevenue.toLocaleString()}</p>
+                        <div className="relative z-10">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="p-3 bg-white/20 backdrop-blur-md rounded-xl shadow-lg">
+                                    <DollarSign className="w-7 h-7 text-white" />
+                                </div>
+                            </div>
+                            <p className="text-white/90 text-sm font-medium mb-1 uppercase tracking-wider">Total Revenue Generated</p>
+                            <p className="text-4xl font-bold text-white">₹{stats.totalRevenue.toLocaleString()}</p>
+                        </div>
                     </div>
 
-                    <div className="bg-purple-50 border border-purple-200 rounded-2xl shadow-sm p-6">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-3 bg-purple-100 rounded-xl">
-                                <TrendingUp className="w-7 h-7 text-purple-600" />
-                            </div>
+                    <div className="relative overflow-hidden bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl shadow-lg border border-white/20 p-6 hover:shadow-xl transition-all">
+                        <div className="absolute inset-0 opacity-10">
+                            <div className="absolute inset-0" style={{
+                                backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)',
+                                backgroundSize: '20px 20px'
+                            }}></div>
                         </div>
-                        <p className="text-purple-700 text-sm font-medium mb-1">Avg Completion Rate</p>
-                        <p className="text-4xl font-bold text-purple-900">{stats.avgCompletionRate.toFixed(1)}%</p>
+                        <div className="relative z-10">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="p-3 bg-white/20 backdrop-blur-md rounded-xl shadow-lg">
+                                    <TrendingUp className="w-7 h-7 text-white" />
+                                </div>
+                            </div>
+                            <p className="text-white/90 text-sm font-medium mb-1 uppercase tracking-wider">Avg Completion Rate</p>
+                            <p className="text-4xl font-bold text-white">{stats.avgCompletionRate.toFixed(1)}%</p>
+                        </div>
                     </div>
                 </div>
             )}
 
             {type === 'NURSE' && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="bg-purple-50 border border-purple-200 rounded-2xl shadow-sm p-6">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-3 bg-purple-100 rounded-xl">
-                                <Activity className="w-7 h-7 text-purple-600" />
+                    <div className="relative overflow-hidden bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl shadow-lg border border-white/20 p-6 hover:shadow-xl transition-all">
+                        <div className="relative z-10">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="p-3 bg-white/20 backdrop-blur-md rounded-xl shadow-lg">
+                                    <Activity className="w-7 h-7 text-white" />
+                                </div>
                             </div>
+                            <p className="text-white/90 text-sm font-medium mb-1 uppercase tracking-wider">Total Labs Completed</p>
+                            <p className="text-4xl font-bold text-white">{stats.totalLabs.toLocaleString()}</p>
                         </div>
-                        <p className="text-purple-700 text-sm font-medium mb-1">Total Labs Completed</p>
-                        <p className="text-4xl font-bold text-purple-900">{stats.totalLabs.toLocaleString()}</p>
                     </div>
 
-                    <div className="bg-blue-50 border border-blue-200 rounded-2xl shadow-sm p-6">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-3 bg-blue-100 rounded-xl">
-                                <UserCheck className="w-7 h-7 text-blue-600" />
+                    <div className="relative overflow-hidden bg-gradient-to-br from-blue-500 to-cyan-600 rounded-2xl shadow-lg border border-white/20 p-6 hover:shadow-xl transition-all">
+                        <div className="relative z-10">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="p-3 bg-white/20 backdrop-blur-md rounded-xl shadow-lg">
+                                    <UserCheck className="w-7 h-7 text-white" />
+                                </div>
                             </div>
+                            <p className="text-white/90 text-sm font-medium mb-1 uppercase tracking-wider">Patients Vitals Handled</p>
+                            <p className="text-4xl font-bold text-white">{stats.totalVitals.toLocaleString()}</p>
                         </div>
-                        <p className="text-blue-700 text-sm font-medium mb-1">Patients Vitals Handled</p>
-                        <p className="text-4xl font-bold text-blue-900">{stats.totalVitals.toLocaleString()}</p>
                     </div>
 
-                    <div className="bg-emerald-50 border border-emerald-200 rounded-2xl shadow-sm p-6">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-3 bg-emerald-100 rounded-xl">
-                                <Clock className="w-7 h-7 text-emerald-600" />
+                    <div className="relative overflow-hidden bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl shadow-lg border border-white/20 p-6 hover:shadow-xl transition-all">
+                        <div className="relative z-10">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="p-3 bg-white/20 backdrop-blur-md rounded-xl shadow-lg">
+                                    <Clock className="w-7 h-7 text-white" />
+                                </div>
                             </div>
+                            <p className="text-white/90 text-sm font-medium mb-1 uppercase tracking-wider">Avg Attendance Days</p>
+                            <p className="text-4xl font-bold text-white">{stats.avgAttendance.toFixed(0)}</p>
                         </div>
-                        <p className="text-emerald-700 text-sm font-medium mb-1">Avg Attendance Days</p>
-                        <p className="text-4xl font-bold text-emerald-900">{stats.avgAttendance.toFixed(0)}</p>
                     </div>
                 </div>
             )}
 
             {type === 'RECEPTIONIST' && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="bg-emerald-50 border border-emerald-200 rounded-2xl shadow-sm p-6">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-3 bg-emerald-100 rounded-xl">
-                                <Activity className="w-7 h-7 text-emerald-600" />
+                    <div className="relative overflow-hidden bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl shadow-lg border border-white/20 p-6 hover:shadow-xl transition-all">
+                        <div className="relative z-10">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="p-3 bg-white/20 backdrop-blur-md rounded-xl shadow-lg">
+                                    <Activity className="w-7 h-7 text-white" />
+                                </div>
                             </div>
-                        </div>
-                        <p className="text-emerald-700 text-sm font-medium mb-1">Total OPD Entries</p>
-                        <p className="text-4xl font-bold mb-2 text-emerald-900">{stats.totalOPD.toLocaleString()}</p>
-                        <div className="flex gap-3 text-xs font-semibold bg-white/50 p-2 rounded-lg text-emerald-800">
-                            <span title="Walk-ins">Walk-in: {stats.totalWalkIn}</span>
-                            <span className="opacity-50">|</span>
-                            <span title="Appointments">Appt: {stats.totalConverted}</span>
-                            <span className="opacity-50">|</span>
-                            <span title="Emergency">Emergency: {stats.totalEmergency}</span>
+                            <p className="text-white/90 text-sm font-medium mb-1 uppercase tracking-wider">Total OPD Entries</p>
+                            <p className="text-4xl font-bold mb-2 text-white">{stats.totalOPD.toLocaleString()}</p>
+                            <div className="flex gap-3 text-xs font-semibold bg-white/20 p-2 rounded-lg text-white/90 backdrop-blur-sm">
+                                <span title="Walk-ins">Walk-in: {stats.totalWalkIn}</span>
+                                <span className="opacity-50">|</span>
+                                <span title="Appointments">Appt: {stats.totalConverted}</span>
+                                <span className="opacity-50">|</span>
+                                <span title="Emergency">Emergency: {stats.totalEmergency}</span>
+                            </div>
                         </div>
                     </div>
 
-                    <div className="bg-blue-50 border border-blue-200 rounded-2xl shadow-sm p-6">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-3 bg-blue-100 rounded-xl">
-                                <Users className="w-7 h-7 text-blue-600" />
+                    <div className="relative overflow-hidden bg-gradient-to-br from-blue-500 to-cyan-600 rounded-2xl shadow-lg border border-white/20 p-6 hover:shadow-xl transition-all">
+                        <div className="relative z-10">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="p-3 bg-white/20 backdrop-blur-md rounded-xl shadow-lg">
+                                    <Users className="w-7 h-7 text-white" />
+                                </div>
                             </div>
+                            <p className="text-white/90 text-sm font-medium mb-1 uppercase tracking-wider">Total Appointments</p>
+                            <p className="text-4xl font-bold text-white">{stats.totalAppointments.toLocaleString()}</p>
                         </div>
-                        <p className="text-blue-700 text-sm font-medium mb-1">Total Appointments</p>
-                        <p className="text-4xl font-bold text-blue-900">{stats.totalAppointments.toLocaleString()}</p>
                     </div>
 
-                    <div className="bg-purple-50 border border-purple-200 rounded-2xl shadow-sm p-6">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-3 bg-purple-100 rounded-xl">
-                                <TrendingUp className="w-7 h-7 text-purple-600" />
+                    <div className="relative overflow-hidden bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl shadow-lg border border-white/20 p-6 hover:shadow-xl transition-all">
+                        <div className="relative z-10">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="p-3 bg-white/20 backdrop-blur-md rounded-xl shadow-lg">
+                                    <TrendingUp className="w-7 h-7 text-white" />
+                                </div>
                             </div>
-                        </div>
-                        <p className="text-purple-700 text-sm font-medium mb-1">Conversion Success</p>
-                        <div className="flex items-baseline gap-2">
-                            <p className="text-4xl font-bold text-purple-900">{stats.conversionRate.toFixed(1)}%</p>
-                            <span className="text-sm opacity-80 text-purple-700">({stats.totalConverted.toLocaleString()} converted)</span>
+                            <p className="text-white/90 text-sm font-medium mb-1 uppercase tracking-wider">Conversion Success</p>
+                            <div className="flex items-baseline gap-2">
+                                <p className="text-4xl font-bold text-white">{stats.conversionRate.toFixed(1)}%</p>
+                                <span className="text-sm opacity-80 text-white/90">({stats.totalConverted.toLocaleString()} converted)</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -557,113 +593,130 @@ export default function StaffPerformance({ data, type }: Props) {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredData.map((staff, index) => {
                         const Icon = type === 'DOCTOR' ? UserCheck : type === 'NURSE' ? Activity : Users;
-                        const colorClass = type === 'DOCTOR' ? 'blue' : type === 'NURSE' ? 'purple' : 'emerald';
+                        // Map type to gradient start/end colors
+                        const gradientClass = type === 'DOCTOR'
+                            ? 'from-blue-500 to-cyan-600'
+                            : type === 'NURSE'
+                                ? 'from-purple-500 to-pink-600'
+                                : 'from-emerald-500 to-teal-600';
+
+                        const borderClass = 'border-white/20';
 
                         return (
                             <div
                                 key={staff.id}
-                                className={`relative overflow-hidden bg-gradient-to-br from-${colorClass}-50 to-white rounded-2xl border-2 border-${colorClass}-200 p-6 hover:shadow-xl transition-all transform hover:-translate-y-1`}
+                                className={`relative overflow-hidden bg-gradient-to-br ${gradientClass} rounded-2xl border ${borderClass} p-6 hover:shadow-xl transition-all transform hover:-translate-y-1`}
                             >
+                                {/* Background Pattern */}
+                                <div className="absolute inset-0 opacity-10">
+                                    <div className="absolute inset-0" style={{
+                                        backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)',
+                                        backgroundSize: '20px 20px'
+                                    }}></div>
+                                </div>
+
                                 {/* Rank Badge for Top 3 */}
                                 {index < 3 && (
-                                    <div className={`absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${index === 0 ? 'bg-yellow-400 text-yellow-900' :
-                                        index === 1 ? 'bg-gray-300 text-gray-700' :
+                                    <div className={`relative z-10 absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${index === 0 ? 'bg-yellow-400 text-yellow-900' :
+                                        index === 1 ? 'bg-gray-200 text-gray-700' :
                                             'bg-orange-400 text-orange-900'
                                         }`}>
                                         {index + 1}
                                     </div>
                                 )}
 
-                                <div className="flex items-center gap-4 mb-4">
-                                    <div className={`w-16 h-16 rounded-full flex items-center justify-center font-bold text-2xl bg-${colorClass}-100 text-${colorClass}-600`}>
+                                <div className="relative z-10 flex items-center gap-4 mb-4">
+                                    <div className="w-16 h-16 rounded-full flex items-center justify-center font-bold text-2xl bg-white/20 text-white backdrop-blur-md shadow-inner border border-white/10">
                                         {(staff.first_name && staff.first_name.length > 0) ? staff.first_name[0].toUpperCase() : '?'}
                                     </div>
                                     <div className="flex-1">
-                                        <h4 className="font-bold text-gray-900 text-lg">
+                                        <h4 className="font-bold text-white text-lg">
                                             {staff.first_name || 'Unknown'} {staff.last_name || ''}
                                         </h4>
-                                        <p className="text-xs text-gray-500 uppercase font-semibold tracking-wider">{staff.role_detail}</p>
+                                        <p className="text-xs text-white/80 uppercase font-semibold tracking-wider">{staff.role_detail}</p>
                                     </div>
                                 </div>
 
                                 {/* Key Metrics - Type Specific */}
-                                {type === 'DOCTOR' && (
-                                    <div className="space-y-3 mb-4">
-                                        <div className="flex justify-between items-center p-3 bg-white rounded-xl border border-blue-100">
-                                            <span className="text-sm text-gray-600">Patients</span>
-                                            <span className="text-lg font-bold text-blue-600">{staff.task_count}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center p-3 bg-white rounded-xl border border-emerald-100">
-                                            <span className="text-sm text-gray-600">Revenue</span>
-                                            <span className="text-lg font-bold text-emerald-600">₹{parseFloat(staff.performance_metric || '0').toLocaleString()}</span>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {type === 'NURSE' && (
-                                    <div className="space-y-3 mb-4">
-                                        <div className="flex justify-between items-center p-3 bg-white rounded-xl border border-purple-100">
-                                            <span className="text-sm text-gray-600">Labs Done</span>
-                                            <span className="text-lg font-bold text-purple-600">{staff.labs_completed || 0}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center p-3 bg-white rounded-xl border border-blue-100">
-                                            <span className="text-sm text-gray-600">Vitals</span>
-                                            <span className="text-lg font-bold text-blue-600">{staff.patients_vitals_handled || 0}</span>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {type === 'RECEPTIONIST' && (
-                                    <div className="space-y-3 mb-4">
-                                        <div className="flex justify-between items-center p-3 bg-white rounded-xl border border-emerald-100">
-                                            <span className="text-sm text-gray-600">Bookings</span>
-                                            <span className="text-lg font-bold text-emerald-600">{staff.total_confirmed || 0}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center p-3 bg-white rounded-xl border border-blue-100">
-                                            <span className="text-sm text-gray-600">Payments</span>
-                                            <span className="text-lg font-bold text-blue-600">₹{parseFloat(staff.payments_collected || '0').toLocaleString()}</span>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Additional Badges */}
-                                <div className="flex flex-wrap gap-2 pt-3 border-t border-gray-200">
+                                <div className="relative z-10">
                                     {type === 'DOCTOR' && (
-                                        <>
-                                            <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-lg text-xs font-semibold">
-                                                Walk-in: {staff.walk_in_count || 0}
-                                            </span>
-                                            <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-lg text-xs font-semibold">
-                                                Referral: {staff.referral_count || 0}
-                                            </span>
-                                        </>
+                                        <div className="space-y-3 mb-4">
+                                            <div className="flex justify-between items-center p-3 bg-white/10 backdrop-blur-sm rounded-xl border border-white/10">
+                                                <span className="text-sm text-white/90">Patients</span>
+                                                <span className="text-lg font-bold text-white">{staff.task_count}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center p-3 bg-white/10 backdrop-blur-sm rounded-xl border border-white/10">
+                                                <span className="text-sm text-white/90">Revenue</span>
+                                                <span className="text-lg font-bold text-white">₹{parseFloat(staff.performance_metric || '0').toLocaleString()}</span>
+                                            </div>
+                                        </div>
                                     )}
+
                                     {type === 'NURSE' && (
-                                        <>
-                                            <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-semibold">
-                                                Present: {staff.performance_metric || 0}
-                                            </span>
-                                            <span className="px-3 py-1 bg-red-100 text-red-700 rounded-lg text-xs font-semibold">
-                                                Late: {staff.late_days || 0}
-                                            </span>
-                                        </>
+                                        <div className="space-y-3 mb-4">
+                                            <div className="flex justify-between items-center p-3 bg-white/10 backdrop-blur-sm rounded-xl border border-white/10">
+                                                <span className="text-sm text-white/90">Labs Done</span>
+                                                <span className="text-lg font-bold text-white">{staff.labs_completed || 0}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center p-3 bg-white/10 backdrop-blur-sm rounded-xl border border-white/10">
+                                                <span className="text-sm text-white/90">Vitals</span>
+                                                <span className="text-lg font-bold text-white">{staff.patients_vitals_handled || 0}</span>
+                                            </div>
+                                        </div>
                                     )}
+
                                     {type === 'RECEPTIONIST' && (
-                                        <>
-                                            <span className="px-3 py-1 bg-teal-100 text-teal-700 rounded-lg text-xs font-semibold">
-                                                OPD: {staff.opd_checkins || 0}
-                                            </span>
-                                            <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-lg text-xs font-semibold">
-                                                Walk-in: {staff.walk_in_count || 0}
-                                            </span>
-                                            <span className="px-3 py-1 bg-red-100 text-red-700 rounded-lg text-xs font-semibold">
-                                                Emergency: {staff.emergency_count || 0}
-                                            </span>
-                                            <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-lg text-xs font-semibold">
-                                                Cancelled: {staff.cancellations_handled || 0}
-                                            </span>
-                                        </>
+                                        <div className="space-y-3 mb-4">
+                                            <div className="flex justify-between items-center p-3 bg-white/10 backdrop-blur-sm rounded-xl border border-white/10">
+                                                <span className="text-sm text-white/90">Bookings</span>
+                                                <span className="text-lg font-bold text-white">{staff.total_confirmed || 0}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center p-3 bg-white/10 backdrop-blur-sm rounded-xl border border-white/10">
+                                                <span className="text-sm text-white/90">Payments</span>
+                                                <span className="text-lg font-bold text-white">₹{parseFloat(staff.payments_collected || '0').toLocaleString()}</span>
+                                            </div>
+                                        </div>
                                     )}
+
+                                    {/* Additional Badges */}
+                                    <div className="flex flex-wrap gap-2 pt-3 border-t border-white/20">
+                                        {type === 'DOCTOR' && (
+                                            <>
+                                                <span className="px-3 py-1 bg-white/20 text-white rounded-lg text-xs font-semibold backdrop-blur-md">
+                                                    Walk-in: {staff.walk_in_count || 0}
+                                                </span>
+                                                <span className="px-3 py-1 bg-white/20 text-white rounded-lg text-xs font-semibold backdrop-blur-md">
+                                                    Referral: {staff.referral_count || 0}
+                                                </span>
+                                            </>
+                                        )}
+                                        {type === 'NURSE' && (
+                                            <>
+                                                <span className="px-3 py-1 bg-white/20 text-white rounded-lg text-xs font-semibold backdrop-blur-md">
+                                                    Present: {staff.performance_metric || 0}
+                                                </span>
+                                                <span className="px-3 py-1 bg-white/20 text-white rounded-lg text-xs font-semibold backdrop-blur-md">
+                                                    Late: {staff.late_days || 0}
+                                                </span>
+                                            </>
+                                        )}
+                                        {type === 'RECEPTIONIST' && (
+                                            <>
+                                                <span className="px-3 py-1 bg-white/20 text-white rounded-lg text-xs font-semibold backdrop-blur-md">
+                                                    OPD: {staff.opd_checkins || 0}
+                                                </span>
+                                                <span className="px-3 py-1 bg-white/20 text-white rounded-lg text-xs font-semibold backdrop-blur-md">
+                                                    Walk-in: {staff.walk_in_count || 0}
+                                                </span>
+                                                <span className="px-3 py-1 bg-white/20 text-white rounded-lg text-xs font-semibold backdrop-blur-md">
+                                                    Emergency: {staff.emergency_count || 0}
+                                                </span>
+                                                <span className="px-3 py-1 bg-white/20 text-white rounded-lg text-xs font-semibold backdrop-blur-md">
+                                                    Cancelled: {staff.cancellations_handled || 0}
+                                                </span>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         );
