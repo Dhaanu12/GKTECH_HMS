@@ -205,15 +205,62 @@ class BranchController {
     /**
      * Get All Branches (Super Admin)
      */
+    /**
+     * Get All Branches (Super Admin / Client Admin)
+     */
     static async getAllBranches(req, res, next) {
         try {
             const { search } = req.query;
             let branches = [];
 
+            // Filter by hospital if Client Admin
+            const filter = {};
+            if (req.userRole === 'CLIENT_ADMIN') {
+                if (!req.user.hospital_id) {
+                    return next(new AppError('You are not linked to any hospital', 403));
+                }
+                filter.hospital_id = req.user.hospital_id;
+            }
+
             if (search) {
-                branches = await Branch.search(search);
+                // If search is used, we need to ensure we still filter by hospital_id for Client Admin
+                // The current Branch.search() likely searches global if not modified.
+                // For now, let's use findAll with stricter filters or update search to accept filters.
+                // Assuming Branch.findAll supports partial match if we implemented it, but Branch.search uses raw query.
+                // Let's check Branch.search implementation. It joins hospitals but arguments are just searchTerm.
+                // To be safe and quick: fetch all for hospital then filter in memory OR 
+                // preferably, update Branch model. But let's look at Branch.findAll capabilities.
+                // Branch.findAll takes simple object.
+
+                // If Client Admin, we MUST scope by hospital_id. 
+                // Branch.search doesn't support hospitalId param currently.
+                // Let's modify Branch.search or use a raw query here, or just stick to findAll if search is not heavily used yet relative to security.
+
+                // Actually, let's just use findAll with the filter we built.
+                // If search is present, we might need to do manual filtering or update model.
+                // Given the risk, let's default to preventing search leak:
+                if (req.userRole === 'CLIENT_ADMIN') {
+                    // Start with hospital filter
+                    const allHospitalBranches = await Branch.findAll({ hospital_id: req.user.hospital_id });
+                    if (search) {
+                        const lowerSearch = search.toLowerCase();
+                        branches = allHospitalBranches.filter(b =>
+                            b.branch_name.toLowerCase().includes(lowerSearch) ||
+                            b.branch_code.toLowerCase().includes(lowerSearch)
+                        );
+                    } else {
+                        branches = allHospitalBranches;
+                    }
+                } else {
+                    // Super Admin - existing logic
+                    if (search) {
+                        branches = await Branch.search(search);
+                    } else {
+                        branches = await Branch.findAll({}, { orderBy: 'branch_name ASC' });
+                    }
+                }
             } else {
-                branches = await Branch.findAll({}, { orderBy: 'branch_name ASC' });
+                branches = await Branch.findAll(filter, { orderBy: 'branch_name ASC' });
             }
 
             res.status(200).json({
