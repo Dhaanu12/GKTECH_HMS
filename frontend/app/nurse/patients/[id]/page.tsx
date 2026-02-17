@@ -177,7 +177,7 @@ export default function NursePatientDetails() {
                     } catch { /* storage full, skip */ }
                 }
             })
-            .catch(() => {})
+            .catch(() => { })
             .finally(() => setAiPatientSummaryLoading(false));
     }, [patient, loading, vitalsHistory, labOrders, clinicalNotes, opdHistory, summaryRefreshKey]);
 
@@ -240,7 +240,7 @@ export default function NursePatientDetails() {
     useEffect(() => {
         if (patient && aiContext.setPageContext) {
             const latestVitals = vitalsHistory[0];
-            const age = patient.date_of_birth 
+            const age = patient.date_of_birth
                 ? Math.floor((Date.now() - new Date(patient.date_of_birth).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
                 : 'Unknown';
             const patientSummary = `Patient: ${patient.first_name} ${patient.last_name}, ${patient.gender}, Age: ${age}. ` +
@@ -254,7 +254,7 @@ export default function NursePatientDetails() {
                     `Temp: ${latestVitals.temperature || 'N/A'}°C, ` +
                     `SpO2: ${latestVitals.oxygen_saturation || 'N/A'}%, ` +
                     `RR: ${latestVitals.respiratory_rate || 'N/A'}/min.` : 'No recent vitals.');
-            
+
             aiContext.setPageContext(`/nurse/patients/${params.id}`, patientSummary);
         }
     }, [patient, vitalsHistory, aiContext.setPageContext, params.id]);
@@ -368,8 +368,8 @@ export default function NursePatientDetails() {
         // Parse vitals
         let vitals: any = {};
         if (consult.vital_signs) {
-            vitals = typeof consult.vital_signs === 'string' 
-                ? JSON.parse(consult.vital_signs) 
+            vitals = typeof consult.vital_signs === 'string'
+                ? JSON.parse(consult.vital_signs)
                 : consult.vital_signs;
         }
 
@@ -645,10 +645,10 @@ export default function NursePatientDetails() {
     // AI Analysis functions
     const handleAnalyzeVitals = async () => {
         if (vitalsHistory.length === 0) return;
-        
+
         setAiVitalsLoading(true);
         setAiVitalsInsight(null);
-        
+
         try {
             const vitalsData: VitalsData[] = vitalsHistory.slice(0, 10).map(v => ({
                 recorded_at: v.recorded_at,
@@ -663,7 +663,7 @@ export default function NursePatientDetails() {
                 blood_glucose: v.blood_glucose,
                 pain_level: v.pain_level,
             }));
-            
+
             const patientInfo: AIPatientInfo = {
                 first_name: patient?.first_name,
                 last_name: patient?.last_name,
@@ -671,9 +671,9 @@ export default function NursePatientDetails() {
                 gender: patient?.gender,
                 mrn: patient?.mrn,
             };
-            
+
             const result = await analyzeVitals(vitalsData, patientInfo);
-            
+
             if (result.success) {
                 setAiVitalsInsight(result.message);
             } else {
@@ -749,23 +749,23 @@ export default function NursePatientDetails() {
                         {/* Avatar */}
                         <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-2xl font-bold shadow-lg shadow-blue-500/30">
                             {patient.first_name?.[0]}{patient.last_name?.[0]}
-                            </div>
+                        </div>
 
                         {/* Basic Info */}
                         <div className="flex-1">
                             <div className="flex flex-wrap items-center gap-3 mb-2">
                                 <h2 className="text-2xl font-bold text-slate-800">
-                                {patient.first_name} {patient.last_name}
-                            </h2>
+                                    {patient.first_name} {patient.last_name}
+                                </h2>
                                 <span className="px-3 py-1 bg-white/80 text-blue-700 rounded-lg text-sm font-bold border border-blue-200">
                                     {patient.mrn_number}
-                            </span>
+                                </span>
                                 {patient.blood_group && (
                                     <span className="px-2 py-1 bg-red-100 text-red-700 rounded-lg text-sm font-bold">
                                         {patient.blood_group}
                                     </span>
                                 )}
-                        </div>
+                            </div>
 
                             <div className="flex flex-wrap gap-4 text-sm text-slate-600">
                                 <span className="flex items-center gap-1">
@@ -791,9 +791,9 @@ export default function NursePatientDetails() {
                                 <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded-lg inline-flex items-center gap-2">
                                     <AlertCircle className="w-4 h-4 text-red-500" />
                                     <span className="text-sm font-medium text-red-700">Allergies: {patient.allergies}</span>
-                            </div>
+                                </div>
                             )}
-                            </div>
+                        </div>
 
                         {/* Quick Actions */}
                         <div className="flex flex-col sm:flex-row gap-2">
@@ -829,23 +829,23 @@ export default function NursePatientDetails() {
                     <div className="p-4 text-center">
                         <p className="text-2xl font-bold text-slate-800">{opdHistory.length}</p>
                         <p className="text-xs text-slate-500 font-medium">Visits</p>
-                                </div>
+                    </div>
                     <div className="p-4 text-center">
                         <p className="text-2xl font-bold text-slate-800">{vitalsHistory.length}</p>
                         <p className="text-xs text-slate-500 font-medium">Vitals Records</p>
-                            </div>
+                    </div>
                     <div className="p-4 text-center">
                         <p className="text-2xl font-bold text-slate-800">{clinicalNotes.length}</p>
                         <p className="text-xs text-slate-500 font-medium">Clinical Notes</p>
-                                </div>
+                    </div>
                     <div className="p-4 text-center">
                         <p className="text-2xl font-bold text-slate-800">{labOrders.length}</p>
                         <p className="text-xs text-slate-500 font-medium">Lab Orders</p>
-                            </div>
+                    </div>
                     <div className="p-4 text-center">
                         <p className="text-2xl font-bold text-slate-800">{documents.length}</p>
                         <p className="text-xs text-slate-500 font-medium">Documents</p>
-                        </div>
+                    </div>
                 </div >
             </div >
 
@@ -926,13 +926,14 @@ export default function NursePatientDetails() {
                             {(latestVitals.blood_pressure_systolic || latestVitals.blood_pressure_diastolic) && (
                                 <VitalCard
                                     label={latestVitals.blood_pressure_systolic && latestVitals.blood_pressure_diastolic ? "Blood Pressure" : latestVitals.blood_pressure_systolic ? "Systolic BP" : "Diastolic BP"}
-                                    value={latestVitals.blood_pressure_systolic && latestVitals.blood_pressure_diastolic 
+                                    value={latestVitals.blood_pressure_systolic && latestVitals.blood_pressure_diastolic
                                         ? `${latestVitals.blood_pressure_systolic}/${latestVitals.blood_pressure_diastolic}`
                                         : latestVitals.blood_pressure_systolic || latestVitals.blood_pressure_diastolic}
                                     unit="mmHg"
                                     trend={getVitalsTrend(latestVitals.blood_pressure_systolic || latestVitals.blood_pressure_diastolic, previousVitals?.blood_pressure_systolic || previousVitals?.blood_pressure_diastolic)}
                                     icon={<Activity className="w-4 h-4" />}
                                     color="blue"
+                                    normalRange="90/60-120/80"
                                     onClick={() => setSelectedVitalForGraph('blood_pressure_systolic')}
                                 />
                             )}
@@ -944,6 +945,7 @@ export default function NursePatientDetails() {
                                     trend={getVitalsTrend(latestVitals.pulse_rate, previousVitals?.pulse_rate)}
                                     icon={<HeartPulse className="w-4 h-4" />}
                                     color="red"
+                                    normalRange="60-100"
                                     onClick={() => setSelectedVitalForGraph('pulse_rate')}
                                 />
                             )}
@@ -955,6 +957,7 @@ export default function NursePatientDetails() {
                                     trend={getVitalsTrend(latestVitals.temperature, previousVitals?.temperature)}
                                     icon={<Thermometer className="w-4 h-4" />}
                                     color="amber"
+                                    normalRange="97.8-99.1"
                                     onClick={() => setSelectedVitalForGraph('temperature')}
                                 />
                             )}
@@ -966,6 +969,7 @@ export default function NursePatientDetails() {
                                     trend={getVitalsTrend(latestVitals.spo2, previousVitals?.spo2)}
                                     icon={<Droplets className="w-4 h-4" />}
                                     color="cyan"
+                                    normalRange="95-100"
                                     onClick={() => setSelectedVitalForGraph('spo2')}
                                 />
                             )}
@@ -977,6 +981,7 @@ export default function NursePatientDetails() {
                                     trend={getVitalsTrend(latestVitals.respiratory_rate, previousVitals?.respiratory_rate)}
                                     icon={<Wind className="w-4 h-4" />}
                                     color="teal"
+                                    normalRange="12-20"
                                     onClick={() => setSelectedVitalForGraph('respiratory_rate')}
                                 />
                             )}
@@ -1010,6 +1015,7 @@ export default function NursePatientDetails() {
                                     trend={getVitalsTrend(latestVitals.blood_glucose, previousVitals?.blood_glucose)}
                                     icon={<Droplets className="w-4 h-4" />}
                                     color="rose"
+                                    normalRange="70-140"
                                     onClick={() => setSelectedVitalForGraph('blood_glucose')}
                                 />
                             )}
@@ -1021,11 +1027,12 @@ export default function NursePatientDetails() {
                                     trend={getVitalsTrend(latestVitals.pain_level, previousVitals?.pain_level)}
                                     icon={<AlertTriangle className="w-4 h-4" />}
                                     color="orange"
+                                    normalRange="0"
                                     onClick={() => setSelectedVitalForGraph('pain_level')}
                                 />
                             )}
                         </div>
-                        
+
                         {/* AI Vitals Insight */}
                         {aiVitalsLoading && (
                             <div className="mt-4">
@@ -1186,7 +1193,7 @@ export default function NursePatientDetails() {
                             </div>
 
                             {vitalsHistory.length > 0 ? (
-                        <div className="space-y-3">
+                                <div className="space-y-3">
                                     {vitalsHistory.map((vital: any) => (
                                         <div key={vital.vital_id} className="bg-slate-50 rounded-xl p-4 border border-slate-100">
                                             <div className="flex items-start justify-between mb-3">
@@ -1217,7 +1224,7 @@ export default function NursePatientDetails() {
                                                             {vital.blood_pressure_systolic && vital.blood_pressure_diastolic ? 'BP' : vital.blood_pressure_systolic ? 'Sys. BP' : 'Dia. BP'}
                                                         </p>
                                                         <p className="text-sm font-bold text-slate-800">
-                                                            {vital.blood_pressure_systolic && vital.blood_pressure_diastolic 
+                                                            {vital.blood_pressure_systolic && vital.blood_pressure_diastolic
                                                                 ? `${vital.blood_pressure_systolic}/${vital.blood_pressure_diastolic}`
                                                                 : vital.blood_pressure_systolic || vital.blood_pressure_diastolic}
                                                             <span className="text-xs font-normal text-slate-500 ml-0.5">mmHg</span>
@@ -1320,7 +1327,7 @@ export default function NursePatientDetails() {
                                             className="mt-4 text-blue-600 text-sm font-medium hover:underline"
                                         >
                                             Record the first vitals
-                            </button>
+                                        </button>
                                     )}
                                 </div>
                             )}
@@ -1359,9 +1366,9 @@ export default function NursePatientDetails() {
                                     >
                                         <Plus className="w-4 h-4" />
                                         Add Note
-                            </button>
-                        </div>
-                    </div>
+                                    </button>
+                                </div>
+                            </div>
 
                             {/* Filter Bar */}
                             <div className="flex flex-wrap items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
@@ -1400,7 +1407,7 @@ export default function NursePatientDetails() {
                                         Clear Filters
                                     </button>
                                 )}
-                </div>
+                            </div>
 
                             {filteredNotes.length > 0 ? (
                                 <div className="space-y-3">
@@ -1485,8 +1492,8 @@ export default function NursePatientDetails() {
                                                             <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">
                                                                 {order.opd_number}
                                                             </span>
-                                )}
-                            </div>
+                                                        )}
+                                                    </div>
                                                     <p className="text-sm text-slate-500">
                                                         {order.order_number} • Ordered {new Date(order.ordered_at).toLocaleDateString()}
                                                     </p>
@@ -1621,11 +1628,11 @@ export default function NursePatientDetails() {
                                         <div key={consult.consultation_id || consult.opd_id || index} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
                                             <div className="p-4 bg-gradient-to-r from-indigo-50 to-blue-50 border-b border-slate-100">
                                                 <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
+                                                    <div>
                                                         <div className="flex items-center gap-2 mb-1">
                                                             <Stethoscope className="w-5 h-5 text-indigo-600" />
                                                             <span className="font-bold text-slate-800">
-                                                                {consult.doctor_name || consult.doctor_first_name 
+                                                                {consult.doctor_name || consult.doctor_first_name
                                                                     ? `Dr. ${consult.doctor_name || `${consult.doctor_first_name} ${consult.doctor_last_name || ''}`}`
                                                                     : 'Consultation'}
                                                             </span>
@@ -1645,13 +1652,12 @@ export default function NursePatientDetails() {
                                                                 {consult.opd_number}
                                                             </span>
                                                         )}
-                                                        <span className={`px-2 py-1 rounded-lg text-xs font-bold ${
-                                                            consult.status === 'Completed' || consult.outcome_status === 'Completed'
-                                                                ? 'bg-emerald-100 text-emerald-700'
-                                                                : consult.status === 'In-Progress' || consult.outcome_status === 'In-Progress'
-                                                                    ? 'bg-amber-100 text-amber-700'
-                                                                    : 'bg-slate-100 text-slate-600'
-                                                        }`}>
+                                                        <span className={`px-2 py-1 rounded-lg text-xs font-bold ${consult.status === 'Completed' || consult.outcome_status === 'Completed'
+                                                            ? 'bg-emerald-100 text-emerald-700'
+                                                            : consult.status === 'In-Progress' || consult.outcome_status === 'In-Progress'
+                                                                ? 'bg-amber-100 text-amber-700'
+                                                                : 'bg-slate-100 text-slate-600'
+                                                            }`}>
                                                             {consult.status || consult.outcome_status || 'Recorded'}
                                                         </span>
                                                         <button
@@ -1668,10 +1674,10 @@ export default function NursePatientDetails() {
                                             <div className="p-4 space-y-4">
                                                 {/* Chief Complaint / Reason */}
                                                 {(consult.chief_complaint || consult.reason_for_visit) && (
-                                    <div>
+                                                    <div>
                                                         <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Chief Complaint</h4>
                                                         <p className="text-sm text-slate-700">{consult.chief_complaint || consult.reason_for_visit}</p>
-                                    </div>
+                                                    </div>
                                                 )}
 
                                                 {/* Diagnosis */}
@@ -1679,7 +1685,7 @@ export default function NursePatientDetails() {
                                                     <div>
                                                         <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Diagnosis</h4>
                                                         <p className="text-sm text-slate-700 font-medium">{consult.diagnosis}</p>
-                                    </div>
+                                                    </div>
                                                 )}
 
                                                 {/* Notes */}
@@ -1698,8 +1704,8 @@ export default function NursePatientDetails() {
                                                         </h4>
                                                         <div className="bg-purple-50 rounded-lg p-3 border border-purple-100">
                                                             {(() => {
-                                                                const meds = typeof consult.prescription_medications === 'string' 
-                                                                    ? JSON.parse(consult.prescription_medications) 
+                                                                const meds = typeof consult.prescription_medications === 'string'
+                                                                    ? JSON.parse(consult.prescription_medications)
                                                                     : consult.prescription_medications;
                                                                 if (Array.isArray(meds)) {
                                                                     return (
@@ -1710,39 +1716,39 @@ export default function NursePatientDetails() {
                                                                                     {med.dosage && <span className="ml-2">- {med.dosage}</span>}
                                                                                     {med.frequency && <span className="ml-2">({med.frequency})</span>}
                                                                                     {med.duration && <span className="ml-2">for {med.duration}</span>}
-                                </div>
-                            ))}
-                        </div>
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
                                                                     );
                                                                 }
                                                                 return <p className="text-sm text-purple-800">{JSON.stringify(meds)}</p>;
                                                             })()}
-                    </div>
+                                                        </div>
                                                     </div>
                                                 )}
 
                                                 {/* Medications (fallback field) */}
                                                 {consult.medications && !consult.prescription_medications && (
-                    <div>
+                                                    <div>
                                                         <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
                                                             <Pill className="w-3 h-3" /> Medications
                                                         </h4>
                                                         <div className="bg-purple-50 rounded-lg p-3 border border-purple-100">
                                                             <p className="text-sm text-purple-800">{typeof consult.medications === 'string' ? consult.medications : JSON.stringify(consult.medications)}</p>
-                        </div>
-                                                </div>
+                                                        </div>
+                                                    </div>
                                                 )}
 
                                                 {/* Labs Ordered */}
                                                 {(consult.labs_ordered || consult.labs) && (
-                                                <div>
+                                                    <div>
                                                         <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
                                                             <Beaker className="w-3 h-3" /> Labs Ordered
-                                                    </h4>
+                                                        </h4>
                                                         <div className="bg-cyan-50 rounded-lg p-3 border border-cyan-100">
                                                             <p className="text-sm text-cyan-800">{typeof (consult.labs_ordered || consult.labs) === 'string' ? (consult.labs_ordered || consult.labs) : JSON.stringify(consult.labs_ordered || consult.labs)}</p>
-                                                </div>
-                                            </div>
+                                                        </div>
+                                                    </div>
                                                 )}
 
                                                 {/* Follow-up */}
@@ -1753,13 +1759,13 @@ export default function NursePatientDetails() {
                                                             Follow-up: {new Date(consult.follow_up_date).toLocaleDateString('en-US', {
                                                                 weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
                                                             })}
-                                            </span>
-                                        </div>
+                                                        </span>
+                                                    </div>
                                                 )}
                                             </div>
                                         </div>
                                     ))}
-                                    </div>
+                                </div>
                             ) : (
                                 <div className="text-center py-12">
                                     <Stethoscope className="w-12 h-12 text-slate-300 mx-auto mb-3" />
@@ -1768,7 +1774,7 @@ export default function NursePatientDetails() {
                             )}
                         </div>
                     )}
-                    </div>
+                </div>
             </div >
 
             {/* Record Vitals Modal */}
@@ -1852,11 +1858,11 @@ export default function NursePatientDetails() {
                                         <p className="text-sm text-slate-500 mt-1">
                                             {viewingLabOrder.test_name} • {viewingLabOrder.order_number}
                                         </p>
-                </div>
+                                    </div>
                                     <button onClick={() => setViewingLabOrder(null)} className="p-2 hover:bg-slate-100 rounded-lg">
                                         <X className="w-5 h-5 text-slate-500" />
                                     </button>
-            </div>
+                                </div>
                             </div>
                             <div className="p-6 overflow-y-auto flex-1">
                                 {loadingLabDocs ? (
@@ -1908,11 +1914,12 @@ export default function NursePatientDetails() {
 }
 
 // Vital Card Component
-function VitalCard({ label, value, unit, trend, icon, color, onClick }: {
+function VitalCard({ label, value, unit, trend, normalRange, icon, color, onClick }: {
     label: string;
     value: string | number;
     unit: string;
     trend: 'up' | 'down' | 'stable' | null;
+    normalRange?: string;
     icon: React.ReactNode;
     color: string;
     onClick?: () => void;
@@ -1939,7 +1946,7 @@ function VitalCard({ label, value, unit, trend, icon, color, onClick }: {
     const cardStyle = trend ? trendStyles[trend] : 'bg-slate-50 border border-slate-100';
 
     return (
-        <div 
+        <div
             className={`rounded-lg p-2.5 cursor-pointer hover:shadow-md transition-all ${cardStyle} ${onClick ? 'hover:scale-[1.02]' : ''}`}
             onClick={onClick}
             title="Click to view trend graph"
@@ -1949,11 +1956,10 @@ function VitalCard({ label, value, unit, trend, icon, color, onClick }: {
                     {icon}
                 </div>
                 {trend && (
-                    <span className={`p-1 rounded-full ${
-                        trend === 'up' ? 'bg-red-100 text-red-600' :
+                    <span className={`p-1 rounded-full ${trend === 'up' ? 'bg-red-100 text-red-600' :
                         trend === 'down' ? 'bg-green-100 text-green-600' :
-                        'bg-slate-100 text-slate-500'
-                    }`}>
+                            'bg-slate-100 text-slate-500'
+                        }`}>
                         {trend === 'up' ? <TrendingUp className="w-3.5 h-3.5" /> :
                             trend === 'down' ? <TrendingDown className="w-3.5 h-3.5" /> :
                                 <Minus className="w-3.5 h-3.5" />}
@@ -1961,10 +1967,16 @@ function VitalCard({ label, value, unit, trend, icon, color, onClick }: {
                 )}
             </div>
             <p className="text-xs font-medium text-slate-600 mb-0.5">{label}</p>
-            <p className="text-lg font-bold text-slate-800">
+            <p className="text-lg font-bold text-slate-800 leading-tight">
                 {value}
                 <span className="text-xs font-normal text-slate-500 ml-0.5">{unit}</span>
             </p>
+            {normalRange && (
+                <div className="mt-1 pt-1 border-t border-black/5">
+                    <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Normal</p>
+                    <p className="text-xs font-semibold text-slate-600">{normalRange}</p>
+                </div>
+            )}
         </div>
     );
 }
@@ -2625,11 +2637,11 @@ function DocumentUploadModal({
 }
 
 // Vitals Graph Modal Component
-function VitalsGraphModal({ 
-    vitalKey, 
-    vitalsHistory, 
-    onClose 
-}: { 
+function VitalsGraphModal({
+    vitalKey,
+    vitalsHistory,
+    onClose
+}: {
     vitalKey: string;
     vitalsHistory: any[];
     onClose: () => void;
@@ -2687,7 +2699,7 @@ function VitalsGraphModal({
                                 </p>
                             </div>
                         </div>
-                        <button 
+                        <button
                             onClick={onClose}
                             className="p-2 hover:bg-white/80 rounded-lg transition-all"
                         >
@@ -2730,20 +2742,20 @@ function VitalsGraphModal({
                             <ResponsiveContainer width="100%" height="100%">
                                 <LineChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                                    <XAxis 
-                                        dataKey="date" 
+                                    <XAxis
+                                        dataKey="date"
                                         tick={{ fontSize: 11, fill: '#64748b' }}
                                         tickLine={{ stroke: '#cbd5e1' }}
                                     />
-                                    <YAxis 
+                                    <YAxis
                                         domain={['auto', 'auto']}
                                         tick={{ fontSize: 11, fill: '#64748b' }}
                                         tickLine={{ stroke: '#cbd5e1' }}
                                         width={40}
                                     />
-                                    <Tooltip 
-                                        contentStyle={{ 
-                                            backgroundColor: '#fff', 
+                                    <Tooltip
+                                        contentStyle={{
+                                            backgroundColor: '#fff',
                                             border: '1px solid #e2e8f0',
                                             borderRadius: '8px',
                                             boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
@@ -2751,9 +2763,9 @@ function VitalsGraphModal({
                                         formatter={(value: number) => [`${value} ${config.unit}`, config.label]}
                                         labelFormatter={(label, payload) => payload?.[0]?.payload?.fullDate || label}
                                     />
-                                    <Line 
-                                        type="monotone" 
-                                        dataKey="value" 
+                                    <Line
+                                        type="monotone"
+                                        dataKey="value"
                                         stroke={config.color}
                                         strokeWidth={2.5}
                                         dot={{ fill: config.color, strokeWidth: 2, r: 4 }}

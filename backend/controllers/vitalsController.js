@@ -1,5 +1,5 @@
 const PatientVitals = require('../models/PatientVitals');
-const OpdEntry = require('../models/OpdEntry');
+const OpdEntry = require('../models/OPDEntry');
 const { query } = require('../config/db');
 const { AppError } = require('../middleware/errorHandler');
 
@@ -89,7 +89,7 @@ class VitalsController {
                 weight,
                 height,
                 blood_glucose,
-                pain_level,
+                pain_level: (pain_level !== undefined && pain_level !== null && pain_level !== '' && !isNaN(parseInt(pain_level)) && parseInt(pain_level) >= 0 && parseInt(pain_level) <= 10) ? parseInt(pain_level) : null,
                 notes,
                 recorded_by: req.userId
             };

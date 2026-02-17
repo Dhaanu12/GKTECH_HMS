@@ -67,7 +67,7 @@ export default function NurseFeedbackPage() {
     // AI context - clear patient context when on feedbacks page
     let aiContext: { setPageContext?: (page: string, patient?: string) => void } = {};
     try { aiContext = useAI(); } catch { /* AIContextProvider not available */ }
-    
+
     const [activeTab, setActiveTab] = useState('All');
     const [showModal, setShowModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState<Feedback | null>(null);
@@ -108,21 +108,21 @@ export default function NurseFeedbackPage() {
     const [trends, setTrends] = useState<any[]>([]);
     const [topTags, setTopTags] = useState<any[]>([]);
     const [showTrends, setShowTrends] = useState(false);
-    
+
     // AI analysis state
     const [aiAnalysis, setAiAnalysis] = useState<Record<number, string>>({});
     const [aiAnalysisLoading, setAiAnalysisLoading] = useState<number | null>(null);
-    
+
     const handleAIAnalyzeFeedback = async (feedback: Feedback) => {
         setAiAnalysisLoading(feedback.id);
-        
+
         try {
             const result = await analyzeFeedback(
                 feedback.rating,
                 feedback.comment,
                 feedback.tags ? feedback.tags.split(',').map(t => t.trim()) : []
             );
-            
+
             if (result.success) {
                 setAiAnalysis(prev => ({ ...prev, [feedback.id]: result.message }));
             } else {
@@ -172,7 +172,7 @@ export default function NurseFeedbackPage() {
     useEffect(() => {
         fetchFeedbacks();
     }, [fetchFeedbacks]);
-    
+
     // Set AI context for feedbacks page (clears patient-specific context)
     useEffect(() => {
         if (aiContext.setPageContext && !loading && stats) {
@@ -406,40 +406,41 @@ export default function NurseFeedbackPage() {
             </div>
 
             {/* Stats Row */}
+            {/* Stats Row */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+                <div className="bg-[#D97706] p-5 rounded-2xl shadow-sm flex items-center justify-between text-white">
                     <div>
-                        <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Avg Rating</p>
-                        <p className="text-3xl font-bold text-slate-800">{avgRating}</p>
+                        <p className="text-white/90 text-xs font-bold uppercase tracking-wider mb-1">Avg Rating</p>
+                        <p className="text-3xl font-bold text-white">{avgRating}</p>
                     </div>
-                    <div className="p-3 bg-amber-50 text-amber-500 rounded-xl">
+                    <div className="p-3 bg-white/20 text-white rounded-xl backdrop-blur-sm">
                         <Star className="w-6 h-6 fill-current" />
                     </div>
                 </div>
-                <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+                <div className="bg-[#146AF5] p-5 rounded-2xl shadow-sm flex items-center justify-between text-white">
                     <div>
-                        <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Total Responses</p>
-                        <p className="text-3xl font-bold text-slate-800">{totalResponses}</p>
+                        <p className="text-white/90 text-xs font-bold uppercase tracking-wider mb-1">Total Responses</p>
+                        <p className="text-3xl font-bold text-white">{totalResponses}</p>
                     </div>
-                    <div className="p-3 bg-blue-50 text-blue-500 rounded-xl">
+                    <div className="p-3 bg-white/20 text-white rounded-xl backdrop-blur-sm">
                         <MessageSquare className="w-6 h-6" />
                     </div>
                 </div>
-                <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+                <div className="bg-[#009A66] p-5 rounded-2xl shadow-sm flex items-center justify-between text-white">
                     <div>
-                        <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Positive</p>
-                        <p className="text-3xl font-bold text-emerald-600">{positivePercentage}%</p>
+                        <p className="text-white/90 text-xs font-bold uppercase tracking-wider mb-1">Positive</p>
+                        <p className="text-3xl font-bold text-white">{positivePercentage}%</p>
                     </div>
-                    <div className="p-3 bg-emerald-50 text-emerald-500 rounded-xl">
+                    <div className="p-3 bg-white/20 text-white rounded-xl backdrop-blur-sm">
                         <Smile className="w-6 h-6" />
                     </div>
                 </div>
-                <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+                <div className="bg-[#7C3AED] p-5 rounded-2xl shadow-sm flex items-center justify-between text-white">
                     <div>
-                        <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Addressed</p>
-                        <p className="text-3xl font-bold text-violet-600">{addressedCount}</p>
+                        <p className="text-white/90 text-xs font-bold uppercase tracking-wider mb-1">Addressed</p>
+                        <p className="text-3xl font-bold text-white">{addressedCount}</p>
                     </div>
-                    <div className="p-3 bg-violet-50 text-violet-500 rounded-xl">
+                    <div className="p-3 bg-white/20 text-white rounded-xl backdrop-blur-sm">
                         <CheckCircle2 className="w-6 h-6" />
                     </div>
                 </div>
@@ -697,7 +698,7 @@ export default function NurseFeedbackPage() {
                                                     )}
                                                 </div>
                                             )}
-                                            
+
                                             {/* AI Analysis Button & Display */}
                                             <div className="mt-3">
                                                 {aiAnalysisLoading === item.id ? (

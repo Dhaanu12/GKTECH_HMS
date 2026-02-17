@@ -281,43 +281,43 @@ export default function LabSchedulePage() {
 
             {/* Stats Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white p-5 rounded-2xl border border-blue-100 shadow-sm">
+                <div className="bg-[#146AF5] p-5 rounded-2xl shadow-sm text-white">
                     <div className="flex justify-between items-start mb-3">
-                        <div className="p-2.5 rounded-xl bg-blue-50 text-blue-600">
+                        <div className="p-2.5 rounded-xl bg-white/20 text-white backdrop-blur-sm">
                             <Clock className="w-5 h-5" />
                         </div>
-                        <span className="text-2xl font-bold text-slate-800">{counts.Ordered}</span>
+                        <span className="text-3xl font-bold text-white">{counts.Ordered}</span>
                     </div>
-                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Pending</p>
+                    <p className="text-xs font-bold text-white/90 uppercase tracking-wider">Pending</p>
                 </div>
-                <div className="bg-white p-5 rounded-2xl border border-amber-100 shadow-sm">
+                <div className="bg-[#D97706] p-5 rounded-2xl shadow-sm text-white">
                     <div className="flex justify-between items-start mb-3">
-                        <div className="p-2.5 rounded-xl bg-amber-50 text-amber-600">
+                        <div className="p-2.5 rounded-xl bg-white/20 text-white backdrop-blur-sm">
                             <Play className="w-5 h-5" />
                         </div>
-                        <span className="text-2xl font-bold text-slate-800">{counts['In-Progress']}</span>
+                        <span className="text-3xl font-bold text-white">{counts['In-Progress']}</span>
                     </div>
-                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">In Progress</p>
+                    <p className="text-xs font-bold text-white/90 uppercase tracking-wider">In Progress</p>
                 </div>
-                <div className="bg-white p-5 rounded-2xl border border-emerald-100 shadow-sm">
+                <div className="bg-[#009A66] p-5 rounded-2xl shadow-sm text-white">
                     <div className="flex justify-between items-start mb-3">
-                        <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600">
+                        <div className="p-2.5 rounded-xl bg-white/20 text-white backdrop-blur-sm">
                             <CheckCircle2 className="w-5 h-5" />
                         </div>
-                        <span className="text-2xl font-bold text-slate-800">{counts.Completed}</span>
+                        <span className="text-3xl font-bold text-white">{counts.Completed}</span>
                     </div>
-                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Completed Today</p>
+                    <p className="text-xs font-bold text-white/90 uppercase tracking-wider">Completed Today</p>
                 </div>
-                <div className="bg-white p-5 rounded-2xl border border-red-100 shadow-sm">
+                <div className="bg-[#D11C5F] p-5 rounded-2xl shadow-sm text-white">
                     <div className="flex justify-between items-start mb-3">
-                        <div className="p-2.5 rounded-xl bg-red-50 text-red-600">
+                        <div className="p-2.5 rounded-xl bg-white/20 text-white backdrop-blur-sm">
                             <AlertTriangle className="w-5 h-5" />
                         </div>
-                        <span className="text-2xl font-bold text-slate-800">
+                        <span className="text-3xl font-bold text-white">
                             {orders.filter(o => o.priority === 'STAT' && o.status !== 'Completed').length}
                         </span>
                     </div>
-                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">STAT Orders</p>
+                    <p className="text-xs font-bold text-white/90 uppercase tracking-wider">STAT Orders</p>
                 </div>
             </div>
 
@@ -420,24 +420,24 @@ export default function LabSchedulePage() {
                                     key={order.order_id}
                                     className={`p-4 hover:bg-slate-50 transition-all ${overdue ? 'bg-red-50/50' : ''}`}
                                 >
-                                    <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
                                         {/* Left: Test Info */}
-                                        <div className="flex items-start gap-3 flex-1">
-                                            <div className={`p-3 rounded-xl ${priorityStyle.bg} ${priorityStyle.text}`}>
+                                        <div className="flex items-start gap-3 lg:col-span-5">
+                                            <div className={`p-3 rounded-xl ${priorityStyle.bg} ${priorityStyle.text} shrink-0`}>
                                                 <CategoryIcon className="w-5 h-5" />
                                             </div>
-                                            <div className="flex-1 min-w-0">
+                                            <div className="min-w-0">
                                                 <div className="flex items-center gap-2 flex-wrap">
-                                                    <h3 className="font-semibold text-slate-800">{order.test_name}</h3>
-                                                    <span className={`px-2 py-0.5 rounded text-xs font-bold ${priorityStyle.bg} ${priorityStyle.text}`}>
+                                                    <h3 className="font-semibold text-slate-800 line-clamp-2">{order.test_name}</h3>
+                                                    <span className={`px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap ${priorityStyle.bg} ${priorityStyle.text}`}>
                                                         {order.priority}
                                                     </span>
-                                                    <span className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${statusStyle.bg} ${statusStyle.text}`}>
+                                                    <span className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap ${statusStyle.bg} ${statusStyle.text}`}>
                                                         <StatusIcon className="w-3 h-3" />
                                                         {order.status}
                                                     </span>
                                                     {overdue && (
-                                                        <span className="px-2 py-0.5 rounded text-xs font-bold bg-red-100 text-red-700">
+                                                        <span className="px-2 py-0.5 rounded text-xs font-bold bg-red-100 text-red-700 whitespace-nowrap">
                                                             OVERDUE
                                                         </span>
                                                     )}
@@ -450,9 +450,9 @@ export default function LabSchedulePage() {
                                         </div>
 
                                         {/* Middle: Patient Info */}
-                                        <div className="flex items-center gap-6 text-sm">
+                                        <div className="flex items-center gap-6 text-sm lg:col-span-4">
                                             <div className="flex items-center gap-2">
-                                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-xs font-bold">
+                                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
                                                     {order.patient_name?.charAt(0) || 'P'}
                                                 </div>
                                                 <div>
@@ -460,7 +460,7 @@ export default function LabSchedulePage() {
                                                     <p className="text-xs text-slate-400">{order.mrn_number}</p>
                                                 </div>
                                             </div>
-                                            <div className="hidden md:block">
+                                            <div className="hidden md:block whitespace-nowrap">
                                                 <p className="text-slate-500">
                                                     <span className="text-xs text-slate-400">Ordered:</span>{' '}
                                                     {formatDate(order.ordered_at)} {formatTime(order.ordered_at)}
@@ -474,14 +474,14 @@ export default function LabSchedulePage() {
                                         </div>
 
                                         {/* Right: Actions */}
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-2 lg:col-span-3 lg:justify-end flex-wrap">
                                             {/* Only show Start/Assign buttons for IN-HOUSE services (is_external = FALSE) */}
                                             {order.status === 'Ordered' && !order.is_external && (
                                                 <>
                                                     <button
                                                         onClick={() => updateStatus(order.order_id, 'In-Progress')}
                                                         disabled={updatingOrderId === order.order_id}
-                                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-all disabled:opacity-50"
+                                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-all disabled:opacity-50 whitespace-nowrap"
                                                     >
                                                         {updatingOrderId === order.order_id ? (
                                                             <Loader2 className="w-4 h-4 animate-spin" />
@@ -494,7 +494,7 @@ export default function LabSchedulePage() {
                                                         <button
                                                             onClick={() => assignToMe(order.order_id)}
                                                             disabled={updatingOrderId === order.order_id}
-                                                            className="px-3 py-1.5 border border-slate-200 text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-50 transition-all"
+                                                            className="px-3 py-1.5 border border-slate-200 text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-50 transition-all whitespace-nowrap"
                                                         >
                                                             Assign to me
                                                         </button>
@@ -503,7 +503,7 @@ export default function LabSchedulePage() {
                                             )}
                                             {/* Show badge for external services */}
                                             {order.status === 'Ordered' && order.is_external && (
-                                                <span className="px-3 py-1.5 bg-amber-50 text-amber-700 rounded-lg text-xs font-semibold border border-amber-200">
+                                                <span className="px-3 py-1.5 bg-amber-50 text-amber-700 rounded-lg text-xs font-semibold border border-amber-200 whitespace-nowrap">
                                                     External Service
                                                 </span>
                                             )}
@@ -512,7 +512,7 @@ export default function LabSchedulePage() {
                                                 <>
                                                     <button
                                                         onClick={() => setShowUploadModal(order)}
-                                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-all"
+                                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-all whitespace-nowrap"
                                                     >
                                                         <Upload className="w-4 h-4" />
                                                         Upload Result
@@ -520,7 +520,7 @@ export default function LabSchedulePage() {
                                                     <button
                                                         onClick={() => updateStatus(order.order_id, 'Completed')}
                                                         disabled={updatingOrderId === order.order_id}
-                                                        className="flex items-center gap-1.5 px-3 py-1.5 border border-emerald-200 text-emerald-700 rounded-lg text-sm font-medium hover:bg-emerald-50 transition-all disabled:opacity-50"
+                                                        className="flex items-center gap-1.5 px-3 py-1.5 border border-emerald-200 text-emerald-700 rounded-lg text-sm font-medium hover:bg-emerald-50 transition-all disabled:opacity-50 whitespace-nowrap"
                                                     >
                                                         {updatingOrderId === order.order_id ? (
                                                             <Loader2 className="w-4 h-4 animate-spin" />
@@ -533,7 +533,7 @@ export default function LabSchedulePage() {
                                             )}
                                             {/* Show badge for external services in progress */}
                                             {order.status === 'In-Progress' && order.is_external && (
-                                                <span className="px-3 py-1.5 bg-amber-50 text-amber-700 rounded-lg text-xs font-semibold border border-amber-200">
+                                                <span className="px-3 py-1.5 bg-amber-50 text-amber-700 rounded-lg text-xs font-semibold border border-amber-200 whitespace-nowrap">
                                                     External Service - In Progress
                                                 </span>
                                             )}
@@ -541,14 +541,14 @@ export default function LabSchedulePage() {
                                                 <div className="flex items-center gap-2">
                                                     <button
                                                         onClick={() => setShowViewResultsModal(order)}
-                                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-100 transition-all"
+                                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-100 transition-all whitespace-nowrap"
                                                     >
                                                         <Eye className="w-4 h-4" />
                                                         View Results
                                                     </button>
                                                     <button
                                                         onClick={() => setShowAddMoreModal(order)}
-                                                        className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-50 transition-all"
+                                                        className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-50 transition-all whitespace-nowrap"
                                                     >
                                                         <Plus className="w-4 h-4" />
                                                         Add More
