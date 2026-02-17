@@ -41,7 +41,7 @@ export default function NurseLayout({ children }: { children: React.ReactNode })
     ];
 
     return (
-        <div className="min-h-screen bg-gray-50 flex">
+        <div className="min-h-screen bg-[#EBF5FF] flex">
             {/* Sidebar */}
             <aside className="w-64 bg-blue-950 text-white flex flex-col shadow-xl">
                 <div className="p-6 border-b border-slate-700/50">
@@ -135,7 +135,7 @@ export default function NurseLayout({ children }: { children: React.ReactNode })
                     </div>
                 </header>
 
-                <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-8">
+                <main className="flex-1 overflow-x-hidden overflow-y-auto bg-[#EBF5FF] p-8">
                     <AIContextProvider role="nurse" initialPage={pathname}>
                         {children}
                         <FloatingAIAssistant />
