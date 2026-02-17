@@ -1492,6 +1492,7 @@ function AgentSetup({ agents, onUpdate }: { agents: ReferralAgent[], onUpdate: (
                             <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Agent Name</th>
                             <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Company</th>
                             <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Mobile</th>
+                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Created By</th>
                             <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Patient Commission (₹)</th>
                             <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Dr. Commission (₹)</th>
                             <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
@@ -1507,6 +1508,7 @@ function AgentSetup({ agents, onUpdate }: { agents: ReferralAgent[], onUpdate: (
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{agent.company || '-'}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{agent.mobile}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{agent.created_by_name || '—'}</td>
 
                                     {/* Inline Editing Fields */}
                                     {editingId === agent.id ? (
@@ -1568,7 +1570,7 @@ function AgentSetup({ agents, onUpdate }: { agents: ReferralAgent[], onUpdate: (
                             ))
                         ) : (
                             <tr>
-                                <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                                <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                                     No agents found matching your criteria
                                 </td>
                             </tr>

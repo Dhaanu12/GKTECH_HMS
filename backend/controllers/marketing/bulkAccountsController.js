@@ -114,9 +114,23 @@ exports.bulkInsertServicePercentages = async (req, res) => {
         }
 
         // Activate all affected doctors
+        // Update status for all affected doctors based on active services
         if (doctor_ids.length > 0) {
             await client.query(
-                "UPDATE referral_doctor_module SET status = 'Active', updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata') WHERE id = ANY($1) AND status != 'Active'",
+                `UPDATE referral_doctor_module d
+                 SET status = CASE 
+                    WHEN (
+                        SELECT COUNT(*) 
+                        FROM referral_doctor_service_percentage_module s 
+                        WHERE s.referral_doctor_id = d.id 
+                          AND s.status = 'Active'
+                          AND s.referral_pay = 'Y' 
+                          AND (s.cash_percentage > 0 OR s.inpatient_percentage > 0)
+                    ) > 0 THEN 'Active'
+                    ELSE 'Inactive'
+                 END,
+                 updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')
+                 WHERE id = ANY($1)`,
                 [doctor_ids]
             );
         }
@@ -227,9 +241,23 @@ exports.copyServicePercentages = async (req, res) => {
         }
 
         // Activate all target doctors
+        // Update status for all affected doctors based on active services
         if (target_doctor_ids.length > 0) {
             await client.query(
-                "UPDATE referral_doctor_module SET status = 'Active', updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata') WHERE id = ANY($1) AND status != 'Active'",
+                `UPDATE referral_doctor_module d
+                 SET status = CASE 
+                    WHEN (
+                        SELECT COUNT(*) 
+                        FROM referral_doctor_service_percentage_module s 
+                        WHERE s.referral_doctor_id = d.id 
+                          AND s.status = 'Active'
+                          AND s.referral_pay = 'Y' 
+                          AND (s.cash_percentage > 0 OR s.inpatient_percentage > 0)
+                    ) > 0 THEN 'Active'
+                    ELSE 'Inactive'
+                 END,
+                 updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')
+                 WHERE id = ANY($1)`,
                 [target_doctor_ids]
             );
         }
@@ -359,7 +387,7 @@ exports.exportDoctorConfigs = async (req, res) => {
         let doctorsQuery = `
             SELECT rd.id, rd.doctor_name, rd.mobile_number
             FROM referral_doctor_module rd
-            WHERE rd.tenant_id = ANY($1) AND rd.status != 'Deleted'
+            WHERE rd.tenant_id = ANY($1) AND rd.status != 'Deleted' AND rd.status != 'Initialization'
         `;
 
         if (status === 'configured') {
@@ -579,7 +607,20 @@ exports.importCSV = async (req, res) => {
         if (affectedDoctorIds.size > 0) {
             const doctorIds = Array.from(affectedDoctorIds);
             await client.query(
-                "UPDATE referral_doctor_module SET status = 'Active', updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata') WHERE id = ANY($1) AND status != 'Active'",
+                `UPDATE referral_doctor_module d
+                 SET status = CASE 
+                    WHEN (
+                        SELECT COUNT(*) 
+                        FROM referral_doctor_service_percentage_module s 
+                        WHERE s.referral_doctor_id = d.id 
+                          AND s.status = 'Active'
+                          AND s.referral_pay = 'Y' 
+                          AND (s.cash_percentage > 0 OR s.inpatient_percentage > 0)
+                    ) > 0 THEN 'Active'
+                    ELSE 'Inactive'
+                 END,
+                 updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')
+                 WHERE id = ANY($1)`,
                 [doctorIds]
             );
         }

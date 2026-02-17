@@ -97,6 +97,7 @@ exports.getExecutiveStats = async (req, res) => {
         const { executive_id } = req.params;
         const userId = req.user.user_id;
         const userRole = req.user.role_code;
+        const tenantId = req.user.hospital_id || req.user.tenant_id;
 
         // Verify user is a marketing manager
         if (userRole !== 'MRKT_MNGR') {
@@ -133,49 +134,59 @@ exports.getExecutiveStats = async (req, res) => {
 
         // Get stats for the executive
         const executiveIdStr = executive_id.toString();
+        const executiveUsername = executive.username;
 
-        // Total doctors added
+        // Helper params for queries
+        const spocParams = [executiveIdStr, executiveUsername];
+        let tenantClause = '';
+        if (tenantId) {
+            spocParams.push(tenantId);
+            tenantClause = `AND tenant_id = $3`;
+        }
+
+        // Total doctors added (SPOC or Created By)
         const doctorsQuery = await pool.query(
             `SELECT COUNT(*) as total_doctors
             FROM referral_doctor_module
-            WHERE marketing_spoc = $1 AND status != 'Deleted'`,
-            [executiveIdStr]
+            WHERE (marketing_spoc = $1 OR created_by = $2) 
+            AND status != 'Deleted' ${tenantClause}`,
+            spocParams
         );
 
-        // Total patients referred
+        // Total patients referred (SPOC or Created By)
         const patientsQuery = await pool.query(
             `SELECT COUNT(*) as total_patients
             FROM referral_patients
-            WHERE marketing_spoc = $1`,
-            [executiveIdStr]
+            WHERE (marketing_spoc = $1 OR created_by = $2) ${tenantClause}`,
+            spocParams
         );
 
         // Recent doctors (last 30 days)
         const recentDoctorsQuery = await pool.query(
             `SELECT COUNT(*) as recent_doctors
             FROM referral_doctor_module
-            WHERE marketing_spoc = $1
+            WHERE (marketing_spoc = $1 OR created_by = $2)
                 AND status != 'Deleted'
-                AND created_at >= NOW() - INTERVAL '30 days'`,
-            [executiveIdStr]
+                AND created_at >= NOW() - INTERVAL '30 days' ${tenantClause}`,
+            spocParams
         );
 
         // Recent patients (last 30 days)
         const recentPatientsQuery = await pool.query(
             `SELECT COUNT(*) as recent_patients
             FROM referral_patients
-            WHERE marketing_spoc = $1
-                AND created_at >= NOW() - INTERVAL '30 days'`,
-            [executiveIdStr]
+            WHERE (marketing_spoc = $1 OR created_by = $2)
+                AND created_at >= NOW() - INTERVAL '30 days' ${tenantClause}`,
+            spocParams
         );
 
-        // Active doctors (doctors with recent activity)
+        // Active doctors (doctors with Active status)
         const activeDoctorsQuery = await pool.query(
-            `SELECT COUNT(DISTINCT rd.id) as active_doctors
-            FROM referral_doctor_module rd
-            WHERE rd.marketing_spoc = $1
-                AND rd.status = 'Active'`,
-            [executiveIdStr]
+            `SELECT COUNT(DISTINCT id) as active_doctors
+            FROM referral_doctor_module
+            WHERE (marketing_spoc = $1 OR created_by = $2)
+                AND status = 'Active' ${tenantClause}`,
+            spocParams
         );
 
         res.json({

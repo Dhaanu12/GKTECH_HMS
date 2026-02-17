@@ -126,7 +126,14 @@ exports.getAvailableDoctorsByDate = async (req, res, next) => {
                 ds.attendance_status,
                 dws.start_time,
                 dws.end_time,
-                dws.avg_consultation_time
+                dws.avg_consultation_time,
+                (
+                    SELECT COUNT(*) 
+                    FROM opd_entries o 
+                    WHERE o.doctor_id = d.doctor_id 
+                    AND o.visit_date = $1 
+                    AND o.visit_status = 'Registered'
+                )::int as patients_waiting
             FROM doctors d
             JOIN doctor_weekly_schedules dws ON d.doctor_id = dws.doctor_id
             LEFT JOIN doctor_shifts ds ON d.doctor_id = ds.doctor_id AND ds.shift_date = $1

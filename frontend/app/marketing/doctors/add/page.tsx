@@ -23,8 +23,7 @@ export default function AddReferralDoctorPage() {
 
             <DoctorForm
                 onSuccess={() => {
-                    alert('Doctor added successfully!');
-                    router.push('/marketing/dashboard');
+                    router.push('/marketing/doctors');
                 }}
                 onCancel={() => router.back()}
             />

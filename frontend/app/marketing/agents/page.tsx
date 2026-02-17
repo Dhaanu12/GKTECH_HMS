@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { getReferralAgents, deleteReferralAgent } from '@/lib/api/marketing';
 import { ReferralAgent } from '@/types/marketing';
-import { PlusCircle, Pencil, Trash2, Users, Phone, Mail, Loader2, Building, Search } from 'lucide-react';
+import { useAuth } from '@/lib/AuthContext';
+import { PlusCircle, Trash2, Phone, Mail, Loader2, Building, Search, Briefcase, Filter } from 'lucide-react';
 
 export default function AgentsListPage() {
     const [agents, setAgents] = useState<ReferralAgent[]>([]);
@@ -13,6 +14,7 @@ export default function AgentsListPage() {
     const [deletingId, setDeletingId] = useState<number | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [createdByFilter, setCreatedByFilter] = useState('');
+    const { user } = useAuth();
 
     useEffect(() => {
         fetchAgents();
@@ -46,67 +48,70 @@ export default function AgentsListPage() {
         }
     };
 
-    // Get unique creators for filter
     const creators = Array.from(new Set(agents.map(a => a.created_by_name).filter(Boolean))).sort();
 
     const filteredAgents = agents.filter(agent => {
         const matchesSearch = agent.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             agent.mobile.includes(searchTerm) ||
             agent.company?.toLowerCase().includes(searchTerm.toLowerCase());
-
         const matchesCreator = createdByFilter ? agent.created_by_name === createdByFilter : true;
-
         return matchesSearch && matchesCreator;
     });
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-64">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-                <span className="ml-3 text-gray-600">Loading agents...</span>
+            <div className="flex items-center justify-center h-96">
+                <div className="text-center">
+                    <div className="relative w-14 h-14 mx-auto">
+                        <div className="animate-spin rounded-full h-14 w-14 border-4 border-amber-100 border-t-amber-500"></div>
+                    </div>
+                    <p className="mt-5 text-gray-500 font-medium">Loading agents...</p>
+                </div>
             </div>
         );
     }
 
     return (
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-[1400px] mx-auto space-y-6">
             {/* Header */}
-            <div className="flex items-center justify-between mb-6">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                        <Users className="w-7 h-7 text-blue-600" />
-                        Referral Agents
-                    </h1>
-                    <p className="text-sm text-gray-500 mt-1">Manage your referral agents and partners</p>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl text-white shadow-lg shadow-amber-500/20">
+                        <Briefcase className="w-6 h-6" />
+                    </div>
+                    <div>
+                        <h1 className="text-xl font-bold text-gray-900">Manage Agents</h1>
+                        <p className="text-xs text-gray-500">
+                            {agents.length} agent{agents.length !== 1 ? 's' : ''} in your network
+                        </p>
+                    </div>
                 </div>
                 <Link
                     href="/marketing/agents/add"
-                    className="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2 font-medium shadow-md shadow-blue-500/20"
+                    className="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl hover:from-amber-600 hover:to-orange-600 transition-all flex items-center gap-2 font-medium shadow-lg shadow-amber-500/20 text-sm w-full md:w-auto justify-center"
                 >
-                    <PlusCircle size={18} /> Add Agent
+                    <PlusCircle size={16} /> Add Agent
                 </Link>
             </div>
 
             {/* Filters */}
-            <div className="flex flex-col md:flex-row gap-4 mb-6">
-                {/* Search */}
+            <div className="flex flex-col md:flex-row gap-3">
                 <div className="relative flex-1 max-w-md">
-                    <Search className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
+                    <Search className="absolute left-3.5 top-3 w-4 h-4 text-gray-400" />
                     <input
                         type="text"
                         placeholder="Search by name, mobile, or company..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none shadow-sm"
+                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none text-sm transition-all"
                     />
                 </div>
-
-                {/* Created By Filter */}
-                <div className="w-full md:w-64">
+                <div className="relative w-full md:w-56">
+                    <Filter className="absolute left-3.5 top-3 w-4 h-4 text-gray-400" />
                     <select
                         value={createdByFilter}
                         onChange={(e) => setCreatedByFilter(e.target.value)}
-                        className="w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none shadow-sm bg-white"
+                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none text-sm appearance-none transition-all"
                     >
                         <option value="">All Creators</option>
                         {creators.map(creator => (
@@ -117,80 +122,112 @@ export default function AgentsListPage() {
             </div>
 
             {error && (
-                <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">{error}</div>
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0"></span>
+                    {error}
+                </div>
             )}
 
             {agents.length === 0 ? (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
-                    <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-600 mb-2">No agents found</h3>
-                    <p className="text-gray-400 mb-6">Get started by adding your first referral agent.</p>
-                    <Link href="/marketing/agents/add" className="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition inline-flex items-center gap-2 font-medium">
-                        <PlusCircle size={18} /> Add First Agent
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-16 text-center">
+                    <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-5">
+                        <Briefcase className="w-8 h-8 text-gray-300" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-700 mb-2">No agents found</h3>
+                    <p className="text-gray-400 mb-6 text-sm">Get started by adding your first referral agent.</p>
+                    <Link href="/marketing/agents/add" className="px-5 py-2.5 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition inline-flex items-center gap-2 font-medium text-sm">
+                        <PlusCircle size={16} /> Add First Agent
                     </Link>
                 </div>
             ) : (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                    <table className="w-full">
-                        <thead>
-                            <tr className="bg-gray-50 border-b border-gray-100">
-                                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Name</th>
-                                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Mobile</th>
-                                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Company</th>
-                                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Created By</th>
-                                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Role</th>
-                                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                                <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-50">
-                            {filteredAgents.length > 0 ? (
-                                filteredAgents.map(agent => (
-                                    <tr key={agent.id} className="hover:bg-blue-50/30 transition">
-                                        <td className="px-6 py-4">
-                                            <div className="font-medium text-gray-800">{agent.name}</div>
-                                            {agent.email && <div className="text-xs text-gray-400 flex items-center gap-1 mt-0.5"><Mail size={12} /> {agent.email}</div>}
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className="text-gray-600 flex items-center gap-1"><Phone size={14} className="text-gray-400" /> {agent.mobile}</span>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className="text-gray-600 flex items-center gap-1"><Building size={14} className="text-gray-400" /> {agent.company || '—'}</span>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className="text-sm text-gray-600">
-                                                {agent.created_by_name || 'Unknown'}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 text-gray-600">{agent.role || '—'}</td>
-                                        <td className="px-6 py-4">
-                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${agent.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                                                {agent.status}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <button
-                                                    onClick={() => handleDelete(agent.id)}
-                                                    disabled={deletingId === agent.id}
-                                                    className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
-                                                    title="Delete"
-                                                >
-                                                    {deletingId === agent.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-                                                </button>
-                                            </div>
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead>
+                                <tr className="bg-gradient-to-r from-gray-50 to-slate-50 border-b border-gray-100">
+                                    <th className="text-left px-5 py-3.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Agent</th>
+                                    <th className="text-left px-5 py-3.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Mobile</th>
+                                    <th className="text-left px-5 py-3.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Company</th>
+                                    <th className="text-left px-5 py-3.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Created By</th>
+                                    <th className="text-left px-5 py-3.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Role</th>
+                                    <th className="text-left px-5 py-3.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th className="text-right px-5 py-3.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredAgents.length > 0 ? (
+                                    filteredAgents.map(agent => {
+                                        const isMyRecord = user && (agent.created_by === user.username || agent.created_by === String(user.user_id));
+                                        return (
+                                            <tr key={agent.id} className="group hover:bg-amber-50/30 transition-colors border-b border-gray-50 last:border-b-0">
+                                                <td className="px-5 py-3.5">
+                                                    <div className="font-semibold text-gray-800 text-sm">{agent.name}</div>
+                                                    {agent.email && (
+                                                        <div className="text-[11px] text-gray-400 flex items-center gap-1 mt-0.5">
+                                                            <Mail size={11} /> {agent.email}
+                                                        </div>
+                                                    )}
+                                                </td>
+                                                <td className="px-5 py-3.5">
+                                                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                                                        <Phone size={13} className="text-gray-300" />
+                                                        {agent.mobile}
+                                                    </div>
+                                                </td>
+                                                <td className="px-5 py-3.5">
+                                                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                                                        <Building size={13} className="text-gray-300 flex-shrink-0" />
+                                                        <span className="truncate max-w-[150px]">{agent.company || '—'}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-5 py-3.5">
+                                                    <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] font-semibold border ${isMyRecord
+                                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                        : 'bg-slate-50 text-slate-600 border-slate-200'
+                                                        }`}>
+                                                        <span className={`w-1.5 h-1.5 rounded-full ${isMyRecord ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
+                                                        {isMyRecord ? 'Me' : (agent.created_by_name || 'Unknown')}
+                                                    </span>
+                                                </td>
+                                                <td className="px-5 py-3.5 text-sm text-gray-600">
+                                                    {agent.role || '—'}
+                                                </td>
+                                                <td className="px-5 py-3.5">
+                                                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold border ${agent.status === 'Active'
+                                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                        : 'bg-gray-50 text-gray-600 border-gray-200'
+                                                        }`}>
+                                                        <span className={`w-1.5 h-1.5 rounded-full ${agent.status === 'Active' ? 'bg-emerald-500' : 'bg-gray-400'}`}></span>
+                                                        {agent.status}
+                                                    </span>
+                                                </td>
+                                                <td className="px-5 py-3.5 text-right">
+                                                    <button
+                                                        onClick={() => handleDelete(agent.id)}
+                                                        disabled={deletingId === agent.id}
+                                                        className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-50 group-hover:opacity-100"
+                                                        title="Delete"
+                                                    >
+                                                        {deletingId === agent.id ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
+                                ) : (
+                                    <tr>
+                                        <td colSpan={7} className="px-5 py-12 text-center text-gray-400 text-sm">
+                                            No agents found matching your filters
                                         </td>
                                     </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
-                                        No agents found matching filters
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                    {/* Footer */}
+                    <div className="px-5 py-3 bg-gray-50/50 border-t border-gray-100 flex items-center justify-between">
+                        <span className="text-xs text-gray-400">{filteredAgents.length} of {agents.length} records</span>
+                    </div>
                 </div>
             )}
         </div>

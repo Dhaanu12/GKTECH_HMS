@@ -23,7 +23,8 @@ import {
     CartesianGrid,
     Tooltip,
     Legend,
-    ResponsiveContainer
+    ResponsiveContainer,
+    Cell
 } from 'recharts';
 
 interface InsuranceStats {
@@ -1016,7 +1017,7 @@ export default function ClaimsPage() {
                                             { name: 'Pending', fill: '#ef4444' },
                                             { name: 'Completed', fill: '#22c55e' }
                                         ].map((entry, index) => (
-                                            <Bar key={`cell-${index}`} dataKey="count" fill={entry.fill} />
+                                            <Cell key={`cell-${index}`} fill={entry.fill} />
                                         ))}
                                     </Bar>
                                 </BarChart>

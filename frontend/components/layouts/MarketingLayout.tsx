@@ -43,7 +43,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
     ];
 
     return (
-        <div className="min-h-screen bg-gray-50 flex">
+        <div className="min-h-screen bg-[#EBF5FF] flex">
             {/* Sidebar */}
             <aside className="w-64 bg-blue-950 text-white flex flex-col shadow-xl">
                 <div className="p-6 border-b border-slate-700/50">
@@ -128,7 +128,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
                 </header>
 
                 {/* Content */}
-                <main className="flex-1 overflow-auto p-8 bg-gray-50/50">
+                <main className="flex-1 overflow-auto p-8 bg-[#EBF5FF]">
                     {children}
                 </main>
             </div>

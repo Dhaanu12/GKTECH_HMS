@@ -95,5 +95,6 @@ router.use('/patient-documents', require('./patientDocumentRoutes'));
 router.use('/vitals', require('./vitalsRoutes'));
 router.use('/clinical-notes', require('./clinicalNotesRoutes'));
 router.use('/ai', require('./aiRoutes'));
+router.use('/medications', require('./medicationRoutes'));
 
 module.exports = router;

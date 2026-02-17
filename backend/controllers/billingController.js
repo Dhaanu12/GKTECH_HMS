@@ -35,19 +35,30 @@ class BillingController {
             const staffRes = await client.query(`SELECT staff_code FROM staff WHERE user_id = $1`, [req.user.user_id]);
             const staffCode = staffRes.rows[0]?.staff_code || req.user.username || 'SYSTEM';
 
-            let bill_master_id;
+            let bill_master_id = req.body.bill_master_id;
             let invoice_number;
             let payment_status; // To return
 
-            // Check if Billing Master already exists for this OPD (created during Registration)
-            const existingBillQuery = await client.query(
-                `SELECT bill_master_id, invoice_number, paid_amount FROM billing_master WHERE opd_id = $1`,
-                [opd_id]
-            );
+            // 1. Identify/Update Master
+            let existingBillQuery;
+            if (bill_master_id) {
+                existingBillQuery = await client.query(
+                    `SELECT bill_master_id, invoice_number, paid_amount FROM billing_master WHERE bill_master_id = $1`,
+                    [bill_master_id]
+                );
+            } else {
+                // Fallback to OPD search if ID not provided (though ID is preferred)
+                existingBillQuery = await client.query(
+                    `SELECT bill_master_id, invoice_number, paid_amount FROM billing_master WHERE opd_id = $1`,
+                    [opd_id]
+                );
+            }
 
             // Calculate pending amount
-            const pending_amount = parseFloat(total_amount) - parseFloat(paid_amount || total_amount);
-            payment_status = pending_amount <= 0 ? 'Paid' : (parseFloat(paid_amount) > 0 ? 'Partial' : 'Unpaid');
+            // Fix: paid_amount || total_amount is wrong if paid_amount is 0. Only default if null/undefined.
+            const safePaidAmount = (paid_amount === undefined || paid_amount === null || paid_amount === '') ? total_amount : paid_amount;
+            const pending_amount = parseFloat(total_amount) - parseFloat(safePaidAmount);
+            payment_status = pending_amount <= 0 ? 'Paid' : (parseFloat(safePaidAmount) > 0 ? 'Partial' : 'Unpaid');
 
             if (existingBillQuery.rows.length > 0) {
                 // UPDATE Existing Bill
@@ -161,19 +172,19 @@ class BillingController {
                             WHERE bill_detail_id = $2
                         `, [bill_master_id, item.bill_detail_id, staffCode]);
                     } else {
-                        // Check if an item exists for this OPD with same service to avoid duplicates if ID was missing
+                        // Check if an item exists for this OPD with same service within THIS SPECIFIC BILL
                         const distinctCheck = await client.query(`
                             SELECT bill_detail_id FROM bill_details 
-                            WHERE opd_id = $1 AND service_type = $2 AND status = 'Pending'
-                         `, [opd_id, item.service_type || 'consultation']);
+                            WHERE opd_id = $1 AND bill_master_id = $3 AND service_type = $2 AND status = 'Pending'
+                         `, [opd_id, item.service_type || 'consultation', bill_master_id]);
 
                         if (distinctCheck.rows.length > 0) {
-                            // Update the first matching pending item
+                            // Update the first matching pending item within this bill
                             await client.query(`
                                 UPDATE bill_details 
-                                SET bill_master_id = $1, status = 'Paid', updated_by = $3, updated_at = CURRENT_TIMESTAMP
+                                SET status = 'Paid', updated_by = $3, updated_at = CURRENT_TIMESTAMP
                                 WHERE bill_detail_id = $2
-                            `, [bill_master_id, distinctCheck.rows[0].bill_detail_id, staffCode]);
+                            `, [null, distinctCheck.rows[0].bill_detail_id, staffCode]);
                         } else {
                             await client.query(`
                                 INSERT INTO bill_details (
@@ -424,6 +435,8 @@ class BillingController {
     static async getPendingBillItems(req, res, next) {
         try {
             const { opd_id } = req.params;
+            const { bill_master_id } = req.query; // Optional filter by master_id
+
             // Fetch patient & caretaker details first
             const patientRes = await query(`
                 SELECT p.contact_number, p.emergency_contact_number, p.emergency_contact_name
@@ -435,15 +448,24 @@ class BillingController {
             const patientInfo = patientRes.rows[0];
 
             // Fetch Pending Items
-            const result = await query(`
+            let itemsQuery = `
                 SELECT 
                     bd.*,
                     d.department_name
                 FROM bill_details bd
                 LEFT JOIN departments d ON bd.department_id = d.department_id
                 WHERE bd.opd_id = $1 AND bd.status = 'Pending' AND bd.is_cancelled = false
-                ORDER BY bd.created_at ASC
-            `, [opd_id]);
+            `;
+            const queryParams = [opd_id];
+
+            if (bill_master_id) {
+                itemsQuery += ` AND bd.bill_master_id = $${queryParams.length + 1}`;
+                queryParams.push(bill_master_id);
+            }
+
+            itemsQuery += ` ORDER BY bd.created_at ASC`;
+
+            const result = await query(itemsQuery, queryParams);
 
             res.status(200).json({
                 status: 'success',

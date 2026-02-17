@@ -45,11 +45,12 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         { name: 'Referrals', path: '/client/referrals', icon: Hospital },
         { name: 'Reports', path: '/client/reports', icon: Stethoscope },
         { name: 'Schedule', path: '/client/doctor-schedule', icon: Activity },
+        { name: 'Medications', path: '/client/medications', icon: Stethoscope }, // Using Stethoscope as placeholder or Pill if available
         { name: 'Profile', path: '/client/profile', icon: Building2 },
     ];
 
     return (
-        <div className="min-h-screen bg-gray-50 flex">
+        <div className="min-h-screen bg-[#EBF5FF] flex">
             {/* Mobile sidebar backdrop */}
             {sidebarOpen && (
                 <div
@@ -169,7 +170,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
                 </header >
 
                 {/* Content */}
-                < main className="flex-1 overflow-auto p-8 bg-gray-50/50" >
+                < main className="flex-1 overflow-auto p-8 bg-[#EBF5FF]" >
                     <AIContextProvider role="client_admin" initialPage={pathname}>
                         {children}
                         <FloatingAIAssistant />

@@ -20,11 +20,14 @@ async function clearData() {
         await client.query('TRUNCATE TABLE appointments RESTART IDENTITY CASCADE');
         await client.query('TRUNCATE TABLE opd_entries RESTART IDENTITY CASCADE');
         await client.query('TRUNCATE TABLE billing_master RESTART IDENTITY CASCADE');
+        await client.query('TRUNCATE TABLE bill_details RESTART IDENTITY CASCADE');
+        await client.query('TRUNCATE TABLE payment_transactions RESTART IDENTITY CASCADE');
         // bill_details and payment_transactions will be cleared via CASCADE from billing_master/opd_entries
         // but let's be explicit if needed, though CASCADE on master tables is usually sufficient.
         // If independent tables exist, add them here.
 
-        console.log('Successfully cleared: patients, appointments, opd_entries, billing_master and related tables.');
+        await client.query('COMMIT');
+        console.log('Successfully cleared: patients, appointments, opd_entries, billing_master, bill_details, payment_transactions and related tables.');
     } catch (err) {
         await client.query('ROLLBACK');
         console.error('Error clearing data:', err);
