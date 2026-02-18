@@ -88,24 +88,19 @@ export default function AppointmentsPage() {
 
     const getStatusBadge = (apt: any) => {
         const { appointment_status, cancellation_reason } = apt;
-        if (appointment_status === 'Confirmed') return { label: 'Scheduled', style: 'bg-blue-500 text-white' };
-        if (appointment_status === 'Scheduled') return { label: 'Scheduled', style: 'bg-blue-500 text-white' };
-        if (appointment_status === 'In OPD') return { label: 'In OPD', style: 'bg-purple-100 text-purple-700' };
+        if (appointment_status === 'Confirmed') return { label: 'Scheduled', style: 'bg-blue-600 text-white' };
+        if (appointment_status === 'Scheduled') return { label: 'Scheduled', style: 'bg-blue-600 text-white' };
+        if (appointment_status === 'In OPD') return { label: 'In OPD', style: 'bg-indigo-600 text-white' };
         if (appointment_status === 'Cancelled') {
-            if (cancellation_reason === 'No Answer') return { label: 'Scheduled', style: 'bg-blue-500 text-white' };
-            return { label: 'Cancelled', style: 'bg-slate-400 text-white' };
+            if (cancellation_reason === 'No Answer') return { label: 'Scheduled', style: 'bg-blue-600 text-white' };
+            return { label: 'Cancelled', style: 'bg-red-500 text-white' };
         }
-        if (appointment_status === 'No-show') return { label: 'No Show', style: 'bg-slate-500 text-white' };
-        return { label: 'Scheduled', style: 'bg-blue-500 text-white' };
+        if (appointment_status === 'No-show') return { label: 'No Show', style: 'bg-slate-700 text-white' };
+        return { label: 'Scheduled', style: 'bg-blue-600 text-white' };
     };
 
     const getDropdownStyle = (apt: any) => {
-        const { appointment_status, cancellation_reason } = apt;
-        if (appointment_status === 'Confirmed') return 'bg-emerald-50 border-emerald-200 text-emerald-600';
-        if (appointment_status === 'In OPD') return 'bg-purple-50 border-purple-200 text-purple-600';
-        if (appointment_status === 'Cancelled' && cancellation_reason === 'No Answer') return 'bg-amber-50 border-amber-200 text-amber-600';
-        if (appointment_status === 'No-show') return 'bg-slate-50 border-slate-200 text-slate-500';
-        return 'bg-slate-50 border-slate-200 text-slate-600';
+        return 'bg-white border-slate-200 text-slate-600 hover:border-indigo-300';
     };
 
 
@@ -312,7 +307,7 @@ export default function AppointmentsPage() {
     return (
         <div className="relative min-h-screen pb-20 bg-slate-50/50">
             {/* Header Section */}
-            <div className="mb-8 px-6">
+            <div className="mb-8 px-6 max-w-[1600px] mx-auto">
                 <div className="flex items-center gap-4 mb-2">
                     <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-500/30">
                         <Activity className="w-6 h-6" />
@@ -390,28 +385,30 @@ export default function AppointmentsPage() {
 
 
             {/* Tabs */}
-            <div className="flex flex-wrap items-center gap-2 mb-8 bg-slate-100 p-1.5 rounded-2xl border border-slate-200 w-fit">
-                {['All', 'Scheduled', 'Completed', 'Cancelled'].map((tab) => (
-                    <button
-                        key={tab}
-                        onClick={() => setActiveTab(tab)}
-                        className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === tab
-                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
-                            : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
-                            }`}
-                    >
-                        {tab} <span className="opacity-60 ml-1 text-xs">
-                            ({tab === 'All' ? filteredByContext.length : filteredByContext.filter((a: any) =>
-                                tab === 'Scheduled' ? ['Scheduled', 'Confirmed', 'In OPD'].includes(a.appointment_status) :
-                                    a.appointment_status === tab
-                            ).length})
-                        </span>
-                    </button>
-                ))}
+            <div className="max-w-[1600px] mx-auto px-6">
+                <div className="flex flex-wrap items-center gap-2 mb-8 bg-slate-100 p-1.5 rounded-2xl border border-slate-200 w-fit">
+                    {['All', 'Scheduled', 'Completed', 'Cancelled'].map((tab) => (
+                        <button
+                            key={tab}
+                            onClick={() => setActiveTab(tab)}
+                            className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === tab
+                                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
+                                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+                                }`}
+                        >
+                            {tab} <span className="opacity-60 ml-1 text-xs">
+                                ({tab === 'All' ? filteredByContext.length : filteredByContext.filter((a: any) =>
+                                    tab === 'Scheduled' ? ['Scheduled', 'Confirmed', 'In OPD'].includes(a.appointment_status) :
+                                        a.appointment_status === tab
+                                ).length})
+                            </span>
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {/* Wide Card List View - 2 Column Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 max-w-7xl mx-auto px-4 md:px-0">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-[1600px] mx-auto px-6">
                 {filteredByContext
                     .filter((a: any) => {
                         // Status Filter (Tab)
@@ -423,10 +420,8 @@ export default function AppointmentsPage() {
                         const badgeProps = getStatusBadge(apt);
                         const dropdownStyle = getDropdownStyle(apt);
 
-                        // Determine dropdown value
-                        let dropdownValue = '';
-                        if (apt.appointment_status === 'Confirmed') dropdownValue = 'Confirmed';
-                        else if (apt.appointment_status === 'Cancelled' && apt.cancellation_reason === 'No Answer') dropdownValue = 'No Answer';
+                        // Dropdown is for actions, not state display
+                        const dropdownValue = '';
 
                         return (
                             <div key={apt.appointment_id} className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-xl transition-all overflow-hidden group">
@@ -446,7 +441,7 @@ export default function AppointmentsPage() {
                                                         <h3 className="text-base font-bold text-slate-900 leading-tight">
                                                             {apt.patient_name}
                                                         </h3>
-                                                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase shrink-0 ${badgeProps.style}`}>
+                                                        <span className={`px-2.5 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wide shrink-0 shadow-sm ${badgeProps.style}`}>
                                                             {badgeProps.label}
                                                         </span>
                                                     </div>
