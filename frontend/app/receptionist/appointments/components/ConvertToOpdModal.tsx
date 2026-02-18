@@ -225,6 +225,40 @@ export default function ConvertToOpdModal({
         }
     };
 
+    // -- Dubplicate Check Logic --
+    useEffect(() => {
+        const checkDuplicate = async () => {
+            // Need patient_id (from selectedPatient or form) and doctor_id + date
+            const pId = opdForm.patient_id || selectedPatient?.patient_id;
+            if (pId && opdForm.doctor_id) {
+                try {
+                    const token = localStorage.getItem('token');
+                    const response = await axios.get('http://localhost:5000/api/opd/check-duplicate', {
+                        params: {
+                            patient_id: pId,
+                            doctor_id: opdForm.doctor_id,
+                            visit_date: opdForm.visit_date
+                        },
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+
+                    if (response.data.exists) {
+                        setDuplicateWarning(response.data.message);
+                    } else {
+                        setDuplicateWarning(null);
+                    }
+                } catch (error) {
+                    console.error("Error checking duplicate:", error);
+                }
+            } else {
+                setDuplicateWarning(null);
+            }
+        };
+
+        const timeoutId = setTimeout(checkDuplicate, 500); // Debounce
+        return () => clearTimeout(timeoutId);
+    }, [opdForm.patient_id, selectedPatient, opdForm.doctor_id, opdForm.visit_date]);
+
     // Patient search (Behavioral fallback)
     useEffect(() => {
         if (!opdForm.contact_number || opdForm.contact_number.length < 10 || selectedPatient) {
