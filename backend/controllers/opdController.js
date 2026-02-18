@@ -773,6 +773,41 @@ class OpdController {
     }
 
     /**
+     * Get today's OPD entries
+     * GET /api/opd/today
+     */
+    static async getTodayOpdEntries(req, res, next) {
+        try {
+            const branch_id = req.user.branch_id;
+            if (!branch_id) {
+                return next(new AppError('Branch not linked to your account', 403));
+            }
+
+            const result = await query(`
+                SELECT o.*, 
+                       p.first_name as patient_first_name, p.last_name as patient_last_name, p.mrn_number, p.contact_number, p.age, p.gender, p.blood_group,
+                       p.address as address_line1, p.address_line2, p.city, p.state, p.pincode, p.adhaar_number,
+                       d.first_name as doctor_first_name, d.last_name as doctor_last_name, d.specialization,
+                       dept.department_name
+                FROM opd_entries o
+                JOIN patients p ON o.patient_id = p.patient_id
+                JOIN doctors d ON o.doctor_id = d.doctor_id
+                LEFT JOIN departments dept ON o.department_id = dept.department_id
+                WHERE o.branch_id = $1 AND o.visit_date = CURRENT_DATE
+                ORDER BY o.visit_time DESC
+            `, [branch_id]);
+
+            res.status(200).json({
+                status: 'success',
+                data: { entries: result.rows }
+            });
+        } catch (error) {
+            console.error('Get today OPD entries error:', error);
+            next(new AppError('Failed to fetch today\'s OPD entries', 500));
+        }
+    }
+
+    /**
      * Get OPD entry by ID
      * GET /api/opd/:id
      */

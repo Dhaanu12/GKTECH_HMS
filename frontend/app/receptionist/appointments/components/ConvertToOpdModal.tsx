@@ -15,9 +15,10 @@ interface OpdFormState {
     blood_group: string;
     contact_number: string;
     doctor_id: string;
-    visit_type: string;
     visit_date: string;
     visit_time: string;
+    visit_type: string;
+    // is_mlc: boolean;
     chief_complaint: string;
     symptoms: string;
     vital_signs: {
@@ -90,7 +91,7 @@ export default function ConvertToOpdModal({
             bp_systolic: '', bp_diastolic: '', pulse: '', temperature: '',
             weight: '', height: '', spo2: '', grbs: ''
         },
-        consultation_fee: '',
+        consultation_fee: '0',
         payment_status: 'Pending',
         payment_method: 'Cash',
         is_mlc: false,
@@ -107,7 +108,7 @@ export default function ConvertToOpdModal({
 
     const [opdForm, setOpdForm] = useState<OpdFormState>(initialOpdFormState);
     const [selectedPatient, setSelectedPatient] = useState<any>(null); // For display/linking
-    const [paymentChoice, setPaymentChoice] = useState<'PayNow' | 'PayLater'>('PayLater');
+    const [paymentChoice, setPaymentChoice] = useState<'PayNow' | 'PayLater'>('PayNow');
 
     // Billing Modal State
     const [showBillModal, setShowBillModal] = useState(false);
@@ -128,6 +129,15 @@ export default function ConvertToOpdModal({
 
     // Steps for Progress Indicator
     const [currentStep, setCurrentStep] = useState<'search' | 'newPatient' | 'visitDetails' | 'payment'>('visitDetails');
+    const [completedSteps, setCompletedSteps] = useState<('search' | 'newPatient' | 'visitDetails' | 'payment')[]>(['search']);
+
+    const commonComplaints = [
+        'Fever', 'Cold & Cough', 'Body Pain', 'Headache', 'Stomach Pain',
+        'Vomiting', 'Loose Motions', 'Chest Pain', 'Breathing Difficulty',
+        'Back Pain', 'Joint Pain', 'Skin Rash', 'Weakness', 'Dizziness',
+        'Throat Pain', 'Ear Pain', 'Eye Problem', 'Urinary Problem',
+        'Blood Pressure Check', 'Diabetes Follow-up', 'General Checkup'
+    ];
 
     // -- Populate Form on Mount/Change --
     useEffect(() => {
@@ -202,10 +212,11 @@ export default function ConvertToOpdModal({
                 is_mlc: false, // Convert to OPD implies standard visit usually?
             }));
 
-            setPaymentChoice('PayLater'); // Default
+            setPaymentChoice('PayNow'); // Default matches Dashboard
             setModalSearchQuery('');
             setModalSearchResults([]);
             setCurrentStep('visitDetails');
+            setCompletedSteps(['search']);
 
         } catch (error) {
             console.error(error);
@@ -213,6 +224,32 @@ export default function ConvertToOpdModal({
             setLoading(false);
         }
     };
+
+    // Patient search (Behavioral fallback)
+    useEffect(() => {
+        if (!opdForm.contact_number || opdForm.contact_number.length < 10 || selectedPatient) {
+            setModalSearchResults([]);
+            return;
+        }
+
+        const debounceTimer = setTimeout(async () => {
+            setIsSearching(true);
+            try {
+                const token = localStorage.getItem('token');
+                const response = await axios.get('http://localhost:5000/api/patients/search', {
+                    params: { q: opdForm.contact_number },
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                setModalSearchResults(response.data.data.patients || []);
+            } catch (error) {
+                console.error('Modal search error:', error);
+            } finally {
+                setIsSearching(false);
+            }
+        }, 300);
+
+        return () => clearTimeout(debounceTimer);
+    }, [opdForm.contact_number, selectedPatient]);
 
     // -- Helper Functions --
 
@@ -238,7 +275,16 @@ export default function ConvertToOpdModal({
             const payload = {
                 ...opdForm,
                 last_name: opdForm.last_name?.trim() || '.',
-                // Ensure appointment_id is explicitly passed
+                // Prioritize opdForm.patient_id (which is populated from appointment)
+                // Fallback to selectedPatient?.patient_id
+                patient_id: opdForm.patient_id || selectedPatient?.patient_id,
+                vital_signs: JSON.stringify(opdForm.vital_signs),
+                consultation_fee: opdForm.consultation_fee || '0',
+                mlc_fee: opdForm.is_mlc ? (branchDetails?.mlc_fee || '0') : '0',
+                // Map frontend field names to backend expected names
+                address_line_1: opdForm.address_line1,
+                address_line_2: opdForm.address_line2,
+                // Ensure appointment_id is explicitly passed if present
                 appointment_id: opdForm.appointment_id
             };
 
@@ -346,13 +392,14 @@ export default function ConvertToOpdModal({
         }
     };
 
+    const isPatientDetailsLocked = !!opdForm.patient_id && (!opdForm.is_mlc || (!!opdForm.contact_number && opdForm.contact_number.length >= 10));
+
     const isRegisterDisabled = loading || !!duplicateWarning || !opdForm.doctor_id || (
         opdForm.is_mlc
             ? (!!opdForm.contact_number && opdForm.contact_number.length > 0 && opdForm.contact_number.length < 10)
             : (!selectedPatient && (!opdForm.first_name || !opdForm.age || !opdForm.gender || !opdForm.contact_number || opdForm.contact_number.length < 10))
     );
 
-    const commonComplaints = ["Fever", "Cold", "Cough", "Headache", "Body Pain", "Stomach Pain", "Vomiting", "Diarrhea", "Weakness", "Dizziness", "Breathlessness", "Chest Pain", "Throat Pain", "Ear Pain", "Eye Pain", "Skin Rash", "Itching", "Burning Sensation", "Injury", "Bleeding", "Swelling", "Acidity", "Gastritis", "Constipation", "Indigestion", "Loss of Appetite", "Weight Loss", "Weight Gain", "Sleeplessness", "Anxiety", "Depression", "Stress", "Irregular Periods", "White Discharge", "Back Pain", "Joint Pain", "Knee Pain", "Neck Pain", "Shoulder Pain", "Leg Pain", "Foot Pain", "Hand Pain", "Arm Pain", "Finger Pain", "Toe Pain", "Numbness", "Tremors", "Seizures", "Fainting", "Blackouts"];
 
     // UI Helpers copied or simplified
     const handleClearPatient = () => {
@@ -398,7 +445,7 @@ export default function ConvertToOpdModal({
                         <div>
                             <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                                 <Plus className="w-5 h-5 text-blue-600" />
-                                Convert to OPD Entry
+                                New OPD Entry
                             </h2>
                             {selectedPatient && (
                                 <p className="text-xs font-bold text-blue-600 uppercase tracking-wider mt-1">
@@ -425,6 +472,57 @@ export default function ConvertToOpdModal({
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
+                    </div>
+
+                    {/* Progress Indicator - 1:1 Dashboard Parity */}
+                    <div className="px-6 py-3 bg-slate-50/80 border-b border-slate-100">
+                        {(() => {
+                            // Define completion checks (Dashboard parity)
+                            const step1Complete = selectedPatient
+                                ? true
+                                : (opdForm.first_name && opdForm.age && opdForm.gender &&
+                                    (opdForm.is_mlc || opdForm.contact_number?.length === 10));
+
+                            const step2FieldsComplete = opdForm.doctor_id; // Dashboard logic is visit_type && doctor_id, we default visit_type to 'Appointment'
+                            const step2Complete = step1Complete && step2FieldsComplete;
+
+                            const step3FieldsComplete = opdForm.consultation_fee && opdForm.consultation_fee !== '0';
+                            const step3Complete = step2Complete && step3FieldsComplete;
+
+                            return (
+                                <div className="flex items-center justify-between max-w-2xl mx-auto">
+                                    {/* Step 1: Patient */}
+                                    <div className="flex items-center">
+                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${step1Complete ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200' : 'bg-white border-2 border-slate-200 text-slate-400'}`}>
+                                            {step1Complete ? <Check className="w-4 h-4" /> : '1'}
+                                        </div>
+                                        <div className={`ml-3 text-xs font-bold uppercase tracking-wider ${step1Complete ? 'text-emerald-600' : 'text-slate-400'}`}>Patient</div>
+                                    </div>
+
+                                    {/* Connector */}
+                                    <div className={`flex-1 mx-4 h-0.5 rounded-full transition-all duration-500 ${step2Complete ? 'bg-emerald-500' : 'bg-slate-200'}`} />
+
+                                    {/* Step 2: Visit */}
+                                    <div className="flex items-center">
+                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${step2Complete ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200' : (step1Complete ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'bg-white border-2 border-slate-200 text-slate-400')}`}>
+                                            {step2Complete ? <Check className="w-4 h-4" /> : '2'}
+                                        </div>
+                                        <div className={`ml-3 text-xs font-bold uppercase tracking-wider ${step2Complete ? 'text-emerald-600' : (step1Complete ? 'text-blue-600' : 'text-slate-400')}`}>Visit</div>
+                                    </div>
+
+                                    {/* Connector */}
+                                    <div className={`flex-1 mx-4 h-0.5 rounded-full transition-all duration-500 ${step3Complete ? 'bg-emerald-500' : 'bg-slate-200'}`} />
+
+                                    {/* Step 3: Billing */}
+                                    <div className="flex items-center">
+                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${step3Complete ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200' : (step2Complete ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'bg-white border-2 border-slate-200 text-slate-400')}`}>
+                                            {step3Complete ? <Check className="w-4 h-4" /> : '3'}
+                                        </div>
+                                        <div className={`ml-3 text-xs font-bold uppercase tracking-wider ${step3Complete ? 'text-emerald-600' : (step2Complete ? 'text-blue-600' : 'text-slate-400')}`}>Billing</div>
+                                    </div>
+                                </div>
+                            );
+                        })()}
                     </div>
 
                     {/* Content - Copied exactly from dashboard */}
@@ -457,11 +555,44 @@ export default function ConvertToOpdModal({
                                             }
                                         }}
                                         maxLength={10}
-                                        className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${((opdForm.contact_number.length === 10 || !!selectedPatient)) ? 'bg-slate-50 cursor-not-allowed text-slate-600' : ''}`}
+                                        className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isPatientDetailsLocked ? 'bg-slate-50 cursor-not-allowed text-slate-600' : ''}`}
                                         placeholder="10-digit number"
-                                        disabled={((opdForm.contact_number.length === 10 || !!selectedPatient))}
+                                        disabled={isPatientDetailsLocked}
                                     />
-                                    {/* Dropdown omitted for Convert flow as we pre-fill */}
+                                    {/* Search Results Dropdown - 1:1 Dashboard Parity */}
+                                    {modalSearchResults.length > 0 && !selectedPatient && (
+                                        <div className="absolute z-50 w-full mt-1 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                                            <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider tabular-nums">{modalSearchResults.length} Patients Found</span>
+                                                <Sparkles className="w-3 h-3 text-blue-400" />
+                                            </div>
+                                            <div className="max-h-[280px] overflow-y-auto custom-scrollbar">
+                                                {modalSearchResults.map((patient) => (
+                                                    <button
+                                                        key={patient.patient_id}
+                                                        type="button"
+                                                        onClick={() => handleDropdownSelect(patient)}
+                                                        className="w-full px-4 py-3 text-left hover:bg-blue-50/50 transition-colors flex items-center justify-between group border-b border-slate-50 last:border-0"
+                                                    >
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs group-hover:bg-blue-600 group-hover:text-white transition-all">
+                                                                {patient.first_name[0]}{patient.last_name?.[0]}
+                                                            </div>
+                                                            <div>
+                                                                <p className="font-bold text-slate-700 text-sm group-hover:text-blue-700 transition-colors">{patient.first_name} {patient.last_name}</p>
+                                                                <p className="text-[11px] font-semibold text-slate-400 flex items-center gap-1.5 capitalize">
+                                                                    <span className="text-blue-500/70">{patient.mrn_number}</span>
+                                                                    <span className="w-1 h-1 bg-slate-300 rounded-full" />
+                                                                    {patient.gender} • {patient.age}y
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className={`md:col-span-4 ${((opdForm.contact_number.length < 10) && !selectedPatient && !opdForm.is_mlc) || (!!selectedPatient && !!selectedPatient.contact_number) ? 'cursor-not-allowed' : ''}`}>
@@ -477,14 +608,14 @@ export default function ConvertToOpdModal({
                                             const last = parts.slice(1).join(' ');
                                             setOpdForm({ ...opdForm, first_name: first, last_name: last });
                                         }}
-                                        disabled={((opdForm.contact_number.length < 10) && !selectedPatient && !opdForm.is_mlc) || (!!selectedPatient && !!selectedPatient.contact_number)}
-                                        className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${((opdForm.contact_number.length < 10) && !selectedPatient && !opdForm.is_mlc) || (!!selectedPatient && !!selectedPatient.contact_number) ? 'bg-slate-50/80 text-slate-900 font-bold cursor-not-allowed border-slate-300' : ''}`}
+                                        disabled={isPatientDetailsLocked}
+                                        className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isPatientDetailsLocked ? 'bg-slate-50/80 text-slate-900 font-bold cursor-not-allowed border-slate-300' : ''}`}
                                         placeholder="e.g. John Doe"
                                     />
                                 </div>
 
                                 {/* Row 2: Age | Gender | Blood Group | Aadhaar */}
-                                <div className={!!selectedPatient ? 'cursor-not-allowed' : ''}>
+                                <div className={isPatientDetailsLocked ? 'cursor-not-allowed' : ''}>
                                     <label className="block text-[13px] font-semibold text-slate-700 mb-1.5">Age <span className="text-red-500">*</span></label>
                                     <input
                                         type="number"
@@ -492,9 +623,17 @@ export default function ConvertToOpdModal({
                                         min="1"
                                         max="110"
                                         value={opdForm.age}
-                                        onChange={(e) => setOpdForm({ ...opdForm, age: e.target.value })}
-                                        disabled={!!selectedPatient}
-                                        className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${!!selectedPatient ? 'bg-slate-50/80 text-slate-900 font-bold cursor-not-allowed border-slate-300' : ''}`}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            if (val === '' || (parseInt(val) >= 1 && parseInt(val) <= 110)) {
+                                                setOpdForm({ ...opdForm, age: val });
+                                            } else if (parseInt(val) > 110) {
+                                                setOpdForm({ ...opdForm, age: '110' });
+                                            }
+                                        }}
+                                        disabled={isPatientDetailsLocked}
+                                        className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isPatientDetailsLocked ? 'bg-slate-50/80 text-slate-900 font-bold cursor-not-allowed border-slate-300' : ''}`}
+                                        placeholder="1-110"
                                     />
                                 </div>
                                 <div className={!!selectedPatient ? 'cursor-not-allowed' : ''}>
@@ -503,8 +642,8 @@ export default function ConvertToOpdModal({
                                         required={!opdForm.is_mlc}
                                         value={opdForm.gender}
                                         onChange={(e) => setOpdForm({ ...opdForm, gender: e.target.value })}
-                                        disabled={!!selectedPatient}
-                                        className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${!!selectedPatient ? 'bg-slate-50/80 text-slate-900 font-bold cursor-not-allowed border-slate-300' : ''}`}
+                                        disabled={isPatientDetailsLocked}
+                                        className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isPatientDetailsLocked ? 'bg-slate-50/80 text-slate-900 font-bold cursor-not-allowed border-slate-300' : ''}`}
                                     >
                                         <option value="">Select</option>
                                         <option value="Male">Male</option>
@@ -519,8 +658,8 @@ export default function ConvertToOpdModal({
                                     <select
                                         value={opdForm.blood_group}
                                         onChange={(e) => setOpdForm({ ...opdForm, blood_group: e.target.value })}
-                                        disabled={!!selectedPatient}
-                                        className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${!!selectedPatient ? 'bg-slate-50/80 text-slate-900 font-bold cursor-not-allowed border-slate-300' : ''}`}
+                                        disabled={isPatientDetailsLocked}
+                                        className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isPatientDetailsLocked ? 'bg-slate-50/80 text-slate-900 font-bold cursor-not-allowed border-slate-300' : ''}`}
                                     >
                                         <option value="">Unknown</option>
                                         <option value="A+">A+</option>
@@ -540,8 +679,8 @@ export default function ConvertToOpdModal({
                                         value={opdForm.adhaar_number}
                                         onChange={(e) => setOpdForm({ ...opdForm, adhaar_number: e.target.value.replace(/\D/g, "") })}
                                         maxLength={12}
-                                        disabled={!!selectedPatient}
-                                        className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${!!selectedPatient ? 'bg-slate-50/80 text-slate-900 font-bold cursor-not-allowed border-slate-300' : ''}`}
+                                        disabled={isPatientDetailsLocked}
+                                        className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium ${isPatientDetailsLocked ? 'bg-slate-50/80 text-slate-900 font-bold cursor-not-allowed border-slate-300' : ''}`}
                                     />
                                 </div>
 
@@ -630,7 +769,17 @@ export default function ConvertToOpdModal({
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
-                                {/* No MLC Toggle for Convert */}
+                                {/* MLC Toggle - Hidden for Convert to OPD (Behavioral Parity) */}
+                                {opdForm.is_mlc && (
+                                    <div className="md:col-span-12 flex items-center gap-3 bg-red-50/80 p-4 rounded-xl border border-red-200/60 animate-in fade-in slide-in-from-top-2 mb-2 shadow-sm">
+                                        <div className="w-5 h-5 bg-red-600 rounded flex items-center justify-center text-white">
+                                            <Check className="w-4 h-4" />
+                                        </div>
+                                        <label className="text-[15px] font-bold text-red-800 cursor-default select-none">
+                                            Medical Legal Case (MLC) Enabled
+                                        </label>
+                                    </div>
+                                )}
                                 <div className="md:col-span-4 lg:col-span-4">
                                     <label className="block text-sm font-bold text-slate-500 uppercase tracking-widest mb-2">Visit Type <span className="text-red-500">*</span></label>
                                     <div className="relative">
@@ -780,6 +929,20 @@ export default function ConvertToOpdModal({
                                             />
                                         </div>
                                     </div>
+                                    {opdForm.is_mlc && (
+                                        <div className="animate-in fade-in slide-in-from-left-2">
+                                            <label className="block text-sm font-semibold text-red-600 mb-1">MLC Fee</label>
+                                            <div className="relative">
+                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold">₹</span>
+                                                <input
+                                                    type="text"
+                                                    value={branchDetails?.mlc_fee || '0'}
+                                                    disabled
+                                                    className="w-24 pl-7 pr-3 py-2 bg-red-50 border border-red-100 rounded-lg text-sm font-bold text-red-700 cursor-not-allowed"
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
                                     <div className="flex-1 min-w-[200px]">
                                         <label className="block text-sm font-semibold text-slate-500 mb-1">Payment Preference <span className="text-red-500">*</span></label>
                                         <div className="relative">
@@ -805,15 +968,27 @@ export default function ConvertToOpdModal({
                             <div className="text-right bg-white/60 px-5 py-3 rounded-xl border border-slate-100">
                                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Total Fee</p>
                                 <p className="text-3xl font-extrabold text-slate-800">
-                                    ₹{opdForm.consultation_fee || '0'}
+                                    ₹{(() => {
+                                        let fee = parseFloat(opdForm.consultation_fee || '0');
+                                        if (opdForm.is_mlc && branchDetails?.mlc_fee) {
+                                            fee += parseFloat(branchDetails.mlc_fee);
+                                        }
+                                        return fee;
+                                    })()}
                                 </p>
                             </div>
                         </div>
 
                         {/* Footer Actions */}
                         <div className="pt-4 border-t border-slate-200/80 flex items-center justify-between">
+                            {/* Duplicate Warning Message - 1:1 Dashboard Parity */}
                             <div className="flex-1 mr-4">
-                                {/* Warning placeholder */}
+                                {duplicateWarning && (
+                                    <div className="flex items-center gap-2 px-3 py-2 bg-red-50 text-red-700 text-xs font-bold rounded-lg border border-red-100 animate-in fade-in slide-in-from-left-2">
+                                        <AlertCircle size={14} />
+                                        {duplicateWarning}
+                                    </div>
+                                )}
                             </div>
                             <div className="flex gap-4">
                                 <button

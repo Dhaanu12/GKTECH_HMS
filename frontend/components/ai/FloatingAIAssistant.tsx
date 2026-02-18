@@ -4,13 +4,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { 
-    Sparkles, 
-    X, 
-    Send, 
-    Trash2, 
-    ChevronDown, 
-    User, 
+import {
+    Sparkles,
+    X,
+    Send,
+    Trash2,
+    ChevronDown,
+    User,
     Bot,
     AlertCircle,
     Zap,
@@ -136,7 +136,7 @@ export function FloatingAIAssistant() {
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={() => setIsOpen(true)}
-                        className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-300/50 flex items-center justify-center z-50 hover:shadow-xl hover:shadow-blue-300/60 transition-shadow"
+                        className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-300/50 flex items-center justify-center z-50 hover:shadow-xl hover:shadow-blue-300/60 transition-shadow print:hidden"
                         aria-label="Open AI Assistant"
                     >
                         <Sparkles className="w-6 h-6" />
@@ -151,15 +151,15 @@ export function FloatingAIAssistant() {
                 {isOpen && (
                     <motion.div
                         initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                        animate={{ 
-                            opacity: 1, 
-                            y: 0, 
+                        animate={{
+                            opacity: 1,
+                            y: 0,
                             scale: 1,
                             height: isMinimized ? 'auto' : '600px',
                         }}
                         exit={{ opacity: 0, y: 20, scale: 0.95 }}
                         transition={{ duration: 0.2 }}
-                        className="fixed bottom-6 right-6 w-96 bg-white rounded-2xl shadow-2xl shadow-slate-300/50 z-50 flex flex-col overflow-hidden border border-slate-200"
+                        className="fixed bottom-6 right-6 w-96 bg-white rounded-2xl shadow-2xl shadow-slate-300/50 z-50 flex flex-col overflow-hidden border border-slate-200 print:hidden"
                         style={{ maxHeight: '80vh' }}
                     >
                         {/* Header */}
@@ -171,7 +171,7 @@ export function FloatingAIAssistant() {
                                 <div>
                                     <h3 className="font-semibold text-sm">CareNex AI</h3>
                                     <p className="text-xs text-blue-100">
-                                        {isAvailable ? 'Online' : 'Offline'} 
+                                        {isAvailable ? 'Online' : 'Offline'}
                                         {rateLimit && ` • ${rateLimit.remaining} requests left`}
                                     </p>
                                 </div>
@@ -235,11 +235,10 @@ export function FloatingAIAssistant() {
                                                 className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                                             >
                                                 <div
-                                                    className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${
-                                                        message.role === 'user'
+                                                    className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${message.role === 'user'
                                                             ? 'bg-blue-600 text-white rounded-br-md'
                                                             : 'bg-white border border-slate-200 text-slate-700 rounded-bl-md shadow-sm'
-                                                    }`}
+                                                        }`}
                                                 >
                                                     {message.role === 'assistant' && (
                                                         <div className="flex items-center gap-1.5 mb-1">
@@ -295,7 +294,7 @@ export function FloatingAIAssistant() {
                                             </div>
                                         ))
                                     )}
-                                    
+
                                     {/* Confirmation Card */}
                                     {pendingAction && (
                                         <motion.div
@@ -339,7 +338,7 @@ export function FloatingAIAssistant() {
                                             <span>{error}</span>
                                         </div>
                                     )}
-                                    
+
                                     <div ref={messagesEndRef} />
                                 </div>
 
