@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/AuthContext';
 import {
     Download, Search, Calendar, Filter, Loader2, IndianRupee,
     FileText, User, ChevronRight, ChevronDown, PieChart as PieChartIcon,
-    BarChart3, Activity, TrendingUp, Users, ArrowUpRight
+    BarChart3, Activity, TrendingUp, Users, ArrowUpRight, Calculator, CheckCircle, AlertCircle
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -29,11 +29,13 @@ interface ReportRow {
     referral_percentage: number;
     referral_amount: number;
     file_name: string;
+    doctor_status?: string;
 }
 
 interface GroupedData {
     [doctorName: string]: {
         doctorName: string;
+        doctorStatus?: string;
         totalPayout: number;
         patients: {
             [patientName: string]: {
@@ -71,6 +73,7 @@ export default function ReferralPaymentReports() {
     const [doctors, setDoctors] = useState<{ id: string, name: string }[]>([]);
     const [expandedDoctors, setExpandedDoctors] = useState<string[]>([]);
     const [expandedPatients, setExpandedPatients] = useState<string[]>([]);
+    const [calculatingDoctors, setCalculatingDoctors] = useState<string[]>([]);
 
     useEffect(() => {
         fetchDoctors();
@@ -154,6 +157,7 @@ export default function ReferralPaymentReports() {
             if (!groups[row.doctor_name]) {
                 groups[row.doctor_name] = {
                     doctorName: row.doctor_name,
+                    doctorStatus: row.doctor_status,
                     totalPayout: 0,
                     patients: {}
                 };
@@ -189,6 +193,33 @@ export default function ReferralPaymentReports() {
         setExpandedPatients(prev =>
             prev.includes(patientName) ? prev.filter(n => n !== patientName) : [...prev, patientName]
         );
+    };
+
+    const handleRecalculate = async (doctorName: string, headers: number[]) => {
+        if (calculatingDoctors.includes(doctorName)) return;
+
+        setCalculatingDoctors(prev => [...prev, doctorName]);
+        try {
+            const token = localStorage.getItem('token');
+            const uniqueHeaders = Array.from(new Set(headers));
+
+            // Recalculate each header
+            // Using Promise.all for parallel execution but limiting concurrency might be better if many headers. 
+            // For now, simple Promise.all
+            await Promise.all(uniqueHeaders.map(headerId =>
+                axios.put('/api/referral-payment/recalculate', { headerId }, {
+                    headers: { Authorization: `Bearer ${token}` }
+                })
+            ));
+
+            // Refresh reports
+            await fetchReports();
+        } catch (error) {
+            console.error('Error recalculating:', error);
+            // Could add toast notification here
+        } finally {
+            setCalculatingDoctors(prev => prev.filter(n => n !== doctorName));
+        }
     };
 
     const exportToPDF = () => {
@@ -462,6 +493,68 @@ export default function ReferralPaymentReports() {
                         </div>
                     </div>
 
+                    {/* Doctor & Patient Lists */}
+                    {!loading && Object.keys(groupedReports).length > 0 && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Referral Doctors List */}
+                            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                                <div className="px-5 py-3 bg-gray-50/50 border-b border-gray-100 flex items-center justify-between">
+                                    <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+                                        <Users className="w-4 h-4 text-purple-500" />
+                                        Referral Doctors
+                                    </h3>
+                                    <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">{uniqueDoctors}</span>
+                                </div>
+                                <div className="max-h-[260px] overflow-y-auto divide-y divide-gray-50">
+                                    {Object.entries(groupedReports)
+                                        .sort(([, a], [, b]) => b.totalPayout - a.totalPayout)
+                                        .map(([docName, doctor], idx) => (
+                                            <div key={docName} className="px-5 py-2.5 flex items-center justify-between hover:bg-gray-50/50 transition-colors">
+                                                <div className="flex items-center gap-3">
+                                                    <span className="w-6 h-6 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center text-[10px] font-bold flex-shrink-0">{idx + 1}</span>
+                                                    <span className="text-sm font-semibold text-gray-800">{docName}</span>
+                                                </div>
+                                                <span className="text-xs font-bold text-gray-600">₹{doctor.totalPayout.toLocaleString()}</span>
+                                            </div>
+                                        ))}
+                                </div>
+                            </div>
+
+                            {/* Referral Patients List */}
+                            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                                <div className="px-5 py-3 bg-gray-50/50 border-b border-gray-100 flex items-center justify-between">
+                                    <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+                                        <User className="w-4 h-4 text-orange-500" />
+                                        Referral Patients
+                                    </h3>
+                                    <span className="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">{uniquePatients}</span>
+                                </div>
+                                <div className="max-h-[260px] overflow-y-auto divide-y divide-gray-50">
+                                    {Object.entries(groupedReports).flatMap(([docName, doctor]) =>
+                                        Object.entries(doctor.patients).map(([patName, patient]) => ({
+                                            patientName: patName,
+                                            doctorName: docName,
+                                            payout: patient.totalPayout
+                                        }))
+                                    )
+                                        .sort((a, b) => b.payout - a.payout)
+                                        .map((item, idx) => (
+                                            <div key={`${item.doctorName}-${item.patientName}`} className="px-5 py-2.5 flex items-center justify-between hover:bg-gray-50/50 transition-colors">
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    <span className="w-6 h-6 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center text-[10px] font-bold flex-shrink-0">{idx + 1}</span>
+                                                    <div className="min-w-0">
+                                                        <p className="text-sm font-semibold text-gray-800 truncate">{item.patientName}</p>
+                                                        <p className="text-[10px] text-gray-400 truncate">via {item.doctorName}</p>
+                                                    </div>
+                                                </div>
+                                                <span className="text-xs font-bold text-gray-600 flex-shrink-0">₹{item.payout.toLocaleString()}</span>
+                                            </div>
+                                        ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Detailed Grouped Report */}
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                         <div className="px-6 py-4 bg-gray-50/50 border-b border-gray-100 flex items-center justify-between">
@@ -511,8 +604,47 @@ export default function ReferralPaymentReports() {
                                                     </div>
                                                 </div>
                                                 <div className="text-right">
-                                                    <p className="text-sm font-black text-gray-900">₹{doctor.totalPayout.toLocaleString()}</p>
-                                                    <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">DOCTOR TOTAL</span>
+                                                    {(doctor.doctorStatus === 'Pending' || (doctor.doctorStatus === 'Active' && doctor.totalPayout === 0)) ? (
+                                                        <div className="flex flex-col items-end gap-1">
+                                                            <span className="px-2 py-1 bg-orange-100 text-orange-700 text-xs font-semibold rounded-full border border-orange-200">
+                                                                PENDING CONFIG
+                                                            </span>
+                                                            {doctor.doctorStatus === 'Active' && (
+                                                                <>
+                                                                    {calculatingDoctors.includes(docName) ? (
+                                                                        <span className="text-xs text-blue-600 flex items-center">
+                                                                            <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                                                            Calculating...
+                                                                        </span>
+                                                                    ) : (
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                const headers = Object.values(doctor.patients).flatMap(p => p.services.map(s => s.header_id));
+                                                                                handleRecalculate(docName, headers);
+                                                                            }}
+                                                                            className="flex items-center text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded hover:bg-blue-100 transition"
+                                                                        >
+                                                                            <Calculator className="w-3 h-3 mr-1" />
+                                                                            CALCULATE
+                                                                        </button>
+                                                                    )}
+                                                                </>
+                                                            )}
+                                                            {doctor.doctorStatus === 'Pending' && (
+                                                                <span className="text-sm font-bold text-gray-500">₹0</span>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="text-right">
+                                                            <div className="flex flex-col items-end">
+                                                                <p className="text-xs text-gray-500">DOCTOR TOTAL</p>
+                                                                <p className="text-lg font-bold text-emerald-600">
+                                                                    ₹{doctor.totalPayout.toLocaleString()}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
 

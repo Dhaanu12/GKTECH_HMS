@@ -55,7 +55,7 @@ const statusColors = {
 export default function NurseDashboard() {
     const { user } = useAuth();
     const router = useRouter();
-    
+
     // AI context - clear patient context when on dashboard
     let aiContext: { setPageContext?: (page: string, patient?: string) => void } = {};
     try { aiContext = useAI(); } catch { /* AIContextProvider not available */ }
@@ -219,7 +219,7 @@ export default function NurseDashboard() {
         const entryDate = new Date(entry.visit_date).toISOString().split('T')[0];
         return entryDate === today;
     });
-    
+
     // Set AI context for dashboard (clears any patient-specific context)
     useEffect(() => {
         if (aiContext.setPageContext && !loading) {
@@ -254,7 +254,7 @@ export default function NurseDashboard() {
                 if (result.success && result.message) {
                     setShiftInsight(result.message);
                 }
-            }).catch(() => {}).finally(() => setShiftInsightLoading(false));
+            }).catch(() => { }).finally(() => setShiftInsightLoading(false));
         }
     }, [loading, myTasksCount, pendingCount]);
 
@@ -405,12 +405,16 @@ export default function NurseDashboard() {
                 {/* Left Column - Lab Orders (2/3) */}
                 <div className="lg:col-span-2 space-y-4">
                     {/* Filter Tabs */}
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <Activity className="w-5 h-5 text-blue-600" />
-                            <h2 className="text-lg font-bold text-slate-800">Labs</h2>
+                    {/* Labs Header & Filter Tabs */}
+                    <div className="bg-white/60 backdrop-blur-xl border border-white/60 rounded-[1.5rem] p-3 shadow-sm mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3 px-2">
+                            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-violet-500/20 text-white transform rotate-3 hover:rotate-6 transition-transform">
+                                <Beaker className="w-5 h-5" />
+                            </div>
+                            <h2 className="text-xl font-bold text-slate-800 tracking-tight">Labs</h2>
                         </div>
-                        <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
+
+                        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
                             {[
                                 { key: 'all', label: 'All' },
                                 { key: 'mine', label: 'Mine' },
@@ -420,10 +424,13 @@ export default function NurseDashboard() {
                                 <button
                                     key={tab.key}
                                     onClick={() => setActiveFilter(tab.key as any)}
-                                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${activeFilter === tab.key
-                                        ? 'bg-white text-slate-800 shadow-sm'
-                                        : 'text-slate-500 hover:text-slate-700'
-                                        }`}
+                                    className={`
+                                        min-w-[80px] py-2 rounded-xl font-bold text-xs transition-all duration-300
+                                        ${activeFilter === tab.key
+                                            ? 'bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow-md shadow-violet-500/25 scale-105'
+                                            : 'text-slate-500 hover:bg-white/80 hover:text-slate-700'
+                                        }
+                                    `}
                                 >
                                     {tab.label}
                                 </button>
@@ -469,27 +476,33 @@ export default function NurseDashboard() {
                 {/* Right Column (1/3) */}
                 <div className="space-y-6">
                     {/* Quick Patient Search */}
-                    <div className="bg-white rounded-xl border border-slate-200 p-4">
-                        <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
-                            <Search className="w-4 h-4 text-slate-400" />
+                    {/* Quick Patient Search */}
+                    <div className="relative overflow-hidden bg-gradient-to-br from-violet-50/80 via-purple-50/80 to-fuchsia-50/80 backdrop-blur-2xl border border-white/60 shadow-lg shadow-purple-500/5 rounded-[2rem] p-6">
+                        {/* Decorative blur blob */}
+                        <div className="absolute -top-12 -right-12 w-40 h-40 bg-purple-400/20 rounded-full blur-3xl pointer-events-none"></div>
+
+                        <h3 className="relative z-10 text-lg font-bold text-slate-800 mb-4 flex items-center gap-3">
+                            <div className="p-2.5 bg-white/60 rounded-xl shadow-sm backdrop-blur-md border border-white/50">
+                                <Search className="w-5 h-5 text-purple-600" />
+                            </div>
                             Quick Patient Search
                         </h3>
-                        <div className="relative">
+                        <div className="relative z-10">
                             <input
                                 type="text"
                                 value={searchQuery}
                                 onChange={(e) => handleSearch(e.target.value)}
                                 onFocus={() => searchResults.length > 0 && setShowSearchResults(true)}
                                 placeholder="Search by name, phone, MRN..."
-                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                className="w-full px-5 py-3.5 bg-white border-0 rounded-2xl text-slate-700 placeholder:text-slate-400 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all font-medium"
                             />
                             {searching && (
-                                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 animate-spin" />
+                                <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-400 animate-spin" />
                             )}
 
                             {/* Search Results Dropdown */}
                             {showSearchResults && searchResults.length > 0 && (
-                                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-20 max-h-60 overflow-y-auto">
+                                <div className="absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-xl border border-white/50 rounded-2xl shadow-xl shadow-purple-500/10 z-20 max-h-60 overflow-y-auto custom-scrollbar">
                                     {searchResults.map(patient => (
                                         <button
                                             key={patient.patient_id}
@@ -497,12 +510,12 @@ export default function NurseDashboard() {
                                                 router.push(`/nurse/patients/${patient.patient_id}`);
                                                 setShowSearchResults(false);
                                             }}
-                                            className="w-full px-4 py-3 text-left hover:bg-slate-50 border-b border-slate-100 last:border-0"
+                                            className="w-full px-5 py-3.5 text-left hover:bg-purple-50/50 border-b border-slate-100 last:border-0 transition-colors group"
                                         >
-                                            <p className="font-medium text-slate-800">
+                                            <p className="font-bold text-slate-800 group-hover:text-purple-700 transition-colors">
                                                 {patient.first_name} {patient.last_name}
                                             </p>
-                                            <p className="text-xs text-slate-500">
+                                            <p className="text-xs text-slate-500 mt-0.5 font-medium">
                                                 MRN: {patient.mrn_number} • {patient.contact_number}
                                             </p>
                                         </button>
@@ -599,6 +612,7 @@ export default function NurseDashboard() {
 }
 
 // Metric Card Component
+// Metric Card Component
 function MetricCard({
     label,
     value,
@@ -614,31 +628,61 @@ function MetricCard({
     onClick?: () => void;
     active?: boolean;
 }) {
-    const colorClasses = {
-        blue: { bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-100', ring: 'ring-blue-500' },
-        amber: { bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-100', ring: 'ring-amber-500' },
-        red: { bg: 'bg-red-50', text: 'text-red-600', border: 'border-red-100', ring: 'ring-red-500' },
-        emerald: { bg: 'bg-emerald-50', text: 'text-emerald-600', border: 'border-emerald-100', ring: 'ring-emerald-500' }
+    const themes = {
+        blue: {
+            // Revenue Today Color: #146AF5
+            card: 'bg-[#146AF5] border-white/10 shadow-blue-500/30 text-white',
+            icon: 'bg-white/20 text-white',
+            ring: 'ring-blue-300',
+            active: 'bg-[#0f4eb5] border-white/20 shadow-blue-500/40'
+        },
+        amber: {
+            // Waiting Now Color: #D97706
+            card: 'bg-[#D97706] border-white/10 shadow-amber-500/30 text-white',
+            icon: 'bg-white/20 text-white',
+            ring: 'ring-amber-300',
+            active: 'bg-[#b45d04] border-white/20 shadow-amber-500/40'
+        },
+        red: {
+            // Urgent / STAT Color: #D11C5F (Pinkish Red as per screenshot)
+            card: 'bg-[#D11C5F] border-white/10 shadow-pink-500/30 text-white',
+            icon: 'bg-white/20 text-white',
+            ring: 'ring-pink-300',
+            active: 'bg-[#a31448] border-white/20 shadow-pink-500/40'
+        },
+        emerald: {
+            // Completed Today Color: #009A66
+            card: 'bg-[#009A66] border-white/10 shadow-emerald-500/30 text-white',
+            icon: 'bg-white/20 text-white',
+            ring: 'ring-emerald-300',
+            active: 'bg-[#007a51] border-white/20 shadow-emerald-500/40'
+        }
     };
 
-    const c = colorClasses[color];
+    const t = themes[color];
+    const cardStyle = active ? t.active : t.card;
 
     return (
         <div
             onClick={onClick}
             className={`
-                bg-white p-4 rounded-xl border shadow-sm transition-all
-                ${onClick ? 'cursor-pointer hover:shadow-md' : ''}
-                ${active ? `ring-2 ${c.ring} ${c.border}` : `${c.border}`}
+                relative overflow-hidden
+                backdrop-blur-xl rounded-[1.5rem] p-5 border shadow-lg transition-all duration-300
+                ${cardStyle}
+                ${onClick ? 'cursor-pointer hover:-translate-y-1 hover:shadow-xl' : ''}
+                ${active ? `ring-2 ${t.ring}` : ''}
             `}
         >
-            <div className="flex justify-between items-start mb-2">
-                <div className={`p-2 rounded-lg ${c.bg} ${c.text}`}>
-                    <Icon className="w-5 h-5" />
+            {/* Glass Shine Effect */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/20 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
+
+            <div className="relative z-10 flex justify-between items-start mb-2">
+                <div className={`p-2.5 rounded-xl ${t.icon} backdrop-blur-md shadow-sm border border-white/10`}>
+                    <Icon className="w-6 h-6" />
                 </div>
-                <span className="text-2xl font-bold text-slate-800">{value}</span>
+                <span className="text-4xl font-bold tracking-tight text-white">{value}</span>
             </div>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">{label}</p>
+            <p className="relative z-10 text-[11px] font-bold uppercase tracking-widest text-white/90">{label}</p>
         </div>
     );
 }

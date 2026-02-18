@@ -30,6 +30,7 @@ export interface ReferralDoctor {
     referral_means?: string;
     means_id?: number;
     branch_id?: number | null;
+    created_by?: string;
     created_by_name?: string;
 }
 

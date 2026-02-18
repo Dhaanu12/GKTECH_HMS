@@ -5,7 +5,7 @@ import axios from 'axios';
 import { useRouter } from 'next/navigation';
 import { User, Phone, MapPin, Calendar, Stethoscope, FileText, Check, AlertCircle, Loader2, Users, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
-import { getReferralAgents } from '@/lib/api/marketing';
+import { getReferralAgents, getReferralDoctors, createReferralPatient } from '@/lib/api/marketing';
 
 export default function AddReferralPatientPage() {
     const router = useRouter();
@@ -58,19 +58,25 @@ export default function AddReferralPatientPage() {
 
     const fetchDoctors = async () => {
         try {
-            const token = localStorage.getItem('token');
-            const baseUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || '';
-            const apiUrl = `${baseUrl}/marketing/referral-doctors`;
+            const res = await getReferralDoctors(false); // Fetch detailed list (unmasked if needed for dropdown)
+            if (res.data) {
+                // API helper returns { success, data }, so res IS the response body
+                // But wait, the helper returns response.data directly.
+                // Let's check marketing.ts: 
+                // export const getReferralDoctors = async (mask = true) => {
+                //     const response = await api.get<{ success: boolean, data: ReferralDoctor[] }>(`/marketing/referral-doctors?mask=${mask}`);
+                //     return response.data;
+                // };
+                // So res is { success: boolean, data: ReferralDoctor[] }
 
-            const response = await axios.get(apiUrl, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            if (response.data.success) {
-                setDoctors(response.data.data.filter((d: any) => d.status === 'Active' || d.status === 'Pending' || !d.status));
+                if (res.success) {
+                    setDoctors(res.data.filter((d: any) => d.status === 'Active' || d.status === 'Pending' || !d.status));
+                }
             }
         } catch (err) {
             console.error('Error fetching doctors:', err);
-            setError('Failed to load referral doctors.');
+            const errorMsg = (err as any).response?.data?.message || (err as any).message || 'Failed to load referral doctors.';
+            setError(errorMsg);
         } finally {
             setFetchingDoctors(false);
         }
@@ -161,10 +167,6 @@ export default function AddReferralPatientPage() {
         }
 
         try {
-            const token = localStorage.getItem('token');
-            const baseUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || '';
-            const apiUrl = `${baseUrl}/marketing/referral-patients`;
-
             // Ensure referral_doctor_id is populated for backward compatibility if Doctor is selected
             // If Agent/Self, referral_doctor_id can be null or ignored by backend if updated
             const payload = {
@@ -172,11 +174,9 @@ export default function AddReferralPatientPage() {
                 referral_doctor_id: referralMeans === 'Doctor' ? formData.means_id : null
             };
 
-            const response = await axios.post(apiUrl, payload, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const response = await createReferralPatient(payload);
 
-            if (response.data.success) {
+            if (response.success) {
                 setSubmitSuccess(true);
                 setTimeout(() => {
                     setFormData({

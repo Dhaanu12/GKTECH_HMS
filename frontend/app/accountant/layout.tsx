@@ -54,7 +54,7 @@ export default function AccountantLayout({
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 flex">
+        <div className="min-h-screen bg-[#EBF5FF] flex">
             {/* Mobile sidebar backdrop */}
             {sidebarOpen && (
                 <div
@@ -175,7 +175,7 @@ export default function AccountantLayout({
                 </header>
 
                 {/* Page Content */}
-                <main className="flex-1 overflow-y-auto bg-gray-50 p-4 lg:p-8">
+                <main className="flex-1 overflow-y-auto bg-[#EBF5FF] p-4 lg:p-8">
                     <div className="max-w-7xl mx-auto">
                         {children}
                     </div>

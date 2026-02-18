@@ -44,7 +44,7 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
     ];
 
     return (
-        <div className="min-h-screen bg-gray-50 flex">
+        <div className="min-h-screen bg-[#EBF5FF] flex">
             {/* Mobile sidebar backdrop */}
             {sidebarOpen && (
                 <div
@@ -175,7 +175,7 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
                 </header>
 
                 {/* Content */}
-                <main className={`flex-1 overflow-auto p-6 ${isPatientDetail ? 'bg-[#EBF5FF]' : 'bg-gray-50/50'}`}>
+                <main className="flex-1 overflow-auto p-6 bg-[#EBF5FF]">
                     {children}
                 </main>
             </div>

@@ -18,6 +18,11 @@ export const getReferralPatients = async () => {
     return response.data;
 };
 
+export const createReferralPatient = async (data: any) => {
+    const response = await api.post<{ success: boolean, data: any }>('/marketing/referral-patients', data);
+    return response.data;
+};
+
 export const createReferralDoctor = async (formData: FormData) => {
     // Note: Use FormData for file uploads
     const response = await api.post<{ success: boolean, data: ReferralDoctor }>('/marketing/referral-doctors', formData, {

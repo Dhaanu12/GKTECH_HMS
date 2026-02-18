@@ -594,35 +594,26 @@ class ClientAdminController {
 
                     // 2. Revenue in range
                     revenueMonthRes = await client.query(`
-                        WITH opd_rev AS (
-                            SELECT COALESCE(SUM(consultation_fee), 0) as val 
-                            FROM opd_entries o
-                            JOIN branches b ON o.branch_id = b.branch_id
-                            WHERE b.hospital_id = $1 
-                            AND DATE(o.visit_date) >= $2::date AND DATE(o.visit_date) <= $3::date
-                        ),
-                        bill_rev AS (
-                            SELECT COALESCE(SUM(d.final_price), 0) as val
-                            FROM bill_details d
-                            JOIN billing_master bm ON d.bill_master_id = bm.bill_master_id
-                            JOIN branches b ON bm.branch_id = b.branch_id
-                            WHERE b.hospital_id = $1
-                            AND DATE(bm.billing_date) >= $2::date AND DATE(bm.billing_date) <= $3::date
-                        )
-                        SELECT (SELECT val FROM opd_rev) + (SELECT val FROM bill_rev) as total_revenue
+                        SELECT COALESCE(SUM(d.final_price), 0) as total_revenue
+                        FROM bill_details d
+                        JOIN billing_master bm ON d.bill_master_id = bm.bill_master_id
+                        JOIN branches b ON bm.branch_id = b.branch_id
+                        WHERE b.hospital_id = $1
+                        AND DATE(bm.billing_date) >= $2::date AND DATE(bm.billing_date) <= $3::date
                     `, [hospital_id, startDate, endDate]).catch(() => ({ rows: [{ total_revenue: 0 }] }));
 
                     // 3. Trend (Daily within range)
                     revenueTrendRes = await client.query(`
                         SELECT 
-                             TO_CHAR(DATE(o.visit_date), 'DD Mon') as name,
-                             COALESCE(SUM(o.consultation_fee), 0) as revenue
-                         FROM opd_entries o
-                         JOIN branches b ON o.branch_id = b.branch_id
+                             TO_CHAR(DATE(bm.billing_date), 'DD Mon') as name,
+                             COALESCE(SUM(d.final_price), 0) as revenue
+                         FROM bill_details d
+                         JOIN billing_master bm ON d.bill_master_id = bm.bill_master_id
+                         JOIN branches b ON bm.branch_id = b.branch_id
                          WHERE b.hospital_id = $1
-                         AND DATE(o.visit_date) >= $2::date AND DATE(o.visit_date) <= $3::date
-                         GROUP BY DATE(o.visit_date)
-                         ORDER BY DATE(o.visit_date)
+                         AND DATE(bm.billing_date) >= $2::date AND DATE(bm.billing_date) <= $3::date
+                         GROUP BY DATE(bm.billing_date)
+                         ORDER BY DATE(bm.billing_date)
                      `, [hospital_id, startDate, endDate]);
 
                     // 4. Clinical (Diagnoses in range)
@@ -679,22 +670,12 @@ class ClientAdminController {
 
                     // 2. Revenue This Month (KPI)
                     revenueMonthRes = await client.query(`
-                        WITH opd_rev AS(
-                            SELECT COALESCE(SUM(consultation_fee), 0) as val 
-                            FROM opd_entries o
-                            JOIN branches b ON o.branch_id = b.branch_id
-                            WHERE b.hospital_id = $1 
-                            AND date_trunc('month', o.visit_date) = date_trunc('month', CURRENT_DATE)
-                        ),
-                        bill_rev AS(
-                            SELECT COALESCE(SUM(d.final_price), 0) as val
-                            FROM bill_details d
-                            JOIN billing_master i ON d.bill_master_id = i.bill_master_id
-                            JOIN branches b ON i.branch_id = b.branch_id
-                            WHERE b.hospital_id = $1
-                            AND date_trunc('month', i.billing_date) = date_trunc('month', CURRENT_DATE)
-                        )
-                    SELECT(SELECT val FROM opd_rev) + (SELECT val FROM bill_rev) as total_revenue
+                        SELECT COALESCE(SUM(d.final_price), 0) as total_revenue
+                        FROM bill_details d
+                        JOIN billing_master i ON d.bill_master_id = i.bill_master_id
+                        JOIN branches b ON i.branch_id = b.branch_id
+                        WHERE b.hospital_id = $1
+                        AND date_trunc('month', i.billing_date) = date_trunc('month', CURRENT_DATE)
                         `, [hospital_id]);
 
                     // 3. Revenue Trend (Last 6 months)

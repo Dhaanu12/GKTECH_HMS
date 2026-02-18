@@ -36,7 +36,14 @@ class ReportingController {
                     COUNT(DISTINCT o.patient_id) as unique_patients,
                     
                     -- Revenue Breakdown
-                    SUM(COALESCE(o.consultation_fee, 0)) as consultation_revenue,
+                    (
+                        SELECT COALESCE(SUM(d.final_price), 0)
+                        FROM bill_details d
+                        JOIN billing_master bm ON d.bill_master_id = bm.bill_master_id
+                        WHERE bm.branch_id = b.branch_id
+                        AND d.service_type = 'consultation'
+                        AND DATE(bm.billing_date) >= $2::date AND DATE(bm.billing_date) <= $3::date
+                    ) as consultation_revenue,
                     (
                         SELECT COALESCE(SUM(d.final_price), 0)
                         FROM bill_details d
@@ -58,12 +65,12 @@ class ReportingController {
                         FROM bill_details d
                         JOIN billing_master bm ON d.bill_master_id = bm.bill_master_id
                         WHERE bm.branch_id = b.branch_id
-                        AND d.service_type NOT IN ('LAB', 'PHARMACY') OR d.service_type IS NULL
+                        AND (d.service_type NOT IN ('LAB', 'PHARMACY', 'consultation') OR d.service_type IS NULL)
                         AND DATE(bm.billing_date) >= $2::date AND DATE(bm.billing_date) <= $3::date
                     ) as other_revenue,
                     
-                    -- Total Revenue (all sources)
-                    SUM(COALESCE(o.consultation_fee, 0)) + (
+                    -- Total Revenue (all sources from billing)
+                    (
                         SELECT COALESCE(SUM(d.final_price), 0)
                         FROM bill_details d
                         JOIN billing_master bm ON d.bill_master_id = bm.bill_master_id

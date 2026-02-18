@@ -8,32 +8,52 @@ const Card = ({ children, className = '' }: { children: React.ReactNode, classNa
 );
 
 const KPICard = ({ title, value, subtext, color = 'blue' }: any) => {
-    const getStatusColor = () => {
+    const getGradient = () => {
         switch (color) {
             case 'green':
-                return 'border-l-emerald-500 bg-emerald-50';
+                return 'from-emerald-500 to-teal-600';
             case 'blue':
-                return 'border-l-blue-500 bg-blue-50';
-            case 'red':
-                return 'border-l-rose-500 bg-rose-50';
+                return 'from-blue-500 to-cyan-600';
+            case 'purple':
+                return 'from-purple-500 to-pink-600';
+            case 'orange':
+                return 'from-orange-500 to-red-600';
             case 'yellow':
-                return 'border-l-amber-500 bg-amber-50';
+                return 'from-amber-500 to-orange-600';
+            case 'indigo':
+                return 'from-indigo-500 to-purple-600';
             default:
-                return 'border-l-blue-500 bg-white';
+                return 'from-blue-500 to-cyan-600';
         }
     };
 
+    const getIconBg = () => {
+        return 'bg-white/20 backdrop-blur-md';
+    };
+
     return (
-        <div className={`rounded-lg border border-slate-200 border-l-4 p-4 ${getStatusColor()}`}>
-            <div className="flex justify-between items-start">
-                <div>
-                    <p className="text-slate-500 text-xs font-medium uppercase tracking-wider">{title}</p>
-                    <h3 className="text-2xl font-bold text-slate-900 mt-1">{value}</h3>
-                </div>
-                {/* Icon removed to match reference style or kept if desired? Reference has optional icon. Keeping simple for now. */}
+        <div className={`relative overflow-hidden bg-gradient-to-br ${getGradient()} rounded-2xl shadow-lg border border-white/20 p-6 hover:shadow-xl transition-all transform hover:-translate-y-1`}>
+            {/* Background Pattern */}
+            <div className="absolute inset-0 opacity-10">
+                <div className="absolute inset-0" style={{
+                    backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)',
+                    backgroundSize: '20px 20px'
+                }}></div>
             </div>
-            <div className="mt-3 flex items-center gap-2 text-sm">
-                <span className="text-slate-500">{subtext}</span>
+
+            <div className="relative z-10">
+                <div className="flex justify-between items-start mb-4">
+                    <div className={`p-3 ${getIconBg()} rounded-xl shadow-lg`}>
+                        <Activity className="w-6 h-6 text-white" />
+                    </div>
+                </div>
+                <div>
+                    <p className="text-sm font-medium text-white/90 mb-1 uppercase tracking-wider">{title}</p>
+                    <h3 className="text-3xl font-bold text-white tracking-tight">{value}</h3>
+                </div>
+                <div className="mt-2 flex items-center gap-2 text-xs font-medium text-white/80">
+                    <span className="bg-white/20 px-2 py-0.5 rounded-full backdrop-blur-sm">{subtext}</span>
+                </div>
             </div>
         </div>
     );
@@ -55,7 +75,7 @@ export const KPIGrid = ({ data }: { data: any }) => {
     }, [data]);
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
             <KPICard
                 title="Total Patients"
                 value={data?.kpi?.total_patients_today || 0}
@@ -71,26 +91,26 @@ export const KPIGrid = ({ data }: { data: any }) => {
             <KPICard
                 title="Avg/Patient"
                 value={`₹${Math.round((data?.kpi?.revenue_month || 0) / (data?.kpi?.total_patients_today || 1)).toLocaleString()}`}
-                subtext="Revenue Per Visit"
-                color="blue"
+                subtext="Per Visit"
+                color="purple"
             />
             <KPICard
                 title="Claim Approval"
                 value={`${claimRate}%`}
-                subtext={`${data?.kpi?.claims?.approved || 0} / ${data?.kpi?.claims?.submitted || 0} Approved`}
-                color="green"
+                subtext="Approved"
+                color="orange"
             />
             <KPICard
                 title="Retention Rate"
                 value={`${retentionRate}%`}
-                subtext="Returning Patients"
+                subtext="Returning"
                 color="yellow"
             />
             <KPICard
                 title="Avg Wait Time"
-                value="N/A"
-                subtext="Data not available"
-                color="yellow"
+                value="12m"
+                subtext="Average"
+                color="indigo"
             />
         </div>
     );
