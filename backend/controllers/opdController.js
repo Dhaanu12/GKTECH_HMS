@@ -630,6 +630,29 @@ class OpdController {
                     WHERE opd_id = $2 AND branch_id = $3
                 `, [staffCode, id, branch_id]);
             }
+            // 4. Update Appointment Status
+            if (visit_status === 'Completed' || visit_status === 'Cancelled') {
+                const opdData = result.rows[0];
+                const patientId = opdData.patient_id;
+                const doctorId = opdData.doctor_id;
+                const visitDate = opdData.visit_date;
+
+                // Heuristic: Update appointment for same patient, doctor, and date
+                // that is currently 'In OPD' (or 'Scheduled' if missed)
+                // If Cancelled, we set to Cancelled.
+                // If Completed, we set to Completed.
+
+                const apptStatus = visit_status === 'Cancelled' ? 'Cancelled' : 'Completed';
+
+                await client.query(`
+                    UPDATE appointments
+                    SET appointment_status = $1, updated_at = CURRENT_TIMESTAMP
+                    WHERE patient_id = $2 
+                    AND doctor_id = $3 
+                    AND appointment_date = $4
+                    AND appointment_status IN ('In OPD', 'Scheduled', 'Confirmed')
+                `, [apptStatus, patientId, doctorId, visitDate]);
+            }
 
             await client.query('COMMIT');
 

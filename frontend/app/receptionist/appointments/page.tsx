@@ -90,6 +90,7 @@ export default function AppointmentsPage() {
         const { appointment_status, cancellation_reason } = apt;
         if (appointment_status === 'Confirmed') return { label: 'Scheduled', style: 'bg-blue-500 text-white' };
         if (appointment_status === 'Scheduled') return { label: 'Scheduled', style: 'bg-blue-500 text-white' };
+        if (appointment_status === 'In OPD') return { label: 'In OPD', style: 'bg-purple-100 text-purple-700' };
         if (appointment_status === 'Cancelled') {
             if (cancellation_reason === 'No Answer') return { label: 'Scheduled', style: 'bg-blue-500 text-white' };
             return { label: 'Cancelled', style: 'bg-slate-400 text-white' };
@@ -101,6 +102,7 @@ export default function AppointmentsPage() {
     const getDropdownStyle = (apt: any) => {
         const { appointment_status, cancellation_reason } = apt;
         if (appointment_status === 'Confirmed') return 'bg-emerald-50 border-emerald-200 text-emerald-600';
+        if (appointment_status === 'In OPD') return 'bg-purple-50 border-purple-200 text-purple-600';
         if (appointment_status === 'Cancelled' && cancellation_reason === 'No Answer') return 'bg-amber-50 border-amber-200 text-amber-600';
         if (appointment_status === 'No-show') return 'bg-slate-50 border-slate-200 text-slate-500';
         return 'bg-slate-50 border-slate-200 text-slate-600';
@@ -295,7 +297,13 @@ export default function AppointmentsPage() {
             const query = searchQuery.toLowerCase();
             const name = apt.patient_name?.toLowerCase() || '';
             const phone = apt.phone_number?.toString() || '';
-            if (!name.includes(query) && !phone.includes(query)) return false;
+            const mrn = (apt.mrn_number || apt.patient_id)?.toString().toLowerCase() || '';
+            const apptNo = apt.appointment_number?.toLowerCase() || '';
+
+            if (!name.includes(query) &&
+                !phone.includes(query) &&
+                !mrn.includes(query) &&
+                !apptNo.includes(query)) return false;
         }
 
         return true;
@@ -306,7 +314,7 @@ export default function AppointmentsPage() {
             {/* Header Section */}
             <div className="mb-8 px-6">
                 <div className="flex items-center gap-4 mb-2">
-                    <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-purple-500/30">
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-500/30">
                         <Activity className="w-6 h-6" />
                     </div>
                     <div className="flex-1">
@@ -326,7 +334,7 @@ export default function AppointmentsPage() {
 
                 {/* Search & Filters */}
                 {/* Search & Filters */}
-                <div className="bg-white/80 p-1 rounded-[2rem] border border-slate-200/60 shadow-xl shadow-slate-200/20 mt-6 flex flex-col md:flex-row gap-2 items-center w-full backdrop-blur-xl transition-all hover:shadow-2xl hover:shadow-slate-200/30">
+                <div className="bg-slate-100 p-1 rounded-[2rem] border border-slate-200/60 shadow-xl shadow-slate-200/20 mt-6 flex flex-col md:flex-row gap-2 items-center w-full backdrop-blur-xl transition-all hover:shadow-2xl hover:shadow-slate-200/30">
                     <div className="relative flex-1 w-full group">
                         <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-purple-600 transition-colors pointer-events-none">
                             <Search className="w-5 h-5" />
@@ -336,7 +344,7 @@ export default function AppointmentsPage() {
                             placeholder="Search Name or Phone..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-12 pr-4 py-3.5 bg-slate-50/50 hover:bg-white focus:bg-white border focus:border-purple-100 border-transparent rounded-[1.5rem] text-sm font-semibold text-slate-700 outline-none focus:ring-4 focus:ring-purple-500/10 placeholder:text-slate-400 transition-all shadow-sm hover:shadow-md duration-300"
+                            className="w-full pl-12 pr-4 py-3.5 bg-white hover:bg-slate-50 focus:bg-slate-50 border border-slate-200 hover:border-purple-100 focus:border-purple-100 rounded-[1.5rem] text-sm font-semibold text-slate-700 outline-none focus:ring-4 focus:ring-purple-500/10 placeholder:text-slate-400 transition-all shadow-sm hover:shadow-md duration-300"
                         />
                     </div>
                     <div className="w-full md:w-auto">
@@ -344,7 +352,7 @@ export default function AppointmentsPage() {
                             type="date"
                             value={selectedDate}
                             onChange={(e) => setSelectedDate(e.target.value)}
-                            className="w-full px-5 py-3.5 bg-slate-50/50 hover:bg-white focus:bg-white border focus:border-purple-100 border-transparent rounded-[1.5rem] text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-purple-500/10 cursor-pointer shadow-sm hover:shadow-md transition-all duration-300"
+                            className="w-full px-5 py-3.5 bg-white hover:bg-slate-50 focus:bg-slate-50 border border-slate-200 hover:border-purple-100 focus:border-purple-100 rounded-[1.5rem] text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-purple-500/10 cursor-pointer shadow-sm hover:shadow-md transition-all duration-300"
                         />
                     </div>
                     <div className="w-full md:w-64 relative group">
@@ -354,7 +362,7 @@ export default function AppointmentsPage() {
                         <select
                             value={selectedDoctorId}
                             onChange={(e) => setSelectedDoctorId(e.target.value)}
-                            className="w-full pl-12 pr-10 py-3.5 bg-slate-50/50 hover:bg-white focus:bg-white border focus:border-purple-100 border-transparent rounded-[1.5rem] text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-purple-500/10 cursor-pointer appearance-none shadow-sm hover:shadow-md transition-all duration-300"
+                            className="w-full pl-12 pr-10 py-3.5 bg-white hover:bg-slate-50 focus:bg-slate-50 border border-slate-200 hover:border-purple-100 focus:border-purple-100 rounded-[1.5rem] text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-purple-500/10 cursor-pointer appearance-none shadow-sm hover:shadow-md transition-all duration-300"
                         >
                             <option value="">All Doctors</option>
                             {doctors.map(doc => (
@@ -368,12 +376,12 @@ export default function AppointmentsPage() {
 
                     <button
                         onClick={() => setShowModal(true)}
-                        className="w-full md:w-auto pl-4 pr-6 py-3.5 bg-slate-900 hover:bg-black text-white rounded-[1.5rem] font-bold shadow-lg shadow-slate-900/20 hover:shadow-xl hover:shadow-slate-900/30 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 whitespace-nowrap group"
+                        className="w-full md:w-auto pl-4 pr-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-[1.5rem] font-bold shadow-lg shadow-blue-600/20 hover:shadow-xl hover:shadow-blue-600/30 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 whitespace-nowrap group"
                     >
                         <div className="bg-white/20 p-1 rounded-full group-hover:bg-white/30 transition-colors">
                             <Plus className="w-4 h-4" />
                         </div>
-                        <span>New Appt</span>
+                        <span>New Appointment</span>
                     </button>
                 </div>
             </div>
@@ -382,19 +390,19 @@ export default function AppointmentsPage() {
 
 
             {/* Tabs */}
-            <div className="flex flex-wrap items-center gap-2 mb-8 bg-white p-2 rounded-2xl border border-slate-100 w-fit">
+            <div className="flex flex-wrap items-center gap-2 mb-8 bg-slate-100 p-1.5 rounded-2xl border border-slate-200 w-fit">
                 {['All', 'Scheduled', 'Completed', 'Cancelled'].map((tab) => (
                     <button
                         key={tab}
                         onClick={() => setActiveTab(tab)}
                         className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === tab
-                            ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/20'
+                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
                             : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
                             }`}
                     >
                         {tab} <span className="opacity-60 ml-1 text-xs">
                             ({tab === 'All' ? filteredByContext.length : filteredByContext.filter((a: any) =>
-                                tab === 'Scheduled' ? ['Scheduled', 'Confirmed'].includes(a.appointment_status) :
+                                tab === 'Scheduled' ? ['Scheduled', 'Confirmed', 'In OPD'].includes(a.appointment_status) :
                                     a.appointment_status === tab
                             ).length})
                         </span>
@@ -408,7 +416,7 @@ export default function AppointmentsPage() {
                     .filter((a: any) => {
                         // Status Filter (Tab)
                         if (activeTab === 'All') return true;
-                        if (activeTab === 'Scheduled') return ['Scheduled', 'Confirmed'].includes(a.appointment_status);
+                        if (activeTab === 'Scheduled') return ['Scheduled', 'Confirmed', 'In OPD'].includes(a.appointment_status);
                         return a.appointment_status === activeTab;
                     })
                     .map((apt: any) => {
@@ -426,7 +434,7 @@ export default function AppointmentsPage() {
                                     {/* Header: Patient Info & Status */}
                                     <div className="flex flex-col md:flex-row md:items-center gap-2 mb-2">
                                         <div className="flex items-center gap-3">
-                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold ${['Scheduled', 'Confirmed'].includes(apt.appointment_status) || (apt.appointment_status === 'Cancelled' && apt.cancellation_reason === 'No Answer')
+                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold ${['Scheduled', 'Confirmed', 'In OPD'].includes(apt.appointment_status) || (apt.appointment_status === 'Cancelled' && apt.cancellation_reason === 'No Answer')
                                                 ? 'bg-blue-100 text-blue-600'
                                                 : 'bg-slate-100 text-slate-600'
                                                 }`}>
@@ -443,6 +451,8 @@ export default function AppointmentsPage() {
                                                         </span>
                                                     </div>
 
+
+
                                                     {apt.phone_number && (
                                                         <a
                                                             href={`tel:${apt.phone_number}`}
@@ -456,7 +466,18 @@ export default function AppointmentsPage() {
                                                         </a>
                                                     )}
                                                 </div>
-                                                <p className="text-slate-500 text-[10px] font-medium mt-1.5 ml-0.5">{apt.reason_for_visit || 'General Checkup'}</p>
+                                                <div className="flex items-center gap-2 mt-1.5 ml-0.5">
+                                                    {apt.patient_id && (
+                                                        <div className="text-xs text-slate-500 font-mono flex items-center gap-1 shrink-0">
+                                                            <span className="font-medium opacity-80">PID:</span>
+                                                            <span className="font-bold text-slate-700">#{apt.mrn_number || apt.patient_id}</span>
+                                                        </div>
+                                                    )}
+                                                    {apt.patient_id && <span className="text-slate-300">|</span>}
+                                                    <p className="text-slate-500 text-[10px] font-medium whitespace-nowrap overflow-hidden text-overflow-ellipsis">
+                                                        {apt.reason_for_visit || 'General Checkup'}
+                                                    </p>
+                                                </div>
                                             </div>
                                         </div>
 
@@ -518,25 +539,31 @@ export default function AppointmentsPage() {
                                         </div>
 
                                         <div className="flex flex-wrap items-center gap-3 md:ml-auto justify-end">
-                                            <button
-                                                onClick={() => openRescheduleModal(apt)}
-                                                className="px-3 py-1.5 text-xs font-bold text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                                            >
-                                                Reschedule
-                                            </button>
-                                            <button
-                                                onClick={() => openCancelModal(apt)}
-                                                className="px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                            >
-                                                Cancel
-                                            </button>
-                                            <button
-                                                onClick={() => convertToOPD(apt)}
-                                                className="px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-lg hover:bg-black transition-all shadow-lg shadow-slate-900/10 flex items-center gap-2"
-                                            >
-                                                Convert to OPD
-                                                <ArrowRight className="w-3 h-3" />
-                                            </button>
+                                            {apt.appointment_status !== 'In OPD' && apt.appointment_status !== 'Completed' && (
+                                                <button
+                                                    onClick={() => openRescheduleModal(apt)}
+                                                    className="px-3 py-1.5 text-xs font-bold text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                                                >
+                                                    Reschedule
+                                                </button>
+                                            )}
+                                            {['Scheduled', 'Confirmed', 'No-show'].includes(apt.appointment_status) && (
+                                                <button
+                                                    onClick={() => openCancelModal(apt)}
+                                                    className="px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                >
+                                                    Cancel
+                                                </button>
+                                            )}
+                                            {['Scheduled', 'Confirmed'].includes(apt.appointment_status) && (
+                                                <button
+                                                    onClick={() => convertToOPD(apt)}
+                                                    className="px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-lg hover:bg-black transition-all shadow-lg shadow-slate-900/10 flex items-center gap-2"
+                                                >
+                                                    Convert to OPD
+                                                    <ArrowRight className="w-3 h-3" />
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
