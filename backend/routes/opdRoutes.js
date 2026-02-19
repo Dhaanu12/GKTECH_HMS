@@ -21,6 +21,9 @@ router.get('/patient/:patientId', authorize('RECEPTIONIST', 'DOCTOR', 'CLIENT_AD
 // GET /api/opd/check-duplicate - Check for duplicate entry
 router.get('/check-duplicate', authorize('RECEPTIONIST', 'DOCTOR', 'CLIENT_ADMIN', 'NURSE'), opdController.checkDuplicate);
 
+// GET /api/opd/today - Get today's OPD entries (Registered before /:id to prevent shadowing)
+router.get('/today', authorize('RECEPTIONIST', 'DOCTOR', 'CLIENT_ADMIN', 'NURSE'), opdController.getTodayOpdEntries);
+
 // GET /api/opd/:id - Get OPD entry details
 router.get('/:id', authorize('RECEPTIONIST', 'DOCTOR', 'CLIENT_ADMIN', 'NURSE'), opdController.getOpdEntryById);
 
