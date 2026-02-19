@@ -75,3 +75,23 @@ export interface Service {
     department_id?: number;
     base_price?: number;
 }
+
+export interface Module {
+    module_id: number;
+    module_name: string;
+    module_code: string;
+    status: string;
+}
+
+export interface ClientModule {
+    client_module_id: number;
+    client_id: number;
+    module_id: number;
+    marketing_id?: number | null;
+    status: string;
+    branch_id?: number | null;
+    created_at?: string;
+    updated_at?: string;
+    module_name?: string;
+    module_code?: string;
+}

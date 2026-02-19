@@ -1,7 +1,18 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Clock, User } from 'lucide-react';
-import { Doctor } from '../../app/doctor-schedule/page';
+export interface Doctor {
+    doctor_id: number;
+    first_name: string;
+    last_name: string;
+    specialization: string;
+    profile_photo?: string;
+    attendance_status?: string;
+    start_time: string; // HH:mm:ss
+    end_time: string; // HH:mm:ss
+    avg_consultation_time: number;
+    patients_waiting?: number;
+}
 
 interface ViewProps {
     doctors: Doctor[];

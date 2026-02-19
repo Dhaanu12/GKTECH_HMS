@@ -17,7 +17,7 @@ export default function AppointmentsPage() {
     // Phone search implementation added
     const { user } = useAuth();
     const [loading, setLoading] = useState(false);
-    const [appointments, setAppointments] = useState([]);
+    const [appointments, setAppointments] = useState<any[]>([]);
     const [departments, setDepartments] = useState<any[]>([]);
     const [selectedDepartment, setSelectedDepartment] = useState('All Departments');
     const [doctors, setDoctors] = useState<any[]>([]);

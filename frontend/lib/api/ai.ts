@@ -18,8 +18,11 @@ const aiApi = axios.create({
 
 // Add auth interceptor
 aiApi.interceptors.request.use((config) => {
-    const headers = getAuthHeaders();
-    config.headers = { ...config.headers, ...headers };
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (token) {
+        // Use type assertion to avoid linter errors with newer Axios versions
+        (config.headers as any).Authorization = `Bearer ${token}`;
+    }
     return config;
 });
 
@@ -212,7 +215,7 @@ export async function interpretLabResults(
  */
 export async function suggestNotes(
     content: string,
-    action: 'improve' | 'summarize' | 'expand' = 'improve'
+    action: 'improve' | 'summarize' | 'expand' | 'generate' = 'improve'
 ): Promise<AIResponse> {
     try {
         const response = await aiApi.post('/suggest-notes', { content, action });

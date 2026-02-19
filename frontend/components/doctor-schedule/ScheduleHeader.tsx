@@ -1,7 +1,7 @@
 import React from 'react';
 import { format, addDays, subDays } from 'date-fns';
 import { ChevronLeft, ChevronRight, Calendar, LayoutGrid, List, BarChart3, Plus } from 'lucide-react';
-import { ViewMode } from '../../app/doctor-schedule/page';
+export type ViewMode = 'futuristic' | 'clean' | 'dashboard';
 
 interface ScheduleHeaderProps {
     selectedDate: Date;

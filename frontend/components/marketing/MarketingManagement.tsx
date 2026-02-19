@@ -55,7 +55,7 @@ export default function MarketingManagement() {
             // Let's fetch all relevant roles.
             const res = await getUsers({
                 role_code: activeTab === 'managers' ? 'MRKT_MNGR' : 'MRKT_EXEC',
-                hospital_id: user?.role_code === 'CLIENT_ADMIN' ? user.hospital_id : (selectedHospitalId || undefined)
+                hospital_id: user?.role_code === 'CLIENT_ADMIN' ? (user.hospital_id?.toString() || undefined) : (selectedHospitalId || undefined)
             });
 
             if (res.success) {

@@ -1,6 +1,17 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Doctor } from '../../app/doctor-schedule/page';
+export interface Doctor {
+    doctor_id: number;
+    first_name: string;
+    last_name: string;
+    specialization: string;
+    profile_photo?: string;
+    attendance_status?: string;
+    start_time: string; // HH:mm:ss
+    end_time: string; // HH:mm:ss
+    avg_consultation_time: number;
+    patients_waiting?: number;
+}
 
 interface ViewProps {
     doctors: Doctor[];
@@ -47,11 +58,11 @@ export default function DashboardView({ doctors, date }: ViewProps) {
                                 </td>
                                 <td className="px-6 py-4">
                                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${doctor.attendance_status === 'Present' ? 'bg-green-50 text-green-700 border-green-200' :
-                                            doctor.attendance_status === 'Late' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
-                                                'bg-gray-50 text-gray-600 border-gray-200'
+                                        doctor.attendance_status === 'Late' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                                            'bg-gray-50 text-gray-600 border-gray-200'
                                         }`}>
                                         <span className={`w-1.5 h-1.5 rounded-full ${doctor.attendance_status === 'Present' ? 'bg-green-500' :
-                                                doctor.attendance_status === 'Late' ? 'bg-yellow-500' : 'bg-gray-400'
+                                            doctor.attendance_status === 'Late' ? 'bg-yellow-500' : 'bg-gray-400'
                                             }`}></span>
                                         {doctor.attendance_status || 'N/A'}
                                     </span>

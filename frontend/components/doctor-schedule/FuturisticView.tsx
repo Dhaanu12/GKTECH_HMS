@@ -1,7 +1,18 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Clock, Stethoscope, User, Calendar, MoreHorizontal, Zap } from 'lucide-react';
-import { Doctor } from '../../app/doctor-schedule/page';
+export interface Doctor {
+    doctor_id: number;
+    first_name: string;
+    last_name: string;
+    specialization: string;
+    profile_photo?: string;
+    attendance_status?: string;
+    start_time: string; // HH:mm:ss
+    end_time: string; // HH:mm:ss
+    avg_consultation_time: number;
+    patients_waiting?: number;
+}
 import { format } from 'date-fns';
 
 interface ViewProps {
@@ -39,7 +50,7 @@ export default function FuturisticView({ doctors, date }: ViewProps) {
                                     )}
                                 </div>
                                 <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-slate-900 ${doctor.attendance_status === 'Present' ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' :
-                                        doctor.attendance_status === 'Late' ? 'bg-yellow-500' : 'bg-red-500'
+                                    doctor.attendance_status === 'Late' ? 'bg-yellow-500' : 'bg-red-500'
                                     }`} />
                             </div>
 
