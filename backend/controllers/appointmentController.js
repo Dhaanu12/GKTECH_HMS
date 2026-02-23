@@ -170,10 +170,16 @@ class AppointmentController {
             }
 
             // Filter by patient_id if provided
-            const { patient_id } = req.query;
+            const { patient_id, doctor_id: query_doctor_id } = req.query;
             if (patient_id) {
                 params.push(patient_id);
                 sql += ` AND a.patient_id = $${params.length}`;
+            }
+
+            // Filter by doctor_id if provided via query
+            if (query_doctor_id) {
+                params.push(query_doctor_id);
+                sql += ` AND a.doctor_id = $${params.length}`;
             }
 
             sql += ' ORDER BY a.appointment_date DESC, a.appointment_time DESC LIMIT 100';
