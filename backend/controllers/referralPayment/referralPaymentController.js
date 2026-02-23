@@ -1,5 +1,5 @@
 const { Pool } = require('pg');
-const xlsx = require('xlsx');
+const ExcelJS = require('exceljs');
 const path = require('path');
 const fs = require('fs');
 require('dotenv').config();
@@ -105,12 +105,19 @@ exports.downloadTemplate = async (req, res) => {
         dynamicServiceColumns.forEach(col => sampleRow[col] = 1000); // Sample Cost
 
         // Create workbook
-        const ws = xlsx.utils.json_to_sheet([sampleRow], { header: allColumns });
-        const wb = xlsx.utils.book_new();
-        xlsx.utils.book_append_sheet(wb, ws, "Template");
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Template');
+
+        worksheet.columns = allColumns.map(col => ({
+            header: col,
+            key: col,
+            width: 20
+        }));
+
+        worksheet.addRow(sampleRow);
 
         // Write to buffer
-        const buffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+        const buffer = await workbook.xlsx.writeBuffer();
 
         res.setHeader('Content-Disposition', 'attachment; filename="Referral_Payment_Template.xlsx"');
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -133,10 +140,30 @@ exports.uploadReferralData = async (req, res) => {
         }
 
         const filePath = req.file.path;
-        const workbook = xlsx.readFile(filePath);
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const data = xlsx.utils.sheet_to_json(worksheet);
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.readFile(filePath);
+
+        const worksheet = workbook.worksheets[0];
+        const data = [];
+
+        if (worksheet) {
+            const headers = [];
+            worksheet.getRow(1).eachCell((cell) => {
+                headers.push(cell.value);
+            });
+
+            worksheet.eachRow((row, rowNumber) => {
+                if (rowNumber === 1) return;
+                const rowData = {};
+                row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+                    const header = headers[colNumber - 1];
+                    if (header) {
+                        rowData[header] = cell.value;
+                    }
+                });
+                data.push(rowData);
+            });
+        }
 
         if (data.length === 0) {
             return res.status(400).json({ success: false, message: 'Excel file is empty' });

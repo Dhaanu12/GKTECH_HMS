@@ -117,8 +117,7 @@ export default function LabSchedulePage() {
     const { user } = useAuth();
 
     // AI context - clear patient context when on lab schedule
-    let aiContext: { setPageContext?: (page: string, patient?: string) => void } = {};
-    try { aiContext = useAI(); } catch { /* AIContextProvider not available */ }
+    const aiContext: { setPageContext?: (page: string, patient?: string) => void } = useAI() || {};
 
     const [orders, setOrders] = useState<LabOrder[]>([]);
     const [counts, setCounts] = useState<StatusCounts>({ Ordered: 0, 'In-Progress': 0, Completed: 0, Cancelled: 0 });

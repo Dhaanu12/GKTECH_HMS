@@ -182,12 +182,7 @@ export default function NursePatientDetails() {
     }, [patient, loading, vitalsHistory, labOrders, clinicalNotes, opdHistory, summaryRefreshKey]);
 
     // AI Context - to provide patient info to the chat assistant
-    let aiContext: { setPageContext?: (page: string, patient?: string) => void } = {};
-    try {
-        aiContext = useAI();
-    } catch {
-        // AIContextProvider not available, skip
-    }
+    const aiContext: { setPageContext?: (page: string, patient?: string) => void } = useAI() || {};
 
     // OPD Session and Date Range filters
     const [selectedOpdId, setSelectedOpdId] = useState<string>('');
@@ -2682,6 +2677,12 @@ function VitalsGraphModal({
     const previousValue = values.length > 1 ? values[values.length - 2] : null;
     const change = previousValue !== null ? ((latestValue - previousValue) / previousValue * 100).toFixed(1) : null;
 
+    // Precompute to avoid calling Date.now()/new Date() inside JSX render
+    const oldestRecordedAt = vitalsHistory.length > 0 ? vitalsHistory[vitalsHistory.length - 1]?.recorded_at : null;
+    const daysSinceOldest = oldestRecordedAt
+        ? Math.ceil((Date.now() - new Date(oldestRecordedAt).getTime()) / (1000 * 60 * 60 * 24))
+        : 0;
+
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden">
@@ -2695,7 +2696,7 @@ function VitalsGraphModal({
                             <div>
                                 <h2 className="text-xl font-bold text-slate-800">{config.label} Trend</h2>
                                 <p className="text-sm text-slate-500">
-                                    {chartData.length} readings • Last {vitalsHistory.length > 0 ? Math.ceil((Date.now() - new Date(vitalsHistory[vitalsHistory.length - 1]?.recorded_at).getTime()) / (1000 * 60 * 60 * 24)) : 0} days
+                                    {chartData.length} readings • Last {daysSinceOldest} days
                                 </p>
                             </div>
                         </div>

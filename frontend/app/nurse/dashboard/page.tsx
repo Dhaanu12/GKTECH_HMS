@@ -57,8 +57,7 @@ export default function NurseDashboard() {
     const router = useRouter();
 
     // AI context - clear patient context when on dashboard
-    let aiContext: { setPageContext?: (page: string, patient?: string) => void } = {};
-    try { aiContext = useAI(); } catch { /* AIContextProvider not available */ }
+    const aiContext: { setPageContext?: (page: string, patient?: string) => void } = useAI() || {};
 
     // State
     const [shift, setShift] = useState<'Day' | 'Night'>('Day');

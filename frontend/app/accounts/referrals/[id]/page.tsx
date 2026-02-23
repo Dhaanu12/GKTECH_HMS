@@ -7,7 +7,7 @@ import {
     ArrowLeft, Check, AlertCircle, Loader2, FileSpreadsheet,
     Settings2, Percent, CheckCircle2, Info
 } from 'lucide-react';
-import * as XLSX from 'xlsx';
+// CSV helpers (replaces xlsx to avoid security vulnerabilities)
 import {
     getReferralDoctorsWithPercentages,
     getHospitalServices,
@@ -122,22 +122,26 @@ export default function ReferralConfigPage({ params }: { params: Promise<{ id: s
         setSelectedServices([]);
     };
 
-    // Excel Support
+    // CSV helpers (replaces xlsx to avoid security vulnerabilities)
     const handleDownloadTemplate = () => {
-        const data = allServices.map(s => {
+        const headers = ['Service Name', 'Referral Payout (Y/N)', 'Cash Percentage (%)', 'Insurance Percentage (%)'];
+        const rows = allServices.map(s => {
             const config = editingConfigs[s.service_name] || {};
-            return {
-                'Service Name': s.service_name,
-                'Referral Payout (Y/N)': config.referral_pay || 'N',
-                'Cash Percentage (%)': config.cash_percentage || 0,
-                'Insurance Percentage (%)': config.inpatient_percentage || 0
-            };
+            return [
+                `"${s.service_name}"`,
+                config.referral_pay || 'N',
+                config.cash_percentage || 0,
+                config.inpatient_percentage || 0
+            ].join(',');
         });
-
-        const ws = XLSX.utils.json_to_sheet(data);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Service Percentages");
-        XLSX.writeFile(wb, `Referral_Config_${doctor?.doctor_name.replace(/\s+/g, '_')}.xlsx`);
+        const csv = [headers.join(','), ...rows].join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Referral_Config_${doctor?.doctor_name.replace(/\s+/g, '_')}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
     };
 
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -147,32 +151,32 @@ export default function ReferralConfigPage({ params }: { params: Promise<{ id: s
         const reader = new FileReader();
         reader.onload = (event) => {
             try {
-                const bstr = event.target?.result;
-                const wb = XLSX.read(bstr, { type: 'binary' });
-                const wsname = wb.SheetNames[0];
-                const ws = wb.Sheets[wsname];
-                const data = XLSX.utils.sheet_to_json(ws);
-
+                const text = event.target?.result as string;
+                const lines = text.split(/\r?\n/).filter(l => l.trim());
+                if (lines.length < 2) throw new Error('Empty file');
+                const headers = lines[0].split(',').map(h => h.replace(/^"|"$/g, '').trim());
                 const newConfigs = { ...editingConfigs };
-                data.forEach((row: any) => {
+                lines.slice(1).forEach(line => {
+                    const cols = line.split(',').map(c => c.replace(/^"|"$/g, '').trim());
+                    const row: Record<string, string> = {};
+                    headers.forEach((h, i) => row[h] = cols[i] || '');
                     const serviceName = row['Service Name'];
                     if (serviceName) {
                         newConfigs[serviceName] = {
-                            referral_pay: (row['Referral Payout (Y/N)'] || 'N').toString().toUpperCase() === 'Y' ? 'Y' : 'N',
-                            cash_percentage: parseFloat(row['Cash Percentage (%)'] || 0),
-                            inpatient_percentage: parseFloat(row['Insurance Percentage (%)'] || 0)
+                            referral_pay: (row['Referral Payout (Y/N)'] || 'N').toUpperCase() === 'Y' ? 'Y' : 'N',
+                            cash_percentage: parseFloat(row['Cash Percentage (%)'] || '0'),
+                            inpatient_percentage: parseFloat(row['Insurance Percentage (%)'] || '0')
                         };
                     }
                 });
-
                 setEditingConfigs(newConfigs);
-                setMessage({ type: 'success', text: 'Excel data applied successfully! Don\'t forget to Save Changes.' });
+                setMessage({ type: 'success', text: 'CSV data applied successfully! Don\'t forget to Save Changes.' });
             } catch (err) {
                 console.error(err);
-                setMessage({ type: 'error', text: 'Failed to parse Excel file. Please use the correct template.' });
+                setMessage({ type: 'error', text: 'Failed to parse CSV file. Please use the correct template.' });
             }
         };
-        reader.readAsBinaryString(file);
+        reader.readAsText(file);
     };
 
     // Save
@@ -252,7 +256,7 @@ export default function ReferralConfigPage({ params }: { params: Promise<{ id: s
                     <div className="relative">
                         <input
                             type="file"
-                            accept=".xlsx, .xls"
+                            accept=".csv"
                             className="absolute inset-0 opacity-0 cursor-pointer"
                             onChange={handleFileUpload}
                             title="Upload Excel"

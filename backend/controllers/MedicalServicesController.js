@@ -231,7 +231,7 @@ class MedicalServicesController {
             const assignedServiceIds = assignedServicesResult.rows.map(r => r.service_id);
 
             // Generate Excel file
-            const excelBuffer = ExcelService.generateServicesExcel(
+            const excelBuffer = await ExcelService.generateServicesExcel(
                 allServicesResult.rows,
                 assignedServiceIds
             );
@@ -259,7 +259,7 @@ class MedicalServicesController {
             }
 
             // Parse Excel file
-            const parseResult = ExcelService.parseServicesExcel(req.file.buffer);
+            const parseResult = await ExcelService.parseServicesExcel(req.file.buffer);
 
             if (parseResult.errors.length > 0) {
                 return res.status(400).json({
@@ -389,7 +389,7 @@ class MedicalServicesController {
             const assignedServiceIds = assignedServicesResult.rows.map(r => r.service_id);
 
             // Generate Excel file
-            const excelBuffer = ExcelService.generateServicesExcel(
+            const excelBuffer = await ExcelService.generateServicesExcel(
                 allServicesResult.rows,
                 assignedServiceIds
             );
@@ -417,7 +417,7 @@ class MedicalServicesController {
             }
 
             // Parse Excel file
-            const parseResult = ExcelService.parseServicesExcel(req.file.buffer);
+            const parseResult = await ExcelService.parseServicesExcel(req.file.buffer);
 
             if (parseResult.errors.length > 0) {
                 return res.status(400).json({

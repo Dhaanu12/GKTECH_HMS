@@ -22,6 +22,7 @@
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
+    "exceljs": "^4.4.0",
     "express": "^4.18.2",
     "express-validator": "^7.0.1",
     "form-data": "^4.0.5",
@@ -30,8 +31,10 @@
     "morgan": "^1.10.0",
     "multer": "^2.0.2",
     "openai": "^6.19.0",
-    "pg": "^8.18.0",
-    "xlsx": "^0.18.5"
+    "pg": "^8.18.0"
+  },
+  "overrides": {
+    "minimatch": "^10.2.2"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"

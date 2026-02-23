@@ -1284,8 +1284,7 @@ export default function ReceptionistDashboard() {
     }, [appointmentsRefreshKey]);
 
     // AI page context
-    let aiContext: { setPageContext?: (page: string, context?: string) => void } = {};
-    try { aiContext = useAI(); } catch { /* AIContextProvider not available */ }
+    const aiContext: { setPageContext?: (page: string, context?: string) => void } = useAI() || {};
 
     useEffect(() => {
         if (aiContext.setPageContext) {

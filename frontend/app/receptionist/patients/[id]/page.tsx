@@ -158,8 +158,7 @@ export default function ReceptionistPatientDetails() {
     }, [params.id, fetchPatientDetails]);
 
     // AI page context
-    let aiContext: { setPageContext?: (page: string, context?: string) => void } = {};
-    try { aiContext = useAI(); } catch { /* AIContextProvider not available */ }
+    const aiContext: { setPageContext?: (page: string, context?: string) => void } = useAI() || {};
 
     useEffect(() => {
         if (aiContext.setPageContext && patient && !loading) {

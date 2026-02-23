@@ -1,7 +1,7 @@
 const MedicationMaster = require('../models/MedicationMaster');
 const MedicationManufacturer = require('../models/MedicationManufacturer');
 const BranchMedication = require('../models/BranchMedication');
-const xlsx = require('xlsx');
+const ExcelJS = require('exceljs');
 
 exports.getAllMedications = async (req, res) => {
     try {
@@ -140,10 +140,29 @@ exports.uploadMedicationExcel = async (req, res) => {
             return res.status(400).json({ message: 'File and Branch ID are required' });
         }
 
-        const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const data = xlsx.utils.sheet_to_json(worksheet);
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(req.file.buffer);
+        const worksheet = workbook.worksheets[0];
+        const data = [];
+
+        if (worksheet) {
+            const headers = [];
+            worksheet.getRow(1).eachCell((cell) => {
+                headers.push(cell.value);
+            });
+
+            worksheet.eachRow((row, rowNumber) => {
+                if (rowNumber === 1) return;
+                const rowData = {};
+                row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+                    const header = headers[colNumber - 1];
+                    if (header) {
+                        rowData[header] = cell.value;
+                    }
+                });
+                data.push(rowData);
+            });
+        }
 
         let addedCount = 0;
         let skippedCount = 0;

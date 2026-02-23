@@ -15,6 +15,225 @@ interface QueueDetailsModalProps {
     appointments?: any[];
 }
 
+interface QueueTableProps {
+    data: any[];
+    activeTab: 'priority' | 'up-next' | 'in-consultation';
+    setActiveTab: (tab: 'priority' | 'up-next' | 'in-consultation') => void;
+    priorityQueue: any[];
+    upNextList: any[];
+    inConsultationList: any[];
+    getStatusStyle: (status: string) => string;
+    getTokenStyle: (entry: any) => { bg: string; border: string; text: string; lightGroupHover: string };
+    calculateWaitTime: (time: string) => string;
+    onClose: () => void;
+    router: ReturnType<typeof import('next/navigation').useRouter>;
+}
+
+const QueueTable: React.FC<QueueTableProps> = ({
+    data,
+    activeTab,
+    setActiveTab,
+    priorityQueue,
+    upNextList,
+    inConsultationList,
+    getStatusStyle,
+    getTokenStyle,
+    calculateWaitTime,
+    onClose,
+    router,
+}) => (
+    <div className={`overflow-hidden rounded-[20px] border border-slate-200/60 shadow-sm bg-white mb-6`}>
+        {/* Table Header with 3 Tabs */}
+        <div className="p-2 border-b bg-slate-50/50 border-slate-100">
+            <div className="flex bg-slate-100/80 p-1.5 rounded-2xl w-full relative gap-1.5">
+                {/* Tab: Priority Queue (MLC) */}
+                <button
+                    onClick={() => setActiveTab('priority')}
+                    className={`flex-1 flex items-center justify-center gap-4 py-3.5 px-6 rounded-xl transition-all duration-300 ${activeTab === 'priority'
+                        ? 'bg-white shadow-sm ring-1 ring-red-100 text-red-900 border border-red-100'
+                        : 'text-slate-500 hover:bg-red-50/50 hover:text-red-700'
+                        }`}
+                >
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors shrink-0 ${activeTab === 'priority' ? 'bg-red-100 text-red-600' : 'bg-slate-200/50 text-slate-400'
+                        }`}>
+                        <AlertCircle className="w-5 h-5" />
+                    </div>
+                    <div className="flex items-center gap-3 overflow-hidden">
+                        <span className={`text-base font-bold whitespace-nowrap ${activeTab === 'priority' ? 'text-red-900' : 'text-current'}`}>
+                            Priority Que
+                        </span>
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0" />
+                        <span className="text-sm font-bold opacity-60 whitespace-nowrap">
+                            {priorityQueue.length} MLC
+                        </span>
+                    </div>
+                </button>
+
+                {/* Tab: Up Next */}
+                <button
+                    onClick={() => setActiveTab('up-next')}
+                    className={`flex-1 flex items-center justify-center gap-4 py-3.5 px-6 rounded-xl transition-all duration-300 ${activeTab === 'up-next'
+                        ? 'bg-white shadow-sm ring-1 ring-indigo-100 text-slate-800 border border-indigo-100'
+                        : 'text-slate-500 hover:bg-slate-200/50 hover:text-slate-700'
+                        }`}
+                >
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors shrink-0 ${activeTab === 'up-next' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-200/50 text-slate-400'
+                        }`}>
+                        <Users className="w-5 h-5" />
+                    </div>
+                    <div className="flex items-center gap-3 overflow-hidden">
+                        <span className={`text-base font-bold whitespace-nowrap ${activeTab === 'up-next' ? 'text-slate-900' : 'text-current'}`}>
+                            Up Next
+                        </span>
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0" />
+                        <span className="text-sm font-bold opacity-60 whitespace-nowrap">
+                            {upNextList.length} Waiting
+                        </span>
+                    </div>
+                </button>
+
+                {/* Tab: In-Consultation */}
+                <button
+                    onClick={() => setActiveTab('in-consultation')}
+                    className={`flex-1 flex items-center justify-center gap-4 py-3.5 px-6 rounded-xl transition-all duration-300 ${activeTab === 'in-consultation'
+                        ? 'bg-white shadow-sm ring-1 ring-blue-100 text-slate-800 border border-indigo-100'
+                        : 'text-slate-500 hover:bg-slate-200/50 hover:text-slate-700'
+                        }`}
+                >
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors shrink-0 ${activeTab === 'in-consultation' ? 'bg-blue-50 text-blue-600' : 'bg-slate-200/50 text-slate-400'
+                        }`}>
+                        <Users className="w-5 h-5" />
+                    </div>
+                    <div className="flex items-center gap-3 overflow-hidden">
+                        <span className={`text-base font-bold whitespace-nowrap ${activeTab === 'in-consultation' ? 'text-slate-900' : 'text-current'}`}>
+                            In-Consultation
+                        </span>
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0" />
+                        <span className="text-sm font-bold opacity-60 whitespace-nowrap">
+                            {inConsultationList.length} Active
+                        </span>
+                    </div>
+                </button>
+            </div>
+        </div>
+
+        <table className="w-full">
+            <thead className="bg-slate-50/30 border-b border-slate-100">
+                <tr>
+                    <th className="text-left py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-widest pl-8">Token</th>
+                    <th className="text-left py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-widest">Patient Details</th>
+                    <th className="text-left py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-widest">Doctor & Dept</th>
+                    <th className="text-left py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-widest">Status</th>
+                    <th className="text-right py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-widest pr-8">
+                        {activeTab === 'in-consultation' ? 'Consultation Time' : (activeTab === 'priority' ? 'Active Time' : 'Wait Time')}
+                    </th>
+                    <th className="py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-widest text-center pr-8 w-[100px]">Actions</th>
+                </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+                {data.map((entry) => {
+                    const colors = getTokenStyle(entry);
+
+                    // Calculate time display
+                    let timeDisplay = '';
+                    const showConsultationTime = activeTab === 'in-consultation';
+                    if (showConsultationTime) {
+                        const startTime = entry.consultation_start_time || entry.updated_at;
+                        if (startTime) {
+                            const start = new Date(startTime).getTime();
+                            const now = new Date().getTime();
+                            const diff = Math.max(0, Math.floor((now - start) / 60000));
+                            if (diff >= 60) {
+                                const h = Math.floor(diff / 60);
+                                const m = diff % 60;
+                                timeDisplay = `${h}h ${m}m`;
+                            } else {
+                                timeDisplay = `${diff}m`;
+                            }
+                        } else {
+                            timeDisplay = '-';
+                        }
+                    } else {
+                        timeDisplay = calculateWaitTime(entry.checked_in_time);
+                    }
+
+                    return (
+                        <tr key={entry.opd_id} className="group hover:bg-slate-50/80 transition-colors">
+                            <td className="py-5 px-6 pl-8">
+                                <div className={`${colors.bg} ${colors.lightGroupHover} transition-colors rounded-xl border ${colors.border} h-12 w-12 flex items-center justify-center shadow-sm group-hover:scale-105 duration-300`}>
+                                    <span className={`font-black ${colors.text} text-lg`}>
+                                        {entry.token_number}
+                                    </span>
+                                </div>
+                            </td>
+                            <td className="py-5 px-6">
+                                <div className="flex items-center gap-4">
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shadow-sm ${entry.is_mlc ? 'bg-red-100 text-red-600' : 'bg-indigo-50 text-indigo-600'}`}>
+                                        {entry.patient_first_name[0]}
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <p className="text-base font-bold text-slate-900">
+                                                {entry.patient_first_name} {entry.patient_last_name}
+                                            </p>
+                                            <p className="text-sm text-slate-600 font-medium mt-0.5">
+                                                {entry.age}Y / {entry.gender} &bull; <span className="font-mono text-slate-500 bg-slate-100 px-1 rounded text-xs border border-slate-200">{entry.mrn_number}</span>
+                                            </p>
+                                            {entry.is_mlc && (
+                                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-600 border border-red-200 uppercase tracking-wide flex items-center gap-1">
+                                                    <AlertCircle className="w-3 h-3" />
+                                                    MLC Case
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td className="py-5 px-6">
+                                <div>
+                                    <p className="text-sm font-bold text-slate-800">Dr. {entry.doctor_first_name} {entry.doctor_last_name}</p>
+                                    <p className="text-xs font-medium text-slate-600 bg-slate-100 inline-block px-2 py-0.5 rounded mt-1 border border-slate-200">{entry.department_name || 'General'}</p>
+                                </div>
+                            </td>
+                            <td className="py-5 px-6">
+                                <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border ${getStatusStyle(entry.visit_status)}`}>
+                                    {entry.visit_status === 'Registered' && <div className="w-2 h-2 rounded-full bg-current animate-pulse" />}
+                                    {entry.visit_status}
+                                </span>
+                            </td>
+                            <td className="py-5 px-6 text-right pr-8">
+                                <div className="flex flex-col items-end">
+                                    <span className="text-lg font-bold text-slate-700 tabular-nums tracking-tight">
+                                        {timeDisplay}
+                                    </span>
+                                    <div className="flex items-center gap-1.5 mt-1 opacity-70">
+                                        <Clock className="w-3.5 h-3.5 text-slate-400" />
+                                        <span className="text-xs font-semibold text-slate-500">
+                                            {showConsultationTime ? 'Duration' : `Since ${entry.checked_in_time ? format(new Date(entry.checked_in_time), 'hh:mm a') : '--:--'}`}
+                                        </span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td className="py-5 px-6 text-center pr-8">
+                                <button
+                                    onClick={() => {
+                                        onClose();
+                                        router.push(`/receptionist/opd?highlight=${entry.opd_id}`);
+                                    }}
+                                    className="p-2.5 rounded-xl bg-slate-50 text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-all duration-300 border border-slate-100 hover:border-blue-100 group/btn shadow-sm active:scale-90"
+                                    title="View in OPD Table"
+                                >
+                                    <Eye className="w-5 h-5 group-hover/btn:scale-110 transition-transform" />
+                                </button>
+                            </td>
+                        </tr>
+                    );
+                })}
+            </tbody>
+        </table>
+    </div>
+);
+
 const QueueDetailsModal: React.FC<QueueDetailsModalProps> = ({
     isOpen,
     onClose,
@@ -35,7 +254,6 @@ const QueueDetailsModal: React.FC<QueueDetailsModalProps> = ({
 
     useEffect(() => {
         if (isOpen) {
-            setCurrentTime(new Date());
             const timer = setInterval(() => setCurrentTime(new Date()), 30000);
             return () => clearInterval(timer);
         }
@@ -265,198 +483,6 @@ const QueueDetailsModal: React.FC<QueueDetailsModalProps> = ({
         return doc ? `Dr. ${doc.first_name} ${doc.last_name}` : 'Unknown Doctor';
     };
 
-    const QueueTable = ({ data }: { data: any[] }) => (
-        <div className={`overflow-hidden rounded-[20px] border border-slate-200/60 shadow-sm bg-white mb-6`}>
-            {/* Table Header with 3 Tabs */}
-            <div className="p-2 border-b bg-slate-50/50 border-slate-100">
-                <div className="flex bg-slate-100/80 p-1.5 rounded-2xl w-full relative gap-1.5">
-                    {/* Tab: Priority Queue (MLC) */}
-                    <button
-                        onClick={() => setActiveTab('priority')}
-                        className={`flex-1 flex items-center justify-center gap-4 py-3.5 px-6 rounded-xl transition-all duration-300 ${activeTab === 'priority'
-                            ? 'bg-white shadow-sm ring-1 ring-red-100 text-red-900 border border-red-100'
-                            : 'text-slate-500 hover:bg-red-50/50 hover:text-red-700'
-                            }`}
-                    >
-                        <div className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors shrink-0 ${activeTab === 'priority' ? 'bg-red-100 text-red-600' : 'bg-slate-200/50 text-slate-400'
-                            }`}>
-                            <AlertCircle className="w-5 h-5" />
-                        </div>
-                        <div className="flex items-center gap-3 overflow-hidden">
-                            <span className={`text-base font-bold whitespace-nowrap ${activeTab === 'priority' ? 'text-red-900' : 'text-current'}`}>
-                                Priority Que
-                            </span>
-                            <span className="w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0" />
-                            <span className="text-sm font-bold opacity-60 whitespace-nowrap">
-                                {priorityQueue.length} MLC
-                            </span>
-                        </div>
-                    </button>
-
-                    {/* Tab: Up Next */}
-                    <button
-                        onClick={() => setActiveTab('up-next')}
-                        className={`flex-1 flex items-center justify-center gap-4 py-3.5 px-6 rounded-xl transition-all duration-300 ${activeTab === 'up-next'
-                            ? 'bg-white shadow-sm ring-1 ring-indigo-100 text-slate-800 border border-indigo-100'
-                            : 'text-slate-500 hover:bg-slate-200/50 hover:text-slate-700'
-                            }`}
-                    >
-                        <div className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors shrink-0 ${activeTab === 'up-next' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-200/50 text-slate-400'
-                            }`}>
-                            <Users className="w-5 h-5" />
-                        </div>
-                        <div className="flex items-center gap-3 overflow-hidden">
-                            <span className={`text-base font-bold whitespace-nowrap ${activeTab === 'up-next' ? 'text-slate-900' : 'text-current'}`}>
-                                Up Next
-                            </span>
-                            <span className="w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0" />
-                            <span className="text-sm font-bold opacity-60 whitespace-nowrap">
-                                {upNextList.length} Waiting
-                            </span>
-                        </div>
-                    </button>
-
-                    {/* Tab: In-Consultation */}
-                    <button
-                        onClick={() => setActiveTab('in-consultation')}
-                        className={`flex-1 flex items-center justify-center gap-4 py-3.5 px-6 rounded-xl transition-all duration-300 ${activeTab === 'in-consultation'
-                            ? 'bg-white shadow-sm ring-1 ring-blue-100 text-slate-800 border border-indigo-100'
-                            : 'text-slate-500 hover:bg-slate-200/50 hover:text-slate-700'
-                            }`}
-                    >
-                        <div className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors shrink-0 ${activeTab === 'in-consultation' ? 'bg-blue-50 text-blue-600' : 'bg-slate-200/50 text-slate-400'
-                            }`}>
-                            <Users className="w-5 h-5" />
-                        </div>
-                        <div className="flex items-center gap-3 overflow-hidden">
-                            <span className={`text-base font-bold whitespace-nowrap ${activeTab === 'in-consultation' ? 'text-slate-900' : 'text-current'}`}>
-                                In-Consultation
-                            </span>
-                            <span className="w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0" />
-                            <span className="text-sm font-bold opacity-60 whitespace-nowrap">
-                                {inConsultationList.length} Active
-                            </span>
-                        </div>
-                    </button>
-                </div>
-            </div>
-
-            <table className="w-full">
-                <thead className="bg-slate-50/30 border-b border-slate-100">
-                    <tr>
-                        <th className="text-left py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-widest pl-8">Token</th>
-                        <th className="text-left py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-widest">Patient Details</th>
-                        <th className="text-left py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-widest">Doctor & Dept</th>
-                        <th className="text-left py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-widest">Status</th>
-                        <th className="text-right py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-widest pr-8">
-                            {activeTab === 'in-consultation' ? 'Consultation Time' : (activeTab === 'priority' ? 'Active Time' : 'Wait Time')}
-                        </th>
-                        <th className="py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-widest text-center pr-8 w-[100px]">Actions</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                    {data.map((entry) => {
-                        const colors = getTokenStyle(entry);
-
-                        // Calculate time display
-                        let timeDisplay = '';
-                        const showConsultationTime = activeTab === 'in-consultation';
-                        if (showConsultationTime) {
-                            const startTime = entry.consultation_start_time || entry.updated_at;
-                            if (startTime) {
-                                const start = new Date(startTime).getTime();
-                                const now = new Date().getTime();
-                                const diff = Math.max(0, Math.floor((now - start) / 60000));
-                                if (diff >= 60) {
-                                    const h = Math.floor(diff / 60);
-                                    const m = diff % 60;
-                                    timeDisplay = `${h}h ${m}m`;
-                                } else {
-                                    timeDisplay = `${diff}m`;
-                                }
-                            } else {
-                                timeDisplay = '-';
-                            }
-                        } else {
-                            timeDisplay = calculateWaitTime(entry.checked_in_time);
-                        }
-
-                        return (
-                            <tr key={entry.opd_id} className="group hover:bg-slate-50/80 transition-colors">
-                                <td className="py-5 px-6 pl-8">
-                                    <div className={`${colors.bg} ${colors.lightGroupHover} transition-colors rounded-xl border ${colors.border} h-12 w-12 flex items-center justify-center shadow-sm group-hover:scale-105 duration-300`}>
-                                        <span className={`font-black ${colors.text} text-lg`}>
-                                            {entry.token_number}
-                                        </span>
-                                    </div>
-                                </td>
-                                <td className="py-5 px-6">
-                                    <div className="flex items-center gap-4">
-                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shadow-sm ${entry.is_mlc ? 'bg-red-100 text-red-600' : 'bg-indigo-50 text-indigo-600'}`}>
-                                            {entry.patient_first_name[0]}
-                                        </div>
-                                        <div>
-                                            <div className="flex items-center gap-2">
-                                                <p className="text-base font-bold text-slate-900">
-                                                    {entry.patient_first_name} {entry.patient_last_name}
-                                                </p>
-                                                <p className="text-sm text-slate-600 font-medium mt-0.5">
-                                                    {entry.age}Y / {entry.gender} • <span className="font-mono text-slate-500 bg-slate-100 px-1 rounded text-xs border border-slate-200">{entry.mrn_number}</span>
-                                                </p>
-                                                {entry.is_mlc && (
-                                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-600 border border-red-200 uppercase tracking-wide flex items-center gap-1">
-                                                        <AlertCircle className="w-3 h-3" />
-                                                        MLC Case
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="py-5 px-6">
-                                    <div>
-                                        <p className="text-sm font-bold text-slate-800">Dr. {entry.doctor_first_name} {entry.doctor_last_name}</p>
-                                        <p className="text-xs font-medium text-slate-600 bg-slate-100 inline-block px-2 py-0.5 rounded mt-1 border border-slate-200">{entry.department_name || 'General'}</p>
-                                    </div>
-                                </td>
-                                <td className="py-5 px-6">
-                                    <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border ${getStatusStyle(entry.visit_status)}`}>
-                                        {entry.visit_status === 'Registered' && <div className="w-2 h-2 rounded-full bg-current animate-pulse" />}
-                                        {entry.visit_status}
-                                    </span>
-                                </td>
-                                <td className="py-5 px-6 text-right pr-8">
-                                    <div className="flex flex-col items-end">
-                                        <span className="text-lg font-bold text-slate-700 tabular-nums tracking-tight">
-                                            {timeDisplay}
-                                        </span>
-                                        <div className="flex items-center gap-1.5 mt-1 opacity-70">
-                                            <Clock className="w-3.5 h-3.5 text-slate-400" />
-                                            <span className="text-xs font-semibold text-slate-500">
-                                                {showConsultationTime ? 'Duration' : `Since ${entry.checked_in_time ? format(new Date(entry.checked_in_time), 'hh:mm a') : '--:--'}`}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="py-5 px-6 text-center pr-8">
-                                    <button
-                                        onClick={() => {
-                                            onClose();
-                                            router.push(`/receptionist/opd?highlight=${entry.opd_id}`);
-                                        }}
-                                        className="p-2.5 rounded-xl bg-slate-50 text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-all duration-300 border border-slate-100 hover:border-blue-100 group/btn shadow-sm active:scale-90"
-                                        title="View in OPD Table"
-                                    >
-                                        <Eye className="w-5 h-5 group-hover/btn:scale-110 transition-transform" />
-                                    </button>
-                                </td>
-                            </tr>
-                        );
-                    })}
-                </tbody>
-            </table>
-        </div>
-    );
 
     const stats = {
         total: todayTotal || entries.length,
@@ -482,6 +508,7 @@ const QueueDetailsModal: React.FC<QueueDetailsModalProps> = ({
 
     const avgWaitTime = registeredPatients.length > 0 ? Math.round(totalWaitMins / registeredPatients.length) : 0;
     const isWaitTimeHigh = avgWaitTime > 30; // Threshold for color change
+
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
@@ -631,7 +658,19 @@ const QueueDetailsModal: React.FC<QueueDetailsModalProps> = ({
                         </div>
                     ) : (
                         <>
-                            <QueueTable data={activeList} />
+                            <QueueTable
+                                data={activeList}
+                                activeTab={activeTab}
+                                setActiveTab={setActiveTab}
+                                priorityQueue={priorityQueue}
+                                upNextList={upNextList}
+                                inConsultationList={inConsultationList}
+                                getStatusStyle={getStatusStyle}
+                                getTokenStyle={getTokenStyle}
+                                calculateWaitTime={calculateWaitTime}
+                                onClose={onClose}
+                                router={router}
+                            />
 
                             {activeList.length === 0 && (
                                 <div className="text-center py-20">

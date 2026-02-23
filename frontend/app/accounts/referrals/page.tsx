@@ -7,7 +7,7 @@ import {
     Settings2, CheckCircle2, AlertCircle, Info, Hospital, Phone,
     User, ArrowUpNarrowWide, ArrowDownWideNarrow
 } from 'lucide-react';
-import * as XLSX from 'xlsx';
+// CSV helpers (replaces xlsx to avoid security vulnerabilities)
 import {
     getReferralDoctorsWithPercentages,
     getHospitalServices,
@@ -437,20 +437,24 @@ function DoctorInlineConfig({ doctor, allServices, onSave }: { doctor: ReferralD
     };
 
     const handleDownloadTemplate = () => {
-        const data = allServices.map(s => {
+        const headers = ['Service Name', 'Referral Payout (Y/N)', 'Cash Percentage (%)', 'Insurance Percentage (%)'];
+        const rows = allServices.map(s => {
             const config = editingConfigs[s.service_name] || {};
-            return {
-                'Service Name': s.service_name,
-                'Referral Payout (Y/N)': config.referral_pay || 'N',
-                'Cash Percentage (%)': config.cash_percentage || 0,
-                'Insurance Percentage (%)': config.inpatient_percentage || 0
-            };
+            return [
+                `"${s.service_name}"`,
+                config.referral_pay || 'N',
+                config.cash_percentage || 0,
+                config.inpatient_percentage || 0
+            ].join(',');
         });
-
-        const ws = XLSX.utils.json_to_sheet(data);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Service Percentages");
-        XLSX.writeFile(wb, `Referral_Config_${doctor.doctor_name.replace(/\s+/g, '_')}.xlsx`);
+        const csv = [headers.join(','), ...rows].join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Referral_Config_${doctor.doctor_name.replace(/\s+/g, '_')}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
     };
 
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -463,25 +467,26 @@ function DoctorInlineConfig({ doctor, allServices, onSave }: { doctor: ReferralD
         const reader = new FileReader();
         reader.onload = (event) => {
             try {
-                const bstr = event.target?.result;
-                const wb = XLSX.read(bstr, { type: 'binary' });
-                const wsname = wb.SheetNames[0];
-                const ws = wb.Sheets[wsname];
-                const data = XLSX.utils.sheet_to_json(ws);
+                const text = event.target?.result as string;
+                const lines = text.split(/\r?\n/).filter(l => l.trim());
+                if (lines.length < 2) throw new Error('Empty file');
+                const headers = lines[0].split(',').map(h => h.replace(/^"|"$/g, '').trim());
 
                 const newConfigs: Record<string, Partial<ServicePercentage>> = { ...editingConfigs };
                 let enabledCount = 0;
                 let touchedCount = 0;
 
-                data.forEach((row: any) => {
+                lines.slice(1).forEach(line => {
+                    const cols = line.split(',').map(c => c.replace(/^"|"$/g, '').trim());
+                    const row: Record<string, string> = {};
+                    headers.forEach((h, i) => row[h] = cols[i] || '');
                     const serviceName = row['Service Name'];
                     if (serviceName) {
-                        const payout = (row['Referral Payout (Y/N)'] || 'N').toString().toUpperCase() === 'Y' ? 'Y' : 'N';
-
+                        const payout = (row['Referral Payout (Y/N)'] || 'N').toUpperCase() === 'Y' ? 'Y' : 'N';
                         newConfigs[serviceName] = {
                             referral_pay: payout,
-                            cash_percentage: parseFloat(row['Cash Percentage (%)'] || 0),
-                            inpatient_percentage: parseFloat(row['Insurance Percentage (%)'] || 0)
+                            cash_percentage: parseFloat(row['Cash Percentage (%)'] || '0'),
+                            inpatient_percentage: parseFloat(row['Insurance Percentage (%)'] || '0')
                         };
                         touchedCount++;
                         if (payout === 'Y') enabledCount++;
@@ -494,16 +499,16 @@ function DoctorInlineConfig({ doctor, allServices, onSave }: { doctor: ReferralD
 
             } catch (err) {
                 console.error(err);
-                setMessage({ type: 'error', text: 'Failed to parse Excel file. Please use the correct template.' });
+                setMessage({ type: 'error', text: 'Failed to parse CSV file. Please use the correct template.' });
             }
         };
-        reader.readAsBinaryString(file);
+        reader.readAsText(file);
     };
 
     const confirmUpload = () => {
         setEditingConfigs(pendingConfigs);
         setShowUploadConfirm(false);
-        setMessage({ type: 'success', text: `Applied config from Excel. ${uploadStats.enabled} services enabled for payout. Click Save to persist.` });
+        setMessage({ type: 'success', text: `Applied config from CSV. ${uploadStats.enabled} services enabled for payout. Click Save to persist.` });
     };
 
     return (
@@ -557,10 +562,10 @@ function DoctorInlineConfig({ doctor, allServices, onSave }: { doctor: ReferralD
                     <div className="relative">
                         <input
                             type="file"
-                            accept=".xlsx, .xls"
+                            accept=".csv"
                             className="absolute inset-0 opacity-0 cursor-pointer"
                             onChange={handleFileUpload}
-                            title="Upload Excel"
+                            title="Upload CSV"
                         />
                         <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition text-sm font-medium">
                             <Upload className="w-4 h-4" />
@@ -774,20 +779,26 @@ function BulkSetupWizard({ doctors, services, onSuccess }: { doctors: ReferralDo
             const reader = new FileReader();
             reader.onload = async (evt) => {
                 try {
-                    const bstr = evt.target?.result;
-                    const wb = XLSX.read(bstr, { type: 'binary' });
-                    const wsname = wb.SheetNames[0];
-                    const ws = wb.Sheets[wsname];
-                    const data = XLSX.utils.sheet_to_json(ws);
+                    const text = evt.target?.result as string;
+                    const lines = text.split(/\r?\n/).filter(l => l.trim());
+                    if (lines.length < 2) throw new Error('Empty file');
+                    const headers = lines[0].split(',').map(h => h.replace(/^"|"$/g, '').trim());
 
-                    // Map Excel columns to API expected format
-                    const mappedData = data.map((row: any) => ({
-                        doctor_id: row['Doctor ID'],
+                    const data = lines.slice(1).map(line => {
+                        const cols = line.split(',').map(c => c.replace(/^"|"$/g, '').trim());
+                        const row: Record<string, string> = {};
+                        headers.forEach((h, i) => row[h] = cols[i] || '');
+                        return row;
+                    });
+
+                    // Map CSV columns to API expected format
+                    const mappedData = data.map((row) => ({
+                        doctor_id: parseInt(row['Doctor ID'], 10),
                         service_type: row['Service Type'],
                         referral_pay: row['Referral Pay (Y/N)'] === 'Y' ? 'Y' : 'N',
                         cash_percentage: parseFloat(row['Cash Percentage']) || 0,
                         inpatient_percentage: parseFloat(row['Insurance Percentage']) || 0
-                    })).filter((item: any) => item.doctor_id && item.service_type);
+                    })).filter((item) => item.doctor_id && item.service_type);
 
                     if (mappedData.length === 0) {
                         throw new Error('No valid data found in file. Please check column headers.');
@@ -808,7 +819,7 @@ function BulkSetupWizard({ doctors, services, onSuccess }: { doctors: ReferralDo
                     if (fileInputRef.current) fileInputRef.current.value = '';
                 }
             };
-            reader.readAsBinaryString(file);
+            reader.readAsText(file);
         } catch (error: any) {
             setIsUploading(false);
             setErrorMessage('Error reading file');
@@ -1380,19 +1391,23 @@ function AgentSetup({ agents, onUpdate }: { agents: ReferralAgent[], onUpdate: (
     };
 
     const handleDownloadExcel = () => {
-        const data = agents.map(agent => ({
-            'Agent ID': agent.id,
-            'Name': agent.name,
-            'Mobile': agent.mobile,
-            'Company': agent.company || '',
-            'Patient Commission': agent.referral_patient_commission || 0,
-            'Doctor Commission': agent.referral_doc_commission || 0
-        }));
-
-        const ws = XLSX.utils.json_to_sheet(data);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Agents");
-        XLSX.writeFile(wb, "Referral_Agents_Commission.xlsx");
+        const headers = ['Agent ID', 'Name', 'Mobile', 'Company', 'Patient Commission', 'Doctor Commission'];
+        const rows = agents.map(agent => [
+            agent.id,
+            `"${agent.name}"`,
+            agent.mobile,
+            `"${agent.company || ''}"`,
+            agent.referral_patient_commission || 0,
+            agent.referral_doc_commission || 0
+        ].join(','));
+        const csv = [headers.join(','), ...rows].join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'Referral_Agents_Commission.csv';
+        a.click();
+        URL.revokeObjectURL(url);
     };
 
     const handleUploadExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1404,34 +1419,40 @@ function AgentSetup({ agents, onUpdate }: { agents: ReferralAgent[], onUpdate: (
             const reader = new FileReader();
             reader.onload = async (evt) => {
                 try {
-                    const bstr = evt.target?.result;
-                    const wb = XLSX.read(bstr, { type: 'binary' });
-                    const wsname = wb.SheetNames[0];
-                    const ws = wb.Sheets[wsname];
-                    const data = XLSX.utils.sheet_to_json(ws);
+                    const text = evt.target?.result as string;
+                    const lines = text.split(/\r?\n/).filter(l => l.trim());
+                    if (lines.length < 2) throw new Error('Empty file');
+                    const csvHeaders = lines[0].split(',').map(h => h.replace(/^"|"$/g, '').trim());
 
-                    const updates = data.map((row: any) => ({
-                        id: row['Agent ID'],
-                        referral_patient_commission: parseFloat(row['Patient Commission'] || 0),
-                        referral_doc_commission: parseFloat(row['Doctor Commission'] || 0)
-                    })).filter((item: any) => item.id);
+                    const data = lines.slice(1).map(line => {
+                        const cols = line.split(',').map(c => c.replace(/^"|"$/g, '').trim());
+                        const row: Record<string, string> = {};
+                        csvHeaders.forEach((h, i) => row[h] = cols[i] || '');
+                        return row;
+                    });
+
+                    const updates = data.map((row) => ({
+                        id: parseInt(row['Agent ID'], 10),
+                        referral_patient_commission: parseFloat(row['Patient Commission'] || '0'),
+                        referral_doc_commission: parseFloat(row['Doctor Commission'] || '0')
+                    })).filter((item) => item.id);
 
                     if (updates.length > 0) {
                         const response = await bulkUpdateReferralAgents(updates);
                         alert(`Process completed. Actually updated ${response.updatedCount} agents.`);
                         onUpdate();
                     } else {
-                        alert('No valid data found in Excel.');
+                        alert('No valid data found in CSV.');
                     }
                 } catch (error) {
-                    console.error('Error processing Excel:', error);
-                    alert('Failed to process Excel file.');
+                    console.error('Error processing CSV:', error);
+                    alert('Failed to process CSV file.');
                 } finally {
                     setIsUploading(false);
                     e.target.value = ''; // Reset input
                 }
             };
-            reader.readAsBinaryString(file);
+            reader.readAsText(file);
         } catch (error) {
             console.error('Upload failed:', error);
             setIsUploading(false);

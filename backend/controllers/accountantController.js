@@ -1,5 +1,5 @@
 const InsuranceClaim = require('../models/InsuranceClaim');
-const xlsx = require('xlsx');
+const ExcelJS = require('exceljs');
 const fs = require('fs');
 const { pool } = require('../config/db');
 const { AppError } = require('../middleware/errorHandler');
@@ -75,21 +75,33 @@ exports.uploadClaims = async (req, res, next) => {
         let claims = [];
 
         // Parse file based on extension
+        const workbook = new ExcelJS.Workbook();
         if (req.file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || req.file.mimetype === 'application/vnd.ms-excel') {
-            const workbook = xlsx.readFile(filePath);
-            const sheetName = workbook.SheetNames[0];
-            const sheet = workbook.Sheets[sheetName];
-            claims = xlsx.utils.sheet_to_json(sheet);
+            await workbook.xlsx.readFile(filePath);
         } else if (req.file.mimetype === 'text/csv' || req.file.mimetype === 'application/vnd.ms-excel') {
-            const workbook = xlsx.readFile(filePath);
-            const sheetName = workbook.SheetNames[0];
-            const sheet = workbook.Sheets[sheetName];
-            claims = xlsx.utils.sheet_to_json(sheet);
+            await workbook.csv.readFile(filePath);
         } else {
-            const workbook = xlsx.readFile(filePath);
-            const sheetName = workbook.SheetNames[0];
-            const sheet = workbook.Sheets[sheetName];
-            claims = xlsx.utils.sheet_to_json(sheet);
+            await workbook.xlsx.readFile(filePath);
+        }
+
+        const worksheet = workbook.worksheets[0];
+        if (worksheet) {
+            const headers = [];
+            worksheet.getRow(1).eachCell((cell) => {
+                headers.push(cell.value);
+            });
+
+            worksheet.eachRow((row, rowNumber) => {
+                if (rowNumber === 1) return; // Skip header row
+                const rowData = {};
+                row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+                    const header = headers[colNumber - 1];
+                    if (header) {
+                        rowData[header] = cell.value;
+                    }
+                });
+                claims.push(rowData);
+            });
         }
 
         const normalizeKey = (key) => key.trim().toLowerCase().replace(/[\s\-\.]+/g, '_');
@@ -351,11 +363,19 @@ exports.getReports = async (req, res, next) => {
                 const rows = dbRes.rows;
 
                 // Generate Excel
-                const workbook = xlsx.utils.book_new();
-                const worksheet = xlsx.utils.json_to_sheet(rows);
-                xlsx.utils.book_append_sheet(workbook, worksheet, 'Reports');
+                const workbook = new ExcelJS.Workbook();
+                const worksheet = workbook.addWorksheet('Reports');
 
-                const buffer = xlsx.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+                if (rows.length > 0) {
+                    worksheet.columns = Object.keys(rows[0]).map(key => ({
+                        header: key,
+                        key: key,
+                        width: 20
+                    }));
+                    worksheet.addRows(rows);
+                }
+
+                const buffer = await workbook.xlsx.writeBuffer();
 
                 res.setHeader('Content-Disposition', 'attachment; filename="Claims_Report.xlsx"');
                 res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -1492,11 +1512,18 @@ exports.downloadClaimsTemplate = async (req, res, next) => {
             }
         ];
 
-        const workbook = xlsx.utils.book_new();
-        const worksheet = xlsx.utils.json_to_sheet(sampleData, { header: headers });
-        xlsx.utils.book_append_sheet(workbook, worksheet, 'Template');
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Template');
 
-        const buffer = xlsx.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+        worksheet.columns = headers.map(header => ({
+            header: header,
+            key: header,
+            width: 20
+        }));
+
+        worksheet.addRows(sampleData);
+
+        const buffer = await workbook.xlsx.writeBuffer();
 
         res.setHeader('Content-Disposition', 'attachment; filename="Claims_Upload_Template.xlsx"');
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');

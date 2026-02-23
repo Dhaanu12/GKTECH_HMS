@@ -26,8 +26,7 @@ export default function ReceptionistPatients() {
     const [searchTerm, setSearchTerm] = useState('');
 
     // AI page context
-    let aiContext: { setPageContext?: (page: string, context?: string) => void } = {};
-    try { aiContext = useAI(); } catch { /* AIContextProvider not available */ }
+    const aiContext: { setPageContext?: (page: string, context?: string) => void } = useAI() || {};
 
     useEffect(() => {
         fetchPatients();

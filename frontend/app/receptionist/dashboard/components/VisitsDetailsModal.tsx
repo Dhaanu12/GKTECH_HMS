@@ -12,6 +12,179 @@ interface VisitsDetailsModalProps {
     feedbacks: any[];
 }
 
+interface VisitsTableProps {
+    data: any[];
+    getStatusStyle: (status: string) => string;
+    getTokenStyle: (entry: any) => { bg: string; border: string; text: string; lightGroupHover: string };
+    onClose: () => void;
+    router: ReturnType<typeof import('next/navigation').useRouter>;
+}
+
+const VisitsTable: React.FC<VisitsTableProps> = ({ data, getStatusStyle, getTokenStyle, onClose, router }) => (
+    <>
+        <table className="w-full">
+            <thead className="bg-slate-50/30 border-b border-slate-100">
+                <tr>
+                    <th className="text-left py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-widest pl-8">Token</th>
+                    <th className="text-left py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-widest">Patient Details</th>
+                    <th className="text-left py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-widest">Visit Info</th>
+                    <th className="text-left py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-widest">Status</th>
+                    <th className="py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-widest text-center pr-8 w-[100px]">Actions</th>
+                </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+                {data.map((entry) => {
+                    const colors = getTokenStyle(entry);
+                    return (
+                        <tr key={entry.opd_id} className="group hover:bg-slate-50/80 transition-colors">
+                            <td className="py-5 px-6 pl-8">
+                                <div className={`${colors.bg} ${colors.lightGroupHover} transition-colors rounded-xl border ${colors.border} h-12 w-12 flex items-center justify-center shadow-sm group-hover:scale-105 duration-300`}>
+                                    <span className={`font-black ${colors.text} text-lg`}>
+                                        {entry.token_number}
+                                    </span>
+                                </div>
+                            </td>
+                            <td className="py-5 px-6">
+                                <div className="flex items-center gap-4">
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shadow-sm ${entry.visit_type === 'Emergency' || entry.is_mlc ? 'bg-red-100 text-red-600' : 'bg-indigo-50 text-indigo-600'}`}>
+                                        {entry.patient_first_name[0]}
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <p className="text-base font-bold text-slate-900">{entry.patient_first_name} {entry.patient_last_name}</p>
+                                            {(entry.visit_type === 'Emergency' || entry.is_mlc) && (
+                                                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-600 border border-red-200 uppercase tracking-wide flex items-center gap-1">
+                                                    <AlertCircle className="w-3 h-3" />
+                                                    MLC
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p className="text-sm text-slate-600 font-medium mt-0.5">
+                                            {entry.age}Y / {entry.gender} &bull; <span className="font-mono text-slate-500 bg-slate-100 px-1 rounded text-xs border border-slate-200">{entry.mrn_number}</span>
+                                        </p>
+                                    </div>
+                                </div>
+                            </td>
+                            <td className="py-5 px-6">
+                                <div>
+                                    <p className="text-sm font-bold text-slate-800">Dr. {entry.doctor_first_name} {entry.doctor_last_name}</p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide border ${entry.visit_type !== 'Follow-up' ? 'text-indigo-600 bg-indigo-50 border-indigo-100' : 'text-teal-600 bg-teal-50 border-teal-100'}`}>
+                                            {entry.visit_type}
+                                        </span>
+                                        <span className="text-xs text-slate-400">&bull;</span>
+                                        <span className="text-xs font-medium text-slate-600 bg-slate-100 inline-block px-2 py-0.5 rounded border border-slate-200">{entry.department_name || 'General'}</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td className="py-5 px-6">
+                                <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border ${getStatusStyle(entry.visit_status)}`}>
+                                    {entry.visit_status === 'Registered' && <div className="w-2 h-2 rounded-full bg-current animate-pulse" />}
+                                    {entry.visit_status}
+                                </span>
+                            </td>
+                            <td className="py-5 px-6 text-center pr-8">
+                                <button
+                                    onClick={() => {
+                                        if (entry.visit_status === 'Cancelled' || entry.visit_status === 'Rescheduled') return;
+                                        onClose();
+                                        router.push(`/receptionist/opd?highlight=${entry.opd_id}`);
+                                    }}
+                                    className={`p-2.5 rounded-xl border border-slate-100 shadow-sm transition-all duration-300 ${['Cancelled', 'Rescheduled'].includes(entry.visit_status)
+                                        ? 'bg-slate-50 text-slate-300 cursor-not-allowed opacity-50'
+                                        : 'bg-slate-50 text-slate-400 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-100 group/btn active:scale-90'
+                                        }`}
+                                    title={['Cancelled', 'Rescheduled'].includes(entry.visit_status) ? `${entry.visit_status}` : "View Details"}
+                                    disabled={['Cancelled', 'Rescheduled'].includes(entry.visit_status)}
+                                >
+                                    <Eye className={`w-5 h-5 ${!['Cancelled', 'Rescheduled'].includes(entry.visit_status) ? 'group-hover/btn:scale-110 transition-transform' : ''}`} />
+                                </button>
+                            </td>
+                        </tr>
+                    );
+                })}
+            </tbody>
+        </table>
+    </>
+);
+
+const FeedbackTable: React.FC<{ data: any[] }> = ({ data }) => (
+    <>
+        <table className="w-full table-fixed">
+            <thead className="bg-slate-50/30 border-b border-slate-100">
+                <tr>
+                    <th className="text-left py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-widest pl-8 w-[20%]">Patient</th>
+                    <th className="text-left py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-widest w-[20%]">Doctor</th>
+                    <th className="text-left py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-widest w-[40%]">Feedback</th>
+                    <th className="text-left py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-widest w-[20%]">Satisfaction</th>
+                </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+                {data.map((fb) => (
+                    <tr key={fb.id} className="group hover:bg-slate-50/80 transition-colors">
+                        <td className="py-4 px-6 pl-8 align-top">
+                            <div>
+                                <p className="text-sm font-bold text-slate-800">{fb.patient_name}</p>
+                                <p className="text-xs text-slate-500 font-medium font-mono mt-0.5">{fb.mrn}</p>
+                            </div>
+                        </td>
+                        <td className="py-4 px-6 align-top">
+                            <div>
+                                <p className="text-sm font-bold text-slate-700">Dr. {fb.nurse_name || 'Assigned'}</p>
+                                <p className="text-xs text-slate-500 font-medium">{fb.service_context}</p>
+                            </div>
+                        </td>
+                        <td className="py-4 px-6 align-top">
+                            <div className="group/text cursor-pointer relative">
+                                <p className="text-sm text-slate-600 italic leading-relaxed line-clamp-2 group-hover/text:line-clamp-none transition-all duration-300">
+                                    &ldquo;{fb.comment}&rdquo;
+                                </p>
+                                {fb.comment && fb.comment.length > 60 && (
+                                    <span className="text-[10px] text-blue-500 font-bold opacity-0 group-hover/text:opacity-100 transition-opacity absolute -bottom-4 left-0">
+                                        Read more
+                                    </span>
+                                )}
+                            </div>
+                        </td>
+                        <td className="py-4 px-6 align-top">
+                            <div className="flex items-center gap-3">
+                                <div className={`px-2.5 py-1 rounded-lg text-xs font-bold border flex items-center gap-1.5 ${fb.sentiment === 'Positive' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : fb.sentiment === 'Negative' ? 'bg-rose-50 text-rose-700 border-rose-100' : 'bg-slate-50 text-slate-700 border-slate-100'}`}>
+                                    {fb.rating} &#9733;
+                                    <span className="w-px h-3 bg-current/20"></span>
+                                    {fb.sentiment}
+                                </div>
+                                <div className="group/info relative">
+                                    <Info className="w-4 h-4 text-slate-300 hover:text-blue-400 cursor-help transition-colors" />
+                                    <div className="absolute bottom-full right-0 mb-2 w-48 bg-slate-800 text-white text-xs rounded-xl p-3 shadow-xl opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all z-50">
+                                        <p className="font-bold mb-1">Visit Metrics</p>
+                                        <div className="space-y-1 text-slate-300">
+                                            <div className="flex justify-between">
+                                                <span>Wait Time:</span>
+                                                <span className="text-white font-mono">12m</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span>Duration:</span>
+                                                <span className="text-white font-mono">15m</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                ))}
+                {data.length === 0 && (
+                    <tr>
+                        <td colSpan={4} className="py-8 text-center text-slate-400 italic">
+                            No feedback collected today.
+                        </td>
+                    </tr>
+                )}
+            </tbody>
+        </table>
+    </>
+);
+
 const VisitsDetailsModal: React.FC<VisitsDetailsModalProps> = ({
     isOpen,
     onClose,
@@ -127,172 +300,6 @@ const VisitsDetailsModal: React.FC<VisitsDetailsModalProps> = ({
             };
         }
     };
-
-    const VisitsTable = ({ data }: { data: any[] }) => (
-        <>
-            <table className="w-full">
-                <thead className="bg-slate-50/30 border-b border-slate-100">
-                    <tr>
-                        <th className="text-left py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-widest pl-8">Token</th>
-                        <th className="text-left py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-widest">Patient Details</th>
-                        <th className="text-left py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-widest">Visit Info</th>
-                        <th className="text-left py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-widest">Status</th>
-                        <th className="py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-widest text-center pr-8 w-[100px]">Actions</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                    {data.map((entry) => {
-                        const colors = getTokenStyle(entry);
-                        return (
-                            <tr key={entry.opd_id} className="group hover:bg-slate-50/80 transition-colors">
-                                <td className="py-5 px-6 pl-8">
-                                    <div className={`${colors.bg} ${colors.lightGroupHover} transition-colors rounded-xl border ${colors.border} h-12 w-12 flex items-center justify-center shadow-sm group-hover:scale-105 duration-300`}>
-                                        <span className={`font-black ${colors.text} text-lg`}>
-                                            {entry.token_number}
-                                        </span>
-                                    </div>
-                                </td>
-                                <td className="py-5 px-6">
-                                    <div className="flex items-center gap-4">
-                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shadow-sm ${entry.visit_type === 'Emergency' || entry.is_mlc ? 'bg-red-100 text-red-600' : 'bg-indigo-50 text-indigo-600'}`}>
-                                            {entry.patient_first_name[0]}
-                                        </div>
-                                        <div>
-                                            <div className="flex items-center gap-2">
-                                                <p className="text-base font-bold text-slate-900">{entry.patient_first_name} {entry.patient_last_name}</p>
-                                                {(entry.visit_type === 'Emergency' || entry.is_mlc) && (
-                                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-600 border border-red-200 uppercase tracking-wide flex items-center gap-1">
-                                                        <AlertCircle className="w-3 h-3" />
-                                                        MLC
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <p className="text-sm text-slate-600 font-medium mt-0.5">
-                                                {entry.age}Y / {entry.gender} • <span className="font-mono text-slate-500 bg-slate-100 px-1 rounded text-xs border border-slate-200">{entry.mrn_number}</span>
-                                            </p>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="py-5 px-6">
-                                    <div>
-                                        <p className="text-sm font-bold text-slate-800">Dr. {entry.doctor_first_name} {entry.doctor_last_name}</p>
-                                        <div className="flex items-center gap-2 mt-1">
-                                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide border ${entry.visit_type !== 'Follow-up' ? 'text-indigo-600 bg-indigo-50 border-indigo-100' : 'text-teal-600 bg-teal-50 border-teal-100'}`}>
-                                                {entry.visit_type}
-                                            </span>
-                                            <span className="text-xs text-slate-400">•</span>
-                                            <span className="text-xs font-medium text-slate-600 bg-slate-100 inline-block px-2 py-0.5 rounded border border-slate-200">{entry.department_name || 'General'}</span>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="py-5 px-6">
-                                    <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border ${getStatusStyle(entry.visit_status)}`}>
-                                        {entry.visit_status === 'Registered' && <div className="w-2 h-2 rounded-full bg-current animate-pulse" />}
-                                        {entry.visit_status}
-                                    </span>
-                                </td>
-                                <td className="py-5 px-6 text-center pr-8">
-                                    <button
-                                        onClick={() => {
-                                            if (entry.visit_status === 'Cancelled' || entry.visit_status === 'Rescheduled') return;
-                                            onClose();
-                                            router.push(`/receptionist/opd?highlight=${entry.opd_id}`);
-                                        }}
-                                        className={`p-2.5 rounded-xl border border-slate-100 shadow-sm transition-all duration-300 ${['Cancelled', 'Rescheduled'].includes(entry.visit_status)
-                                            ? 'bg-slate-50 text-slate-300 cursor-not-allowed opacity-50'
-                                            : 'bg-slate-50 text-slate-400 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-100 group/btn active:scale-90'
-                                            }`}
-                                        title={['Cancelled', 'Rescheduled'].includes(entry.visit_status) ? `${entry.visit_status}` : "View Details"}
-                                        disabled={['Cancelled', 'Rescheduled'].includes(entry.visit_status)}
-                                    >
-                                        <Eye className={`w-5 h-5 ${!['Cancelled', 'Rescheduled'].includes(entry.visit_status) ? 'group-hover/btn:scale-110 transition-transform' : ''}`} />
-                                    </button>
-                                </td>
-                            </tr>
-                        );
-                    })}
-                </tbody>
-            </table>
-        </>
-    );
-
-    const FeedbackTable = ({ data }: { data: any[] }) => (
-        <>
-            <table className="w-full table-fixed">
-                <thead className="bg-slate-50/30 border-b border-slate-100">
-                    <tr>
-                        <th className="text-left py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-widest pl-8 w-[20%]">Patient</th>
-                        <th className="text-left py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-widest w-[20%]">Doctor</th>
-                        <th className="text-left py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-widest w-[40%]">Feedback</th>
-                        <th className="text-left py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-widest w-[20%]">Satisfaction</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                    {data.map((fb) => (
-                        <tr key={fb.id} className="group hover:bg-slate-50/80 transition-colors">
-                            <td className="py-4 px-6 pl-8 align-top">
-                                <div>
-                                    <p className="text-sm font-bold text-slate-800">{fb.patient_name}</p>
-                                    <p className="text-xs text-slate-500 font-medium font-mono mt-0.5">{fb.mrn}</p>
-                                </div>
-                            </td>
-                            <td className="py-4 px-6 align-top">
-                                <div>
-                                    {/* Try to resolve doctor from OPD entry if possible, else generic */}
-                                    <p className="text-sm font-bold text-slate-700">Dr. {fb.nurse_name || 'Assigned'}</p>
-                                    <p className="text-xs text-slate-500 font-medium">{fb.service_context}</p>
-                                </div>
-                            </td>
-                            <td className="py-4 px-6 align-top">
-                                <div className="group/text cursor-pointer relative">
-                                    <p className="text-sm text-slate-600 italic leading-relaxed line-clamp-2 group-hover/text:line-clamp-none transition-all duration-300">
-                                        "{fb.comment}"
-                                    </p>
-                                    {fb.comment && fb.comment.length > 60 && (
-                                        <span className="text-[10px] text-blue-500 font-bold opacity-0 group-hover/text:opacity-100 transition-opacity absolute -bottom-4 left-0">
-                                            Read more
-                                        </span>
-                                    )}
-                                </div>
-                            </td>
-                            <td className="py-4 px-6 align-top">
-                                <div className="flex items-center gap-3">
-                                    <div className={`px-2.5 py-1 rounded-lg text-xs font-bold border flex items-center gap-1.5 ${fb.sentiment === 'Positive' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : fb.sentiment === 'Negative' ? 'bg-rose-50 text-rose-700 border-rose-100' : 'bg-slate-50 text-slate-700 border-slate-100'}`}>
-                                        {fb.rating} ★
-                                        <span className="w-px h-3 bg-current/20"></span>
-                                        {fb.sentiment}
-                                    </div>
-                                    <div className="group/info relative">
-                                        <Info className="w-4 h-4 text-slate-300 hover:text-blue-400 cursor-help transition-colors" />
-                                        <div className="absolute bottom-full right-0 mb-2 w-48 bg-slate-800 text-white text-xs rounded-xl p-3 shadow-xl opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all z-50">
-                                            <p className="font-bold mb-1">Visit Metrics</p>
-                                            <div className="space-y-1 text-slate-300">
-                                                <div className="flex justify-between">
-                                                    <span>Wait Time:</span>
-                                                    <span className="text-white font-mono">12m</span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                    <span>Duration:</span>
-                                                    <span className="text-white font-mono">15m</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
-                    ))}
-                    {data.length === 0 && (
-                        <tr>
-                            <td colSpan={4} className="py-8 text-center text-slate-400 italic">
-                                No feedback collected today.
-                            </td>
-                        </tr>
-                    )}
-                </tbody>
-            </table>
-        </>
-    );
 
 
     return (
@@ -443,7 +450,13 @@ const VisitsDetailsModal: React.FC<VisitsDetailsModalProps> = ({
                         ) : activeTab === 'feedback' ? (
                             <FeedbackTable data={feedbacks} />
                         ) : (
-                            <VisitsTable data={filteredEntries} />
+                            <VisitsTable
+                                data={filteredEntries}
+                                getStatusStyle={getStatusStyle}
+                                getTokenStyle={getTokenStyle}
+                                onClose={onClose}
+                                router={router}
+                            />
                         )}
                     </div>
                 </div>

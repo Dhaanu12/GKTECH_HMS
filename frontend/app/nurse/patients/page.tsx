@@ -26,12 +26,7 @@ export default function NursePatients() {
     const [searchTerm, setSearchTerm] = useState('');
 
     // AI Context - inform chat about visible patients
-    let aiContext: { setPageContext?: (page: string, patient?: string) => void } = {};
-    try {
-        aiContext = useAI();
-    } catch {
-        // AIContextProvider not available
-    }
+    const aiContext: { setPageContext?: (page: string, patient?: string) => void } = useAI() || {};
 
     useEffect(() => {
         fetchPatients();
@@ -40,7 +35,7 @@ export default function NursePatients() {
     // Update AI context with visible patients (limited info - no detailed medical data)
     useEffect(() => {
         if (aiContext.setPageContext && patients.length > 0) {
-            const patientList = patients.slice(0, 10).map(p => 
+            const patientList = patients.slice(0, 10).map(p =>
                 `${p.first_name} ${p.last_name} (MRN: ${p.mrn}, ${p.gender}, Age: ${p.age || 'N/A'})`
             ).join('; ');
             const context = `Viewing patient list page. ${patients.length} patients visible. ` +

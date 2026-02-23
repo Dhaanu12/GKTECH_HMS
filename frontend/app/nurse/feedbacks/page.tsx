@@ -65,8 +65,7 @@ interface Stats {
 
 export default function NurseFeedbackPage() {
     // AI context - clear patient context when on feedbacks page
-    let aiContext: { setPageContext?: (page: string, patient?: string) => void } = {};
-    try { aiContext = useAI(); } catch { /* AIContextProvider not available */ }
+    const aiContext: { setPageContext?: (page: string, patient?: string) => void } = useAI() || {};
 
     const [activeTab, setActiveTab] = useState('All');
     const [showModal, setShowModal] = useState(false);

@@ -664,7 +664,7 @@ class BillingSetupController {
             const packages = packagesResult.rows;
 
             // Generate Excel file
-            const excelBuffer = ExcelService.generateBillingExcel(allData, packages);
+            const excelBuffer = await ExcelService.generateBillingExcel(allData, packages);
 
             // Send file
             res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -690,7 +690,7 @@ class BillingSetupController {
             }
 
             // Parse Excel file
-            const parseResult = ExcelService.parseBillingExcel(req.file.buffer);
+            const parseResult = await ExcelService.parseBillingExcel(req.file.buffer);
 
             if (parseResult.errors.length > 0) {
                 return res.status(400).json({
