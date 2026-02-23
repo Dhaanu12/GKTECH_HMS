@@ -251,7 +251,7 @@ class OpdController {
                 const duplicateCheck = await client.query(
                     `SELECT opd_id FROM opd_entries 
                      WHERE patient_id = $1 AND doctor_id = $2 AND visit_date = $3 
-                     AND visit_status NOT IN ('Cancelled', 'Completed')`,
+                     AND visit_status NOT IN ('Cancelled', 'Completed', 'Rescheduled')`,
                     [finalPatientId, doctor_id, visit_date]
                 );
 
@@ -454,13 +454,13 @@ class OpdController {
             if (appointment_id) {
                 await client.query(`
                     UPDATE appointments 
-                    SET appointment_status = 'In OPD', patient_id = $2, updated_at = CURRENT_TIMESTAMP
+                    SET appointment_status = 'In OPD', patient_id = $2, opd_id = $3, updated_at = CURRENT_TIMESTAMP
                     WHERE appointment_id = $1
-                `, [appointment_id, finalPatientId]);
+                `, [appointment_id, finalPatientId, newOpdId]);
             } else {
                 let matchQuery = `
                     UPDATE appointments 
-                    SET appointment_status = 'In OPD', patient_id = $1, updated_at = CURRENT_TIMESTAMP
+                    SET appointment_status = 'In OPD', patient_id = $1, opd_id = $5, updated_at = CURRENT_TIMESTAMP
                     WHERE doctor_id = $2 
                     AND appointment_date = $3
                     AND appointment_status IN ('Scheduled', 'Confirmed')
@@ -472,7 +472,7 @@ class OpdController {
                 `;
 
                 const checkPhone = contact_number || '';
-                await client.query(matchQuery, [finalPatientId, doctor_id, visit_date, checkPhone]);
+                await client.query(matchQuery, [finalPatientId, doctor_id, visit_date, checkPhone, newOpdId]);
             }
 
             await client.query('COMMIT');
@@ -604,8 +604,8 @@ class OpdController {
                 return next(new AppError('OPD entry not found or unauthorized', 404));
             }
 
-            // If status is 'Cancelled', also cancel billing
-            if (visit_status === 'Cancelled') {
+            // If status is 'Cancelled' or 'Rescheduled', also cancel billing
+            if (visit_status === 'Cancelled' || visit_status === 'Rescheduled') {
                 // 1. Update Billing Master
                 await client.query(`
                     UPDATE billing_master
@@ -614,7 +614,7 @@ class OpdController {
                         payment_status = 'Cancelled',
                         updated_by = $1,
                         updated_at = CURRENT_TIMESTAMP
-                    WHERE opd_id = $2 AND branch_id = $3
+                    WHERE opd_id = $2 AND branch_id = $3 AND status = 'Pending'
                 `, [staffCode, id, branch_id]);
 
                 // 2. Update Bill Details
@@ -627,31 +627,26 @@ class OpdController {
                         cancelled_at = CURRENT_TIMESTAMP,
                         updated_by = $1,
                         updated_at = CURRENT_TIMESTAMP
-                    WHERE opd_id = $2 AND branch_id = $3
+                    WHERE opd_id = $2 AND branch_id = $3 AND status = 'Pending'
                 `, [staffCode, id, branch_id]);
             }
             // 4. Update Appointment Status
-            if (visit_status === 'Completed' || visit_status === 'Cancelled') {
+            if (visit_status === 'Completed' || visit_status === 'Cancelled' || visit_status === 'Rescheduled') {
                 const opdData = result.rows[0];
                 const patientId = opdData.patient_id;
                 const doctorId = opdData.doctor_id;
                 const visitDate = opdData.visit_date;
+                const opdId = opdData.opd_id;
 
-                // Heuristic: Update appointment for same patient, doctor, and date
-                // that is currently 'In OPD' (or 'Scheduled' if missed)
-                // If Cancelled, we set to Cancelled.
-                // If Completed, we set to Completed.
-
-                const apptStatus = visit_status === 'Cancelled' ? 'Cancelled' : 'Completed';
+                let apptStatus = 'Completed';
+                if (visit_status === 'Cancelled') apptStatus = 'Cancelled';
+                if (visit_status === 'Rescheduled') apptStatus = 'Rescheduled';
 
                 await client.query(`
                     UPDATE appointments
                     SET appointment_status = $1, updated_at = CURRENT_TIMESTAMP
-                    WHERE patient_id = $2 
-                    AND doctor_id = $3 
-                    AND appointment_date = $4
-                    AND appointment_status IN ('In OPD', 'Scheduled', 'Confirmed')
-                `, [apptStatus, patientId, doctorId, visitDate]);
+                    WHERE opd_id = $2
+                `, [apptStatus, opdId]);
             }
 
             await client.query('COMMIT');
@@ -1301,7 +1296,7 @@ class OpdController {
             const duplicateCheck = await query(
                 `SELECT opd_id FROM opd_entries 
                  WHERE patient_id = $1 AND doctor_id = $2 AND visit_date = $3 
-                 AND visit_status NOT IN ('Cancelled', 'Completed')`,
+                 AND visit_status NOT IN ('Cancelled', 'Completed', 'Rescheduled')`,
                 [patient_id, doctor_id, visit_date]
             );
 

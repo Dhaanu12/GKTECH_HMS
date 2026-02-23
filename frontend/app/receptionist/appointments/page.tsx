@@ -91,6 +91,7 @@ export default function AppointmentsPage() {
         if (appointment_status === 'Confirmed') return { label: 'Scheduled', style: 'bg-blue-600 text-white' };
         if (appointment_status === 'Scheduled') return { label: 'Scheduled', style: 'bg-blue-600 text-white' };
         if (appointment_status === 'In OPD') return { label: 'In OPD', style: 'bg-indigo-600 text-white' };
+        if (appointment_status === 'Rescheduled') return { label: 'Rescheduled', style: 'bg-slate-500 text-white' };
         if (appointment_status === 'Cancelled') {
             if (cancellation_reason === 'No Answer') return { label: 'Scheduled', style: 'bg-blue-600 text-white' };
             return { label: 'Cancelled', style: 'bg-red-500 text-white' };
@@ -533,7 +534,7 @@ export default function AppointmentsPage() {
                                         </div>
 
                                         <div className="flex flex-wrap items-center gap-3 md:ml-auto justify-end">
-                                            {apt.appointment_status !== 'In OPD' && apt.appointment_status !== 'Completed' && (
+                                            {apt.appointment_status !== 'In OPD' && apt.appointment_status !== 'Completed' && apt.appointment_status !== 'Rescheduled' && apt.appointment_status !== 'Cancelled' && (
                                                 <button
                                                     onClick={() => openRescheduleModal(apt)}
                                                     className="px-3 py-1.5 text-xs font-bold text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"

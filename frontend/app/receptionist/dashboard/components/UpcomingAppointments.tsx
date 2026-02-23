@@ -512,6 +512,8 @@ export default function UpcomingAppointments({ doctors, onConvertToOPD, refreshT
             case 'Confirmed':
             case 'Scheduled':
                 return { label: 'Scheduled', style: 'bg-blue-500 text-white' };
+            case 'Rescheduled':
+                return { label: 'Rescheduled', style: 'bg-slate-500 text-white' };
             case 'Cancelled':
                 if (cancellation_reason === 'No Answer') {
                     // Still show as "Scheduled" (Blue) as requested
@@ -756,26 +758,30 @@ export default function UpcomingAppointments({ doctors, onConvertToOPD, refreshT
                                         </div>
 
                                         <div className="flex flex-wrap items-center gap-4 md:ml-auto">
-                                            <button
-                                                onClick={() => openRescheduleModal(apt)}
-                                                className="px-4 py-2 text-sm font-bold text-amber-600 hover:bg-amber-50 rounded-xl transition-colors"
-                                            >
-                                                Reschedule
-                                            </button>
-                                            <button
-                                                onClick={() => openCancelModal(apt)}
-                                                className="px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-50 rounded-xl transition-colors"
-                                            >
-                                                Cancel
-                                            </button>
-                                            {activeTab !== 'Missed' && (
-                                                <button
-                                                    onClick={() => handleConvertClick(apt)}
-                                                    className="px-5 py-2.5 bg-slate-900 text-white text-sm font-bold rounded-xl hover:bg-black transition-all shadow-lg shadow-slate-900/10 flex items-center gap-2"
-                                                >
-                                                    Convert to OPD
-                                                    <ArrowRight className="w-4 h-4" />
-                                                </button>
+                                            {apt.appointment_status !== 'Rescheduled' && apt.appointment_status !== 'Cancelled' && (
+                                                <>
+                                                    <button
+                                                        onClick={() => openRescheduleModal(apt)}
+                                                        className="px-4 py-2 text-sm font-bold text-amber-600 hover:bg-amber-50 rounded-xl transition-colors"
+                                                    >
+                                                        Reschedule
+                                                    </button>
+                                                    <button
+                                                        onClick={() => openCancelModal(apt)}
+                                                        className="px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                    {activeTab !== 'Missed' && (
+                                                        <button
+                                                            onClick={() => handleConvertClick(apt)}
+                                                            className="px-5 py-2.5 bg-slate-900 text-white text-sm font-bold rounded-xl hover:bg-black transition-all shadow-lg shadow-slate-900/10 flex items-center gap-2"
+                                                        >
+                                                            Convert to OPD
+                                                            <ArrowRight className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                </>
                                             )}
                                         </div>
                                     </div>

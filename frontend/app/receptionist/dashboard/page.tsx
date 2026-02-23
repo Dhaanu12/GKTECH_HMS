@@ -1360,7 +1360,7 @@ export default function ReceptionistDashboard() {
     );
 
     return (
-        <div className="flex flex-col h-[calc(100vh-156px)] w-full space-y-4 overflow-hidden pb-0">
+        <div className="flex flex-col h-[calc(100vh-156px)] w-full space-y-4 overflow-y-auto overflow-x-hidden pb-8">
             {/* Header Content */}
             <div className="flex justify-between items-end">
                 <div>
@@ -3300,7 +3300,7 @@ export default function ReceptionistDashboard() {
 
             {/* Invoice Modal */}
             {showInvoice && selectedBill && (
-                <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 print:p-0 print:bg-white print:absolute print:inset-0">
+                <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 print:p-0 print:bg-white print:absolute print:inset-0 print-modal">
                     <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto print:shadow-none print:w-full print:max-w-none print:h-auto print:overflow-visible">
                         <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 print:hidden">
                             <h2 className="text-lg font-bold text-gray-800">Invoice Preview</h2>
