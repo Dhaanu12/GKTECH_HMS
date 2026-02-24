@@ -194,3 +194,11 @@
 2026-02-23T11:55:36.359Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
 2026-02-23T11:55:36.362Z - Params: [55]
 2026-02-23T11:55:36.372Z - Query returned 1 rows.
+2026-02-24T05:06:24.501Z - getAllPatients called. User: 180, Branch: 55
+2026-02-24T05:06:24.563Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-24T05:06:24.660Z - Params: [55]
+2026-02-24T05:06:24.713Z - Query returned 2 rows.
+2026-02-24T05:06:25.945Z - getAllPatients called. User: 180, Branch: 55
+2026-02-24T05:06:26.428Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-24T05:06:26.615Z - Params: [55]
+2026-02-24T05:06:26.915Z - Query returned 2 rows.
