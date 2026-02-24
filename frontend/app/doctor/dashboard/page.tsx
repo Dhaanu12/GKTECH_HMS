@@ -228,7 +228,7 @@ export default function DoctorDashboard() {
             title: 'Waiting Now',
             value: waitingPatients.length,
             icon: Clock,
-            color: 'bg-[#D97706]',
+            color: 'bg-gradient-to-br from-amber-500 to-orange-600',
             subLabel: 'Patients in queue',
             action: waitingPatients.length > 0 ? handleNextPatient : undefined,
             actionLabel: 'NEXT →'
@@ -237,14 +237,14 @@ export default function DoctorDashboard() {
             title: 'Completed Today',
             value: completedToday,
             icon: UserCheck,
-            color: 'bg-[#009A66]',
+            color: 'bg-gradient-to-br from-emerald-500 to-teal-600',
             subLabel: 'Consultations done'
         },
         {
             title: 'Pending Rx',
             value: pendingPrescriptions.length,
             icon: Pill,
-            color: 'bg-[#D11C5F]',
+            color: 'bg-gradient-to-br from-violet-600 to-purple-700',
             subLabel: 'Prescriptions pending',
             urgent: pendingPrescriptions.length > 0
         },
@@ -252,7 +252,7 @@ export default function DoctorDashboard() {
             title: 'Revenue Today',
             value: `₹${todayRevenue.toLocaleString()}`,
             icon: DollarSign,
-            color: 'bg-[#146AF5]',
+            color: 'bg-gradient-to-br from-blue-600 to-indigo-700',
             subLabel: 'Total earnings today'
         },
     ];

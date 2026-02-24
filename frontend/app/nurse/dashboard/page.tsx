@@ -629,32 +629,28 @@ function MetricCard({
 }) {
     const themes = {
         blue: {
-            // Revenue Today Color: #146AF5
-            card: 'bg-[#146AF5] border-white/10 shadow-blue-500/30 text-white',
+            card: 'bg-gradient-to-br from-blue-600 to-indigo-700 border-white/10 shadow-lg shadow-blue-500/30 text-white',
             icon: 'bg-white/20 text-white',
             ring: 'ring-blue-300',
-            active: 'bg-[#0f4eb5] border-white/20 shadow-blue-500/40'
+            active: 'bg-gradient-to-br from-blue-700 to-indigo-800 border-white/20 shadow-xl shadow-blue-500/40'
         },
         amber: {
-            // Waiting Now Color: #D97706
-            card: 'bg-[#D97706] border-white/10 shadow-amber-500/30 text-white',
+            card: 'bg-gradient-to-br from-amber-500 to-orange-600 border-white/10 shadow-lg shadow-amber-500/30 text-white',
             icon: 'bg-white/20 text-white',
             ring: 'ring-amber-300',
-            active: 'bg-[#b45d04] border-white/20 shadow-amber-500/40'
+            active: 'bg-gradient-to-br from-amber-600 to-orange-700 border-white/20 shadow-xl shadow-amber-500/40'
         },
         red: {
-            // Urgent / STAT Color: #D11C5F (Pinkish Red as per screenshot)
-            card: 'bg-[#D11C5F] border-white/10 shadow-pink-500/30 text-white',
+            card: 'bg-gradient-to-br from-rose-500 to-red-600 border-white/10 shadow-lg shadow-red-500/30 text-white',
             icon: 'bg-white/20 text-white',
-            ring: 'ring-pink-300',
-            active: 'bg-[#a31448] border-white/20 shadow-pink-500/40'
+            ring: 'ring-red-300',
+            active: 'bg-gradient-to-br from-rose-600 to-red-700 border-white/20 shadow-xl shadow-red-500/40'
         },
         emerald: {
-            // Completed Today Color: #009A66
-            card: 'bg-[#009A66] border-white/10 shadow-emerald-500/30 text-white',
+            card: 'bg-gradient-to-br from-emerald-500 to-teal-600 border-white/10 shadow-lg shadow-emerald-500/30 text-white',
             icon: 'bg-white/20 text-white',
             ring: 'ring-emerald-300',
-            active: 'bg-[#007a51] border-white/20 shadow-emerald-500/40'
+            active: 'bg-gradient-to-br from-emerald-600 to-teal-700 border-white/20 shadow-xl shadow-emerald-500/40'
         }
     };
 

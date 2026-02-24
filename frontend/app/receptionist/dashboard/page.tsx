@@ -1427,95 +1427,113 @@ export default function ReceptionistDashboard() {
                 {/* Top Row: Stats Cards (4 Columns) */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 w-full">
                     {/* Today's Queue - Patients waiting right now */}
-                    <div className="bg-gradient-to-br from-amber-50 to-orange-50 p-6 rounded-3xl border border-amber-100 shadow-sm hover:shadow-md transition-shadow group relative overflow-hidden h-full flex flex-col justify-between"
+                    <div className="bg-gradient-to-br from-amber-500 to-orange-600 p-6 rounded-3xl border border-white/10 shadow-lg shadow-amber-500/30 hover:shadow-xl hover:shadow-amber-500/40 transition-all group relative overflow-hidden h-full flex flex-col justify-between text-white"
                     >
-                        <div className="flex items-center justify-between mb-3">
-                            <div className="w-12 h-12 bg-amber-500 rounded-2xl flex items-center justify-center text-white group-hover:scale-110 transition-transform shadow-lg shadow-amber-500/30">
+                        <div className="flex items-center justify-between mb-3 relative z-10">
+                            <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center text-white group-hover:scale-110 transition-transform backdrop-blur-md">
                                 <Clock className="w-6 h-6" />
                             </div>
                             <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 bg-amber-100 px-2 py-1 rounded-full">RIGHT NOW</span>
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-white bg-white/20 px-2 py-1 rounded-full backdrop-blur-md">RIGHT NOW</span>
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         setShowQueueModal(true);
                                     }}
-                                    className="p-1.5 hover:bg-amber-200/50 rounded-full transition-colors text-amber-600 group/info"
+                                    className="p-1.5 hover:bg-white/20 rounded-full transition-colors text-white group/info"
                                     title="View Queue Details"
                                 >
                                     <Info className="w-4 h-4 group-hover/info:scale-110 transition-transform" />
                                 </button>
                             </div>
                         </div>
-                        <p className="text-4xl font-bold text-amber-700">{dashboardStats.queueCount}</p>
-                        <p className="text-sm font-medium text-amber-600 mt-1">Patients in Queue</p>
-                        {dashboardStats.queueCount > 0 && (
-                            <p className="text-xs text-amber-500 mt-2 flex items-center gap-1">
-                                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-                                {dashboardStats.queueCount} waiting for doctor
-                            </p>
-                        )}
+                        <div className="relative z-10">
+                            <p className="text-4xl font-bold tracking-tight">{dashboardStats.queueCount}</p>
+                            <p className="text-sm font-medium mt-1 text-white/90">Patients in Queue</p>
+                            {dashboardStats.queueCount > 0 && (
+                                <p className="text-xs text-white/80 mt-2 flex items-center gap-1">
+                                    <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span>
+                                    {dashboardStats.queueCount} waiting for doctor
+                                </p>
+                            )}
+                        </div>
+                        {/* Decorative background shapes */}
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl pointer-events-none"></div>
+                        <div className="absolute bottom-0 left-0 w-24 h-24 bg-black/5 rounded-full -ml-12 -mb-12 blur-2xl pointer-events-none"></div>
                     </div>
 
                     {/* Today's Appointments - Scheduled for today */}
-                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-3xl border border-blue-100 shadow-sm hover:shadow-md transition-shadow group cursor-pointer">
-                        <div className="flex items-center justify-between mb-3">
-                            <div className="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center text-white group-hover:scale-110 transition-transform shadow-lg shadow-blue-500/30">
+                    <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-6 rounded-3xl border border-white/10 shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 transition-all group cursor-pointer text-white relative overflow-hidden">
+                        <div className="flex items-center justify-between mb-3 relative z-10">
+                            <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center text-white group-hover:scale-110 transition-transform backdrop-blur-md">
                                 <Calendar className="w-6 h-6" />
                             </div>
                             <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-100 px-2 py-1 rounded-full">TODAY</span>
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-white bg-white/20 px-2 py-1 rounded-full backdrop-blur-md">TODAY</span>
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         setShowVisitsModal(true);
                                     }}
-                                    className="p-1.5 hover:bg-blue-200/50 rounded-full transition-colors text-blue-600 group/info"
+                                    className="p-1.5 hover:bg-white/20 rounded-full transition-colors text-white group/info"
                                     title="View Visit Details"
                                 >
                                     <Info className="w-4 h-4 group-hover/info:scale-110 transition-transform" />
                                 </button>
                             </div>
                         </div>
-                        <p className="text-4xl font-bold text-blue-700">{dashboardStats.todayVisits}</p>
-                        <p className="text-sm font-medium text-blue-600 mt-1">Today's Visits</p>
-                        <p className="text-xs text-blue-500 mt-2">
-                            {/* We can rely on 'collectedCount' as proxy for 'completed' if paid=completed? Or just hide completed count if not available */}
-                            {/* Actually, user didn't ask for completed count specifically to be fixed, just live values. */}
-                            Live Updates
-                        </p>
+                        <div className="relative z-10">
+                            <p className="text-4xl font-bold tracking-tight">{dashboardStats.todayVisits}</p>
+                            <p className="text-sm font-medium mt-1 text-white/90">Today's Visits</p>
+                            <p className="text-xs text-white/80 mt-2">
+                                Live Updates
+                            </p>
+                        </div>
+                        {/* Decorative background shapes */}
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl pointer-events-none"></div>
+                        <div className="absolute bottom-0 left-0 w-24 h-24 bg-black/5 rounded-full -ml-12 -mb-12 blur-2xl pointer-events-none"></div>
                     </div>
 
                     {/* Pending Payments - Action needed */}
-                    <div className="bg-gradient-to-br from-red-50 to-rose-50 p-6 rounded-3xl border border-red-100 shadow-sm hover:shadow-md transition-shadow group cursor-pointer">
-                        <div className="flex items-center justify-between mb-3">
-                            <div className="w-12 h-12 bg-red-500 rounded-2xl flex items-center justify-center text-white group-hover:scale-110 transition-transform shadow-lg shadow-red-500/30">
+                    <div className="bg-gradient-to-br from-rose-500 to-red-600 p-6 rounded-3xl border border-white/10 shadow-lg shadow-red-500/30 hover:shadow-xl hover:shadow-red-500/40 transition-all group cursor-pointer text-white relative overflow-hidden">
+                        <div className="flex items-center justify-between mb-3 relative z-10">
+                            <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center text-white group-hover:scale-110 transition-transform backdrop-blur-md">
                                 <AlertCircle className="w-6 h-6" />
                             </div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-red-600 bg-red-100 px-2 py-1 rounded-full">ACTION</span>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-white bg-white/20 px-2 py-1 rounded-full backdrop-blur-md">ACTION</span>
                         </div>
-                        <p className="text-4xl font-bold text-red-700">{dashboardStats.pendingCount}</p>
-                        <p className="text-sm font-medium text-red-600 mt-1">Pending Payments</p>
-                        <p className="text-xs text-red-500 mt-2">
-                            ₹{dashboardStats.pendingAmount.toLocaleString()} to collect
-                        </p>
+                        <div className="relative z-10">
+                            <p className="text-4xl font-bold tracking-tight">{dashboardStats.pendingCount}</p>
+                            <p className="text-sm font-medium mt-1 text-white/90">Pending Payments</p>
+                            <p className="text-xs text-white/80 mt-2">
+                                ₹{dashboardStats.pendingAmount.toLocaleString()} to collect
+                            </p>
+                        </div>
+                        {/* Decorative background shapes */}
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl pointer-events-none"></div>
+                        <div className="absolute bottom-0 left-0 w-24 h-24 bg-black/5 rounded-full -ml-12 -mb-12 blur-2xl pointer-events-none"></div>
                     </div>
 
                     {/* Today's Revenue - Collected today */}
-                    <div className="bg-gradient-to-br from-emerald-50 to-teal-50 p-6 rounded-3xl border border-emerald-100 shadow-sm hover:shadow-md transition-shadow group">
-                        <div className="flex items-center justify-between mb-3">
-                            <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-white group-hover:scale-110 transition-transform shadow-lg shadow-emerald-500/30">
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <div className="bg-gradient-to-br from-emerald-500 to-teal-600 p-6 rounded-3xl border border-white/10 shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:shadow-emerald-500/40 transition-all group text-white relative overflow-hidden">
+                        <div className="flex items-center justify-between mb-3 relative z-10">
+                            <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center text-white group-hover:scale-110 transition-transform backdrop-blur-md">
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08-.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                             </div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-100 px-2 py-1 rounded-full">REVENUE</span>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-white bg-white/20 px-2 py-1 rounded-full backdrop-blur-md">REVENUE</span>
                         </div>
-                        <p className="text-4xl font-bold text-emerald-700">
-                            ₹{dashboardStats.collectedAmount.toLocaleString()}
-                        </p>
-                        <p className="text-sm font-medium text-emerald-600 mt-1">Collected Today</p>
-                        <p className="text-xs text-emerald-500 mt-2">
-                            {dashboardStats.collectedCount} payments received
-                        </p>
+                        <div className="relative z-10">
+                            <p className="text-4xl font-bold tracking-tight">
+                                ₹{dashboardStats.collectedAmount.toLocaleString()}
+                            </p>
+                            <p className="text-sm font-medium mt-1 text-white/90">Collected Today</p>
+                            <p className="text-xs text-white/80 mt-2">
+                                {dashboardStats.collectedCount} payments received
+                            </p>
+                        </div>
+                        {/* Decorative background shapes */}
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl pointer-events-none"></div>
+                        <div className="absolute bottom-0 left-0 w-24 h-24 bg-black/5 rounded-full -ml-12 -mb-12 blur-2xl pointer-events-none"></div>
                     </div>
                 </div>
 
