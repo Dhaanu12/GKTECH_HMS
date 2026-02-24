@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react';
 import axios from 'axios';
 import { ChatMessage, AIContext as AICtx, chat, streamChat, getAIStatus, RateLimitInfo } from '@/lib/api/ai';
 
@@ -114,6 +114,17 @@ export function AIContextProvider({ children, role, initialPage = '' }: AIContex
         }
     }, [messages, getContext, refreshStatus]);
 
+    // Refs for batched streaming — accumulate chunks and flush at 60fps
+    const streamBufferRef = useRef('');
+    const rafIdRef = useRef<number | null>(null);
+
+    // Cleanup RAF on unmount
+    useEffect(() => {
+        return () => {
+            if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
+        };
+    }, []);
+
     const sendMessageStreaming = useCallback(async (content: string) => {
         if (!content.trim()) return;
 
@@ -124,7 +135,7 @@ export function AIContextProvider({ children, role, initialPage = '' }: AIContex
         const newMessages = [...messages, userMessage];
         setMessages(newMessages);
 
-        let streamedContent = '';
+        streamBufferRef.current = '';
         setMessages([...newMessages, { role: 'assistant', content: '' }]);
 
         try {
@@ -132,36 +143,56 @@ export function AIContextProvider({ children, role, initialPage = '' }: AIContex
                 newMessages,
                 getContext(),
                 (chunk) => {
-                    streamedContent += chunk;
+                    streamBufferRef.current += chunk;
+
                     // Detect confirmation payload in the streamed response
-                    const confirmMatch = streamedContent.match(/\[CONFIRM_ACTION\]([\s\S]*?)\[\/CONFIRM_ACTION\]/);
+                    const confirmMatch = streamBufferRef.current.match(/\[CONFIRM_ACTION\]([\s\S]*?)\[\/CONFIRM_ACTION\]/);
                     if (confirmMatch) {
                         try {
                             const actionData = JSON.parse(confirmMatch[1]);
                             setPendingAction(actionData);
-                            // Remove the confirmation block from visible text
-                            const cleanContent = streamedContent.replace(/\[CONFIRM_ACTION\][\s\S]*?\[\/CONFIRM_ACTION\]/, '').trim();
+                            const cleanContent = streamBufferRef.current.replace(/\[CONFIRM_ACTION\][\s\S]*?\[\/CONFIRM_ACTION\]/, '').trim();
                             setMessages([...newMessages, { role: 'assistant', content: cleanContent }]);
                         } catch { /* ignore parse errors */ }
                     } else {
-                        setMessages([...newMessages, { role: 'assistant', content: streamedContent }]);
+                        // Batch UI updates at ~60fps via requestAnimationFrame
+                        if (!rafIdRef.current) {
+                            rafIdRef.current = requestAnimationFrame(() => {
+                                setMessages([...newMessages, { role: 'assistant', content: streamBufferRef.current }]);
+                                rafIdRef.current = null;
+                            });
+                        }
                     }
                 },
                 () => {
+                    // On complete — ensure final content is flushed
+                    if (rafIdRef.current) {
+                        cancelAnimationFrame(rafIdRef.current);
+                        rafIdRef.current = null;
+                    }
+                    setMessages([...newMessages, { role: 'assistant', content: streamBufferRef.current }]);
                     setIsStreaming(false);
                     refreshStatus();
                 },
                 (errorMsg) => {
+                    if (rafIdRef.current) {
+                        cancelAnimationFrame(rafIdRef.current);
+                        rafIdRef.current = null;
+                    }
                     setError(errorMsg);
                     setIsStreaming(false);
                 },
                 // onClear: tool execution done, wipe the loading indicator before real content starts
                 () => {
-                    streamedContent = '';
+                    streamBufferRef.current = '';
                     setMessages([...newMessages, { role: 'assistant', content: '' }]);
                 }
             );
         } catch (err: any) {
+            if (rafIdRef.current) {
+                cancelAnimationFrame(rafIdRef.current);
+                rafIdRef.current = null;
+            }
             setError(err.message || 'Stream failed');
             setIsStreaming(false);
         }

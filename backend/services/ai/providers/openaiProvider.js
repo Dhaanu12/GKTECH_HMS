@@ -204,6 +204,7 @@ class OpenAIProvider extends BaseProvider {
                 ],
                 max_completion_tokens: options.maxTokens || this.maxTokens,
                 stream: true,
+                stream_options: { include_usage: true },
             };
 
             // Pass tools so OpenAI understands the conversation history (tool_calls in assistant messages)
@@ -239,6 +240,7 @@ class OpenAIProvider extends BaseProvider {
                 ],
                 max_completion_tokens: options.maxTokens || this.maxTokens,
                 stream: true,
+                stream_options: { include_usage: true },
             });
 
             for await (const chunk of stream) {

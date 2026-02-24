@@ -81,6 +81,8 @@ router.post('/chat/stream', async (req, res) => {
         res.setHeader('Content-Type', 'text/event-stream');
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
+        res.setHeader('X-Accel-Buffering', 'no');  // Disable Nginx/proxy buffering
+        res.flushHeaders();                         // Send headers immediately
 
         let systemPrompt = aiService.SYSTEM_PROMPTS.general;
         const userRole = req.user?.role || 'staff member';
