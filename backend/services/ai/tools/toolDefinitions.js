@@ -198,6 +198,61 @@ const TOOLS = [
             }
         }
     },
+    // ============ CLIENT ADMIN TOOLS ============
+    {
+        type: 'function',
+        function: {
+            name: 'getClientAdminDashboardStats',
+            description: 'Get high-level dashboard statistics for the entire hospital or specifically for the client admin view. This includes total branched, total staff, and overall patients.',
+            parameters: {
+                type: 'object',
+                properties: {},
+                required: []
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'getBranchPerformance',
+            description: 'Get performance metrics broken down by branch, such as appointment counts, revenue, and patient visits per branch.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    dateRange: { type: 'string', description: 'Date range filter, e.g., today, week, month' }
+                },
+                required: []
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'getOverallRevenue',
+            description: 'Get overall revenue statistics for the hospital, including total revenue and branch-wise revenue breakdowns.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    dateRange: { type: 'string', description: 'Date range filter, e.g., today, week, month' }
+                },
+                required: []
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'getHospitalActivity',
+            description: 'Get recent activity and logs across the hospital branches, useful for monitoring overall operations.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    limit: { type: 'number', description: 'Maximum number of records to return' }
+                },
+                required: []
+            }
+        }
+    },
     // ============ NEW READ-ONLY TOOLS ============
     {
         type: 'function',
@@ -229,10 +284,12 @@ const TOOLS = [
         type: 'function',
         function: {
             name: 'getPendingBills',
-            description: 'Get all pending bills/payments that need clearance. Shows OPD number, patient, amount, and items.',
+            description: 'Get all pending (unpaid) bills. Optionally filter by a specific date. Shows OPD number, patient, amount, and items.',
             parameters: {
                 type: 'object',
-                properties: {},
+                properties: {
+                    date: { type: 'string', description: 'Filter by date in YYYY-MM-DD format (optional). If not provided, returns all pending bills.' }
+                },
                 required: []
             }
         }
@@ -262,6 +319,23 @@ const TOOLS = [
                     opdId: { type: 'number', description: 'The OPD entry ID' }
                 },
                 required: ['opdId']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'getBills',
+            description: 'Get billing records filtered by date range and/or payment status. Use this to look up total billing on a specific date, revenue history, or bills in any status (Pending, Paid, Cancelled).',
+            parameters: {
+                type: 'object',
+                properties: {
+                    startDate: { type: 'string', description: 'Start date in YYYY-MM-DD format' },
+                    endDate: { type: 'string', description: 'End date in YYYY-MM-DD format. If same as startDate, returns bills for that single day.' },
+                    status: { type: 'string', description: 'Filter by status: Pending, Paid, Cancelled (optional)' },
+                    search: { type: 'string', description: 'Search by patient name, MRN, or invoice (optional)' }
+                },
+                required: []
             }
         }
     },

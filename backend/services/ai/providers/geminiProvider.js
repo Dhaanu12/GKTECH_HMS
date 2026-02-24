@@ -8,15 +8,15 @@ const BaseProvider = require('./baseProvider');
 class GeminiProvider extends BaseProvider {
     constructor() {
         super('gemini');
-        
+
         const apiKey = process.env.GEMINI_API_KEY;
         if (apiKey) {
             this.genAI = new GoogleGenerativeAI(apiKey);
         }
-        
+
         this.model = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
         this.maxTokens = 1024;
-        
+
         // Token usage tracking (estimated for Gemini)
         this.usage = {
             totalPromptTokens: 0,
@@ -34,7 +34,7 @@ class GeminiProvider extends BaseProvider {
         // and use 'user' and 'model' roles
         const contents = [];
         let systemContext = systemPrompt ? systemPrompt + '\n\n' : '';
-        
+
         for (const msg of messages) {
             if (msg.role === 'system') {
                 systemContext += msg.content + '\n\n';
@@ -53,7 +53,7 @@ class GeminiProvider extends BaseProvider {
                 });
             }
         }
-        
+
         return contents;
     }
 
@@ -89,7 +89,7 @@ class GeminiProvider extends BaseProvider {
      */
     _convertTools(tools) {
         if (!tools || tools.length === 0) return null;
-        
+
         return [{
             functionDeclarations: tools.map(tool => ({
                 name: tool.function.name,
@@ -110,8 +110,8 @@ class GeminiProvider extends BaseProvider {
             }
 
             const tools = options.tools ? this._convertTools(options.tools) : null;
-            
-            const modelConfig = { 
+
+            const modelConfig = {
                 model: options.model || this.model,
                 generationConfig: {
                     maxOutputTokens: options.maxTokens || this.maxTokens,
@@ -127,11 +127,11 @@ class GeminiProvider extends BaseProvider {
             const model = this.genAI.getGenerativeModel(modelConfig);
 
             const contents = this._convertMessages(messages, options.systemPrompt);
-            
+
             // Get the last user message for simple generation
             // or use chat for multi-turn
             let result;
-            
+
             if (contents.length === 1) {
                 // Single message - use generateContent
                 result = await model.generateContent(contents[0].parts[0].text);
@@ -146,15 +146,15 @@ class GeminiProvider extends BaseProvider {
 
             const response = result.response;
             const candidate = response.candidates[0];
-            
+
             // Check for function calls
             const functionCalls = candidate.content.parts.filter(p => p.functionCall);
-            
+
             if (functionCalls.length > 0) {
                 // Track usage
                 const promptText = contents.map(c => c.parts[0]?.text || '').join(' ');
                 this._trackUsage(promptText, '');
-                
+
                 return {
                     success: true,
                     message: '',
@@ -172,7 +172,7 @@ class GeminiProvider extends BaseProvider {
 
             // Regular text response
             const responseText = response.text();
-            
+
             // Track usage
             const promptText = contents.map(c => c.parts[0]?.text || '').join(' ');
             this._trackUsage(promptText, responseText);
@@ -213,8 +213,8 @@ class GeminiProvider extends BaseProvider {
             }
 
             const tools = options.tools ? this._convertTools(options.tools) : null;
-            
-            const modelConfig = { 
+
+            const modelConfig = {
                 model: options.model || this.model,
                 generationConfig: {
                     maxOutputTokens: options.maxTokens || this.maxTokens,
@@ -230,17 +230,17 @@ class GeminiProvider extends BaseProvider {
 
             // For Gemini, convert messages to the correct format
             const contents = this._convertMessagesWithToolResults(messages, options.systemPrompt);
-            
+
             // Use generateContent with the full conversation instead of chat history
             // This avoids the chat history validation issue with functionResponse
             const result = await model.generateContent({ contents });
 
             const response = result.response;
             const candidate = response.candidates[0];
-            
+
             // Check for more function calls
             const functionCalls = candidate.content.parts.filter(p => p.functionCall);
-            
+
             if (functionCalls.length > 0) {
                 return {
                     success: true,
@@ -282,7 +282,7 @@ class GeminiProvider extends BaseProvider {
     _convertMessagesWithToolResults(messages, systemPrompt) {
         const contents = [];
         let systemContext = systemPrompt ? systemPrompt + '\n\n' : '';
-        
+
         for (const msg of messages) {
             if (msg.role === 'system') {
                 systemContext += msg.content + '\n\n';
@@ -318,16 +318,61 @@ class GeminiProvider extends BaseProvider {
                     parts: [{
                         functionResponse: {
                             name: msg.name,
-                            response: typeof msg.content === 'string' 
-                                ? JSON.parse(msg.content) 
+                            response: typeof msg.content === 'string'
+                                ? JSON.parse(msg.content)
                                 : msg.content
                         }
                     }],
                 });
             }
         }
-        
+
         return contents;
+    }
+
+    /**
+     * Stream the final response after tool results have been gathered.
+     * Uses _convertMessagesWithToolResults to properly format tool messages for Gemini,
+     * then calls generateContentStream to stream the answer as it's being generated.
+     */
+    async *streamWithToolResults(messages, options = {}) {
+        try {
+            if (!this.genAI) {
+                yield 'Gemini API key not configured.';
+                return;
+            }
+
+            const tools = options.tools ? this._convertTools(options.tools) : null;
+            const modelConfig = {
+                model: options.model || this.model,
+                generationConfig: {
+                    maxOutputTokens: options.maxTokens || this.maxTokens,
+                    temperature: options.temperature || 0.7,
+                },
+            };
+            if (tools) modelConfig.tools = tools;
+
+            const model = this.genAI.getGenerativeModel(modelConfig);
+            const contents = this._convertMessagesWithToolResults(messages, options.systemPrompt);
+
+            const result = await model.generateContentStream({ contents });
+
+            let fullResponse = '';
+            for await (const chunk of result.stream) {
+                const text = chunk.text();
+                if (text) {
+                    fullResponse += text;
+                    yield text;
+                }
+            }
+
+            const promptText = contents.map(c => c.parts[0]?.text || JSON.stringify(c.parts)).join(' ');
+            this._trackUsage(promptText, fullResponse);
+
+        } catch (error) {
+            console.error('Gemini stream-with-tools error:', error);
+            yield 'AI service temporarily unavailable.';
+        }
     }
 
     async *streamChat(messages, options = {}) {
@@ -337,7 +382,7 @@ class GeminiProvider extends BaseProvider {
                 return;
             }
 
-            const model = this.genAI.getGenerativeModel({ 
+            const model = this.genAI.getGenerativeModel({
                 model: options.model || this.model,
                 generationConfig: {
                     maxOutputTokens: options.maxTokens || this.maxTokens,
@@ -346,12 +391,12 @@ class GeminiProvider extends BaseProvider {
             });
 
             const contents = this._convertMessages(messages, options.systemPrompt);
-            
+
             // For streaming, use generateContentStream
             const lastUserContent = contents[contents.length - 1]?.parts[0]?.text || '';
-            
+
             let fullResponse = '';
-            
+
             if (contents.length === 1) {
                 const result = await model.generateContentStream(lastUserContent);
                 for await (const chunk of result.stream) {
@@ -398,7 +443,7 @@ class GeminiProvider extends BaseProvider {
 
             const model = this.genAI.getGenerativeModel({ model: this.model });
             const result = await model.generateContent('Hi');
-            
+
             return { available: true };
         } catch (error) {
             return { available: false, reason: error.message };
