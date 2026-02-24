@@ -46,21 +46,11 @@ export default function NurseLayout({ children }: { children: React.ReactNode })
             <aside className="w-64 bg-blue-950 text-white flex flex-col shadow-xl">
                 <div className="p-6 border-b border-slate-700/50">
                     <Link href="/nurse/dashboard" className="flex items-center gap-3">
-                        {user?.hospital_logo ? (
-                            <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden bg-white">
-                                <img
-                                    src={`http://localhost:5000/${user.hospital_logo.replace(/\\/g, '/')}`}
-                                    alt="Logo"
-                                    className="w-full h-full object-contain p-1"
-                                />
-                            </div>
-                        ) : (
-                            <div className="w-10 h-10 relative overflow-hidden">
-                                <img src="/logo.png" alt="Logo" className="object-contain w-full h-full" />
-                            </div>
-                        )}
+                        <div className="w-10 h-10 relative overflow-hidden">
+                            <img src="/logo.png" alt="Logo" className="object-contain w-full h-full" />
+                        </div>
                         <div>
-                            <h1 className="text-lg font-bold tracking-tight leading-tight">CareNex AI</h1>
+                            <h1 className="text-lg font-bold tracking-tight leading-tight">Global Healthcare</h1>
                             <p className="text-[10px] text-blue-200 uppercase tracking-wider font-semibold">Nurse Portal</p>
                         </div>
                     </Link>
@@ -87,7 +77,7 @@ export default function NurseLayout({ children }: { children: React.ReactNode })
                 </nav>
 
                 <div className="p-4 border-t border-slate-700/50 bg-slate-900/50">
-                    <p className="text-xs text-center text-slate-400">© 2026 CareNex AI</p>
+                    <p className="text-xs text-center text-slate-400">© 2026 Global Healthcare</p>
                 </div>
             </aside>
 
@@ -96,17 +86,34 @@ export default function NurseLayout({ children }: { children: React.ReactNode })
                 {/* Header */}
                 <header className="bg-white shadow-sm border-b border-gray-200 z-10">
                     <div className="px-8 py-4 flex justify-between items-center relative">
-                        {/* Left: Page Title */}
-                        <h2 className="text-xl font-bold text-slate-800">
-                            {navItems.find(item => item.path === pathname)?.name || 'Nurse Portal'}
-                        </h2>
+                        {/* Left: Logo & Page Title */}
+                        <div className="flex items-center gap-3">
+                            {user?.hospital_logo ? (
+                                <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden bg-white border border-gray-200 shadow-sm">
+                                    <img
+                                        src={`http://localhost:5000/${user.hospital_logo.replace(/\\/g, '/')}`}
+                                        alt="Hospital Logo"
+                                        className="w-full h-full object-contain p-1"
+                                    />
+                                </div>
+                            ) : (
+                                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center shadow-sm">
+                                    <span className="text-blue-900 font-bold text-lg">
+                                        {user?.hospital_name ? user.hospital_name.charAt(0).toUpperCase() : 'H'}
+                                    </span>
+                                </div>
+                            )}
+                            <h2 className="text-xl font-bold text-slate-800">
+                                {navItems.find(item => item.path === pathname)?.name || 'Nurse Portal'}
+                            </h2>
+                        </div>
 
                         {/* Center: Hospital Name */}
                         <div className="absolute left-1/2 transform -translate-x-1/2 hidden md:block">
                             <h1 className="text-2xl font-bold text-blue-900 font-heading">
                                 {user?.hospital_name ?
                                     user.hospital_name.charAt(0).toUpperCase() + user.hospital_name.slice(1)
-                                    : 'CareNex AI'}
+                                    : 'Global Healthcare'}
                             </h1>
                         </div>
 

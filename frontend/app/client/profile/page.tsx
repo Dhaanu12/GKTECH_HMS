@@ -109,9 +109,9 @@ export default function ProfilePage() {
                 <div className="p-6 border-b border-gray-100 bg-gray-50/50">
                     <div className="flex items-center gap-4">
                         <div className="w-20 h-20 bg-blue-100 rounded-lg flex items-center justify-center overflow-hidden border border-blue-200">
-                            {hospital.logo ? (
+                            {hospital.logo_url ? (
                                 <img
-                                    src={`http://localhost:5000/${hospital.logo}`}
+                                    src={`http://localhost:5000/${hospital.logo_url.replace(/\\/g, '/')}`}
                                     alt="Hospital Logo"
                                     className="w-full h-full object-cover"
                                 />

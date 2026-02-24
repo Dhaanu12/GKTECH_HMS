@@ -6,7 +6,7 @@ import { AuthProvider } from "@/lib/AuthContext";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "CareNex AI - Hospital Management System",
+  title: "Global Healthcare - Hospital Management System",
   description: "Complete Hospital Management Solution",
   icons: {
     icon: '/logo.png',

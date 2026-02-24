@@ -76,7 +76,7 @@ export default function AccountantLayout({
                                 <img src="/logo.png" alt="Logo" className="object-contain w-full h-full" />
                             </div>
                             <div>
-                                <h1 className="text-xl font-bold tracking-tight text-white">CareNex AI</h1>
+                                <h1 className="text-lg font-bold tracking-tight text-white leading-tight">Global Healthcare</h1>
                                 <p className="text-xs text-blue-200">Accountant Portal</p>
                             </div>
                         </Link>
@@ -136,7 +136,9 @@ export default function AccountantLayout({
                             </div>
                         ) : (
                             <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center shadow-sm">
-                                <span className="text-blue-900 font-bold">P</span>
+                                <span className="text-blue-900 font-bold text-lg">
+                                    {user?.hospital_name ? user.hospital_name.charAt(0).toUpperCase() : 'H'}
+                                </span>
                             </div>
                         )}
                     </div>
@@ -146,7 +148,7 @@ export default function AccountantLayout({
                         <h1 className="text-2xl font-bold text-blue-900">
                             {user?.hospital_name ?
                                 user.hospital_name.charAt(0).toUpperCase() + user.hospital_name.slice(1)
-                                : 'CareNex AI'}
+                                : 'Global Healthcare'}
                         </h1>
                     </div>
 

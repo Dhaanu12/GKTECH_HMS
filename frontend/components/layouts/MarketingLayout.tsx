@@ -52,7 +52,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
                             <img src="/logo.png" alt="Logo" className="object-contain w-full h-full" />
                         </div>
                         <div>
-                            <h1 className="text-xl font-bold tracking-tight">CareNex AI</h1>
+                            <h1 className="text-xl font-bold tracking-tight">Global Healthcare</h1>
                             <p className="text-xs text-blue-200">Marketing Panel</p>
                         </div>
                     </Link>
@@ -95,8 +95,24 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
                 {/* Header */}
                 <header className="bg-white shadow-sm border-b border-gray-200 z-10 relative">
                     <div className="px-8 py-4 flex justify-between items-center h-20">
-                        {/* Left: Empty for spacing/layout if needed, or just standard flex behavior */}
-                        <div></div>
+                        {/* Left: Logo & Fallback */}
+                        <div className="flex items-center gap-3">
+                            {user?.hospital_logo ? (
+                                <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden bg-white border border-gray-200 shadow-sm">
+                                    <img
+                                        src={`http://localhost:5000/${user.hospital_logo.replace(/\\/g, '/')}`}
+                                        alt="Hospital Logo"
+                                        className="w-full h-full object-contain p-1"
+                                    />
+                                </div>
+                            ) : (
+                                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center shadow-sm">
+                                    <span className="text-blue-900 font-bold text-lg">
+                                        {user?.hospital_name ? user.hospital_name.charAt(0).toUpperCase() : 'H'}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
 
                         {/* Center: Hospital Name */}
                         <div className="absolute left-1/2 transform -translate-x-1/2">

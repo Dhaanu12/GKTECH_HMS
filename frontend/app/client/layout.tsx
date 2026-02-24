@@ -68,7 +68,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
                             <img src="/logo.png" alt="Logo" className="object-contain w-full h-full" />
                         </div>
                         <div>
-                            <h1 className="text-lg font-bold tracking-tight leading-tight">CareNex AI</h1>
+                            <h1 className="text-lg font-bold tracking-tight leading-tight">Global Healthcare</h1>
                             <p className="text-[10px] text-blue-200 uppercase tracking-wider font-semibold">Client Admin</p>
                         </div>
                     </Link>
@@ -101,7 +101,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
                 </nav>
 
                 <div className="p-4 border-t border-slate-700/50 bg-slate-900/50">
-                    <p className="text-xs text-center text-slate-400">© 2026 CareNex AI</p>
+                    <p className="text-xs text-center text-slate-400">© 2026 Global Healthcare</p>
                 </div>
             </aside>
 
@@ -128,7 +128,9 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
                                 </div >
                             ) : (
                                 <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-sm">
-                                    <span className="text-white font-bold text-lg">P</span>
+                                    <span className="text-white font-bold text-lg">
+                                        {user?.hospital_name ? user.hospital_name.charAt(0).toUpperCase() : 'H'}
+                                    </span>
                                 </div>
                             )}
                             <h2 className="text-xl font-semibold text-slate-700">
@@ -141,7 +143,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
                             <h1 className="text-2xl font-bold text-blue-900">
                                 {user?.hospital_name ?
                                     user.hospital_name.charAt(0).toUpperCase() + user.hospital_name.slice(1)
-                                    : 'CareNex AI'}
+                                    : 'Global Healthcare'}
                             </h1>
                         </div >
 

@@ -46,7 +46,7 @@ class User extends BaseModel {
              db.branch_id as doctor_branch_id,
              n.nurse_id, nb.branch_id as nurse_branch_id,
              COALESCE(sb.branch_id, db.branch_id, nb.branch_id) as branch_id,
-             b.hospital_id, h.hospital_name, h.logo as hospital_logo, h.enabled_modules, b.branch_name, b.enabled_modules as branch_enabled_modules
+             b.hospital_id, h.hospital_name, h.logo_url as hospital_logo, h.is_active as hospital_is_active, h.enabled_modules, b.branch_name, b.enabled_modules as branch_enabled_modules
       FROM users u
       LEFT JOIN roles r ON u.role_id = r.role_id
       LEFT JOIN staff s ON u.user_id = s.user_id

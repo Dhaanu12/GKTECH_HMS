@@ -218,7 +218,8 @@ class ConsultationController {
                         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'Routine', 'Ordered', NOW(), $9, $10, $11)
                     `, [
                         orderNumber, safeInt(patient_id), safeInt(doctor_id), safeInt(branch_id), safeInt(opd_id), safeInt(prescription_id),
-                        proc.name || proc.service_name, normalizedCat, '', proc.code || null, isExternal
+                        proc.name || proc.service_name || proc.label || proc.item_name || 'Unknown Procedure',
+                        normalizedCat, '', proc.code || null, isExternal
                     ]);
 
                     if (proc.price && parseFloat(proc.price) > 0) {
@@ -239,7 +240,7 @@ class ConsultationController {
             if (diagnosis_list && diagnosis_list.length > 0) {
                 for (const diag of diagnosis_list) {
                     // Create Lab Order (Diagnosis/Scan) - Only if it's a structured service object or has a name
-                    if (diag.name || diag.service_name) {
+                    if (diag.name || diag.service_name || diag.label || diag.item_name) {
                         const orderNumber = `LO-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
                         const isExternal = diag.source !== 'billing_setup_master';
                         const normalizedCat = normalizeCategory(diag.category || 'Diagnosis');
@@ -251,7 +252,7 @@ class ConsultationController {
                              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'Routine', 'Ordered', NOW(), $9, $10, $11)
                          `, [
                             orderNumber, safeInt(patient_id), safeInt(doctor_id), safeInt(branch_id), safeInt(opd_id), safeInt(prescription_id),
-                            diag.name || diag.service_name, normalizedCat, '', diag.code || null, isExternal
+                            diag.name || diag.service_name || diag.label || diag.item_name, normalizedCat, '', diag.code || null, isExternal
                         ]);
                     }
 
@@ -545,7 +546,8 @@ class ConsultationController {
                         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'Routine', 'Ordered', NOW(), $9, $10, $11)
                     `, [
                         orderNumber, safeInt(patient_id), safeInt(doctor_id), safeInt(branch_id), safeInt(opd_id), safeInt(prescription_id),
-                        proc.name || proc.service_name, normalizedCat, '', proc.code || null, isExternal
+                        proc.name || proc.service_name || proc.label || proc.item_name || 'Unknown Procedure',
+                        normalizedCat, '', proc.code || null, isExternal
                     ]);
 
                     if (proc.price && parseFloat(proc.price) > 0) {
@@ -566,7 +568,7 @@ class ConsultationController {
             if (diagnosis_list && diagnosis_list.length > 0) {
                 for (const diag of diagnosis_list) {
                     // Create Lab Order (Diagnosis/Scan)
-                    if (diag.name || diag.service_name) {
+                    if (diag.name || diag.service_name || diag.label || diag.item_name) {
                         const orderNumber = `LO-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
                         const isExternal = diag.source !== 'billing_setup_master';
                         const normalizedCat = normalizeCategory(diag.category || 'Diagnosis');
@@ -578,7 +580,7 @@ class ConsultationController {
                             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'Routine', 'Ordered', NOW(), $9, $10, $11)
                         `, [
                             orderNumber, safeInt(patient_id), safeInt(doctor_id), safeInt(branch_id), safeInt(opd_id), safeInt(prescription_id),
-                            diag.name || diag.service_name, normalizedCat, '', diag.code || null, isExternal
+                            diag.name || diag.service_name || diag.label || diag.item_name, normalizedCat, '', diag.code || null, isExternal
                         ]);
                     }
 

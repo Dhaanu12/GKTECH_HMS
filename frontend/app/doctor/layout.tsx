@@ -62,7 +62,7 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
                             <img src="/logo.png" alt="Logo" className="object-contain w-full h-full" />
                         </div>
                         <div>
-                            <h1 className="text-lg font-bold tracking-tight leading-tight">CareNex AI</h1>
+                            <h1 className="text-lg font-bold tracking-tight leading-tight">Global Healthcare</h1>
                             <p className="text-[10px] text-blue-200 uppercase tracking-wider font-semibold">Doctor Portal</p>
                         </div>
                     </Link>
@@ -95,7 +95,7 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
                 </nav>
 
                 <div className="p-4 border-t border-slate-700/50 bg-slate-900/50">
-                    <p className="text-xs text-center text-slate-400">© 2026 CareNex AI</p>
+                    <p className="text-xs text-center text-slate-400">© 2026 Global Healthcare</p>
                 </div>
             </aside>
 
@@ -131,7 +131,9 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
                                     </div>
                                 ) : (
                                     <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center shadow-sm">
-                                        <Stethoscope className="w-5 h-5 text-blue-900" />
+                                        <span className="text-blue-900 font-bold text-lg">
+                                            {user?.hospital_name ? user.hospital_name.charAt(0).toUpperCase() : 'H'}
+                                        </span>
                                     </div>
                                 )
                             )}
@@ -145,7 +147,7 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
                             <h1 className="text-lg font-bold text-blue-900">
                                 {user?.hospital_name ?
                                     user.hospital_name.charAt(0).toUpperCase() + user.hospital_name.slice(1)
-                                    : 'CareNex AI'}
+                                    : 'Global Healthcare'}
                             </h1>
                         </div>
 

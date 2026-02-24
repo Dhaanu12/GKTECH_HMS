@@ -115,6 +115,11 @@ class AuthController {
             // Get user with role
             const userWithRole = await User.findWithRole(user.user_id);
 
+            // Check if the hospital is active (skip for SUPER_ADMIN who has no hospital)
+            if (userWithRole.hospital_id && userWithRole.hospital_is_active === false) {
+                return next(new AppError('Your hospital has been deactivated. Please contact the administrator.', 403));
+            }
+
             // Check module access
             const ROLE_MODULE_MAP = {
                 'DOCTOR': 'doc',

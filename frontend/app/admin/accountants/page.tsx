@@ -16,6 +16,7 @@ export default function AccountantsPage() {
     const [allBranches, setAllBranches] = useState([]); // Store all branches for Super Admin
     const [hospitals, setHospitals] = useState([]); // For Super Admin
     const [selectedHospitalId, setSelectedHospitalId] = useState(''); // For filtering branches
+    const [selectedBranchId, setSelectedBranchId] = useState(''); // For filtering accountants
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [formData, setFormData] = useState({
@@ -38,15 +39,22 @@ export default function AccountantsPage() {
                 fetchHospitals();
             }
         }
-    }, [user]);
+    }, [user, selectedHospitalId, selectedBranchId]);
 
     const fetchAccountants = async () => {
         try {
             const token = localStorage.getItem('token');
             let url = `${API_URL}/accountant`;
+            const params: string[] = [];
             if (user?.role_code === 'CLIENT_ADMIN' && user.hospital_id) {
-                url += `?hospital_id=${user.hospital_id}`;
+                params.push(`hospital_id=${user.hospital_id}`);
+            } else if (selectedHospitalId) {
+                params.push(`hospital_id=${selectedHospitalId}`);
             }
+            if (selectedBranchId) {
+                params.push(`branch_id=${selectedBranchId}`);
+            }
+            if (params.length) url += '?' + params.join('&');
 
             const response = await axios.get(url, {
                 headers: { Authorization: `Bearer ${token}` }
@@ -98,10 +106,15 @@ export default function AccountantsPage() {
 
     const handleHospitalChange = (hospitalId: string) => {
         setSelectedHospitalId(hospitalId);
-        const filteredBranches = allBranches.filter((b: any) =>
-            b.hospital_id === parseInt(hospitalId)
-        );
-        setBranches(filteredBranches);
+        setSelectedBranchId(''); // reset branch when hospital changes
+        if (hospitalId) {
+            const filteredBranches = allBranches.filter((b: any) =>
+                b.hospital_id === parseInt(hospitalId)
+            );
+            setBranches(filteredBranches);
+        } else {
+            setBranches([]);
+        }
         setFormData({ ...formData, branch_ids: [] });
     };
 
@@ -218,6 +231,41 @@ export default function AccountantsPage() {
                     </span>
                 </button>
             </div>
+
+            {/* Filters for Super Admin */}
+            {user?.role_code === 'SUPER_ADMIN' && (
+                <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm mb-6 flex gap-4 flex-wrap">
+                    <div className="flex-1 min-w-[180px]">
+                        <select
+                            value={selectedHospitalId}
+                            onChange={(e) => handleHospitalChange(e.target.value)}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                            <option value="">All Hospitals</option>
+                            {hospitals.map((h: any) => (
+                                <option key={h.hospital_id} value={h.hospital_id}>
+                                    {h.hospital_name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="flex-1 min-w-[180px]">
+                        <select
+                            value={selectedBranchId}
+                            onChange={(e) => setSelectedBranchId(e.target.value)}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            disabled={!selectedHospitalId}
+                        >
+                            <option value="">All Branches</option>
+                            {branches.map((b: any) => (
+                                <option key={b.branch_id} value={b.branch_id}>
+                                    {b.branch_name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+            )}
 
             {loading ? (
                 <div className="flex justify-center items-center h-64">

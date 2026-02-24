@@ -256,7 +256,7 @@ export default function ClientDashboard() {
                                 </div>
                                 <h4 className="text-gray-900 font-bold mb-1">Get AI-Powered Insights</h4>
                                 <p className="text-gray-600 text-sm max-w-md">
-                                    Click \"Generate Insights\" to get smart recommendations
+                                    Click "Generate Insights" to get smart recommendations
                                 </p>
                             </div>
                         )}

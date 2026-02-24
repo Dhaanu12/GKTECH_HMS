@@ -62,7 +62,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                             <img src="/logo.png" alt="Logo" className="object-contain w-full h-full" />
                         </div>
                         <div>
-                            <h1 className="text-xl font-bold tracking-tight">CareNex AI</h1>
+                            <h1 className="text-xl font-bold tracking-tight">Global Healthcare</h1>
                             <p className="text-xs text-blue-200">Admin Panel</p>
                         </div>
                     </Link>
@@ -95,7 +95,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 </nav>
 
                 <div className="p-4 border-t border-slate-700/50 bg-slate-900/50">
-                    <p className="text-xs text-center text-slate-400">© 2026 CareNex AI</p>
+                    <p className="text-xs text-center text-slate-400">© 2026 Global Healthcare</p>
                 </div>
             </aside>
 
