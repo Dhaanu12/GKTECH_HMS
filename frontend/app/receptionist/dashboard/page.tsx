@@ -1360,7 +1360,7 @@ export default function ReceptionistDashboard() {
     );
 
     return (
-        <div className="flex flex-col h-[calc(100vh-156px)] w-full space-y-4 overflow-y-auto overflow-x-hidden pb-8">
+        <div className="flex flex-col w-full space-y-4 pb-8">
             {/* Header Content */}
             <div className="flex justify-between items-end">
                 <div>
@@ -1422,7 +1422,7 @@ export default function ReceptionistDashboard() {
             )}
 
             {/* Reference Layout: Top Stats Row + Bottom Split Content */}
-            <div className="flex flex-col flex-1 min-h-0 space-y-4 w-full">
+            <div className="flex flex-col space-y-4 w-full">
 
                 {/* Top Row: Stats Cards (4 Columns) */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 w-full">
@@ -1538,10 +1538,10 @@ export default function ReceptionistDashboard() {
                 </div>
 
                 {/* Bottom Section: Main Content (Left) + Sidebar (Right) */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 min-h-0 w-full">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 w-full">
 
                     {/* Left Column: Upcoming Appointments (Replaces Patient Queue) */}
-                    <div className="lg:col-span-2 h-full min-h-0">
+                    <div className="lg:col-span-2">
                         <UpcomingAppointments
                             doctors={doctors}
                             onConvertToOPD={selectPatient}
@@ -1551,7 +1551,7 @@ export default function ReceptionistDashboard() {
                     </div>
 
                     {/* Right Column: Quick Actions + Follow-ups */}
-                    <div className="lg:col-span-1 space-y-4 h-full min-h-0 flex flex-col overflow-y-auto pr-1">
+                    <div className="lg:col-span-1 space-y-4 flex flex-col pr-1">
 
                         {/* Quick Actions Widget */}
                         <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
