@@ -61,6 +61,15 @@ const pageQuickActions: Record<string, QuickAction[]> = {
         { label: 'Pending summary', prompt: 'Summarize pending payments and bills.', icon: <DollarSign className="w-3.5 h-3.5" /> },
         { label: 'Overdue bills', prompt: 'Are there any long-overdue bills?', icon: <AlertCircle className="w-3.5 h-3.5" /> },
     ],
+    'client-admin': [
+        { label: 'Hospital overview', prompt: 'Give me an overview of the hospital\'s performance and dashboard stats today.', icon: <Activity className="w-3.5 h-3.5" /> },
+        { label: 'Revenue today', prompt: 'What is the overall revenue across branches for today?', icon: <DollarSign className="w-3.5 h-3.5" /> },
+        { label: 'Branch performance', prompt: 'Show me the branch performance metrics.', icon: <Sparkles className="w-3.5 h-3.5" /> },
+    ],
+    'reports': [
+        { label: 'Revenue report', prompt: 'Summarize the overall revenue report.', icon: <DollarSign className="w-3.5 h-3.5" /> },
+        { label: 'Branch performance', prompt: 'Show me the performance across different branches.', icon: <Activity className="w-3.5 h-3.5" /> },
+    ],
     'default': [
         { label: 'How can I help?', prompt: 'What can you help me with in the hospital management system?', icon: <Sparkles className="w-3.5 h-3.5" /> },
     ],
@@ -79,6 +88,7 @@ export function FloatingAIAssistant() {
         isStreaming,
         error,
         currentPage,
+        role,
         rateLimit,
         isAvailable,
         pendingAction,
@@ -90,6 +100,8 @@ export function FloatingAIAssistant() {
 
     // Get quick actions for current page
     const getQuickActions = (): QuickAction[] => {
+        if (role === 'client-admin' && currentPage.includes('dashboard')) return pageQuickActions['client-admin'] || pageQuickActions['default'];
+        if (role === 'client-admin' && currentPage.includes('reports')) return pageQuickActions['reports'] || pageQuickActions['default'];
         const pageName = currentPage.split('/').pop() || 'default';
         return pageQuickActions[pageName] || pageQuickActions['default'];
     };
@@ -235,9 +247,9 @@ export function FloatingAIAssistant() {
                                                 className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                                             >
                                                 <div
-                                                    className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${message.role === 'user'
-                                                            ? 'bg-blue-600 text-white rounded-br-md'
-                                                            : 'bg-white border border-slate-200 text-slate-700 rounded-bl-md shadow-sm'
+                                                    className={`max-w-[85%] min-w-0 break-words rounded-2xl px-4 py-2.5 ${message.role === 'user'
+                                                        ? 'bg-blue-600 text-white rounded-br-md'
+                                                        : 'bg-white border border-slate-200 text-slate-700 rounded-bl-md shadow-sm'
                                                         }`}
                                                 >
                                                     {message.role === 'assistant' && (

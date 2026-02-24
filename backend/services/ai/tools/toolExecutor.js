@@ -14,11 +14,11 @@ const API_URL = process.env.API_URL || 'http://localhost:5000/api';
  */
 function toIST(timestamp) {
     if (!timestamp) return null;
-    
+
     try {
         const date = new Date(timestamp);
         if (isNaN(date.getTime())) return timestamp; // Return original if invalid
-        
+
         // Format in IST timezone
         return date.toLocaleString('en-IN', {
             timeZone: 'Asia/Kolkata',
@@ -39,11 +39,11 @@ function toIST(timestamp) {
  */
 function toISTDate(timestamp) {
     if (!timestamp) return null;
-    
+
     try {
         const date = new Date(timestamp);
         if (isNaN(date.getTime())) return timestamp;
-        
+
         return date.toLocaleDateString('en-IN', {
             timeZone: 'Asia/Kolkata',
             day: '2-digit',
@@ -70,7 +70,7 @@ async function executeTool(toolName, args, authToken) {
 
     try {
         let result;
-        
+
         switch (toolName) {
             case 'searchPatients':
                 result = await executeSearchPatients(args, headers);
@@ -102,6 +102,19 @@ async function executeTool(toolName, args, authToken) {
             case 'getPatientFeedback':
                 result = await executeGetPatientFeedback(args, headers);
                 break;
+            // Client Admin Tools
+            case 'getClientAdminDashboardStats':
+                result = await executeGetClientAdminDashboardStats(args, headers);
+                break;
+            case 'getBranchPerformance':
+                result = await executeGetBranchPerformance(args, headers);
+                break;
+            case 'getOverallRevenue':
+                result = await executeGetOverallRevenue(args, headers);
+                break;
+            case 'getHospitalActivity':
+                result = await executeGetHospitalActivity(args, headers);
+                break;
             // New read-only tools
             case 'getFollowUps':
                 result = await executeGetFollowUps(args, headers);
@@ -117,6 +130,9 @@ async function executeTool(toolName, args, authToken) {
                 break;
             case 'getPendingBillItems':
                 result = await executeGetPendingBillItems(args, headers);
+                break;
+            case 'getBills':
+                result = await executeGetBills(args, headers);
                 break;
             case 'getDoctorAvailability':
                 result = await executeGetDoctorAvailability(args, headers);
@@ -179,7 +195,7 @@ async function executeTool(toolName, args, authToken) {
         return result;
     } catch (error) {
         console.error(`Tool execution error (${toolName}):`, error.message);
-        
+
         if (error.response?.status === 401) {
             return { error: 'Authentication failed. User may not have permission to access this data.' };
         }
@@ -189,7 +205,7 @@ async function executeTool(toolName, args, authToken) {
         if (error.response?.status === 404) {
             return { error: 'Data not found.' };
         }
-        
+
         return { error: `Failed to execute ${toolName}: ${error.message}` };
     }
 }
@@ -199,36 +215,36 @@ async function executeTool(toolName, args, authToken) {
 async function executeSearchPatients(args, headers) {
     const { query } = args;
     let patients = [];
-    
+
     // Try full query first
     const response = await axios.get(`${API_URL}/patients/search`, {
         params: { q: query },
         headers
     });
     patients = response.data?.data?.patients || [];
-    
+
     // If no results and query contains spaces, try different parts
     if (patients.length === 0 && query.includes(' ')) {
         const parts = query.trim().split(/\s+/);
-        
+
         // Try each part individually until we find results
         for (const part of parts) {
             if (part.length < 2) continue; // Skip single letters like initials
-            
+
             const response2 = await axios.get(`${API_URL}/patients/search`, {
                 params: { q: part },
                 headers
             });
             patients = response2.data?.data?.patients || [];
-            
+
             if (patients.length > 0) break;
         }
     }
-    
+
     if (patients.length === 0) {
         return { message: 'No patients found matching the search criteria.' };
     }
-    
+
     // Format for AI context - include key info
     return {
         count: patients.length,
@@ -247,12 +263,12 @@ async function executeSearchPatients(args, headers) {
 async function executeGetPatientDetails(args, headers) {
     const { patientId } = args;
     const response = await axios.get(`${API_URL}/patients/${patientId}`, { headers });
-    
+
     const patient = response.data?.data?.patient;
     if (!patient) {
         return { error: 'Patient not found' };
     }
-    
+
     return {
         id: patient.patient_id,
         name: `${patient.first_name} ${patient.last_name}`,
@@ -274,20 +290,20 @@ async function executeGetPatientDetails(args, headers) {
 async function executeGetPatientVitals(args, headers) {
     const { patientId, limit = 10 } = args;
     const response = await axios.get(`${API_URL}/vitals/patient/${patientId}`, { headers });
-    
+
     const vitals = response.data?.data?.vitals || [];
-    
+
     if (vitals.length === 0) {
         return { message: 'No vitals recorded for this patient.' };
     }
-    
+
     return {
         count: vitals.length,
         vitals: vitals.slice(0, limit).map(v => ({
             recordedAt: toIST(v.recorded_at),
             pulseRate: v.pulse_rate ? `${v.pulse_rate} bpm` : null,
-            bloodPressure: v.blood_pressure_systolic && v.blood_pressure_diastolic 
-                ? `${v.blood_pressure_systolic}/${v.blood_pressure_diastolic} mmHg` 
+            bloodPressure: v.blood_pressure_systolic && v.blood_pressure_diastolic
+                ? `${v.blood_pressure_systolic}/${v.blood_pressure_diastolic} mmHg`
                 : null,
             temperature: v.temperature ? `${v.temperature}°F` : null,
             spO2: v.spo2 ? `${v.spo2}%` : null,
@@ -306,13 +322,13 @@ async function executeGetPatientLabOrders(args, headers) {
         params: { includeCompleted },
         headers
     });
-    
+
     const orders = response.data?.data?.orders || [];
-    
+
     if (orders.length === 0) {
         return { message: 'No lab orders found for this patient.' };
     }
-    
+
     return {
         count: orders.length,
         orders: orders.map(o => ({
@@ -330,19 +346,19 @@ async function executeGetPatientLabOrders(args, headers) {
 async function executeGetPatientNotes(args, headers) {
     const { patientId, noteType } = args;
     let url = `${API_URL}/clinical-notes/patient/${patientId}`;
-    
+
     const response = await axios.get(url, { headers });
-    
+
     let notes = response.data?.data?.notes || [];
-    
+
     if (noteType) {
         notes = notes.filter(n => n.note_type?.toLowerCase() === noteType.toLowerCase());
     }
-    
+
     if (notes.length === 0) {
         return { message: 'No clinical notes found for this patient.' };
     }
-    
+
     return {
         count: notes.length,
         notes: notes.slice(0, 10).map(n => ({
@@ -359,23 +375,23 @@ async function executeGetPatientNotes(args, headers) {
 async function executeGetAppointments(args, headers) {
     const { patientId, doctorId, date, status } = args;
     const params = {};
-    
+
     if (patientId) params.patientId = patientId;
     if (doctorId) params.doctorId = doctorId;
     if (date) params.date = date;
     if (status) params.status = status;
-    
+
     const response = await axios.get(`${API_URL}/appointments`, {
         params,
         headers
     });
-    
+
     const appointments = response.data?.data?.appointments || [];
-    
+
     if (appointments.length === 0) {
         return { message: 'No appointments found matching the criteria.' };
     }
-    
+
     return {
         count: appointments.length,
         appointments: appointments.slice(0, 15).map(a => ({
@@ -394,13 +410,13 @@ async function executeGetAppointments(args, headers) {
 async function executeGetPatientConsultations(args, headers) {
     const { patientId } = args;
     const response = await axios.get(`${API_URL}/consultations/patient/${patientId}`, { headers });
-    
+
     const consultations = response.data?.data?.consultations || response.data?.data || [];
-    
+
     if (consultations.length === 0) {
         return { message: 'No consultations found for this patient.' };
     }
-    
+
     return {
         count: consultations.length,
         consultations: consultations.slice(0, 10).map(c => ({
@@ -417,25 +433,25 @@ async function executeGetPatientConsultations(args, headers) {
 
 async function executeGetOpdEntries(args, headers) {
     const { patientId, date } = args;
-    
+
     let url;
     if (patientId) {
         url = `${API_URL}/opd/patient/${patientId}`;
     } else {
         url = `${API_URL}/opd`;
     }
-    
+
     const params = {};
     if (date) params.date = date;
-    
+
     const response = await axios.get(url, { params, headers });
-    
+
     const entries = response.data?.data?.opdHistory || response.data?.data?.entries || [];
-    
+
     if (entries.length === 0) {
         return { message: 'No OPD entries found.' };
     }
-    
+
     return {
         count: entries.length,
         entries: entries.slice(0, 15).map(e => ({
@@ -469,18 +485,18 @@ async function executeGetPatientFeedback(args, headers) {
     const { patientId } = args;
     const params = {};
     if (patientId) params.patientId = patientId;
-    
+
     const response = await axios.get(`${API_URL}/feedback`, {
         params,
         headers
     });
-    
+
     const feedback = response.data?.data?.feedback || [];
-    
+
     if (feedback.length === 0) {
         return { message: 'No feedback found.' };
     }
-    
+
     return {
         count: feedback.length,
         feedback: feedback.slice(0, 10).map(f => ({
@@ -552,15 +568,37 @@ async function executeGetPatientFollowUp(args, headers) {
 
 async function executeGetPendingBills(args, headers) {
     try {
+        const { date } = args;
+        // If date is provided, use /billing endpoint with status=Pending and date filter
+        if (date) {
+            const params = { status: 'Pending', startDate: date, endDate: date };
+            const response = await axios.get(`${API_URL}/billing`, { params, headers });
+            const items = response.data.data?.bills || [];
+            return {
+                date: toISTDate(date),
+                count: items.length,
+                totalPending: items.reduce((sum, i) => sum + (parseFloat(i.total_amount) || 0), 0),
+                bills: items.slice(0, 15).map(b => ({
+                    billId: b.bill_master_id,
+                    opdId: b.opd_id,
+                    patientName: b.patient_name || `${b.first_name || ''} ${b.last_name || ''}`.trim(),
+                    amount: b.total_amount,
+                    billingDate: toISTDate(b.billing_date),
+                    doctor: b.doctor_name,
+                    status: b.status
+                }))
+            };
+        }
+        // No date — use original pending-clearances endpoint
         const response = await axios.get(`${API_URL}/billing/pending-clearances`, { headers });
-        const items = response.data.data?.pendingItems || response.data.data || [];
+        const items = response.data.data?.pending || response.data.data?.pendingItems || response.data.data || [];
         return {
             count: items.length,
-            totalPending: items.reduce((sum, i) => sum + (parseFloat(i.total_amount) || 0), 0),
+            totalPending: items.reduce((sum, i) => sum + (parseFloat(i.total_pending_amount || i.total_amount) || 0), 0),
             bills: items.slice(0, 15).map(b => ({
                 opdId: b.opd_id,
                 patientName: b.patient_name || `${b.first_name || ''} ${b.last_name || ''}`.trim(),
-                amount: b.total_amount,
+                amount: b.total_pending_amount || b.total_amount,
                 visitDate: toISTDate(b.visit_date),
                 doctor: b.doctor_name,
                 items: b.items || b.service_name
@@ -611,6 +649,48 @@ async function executeGetPendingBillItems(args, headers) {
         };
     } catch (error) {
         return { error: `Failed to fetch pending bill items: ${error.response?.data?.message || error.message}` };
+    }
+}
+
+async function executeGetBills(args, headers) {
+    try {
+        const params = {};
+        if (args.startDate) params.startDate = args.startDate;
+        if (args.endDate) params.endDate = args.endDate;
+        if (args.status) params.status = args.status;
+        if (args.search) params.search = args.search;
+
+        const response = await axios.get(`${API_URL}/billing`, { params, headers });
+        const bills = response.data.data?.bills || [];
+
+        const totalAmount = bills.reduce((sum, b) => sum + (parseFloat(b.total_amount) || 0), 0);
+        const paidBills = bills.filter(b => b.status === 'Paid');
+        const pendingBills = bills.filter(b => b.status === 'Pending');
+        const paidTotal = paidBills.reduce((sum, b) => sum + (parseFloat(b.total_amount) || 0), 0);
+        const pendingTotal = pendingBills.reduce((sum, b) => sum + (parseFloat(b.total_amount) || 0), 0);
+
+        return {
+            totalBills: bills.length,
+            totalAmount,
+            paidCount: paidBills.length,
+            paidTotal,
+            pendingCount: pendingBills.length,
+            pendingTotal,
+            dateRange: args.startDate && args.endDate
+                ? (args.startDate === args.endDate ? toISTDate(args.startDate) : `${toISTDate(args.startDate)} to ${toISTDate(args.endDate)}`)
+                : 'all',
+            bills: bills.slice(0, 15).map(b => ({
+                billId: b.bill_master_id,
+                invoiceNumber: b.invoice_number,
+                patientName: b.patient_name,
+                amount: b.total_amount,
+                status: b.status,
+                billingDate: toISTDate(b.billing_date),
+                doctor: b.doctor_name
+            }))
+        };
+    } catch (error) {
+        return { error: `Failed to fetch bills: ${error.response?.data?.message || error.message}` };
     }
 }
 
@@ -945,6 +1025,72 @@ function buildProposalSummary(toolName, args) {
         default:
             return `Execute ${toolName} with ${JSON.stringify(args)}`;
     }
+}
+
+// ============ NEW CLIENT ADMIN TOOL IMPLEMENTATIONS ============
+
+async function executeGetClientAdminDashboardStats(args, headers) {
+    try {
+        const response = await axios.get(`${API_URL}/clientadmins/stats`, { headers });
+        const stats = response.data.data?.stats || {};
+        return {
+            totalBranches: stats.branches || 0,
+            activeStaff: (stats.doctors || 0) + (stats.nurses || 0) + (stats.receptionists || 0),
+            totalPatientsToday: "Use /clientadmins/analytics for detailed metrics",
+            revenueToday: "Use /clientadmins/analytics for detailed metrics"
+        };
+    } catch (error) {
+        return { error: `Failed to fetch client admin dashboard stats: ${error.response?.data?.message || error.message}` };
+    }
+}
+
+async function executeGetBranchPerformance(args, headers) {
+    try {
+        const params = {};
+        if (args.dateRange) params.startDate = args.dateRange;
+
+        const response = await axios.get(`${API_URL}/clientadmins/reports/branch`, { params, headers });
+        const data = response.data.data || [];
+
+        return {
+            count: data.length,
+            branchPerformance: data.slice(0, 5).map(b => ({
+                branchName: b.branch_name,
+                appointments: b.total_appointments || 0,
+                revenue: b.total_revenue || 0,
+                patients: b.unique_patients || 0
+            }))
+        };
+    } catch (error) {
+        return { error: `Failed to fetch branch performance: ${error.response?.data?.message || error.message}` };
+    }
+}
+
+async function executeGetOverallRevenue(args, headers) {
+    try {
+        const params = {};
+        if (args.dateRange) params.startDate = args.dateRange;
+
+        const response = await axios.get(`${API_URL}/clientadmins/analytics`, { params, headers });
+        const data = response.data.data || {};
+        const summary = data.summary || {};
+
+        return {
+            totalRevenue: summary.total_revenue || 0,
+            totalOpdVisits: summary.total_opd_visits || 0,
+            uniquePatients: summary.unique_patients || 0
+        };
+    } catch (error) {
+        return { error: `Failed to fetch overall analytics/revenue: ${error.response?.data?.message || error.message}` };
+    }
+}
+
+async function executeGetHospitalActivity(args, headers) {
+    // There is no dedicated activity endpoint currently, returning a generic confirmation
+    return {
+        recentActivity: "Detailed hospital activity logs are currently unsupported via this API.",
+        count: 0
+    };
 }
 
 module.exports = {

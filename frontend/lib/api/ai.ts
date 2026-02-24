@@ -108,7 +108,8 @@ export async function streamChat(
     context: AIContext | undefined,
     onChunk: (content: string) => void,
     onComplete: () => void,
-    onError: (error: string) => void
+    onError: (error: string) => void,
+    onClear?: () => void  // Called when backend signals to clear the loading indicator
 ): Promise<void> {
     try {
         const token = localStorage.getItem('token');
@@ -135,31 +136,43 @@ export async function streamChat(
             return;
         }
 
+        let buffer = '';
+
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
 
-            const chunk = decoder.decode(value, { stream: true });
-            const lines = chunk.split('\n');
+            buffer += decoder.decode(value, { stream: true });
 
-            for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                    const data = line.slice(6);
-                    if (data === '[DONE]') {
-                        onComplete();
-                        return;
-                    }
-                    try {
-                        const parsed = JSON.parse(data);
-                        if (parsed.content) {
-                            onChunk(parsed.content);
-                        }
-                        if (parsed.error) {
-                            onError(parsed.error);
+            // Process all complete events in the buffer, separated by \n\n
+            let eventEndIndex;
+            while ((eventEndIndex = buffer.indexOf('\n\n')) >= 0) {
+                const eventStr = buffer.slice(0, eventEndIndex);
+                buffer = buffer.slice(eventEndIndex + 2); // Remove processed event and \n\n
+
+                const lines = eventStr.split('\n');
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        const data = line.slice(6);
+                        if (data.trim() === '[DONE]') {
+                            onComplete();
                             return;
                         }
-                    } catch {
-                        // Skip invalid JSON
+                        try {
+                            const parsed = JSON.parse(data);
+                            if (parsed.clearIndicator && onClear) {
+                                onClear();
+                            }
+                            if (parsed.content) {
+                                onChunk(parsed.content);
+                            }
+                            if (parsed.error) {
+                                onError(parsed.error);
+                                return;
+                            }
+                        } catch (e) {
+                            // Ignored: could be a partial or malformed event
+                        }
                     }
                 }
             }

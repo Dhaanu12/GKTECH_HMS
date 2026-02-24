@@ -171,7 +171,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
                 {/* Content */}
                 < main className="flex-1 overflow-auto p-8 bg-[#EBF5FF]" >
-                    <AIContextProvider role="client_admin" initialPage={pathname}>
+                    <AIContextProvider role="client-admin" initialPage={pathname}>
                         {children}
                         <FloatingAIAssistant />
                     </AIContextProvider>

@@ -25,8 +25,16 @@ router.post('/chat', async (req, res) => {
 
         // Add context to system prompt if provided
         let systemPrompt = aiService.SYSTEM_PROMPTS.general;
+        const userRole = req.user?.role || 'staff member';
+        const branchId = req.user?.branch_id || null;
+
+        systemPrompt += `\n\nCurrent user context: Role is ${userRole}.`;
+        if (branchId) {
+            systemPrompt += ` Branch ID: ${branchId}.`;
+        }
+
         if (context) {
-            systemPrompt += `\n\nCurrent context: User is on the ${context.page || 'unknown'} page as a ${context.role || 'staff member'}.`;
+            systemPrompt += ` User is currently viewing the ${context.page || 'unknown'} page.`;
             if (context.patientInfo) {
                 systemPrompt += `\nViewing patient: ${context.patientInfo}`;
             }
@@ -36,7 +44,7 @@ router.post('/chat', async (req, res) => {
         const authToken = req.headers.authorization;
 
         // Use agentChat for tool-enabled conversations, otherwise use regular chat
-        const result = useTools 
+        const result = useTools
             ? await aiService.agentChat(messages, { systemPrompt, authToken })
             : await aiService.chat(messages, { systemPrompt });
 
@@ -75,8 +83,16 @@ router.post('/chat/stream', async (req, res) => {
         res.setHeader('Connection', 'keep-alive');
 
         let systemPrompt = aiService.SYSTEM_PROMPTS.general;
+        const userRole = req.user?.role || 'staff member';
+        const branchId = req.user?.branch_id || null;
+
+        systemPrompt += `\n\nCurrent user context: Role is ${userRole}.`;
+        if (branchId) {
+            systemPrompt += ` Branch ID: ${branchId}.`;
+        }
+
         if (context) {
-            systemPrompt += `\n\nCurrent context: User is on the ${context.page || 'unknown'} page as a ${context.role || 'staff member'}.`;
+            systemPrompt += ` User is currently viewing the ${context.page || 'unknown'} page.`;
             if (context.patientInfo) {
                 systemPrompt += `\nViewing patient: ${context.patientInfo}`;
             }
@@ -86,28 +102,26 @@ router.post('/chat/stream', async (req, res) => {
         const authToken = req.headers.authorization;
 
         if (useTools) {
-            // Use agentChat to handle tool calls first, then send the result
-            // This ensures data lookup happens before responding
-            const result = await aiService.agentChat(messages, { systemPrompt, authToken });
-            
-            console.log('Agent chat result:', { success: result.success, hasMessage: !!result.message, messageLength: result.message?.length });
-            
-            if (result.success) {
-                const responseText = result.message || 'I was unable to generate a response. Please try again.';
-                // Stream the response word by word for a streaming effect
-                const words = responseText.split(' ');
-                for (let i = 0; i < words.length; i++) {
-                    const chunk = (i === 0 ? '' : ' ') + words[i];
+            // Provide instant streaming feedback so the user knows tools are running
+            res.write(`data: ${JSON.stringify({ content: "⏳ *Checking live data...*\n\n" })}\n\n`);
+
+            // agentChatStream executes tools (blocking), then streams the final answer in real time
+            for await (const chunk of aiService.agentChatStream(messages, { systemPrompt, authToken })) {
+                if (typeof chunk === 'string') {
+                    // Regular text chunk — send directly to frontend
                     res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
-                    // Small delay for streaming effect
-                    await new Promise(resolve => setTimeout(resolve, 20));
+                } else if (chunk && chunk.toolsComplete) {
+                    // Tools done — signal frontend to clear the loading indicator before real content starts
+                    res.write(`data: ${JSON.stringify({ clearIndicator: true })}\n\n`);
+                } else if (chunk && chunk.confirmationMessage) {
+                    // Write-tool confirmation — not streamed, send entire message at once
+                    res.write(`data: ${JSON.stringify({ clearIndicator: true })}\n\n`);
+                    const confirmText = chunk.confirmationMessage;
+                    res.write(`data: ${JSON.stringify({ content: confirmText })}\n\n`);
                 }
-            } else {
-                const errorMessage = result.message || result.error || 'AI service unavailable. Please try again.';
-                res.write(`data: ${JSON.stringify({ content: errorMessage })}\n\n`);
             }
         } else {
-            // Regular streaming without tools
+            // Regular streaming without tools — ai generates and streams at same time
             const stream = aiService.streamChat(messages, { systemPrompt });
 
             for await (const chunk of stream) {
@@ -326,13 +340,13 @@ router.post('/analyze-feedback', async (req, res) => {
  */
 router.post('/optimize-schedule', async (req, res) => {
     try {
-        const { 
-            doctorName, 
-            requestedTime, 
-            patientName, 
-            patientHistory, 
-            existingAppointments, 
-            availableSlots 
+        const {
+            doctorName,
+            requestedTime,
+            patientName,
+            patientHistory,
+            existingAppointments,
+            availableSlots
         } = req.body;
 
         const scheduleData = {

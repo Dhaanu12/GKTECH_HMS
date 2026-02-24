@@ -7,12 +7,12 @@ const BaseProvider = require('./baseProvider');
 class OpenAIProvider extends BaseProvider {
     constructor() {
         super('openai');
-        
+
         // Lazy initialization - only create client when needed
         this._client = null;
         this.model = process.env.OPENAI_MODEL || 'gpt-5-mini';
         this.maxTokens = 4096; // Increased for complex responses with tool results
-        
+
         // Token usage tracking
         this.usage = {
             totalPromptTokens: 0,
@@ -60,7 +60,7 @@ class OpenAIProvider extends BaseProvider {
         try {
             const systemPrompt = options.systemPrompt || '';
             const tools = options.tools || null;
-            
+
             const requestParams = {
                 model: options.model || this.model,
                 messages: [
@@ -81,7 +81,7 @@ class OpenAIProvider extends BaseProvider {
             this._trackUsage(response.usage);
 
             const choice = response.choices[0];
-            
+
             // Check if the model wants to call a function
             if (choice.finish_reason === 'tool_calls' && choice.message.tool_calls) {
                 return {
@@ -187,10 +187,50 @@ class OpenAIProvider extends BaseProvider {
         }
     }
 
+    /**
+     * Stream the final response after tool results have been gathered.
+     * OpenAI natively supports tool result messages in streaming mode.
+     */
+    async *streamWithToolResults(messages, options = {}) {
+        try {
+            const systemPrompt = options.systemPrompt || '';
+            const tools = options.tools || null;
+
+            const requestParams = {
+                model: options.model || this.model,
+                messages: [
+                    ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
+                    ...messages,
+                ],
+                max_completion_tokens: options.maxTokens || this.maxTokens,
+                stream: true,
+            };
+
+            // Pass tools so OpenAI understands the conversation history (tool_calls in assistant messages)
+            // Use tool_choice:'none' to force a text response — all tools already ran
+            if (tools && tools.length > 0) {
+                requestParams.tools = tools;
+                requestParams.tool_choice = 'none';
+            }
+
+            const stream = await this.client.chat.completions.create(requestParams);
+
+            for await (const chunk of stream) {
+                const content = chunk.choices[0]?.delta?.content;
+                if (content) {
+                    yield content;
+                }
+            }
+        } catch (error) {
+            console.error('OpenAI stream-with-tools error:', error);
+            yield 'AI service temporarily unavailable.';
+        }
+    }
+
     async *streamChat(messages, options = {}) {
         try {
             const systemPrompt = options.systemPrompt || '';
-            
+
             const stream = await this.client.chat.completions.create({
                 model: options.model || this.model,
                 messages: [

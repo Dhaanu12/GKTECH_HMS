@@ -17,7 +17,7 @@ const MAX_TOOL_ITERATIONS = 5;
 async function chat(messages, options = {}) {
     const provider = getProvider();
     const systemPrompt = options.systemPrompt || SYSTEM_PROMPTS.general;
-    
+
     return provider.chat(messages, { ...options, systemPrompt });
 }
 
@@ -32,7 +32,7 @@ async function agentChat(messages, options = {}) {
     const systemPrompt = options.systemPrompt || SYSTEM_PROMPTS.general;
     const authToken = options.authToken;
     const tools = getOpenAITools();
-    
+
     // Initial chat request with tools
     let response = await provider.chat(messages, {
         ...options,
@@ -51,7 +51,7 @@ async function agentChat(messages, options = {}) {
 
     while (response.toolCalls && response.toolCalls.length > 0 && iterations < MAX_TOOL_ITERATIONS) {
         iterations++;
-        
+
         // Add assistant message with tool calls
         conversationMessages.push({
             role: 'assistant',
@@ -63,9 +63,9 @@ async function agentChat(messages, options = {}) {
         let confirmationPayload = null;
         for (const toolCall of response.toolCalls) {
             console.log(`Executing tool: ${toolCall.name}`, toolCall.arguments);
-            
+
             const toolResult = await executeTool(toolCall.name, toolCall.arguments, authToken);
-            
+
             // Check if this is a write tool proposal requiring confirmation
             if (toolResult && toolResult.requiresConfirmation) {
                 confirmationPayload = {
@@ -139,12 +139,145 @@ async function agentChat(messages, options = {}) {
 }
 
 /**
+ * Agent chat with streaming final response.
+ * Executes tool calls first (blocking), then streams the final answer in real time.
+ * Yields string chunks as they arrive from the AI model.
+ * Also yields a special { toolsComplete: true } object when tool execution is done
+ * and real streaming begins.
+ */
+async function* agentChatStream(messages, options = {}) {
+    const provider = getProvider();
+    const systemPrompt = options.systemPrompt || SYSTEM_PROMPTS.general;
+    const authToken = options.authToken;
+    const tools = getOpenAITools();
+
+    // Step 1: First request — check if AI wants to call tools
+    let response = await provider.chat(messages, {
+        ...options,
+        systemPrompt,
+        tools
+    });
+
+    let conversationMessages = [...messages];
+    let iterations = 0;
+
+    // If AI doesn't need tools for this query, stream the answer directly
+    if (!response.toolCalls || response.toolCalls.length === 0) {
+        yield { toolsComplete: true };
+        // Use fully streaming response — generate and stream at the same time
+        yield* provider.streamChat(messages, { ...options, systemPrompt });
+        return;
+    }
+
+    // Step 2: Execute all tool calls (blocking, but necessary)
+    while (response.toolCalls && response.toolCalls.length > 0 && iterations < MAX_TOOL_ITERATIONS) {
+        iterations++;
+
+        // Push assistant message with tool_calls in clean OpenAI format
+        // Set content to null — suppress any "Calling..." pre-tool text OpenAI adds
+        conversationMessages.push({
+            role: 'assistant',
+            content: null,
+            tool_calls: response.toolCalls.map(tc => ({
+                id: tc.id,
+                type: 'function',
+                function: {
+                    name: tc.function?.name || tc.name,
+                    // arguments must be a JSON string, not a parsed object
+                    arguments: typeof tc.function?.arguments === 'string'
+                        ? tc.function.arguments
+                        : JSON.stringify(tc.arguments || tc.function?.arguments || {})
+                }
+            }))
+        });
+
+        let confirmationPayload = null;
+        for (const toolCall of response.toolCalls) {
+            console.log(`[Stream] Executing tool: ${toolCall.name}`, toolCall.arguments);
+            const toolResult = await executeTool(toolCall.name, toolCall.arguments, authToken);
+
+            if (toolResult && toolResult.requiresConfirmation) {
+                confirmationPayload = {
+                    action: toolResult.action,
+                    label: toolResult.label,
+                    params: toolResult.params,
+                    summary: toolResult.summary
+                };
+                conversationMessages.push({
+                    role: 'tool',
+                    tool_call_id: toolCall.id,
+                    content: JSON.stringify({ status: 'pending_confirmation', summary: toolResult.summary })
+                });
+            } else {
+                conversationMessages.push({
+                    role: 'tool',
+                    tool_call_id: toolCall.id,
+                    content: JSON.stringify(toolResult)
+                });
+            }
+        }
+
+        if (confirmationPayload) {
+            // For confirmation flows, fall back to non-streaming and embed the payload
+            const confirmResponse = provider.continueWithToolResult
+                ? await provider.continueWithToolResult(conversationMessages, { ...options, systemPrompt, tools })
+                : await provider.chat(conversationMessages, { ...options, systemPrompt, tools });
+
+            const aiText = confirmResponse.message || '';
+            const fullMsg = aiText + `\n[CONFIRM_ACTION]${JSON.stringify(confirmationPayload)}[/CONFIRM_ACTION]`;
+            yield { confirmationMessage: fullMsg };
+            return;
+        }
+
+        // If provider supports streaming with tool results, don't call continueWithToolResult
+        // (that would be a wasted blocking API call). Break out and stream directly.
+        if (provider.streamWithToolResults) {
+            break;
+        }
+
+        // Fallback for providers without streaming tool support:
+        // check if AI needs more tools by calling continueWithToolResult
+        if (provider.continueWithToolResult) {
+            response = await provider.continueWithToolResult(conversationMessages, {
+                ...options,
+                systemPrompt,
+                tools
+            });
+        } else {
+            response = await provider.chat(conversationMessages, { ...options, systemPrompt, tools });
+        }
+    }
+
+    // Step 3: Tools done. Signal to caller, then stream the final answer in real time.
+    yield { toolsComplete: true };
+
+    // If provider supports streaming with tool results, use it — pass the tools list
+    // so the provider can set tool_choice:none and OpenAI understands the conversation format
+    if (provider.streamWithToolResults) {
+        yield* provider.streamWithToolResults(conversationMessages, { ...options, systemPrompt, tools });
+        return;
+    }
+
+    // Fallback: last response already has text from continueWithToolResult — stream it word by word
+    if (response.message) {
+        const words = response.message.split(' ');
+        for (let i = 0; i < words.length; i++) {
+            yield (i === 0 ? '' : ' ') + words[i];
+        }
+        return;
+    }
+
+    // Last resort: generic streamChat (won't have tool context but better than nothing)
+    yield* provider.streamChat(conversationMessages, { ...options, systemPrompt });
+}
+
+/**
  * Stream chat completion for real-time responses
  */
 async function* streamChat(messages, options = {}) {
     const provider = getProvider();
     const systemPrompt = options.systemPrompt || SYSTEM_PROMPTS.general;
-    
+
     yield* provider.streamChat(messages, { ...options, systemPrompt });
 }
 
@@ -190,7 +323,7 @@ Provide a plain-language interpretation highlighting key findings.`;
  */
 async function suggestNotes(noteData) {
     const action = noteData.action || 'improve';
-    
+
     let prompt;
     if (action === 'generate') {
         prompt = `Based on the following patient information, generate a concise clinical note. Use only the facts provided — do not fabricate any details.\n\n${noteData.content}`;
@@ -273,7 +406,7 @@ Provide:
         let sentiment = 'neutral';
         if (message.includes('positive')) sentiment = 'positive';
         if (message.includes('negative')) sentiment = 'negative';
-        
+
         response.sentiment = sentiment;
     }
 
@@ -356,6 +489,7 @@ function resetTokenUsage() {
 module.exports = {
     chat,
     agentChat,
+    agentChatStream,
     streamChat,
     analyzeVitals,
     interpretLabResults,

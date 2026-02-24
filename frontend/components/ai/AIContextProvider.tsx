@@ -17,12 +17,12 @@ interface AIContextType {
     isLoading: boolean;
     isStreaming: boolean;
     error: string | null;
-    
+
     // Context info
     currentPage: string;
     role: string;
     patientInfo: string | null;
-    
+
     // Rate limiting
     rateLimit: RateLimitInfo | null;
     isAvailable: boolean;
@@ -31,7 +31,7 @@ interface AIContextType {
     pendingAction: PendingAction | null;
     confirmAction: () => Promise<void>;
     cancelAction: () => void;
-    
+
     // Actions
     sendMessage: (content: string) => Promise<void>;
     sendMessageStreaming: (content: string) => Promise<void>;
@@ -90,7 +90,7 @@ export function AIContextProvider({ children, role, initialPage = '' }: AIContex
 
     const sendMessage = useCallback(async (content: string) => {
         if (!content.trim()) return;
-        
+
         setError(null);
         setIsLoading(true);
 
@@ -100,7 +100,7 @@ export function AIContextProvider({ children, role, initialPage = '' }: AIContex
 
         try {
             const response = await chat(newMessages, getContext());
-            
+
             if (response.success) {
                 setMessages([...newMessages, { role: 'assistant', content: response.message }]);
             } else {
@@ -116,7 +116,7 @@ export function AIContextProvider({ children, role, initialPage = '' }: AIContex
 
     const sendMessageStreaming = useCallback(async (content: string) => {
         if (!content.trim()) return;
-        
+
         setError(null);
         setIsStreaming(true);
 
@@ -154,6 +154,11 @@ export function AIContextProvider({ children, role, initialPage = '' }: AIContex
                 (errorMsg) => {
                     setError(errorMsg);
                     setIsStreaming(false);
+                },
+                // onClear: tool execution done, wipe the loading indicator before real content starts
+                () => {
+                    streamedContent = '';
+                    setMessages([...newMessages, { role: 'assistant', content: '' }]);
                 }
             );
         } catch (err: any) {
@@ -164,7 +169,7 @@ export function AIContextProvider({ children, role, initialPage = '' }: AIContex
 
     const confirmAction = useCallback(async () => {
         if (!pendingAction) return;
-        
+
         setIsLoading(true);
         try {
             const token = localStorage.getItem('token');
@@ -174,7 +179,7 @@ export function AIContextProvider({ children, role, initialPage = '' }: AIContex
             }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            
+
             const successMsg: ChatMessage = {
                 role: 'assistant',
                 content: `✅ ${pendingAction.label} completed successfully.`
