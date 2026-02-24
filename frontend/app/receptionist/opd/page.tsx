@@ -1434,6 +1434,8 @@ export default function OpdEntryPage() {
                 appointment_id: null,
                 opd_id: entry.opd_id, // Capture OPD ID for status update
                 patient_id: entry.patient_id,
+                doctor_id: entry.doctor_id,
+                old_visit_date: entry.visit_date,
                 patient_name: `${entry.patient_first_name} ${entry.patient_last_name}`,
                 phone_number: entry.contact_number,
                 age: entry.age,
@@ -1480,7 +1482,7 @@ export default function OpdEntryPage() {
                     patient_name: appointmentToReschedule.patient_name || '',
                     first_name: appointmentToReschedule.patient_name?.split(' ')[0] || '',
                     last_name: appointmentToReschedule.patient_name?.split(' ').slice(1).join(' ') || '',
-                    contact_number: appointmentToReschedule.phone_number,
+                    phone_number: appointmentToReschedule.phone_number,
                     age: appointmentToReschedule.age,
                     gender: appointmentToReschedule.gender,
                     doctor_id: rescheduleForm.doctor_id,
@@ -3484,7 +3486,7 @@ export default function OpdEntryPage() {
             {/* Invoice Modal */}
             {
                 showInvoice && selectedBill && (
-                    <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 print:p-0 print:bg-white print:absolute print:inset-0">
+                    <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 print:p-0 print:bg-white print:absolute print:inset-0 print-modal">
                         <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto print:shadow-none print:w-full print:max-w-none print:h-auto print:overflow-visible">
                             <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 print:hidden">
                                 <h2 className="text-lg font-bold text-gray-800">Invoice Preview</h2>
