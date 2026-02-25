@@ -33,16 +33,41 @@ export default function DoctorSchedulePage() {
     const [opdQueue, setOpdQueue] = useState<OpdEntry[]>([]);
     const [loading, setLoading] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [branches, setBranches] = useState<any[]>([]);
+    const [selectedBranchId, setSelectedBranchId] = useState<number | null>(null);
 
     // Permission Check
     const canAddSchedule = user?.role_code === 'CLIENT_ADMIN' || user?.role_code === 'ADMIN' || user?.role_code === 'SUPER_ADMIN';
+
+    // Fetch Branches for multi-branch users (CLIENT_ADMIN)
+    useEffect(() => {
+        const fetchBranches = async () => {
+            if (user?.hospital_id && !user?.branch_id) {
+                try {
+                    const res = await fetch(`http://localhost:5000/api/branches?hospital_id=${user.hospital_id}`, {
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                    });
+                    const data = await res.json();
+                    if (data.status === 'success' && data.data?.branches?.length > 0) {
+                        setBranches(data.data.branches);
+                        if (!selectedBranchId) {
+                            setSelectedBranchId(data.data.branches[0].branch_id);
+                        }
+                    }
+                } catch (err) {
+                    console.error('Failed to fetch branches', err);
+                }
+            }
+        };
+        if (user) fetchBranches();
+    }, [user]); // Run once when user loads
 
     // Fetch doctors when date changes
     const fetchDoctors = async () => {
         setLoading(true);
         try {
             const formattedDate = format(selectedDate, 'yyyy-MM-dd');
-            const branchId = user?.branch_id || 1;
+            const branchId = selectedBranchId || user?.branch_id || 1;
 
             const response = await fetch(`http://localhost:5000/api/doctor-schedules/available?date=${formattedDate}&branch_id=${branchId}`, {
                 headers: {
@@ -72,7 +97,7 @@ export default function DoctorSchedulePage() {
     const fetchOpdQueue = async () => {
         try {
             const formattedDate = format(selectedDate, 'yyyy-MM-dd');
-            const branchId = user?.branch_id || 1;
+            const branchId = selectedBranchId || user?.branch_id || 1;
 
             const response = await fetch(`http://localhost:5000/api/opd?startDate=${formattedDate}&endDate=${formattedDate}&branch_id=${branchId}`, {
                 headers: {
@@ -97,11 +122,15 @@ export default function DoctorSchedulePage() {
     };
 
     useEffect(() => {
-        if (user) {
+        if (user && (selectedBranchId || user.branch_id)) {
+            fetchDoctors();
+            fetchOpdQueue();
+        } else if (user && !user.hospital_id) {
+            // fallback for users without hospital_id/branches setup
             fetchDoctors();
             fetchOpdQueue();
         }
-    }, [selectedDate, user]);
+    }, [selectedDate, user, selectedBranchId]);
 
     return (
         <div className="w-full min-h-screen bg-[#F8F9FE] text-slate-800 font-sans p-6 lg:p-10 ml-0 overflow-y-auto">
@@ -119,6 +148,17 @@ export default function DoctorSchedulePage() {
                     </div>
 
                     <div className="flex items-center gap-4 w-full sm:w-auto justify-end">
+                        {branches.length > 0 && (
+                            <select
+                                className="px-4 py-2.5 rounded-full border border-slate-200 bg-white text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-100 shadow-sm"
+                                value={selectedBranchId || ''}
+                                onChange={(e) => setSelectedBranchId(Number(e.target.value))}
+                            >
+                                {branches.map((b: any) => (
+                                    <option key={b.branch_id} value={b.branch_id}>{b.branch_name}</option>
+                                ))}
+                            </select>
+                        )}
                         <button className="w-11 h-11 rounded-full bg-white flex items-center justify-center text-slate-400 hover:text-slate-600 shadow-sm relative transition-transform hover:scale-105">
                             <Bell className="w-5 h-5" />
                             <span className="absolute top-3 right-3 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>

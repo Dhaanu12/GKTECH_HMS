@@ -92,14 +92,17 @@ class PatientController {
 
             if (branch_id) {
                 console.log(`[DEBUG] getAllPatients: Fetching for branch_id=${branch_id}`);
-                // Better approach for performance:
+                // Only return patients who have visited this branch (via OPD or appointment)
                 sql = `
                     WITH BranchPatients AS (
                         SELECT DISTINCT p.patient_id
                         FROM patients p
-                        LEFT JOIN opd_entries o ON p.patient_id = o.patient_id
-                        LEFT JOIN appointments a ON p.patient_id = a.patient_id
-                        WHERE ((o.branch_id = $1 OR a.branch_id = $1) OR (o.opd_id IS NULL AND a.appointment_id IS NULL)) AND p.is_active = true
+                        WHERE p.is_active = true
+                          AND EXISTS (
+                            SELECT 1 FROM opd_entries o WHERE o.patient_id = p.patient_id AND o.branch_id = $1
+                            UNION ALL
+                            SELECT 1 FROM appointments a WHERE a.patient_id = p.patient_id AND a.branch_id = $1
+                          )
                     ),
                     LatestOPD AS (
                         SELECT DISTINCT ON (patient_id) *
@@ -157,10 +160,14 @@ class PatientController {
         try {
             const { q, type } = req.query;
 
-            // If no query, return recent patients
+            // If no query, return recent patients (getAllPatients already handles branch filtering)
             if (!q) {
                 return PatientController.getAllPatients(req, res, next);
             }
+
+            // Branch-scope: if the logged-in user has a branch_id (NURSE, RECEPTIONIST, DOCTOR etc.)
+            // only return patients who have visited that branch
+            const branch_id = req.user?.branch_id;
 
             // Enhanced query with last visit info via LEFT JOIN LATERAL
             let sql = `
@@ -186,18 +193,28 @@ class PatientController {
             `;
             let params = [];
 
+            // Apply branch filter when user belongs to a specific branch
+            if (branch_id) {
+                sql += ` AND EXISTS (
+                    SELECT 1 FROM opd_entries o WHERE o.patient_id = p.patient_id AND o.branch_id = $${params.length + 1}
+                    UNION ALL
+                    SELECT 1 FROM appointments a WHERE a.patient_id = p.patient_id AND a.branch_id = $${params.length + 1}
+                )`;
+                params.push(branch_id);
+            }
+
             if (type === 'phone') {
-                sql += ' AND p.contact_number LIKE $1';
+                sql += ` AND p.contact_number LIKE $${params.length + 1}`;
                 params.push(`%${q}%`);
             } else if (type === 'mrn') {
-                sql += ' AND p.mrn_number ILIKE $1';
+                sql += ` AND p.mrn_number ILIKE $${params.length + 1}`;
                 params.push(`%${q}%`);
             } else if (type === 'code') {
-                sql += ' AND p.patient_code ILIKE $1';
+                sql += ` AND p.patient_code ILIKE $${params.length + 1}`;
                 params.push(`%${q}%`);
             } else {
                 // General search: name, phone, mrn, code
-                sql += ' AND (p.first_name ILIKE $1 OR p.last_name ILIKE $1 OR p.contact_number LIKE $1 OR p.mrn_number ILIKE $1 OR p.patient_code ILIKE $1)';
+                sql += ` AND (p.first_name ILIKE $${params.length + 1} OR p.last_name ILIKE $${params.length + 1} OR p.contact_number LIKE $${params.length + 1} OR p.mrn_number ILIKE $${params.length + 1} OR p.patient_code ILIKE $${params.length + 1})`;
                 params.push(`%${q}%`);
             }
 

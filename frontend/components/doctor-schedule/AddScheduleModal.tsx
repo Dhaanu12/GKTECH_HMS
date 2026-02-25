@@ -1,8 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Clock, Building2, Hourglass, Zap, CheckCircle2 } from 'lucide-react';
+import { X, Building2, Hourglass, Zap, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, addMinutes, parse, isValid } from 'date-fns';
 import { useAuth } from '../../lib/AuthContext';
+
+// Convert 12-hour time string (e.g. "10:00 AM") to 24-hour string (e.g. "10:00")
+const to24h = (time12: string): string => {
+    if (!time12) return '';
+    // Already 24hr format?
+    if (!time12.includes('AM') && !time12.includes('PM')) return time12;
+    const [timePart, period] = time12.split(' ');
+    let [hours, minutes] = timePart.split(':').map(Number);
+    if (period === 'PM' && hours !== 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+};
 
 // Format time for display (convert 24-hour to 12-hour with AM/PM)
 const formatTimeForDisplay = (time24: string): string => {
@@ -31,14 +43,24 @@ export default function AddScheduleModal({ isOpen, onClose, onSuccess, selectedD
     const { user } = useAuth();
 
     // Core Form State
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<{
+        doctor_id: string | number;
+        branch_id: number | null;
+        start_time: string;
+        end_time: string;
+        avg_consultation_time: number;
+        remarks: string;
+    }>({
         doctor_id: '',
-        branch_id: 1,
-        start_time: '09:00', // Used for Hourly/30min modes
+        branch_id: null,
+        start_time: '09:00',
         end_time: '17:00',
         avg_consultation_time: 15,
         remarks: ''
     });
+
+    // Branch list for CLIENT_ADMIN who manage multiple branches
+    const [branches, setBranches] = useState<any[]>([]);
 
     // Multi-select State
     const [selectedDays, setSelectedDays] = useState<string[]>(['Monday']);
@@ -57,8 +79,12 @@ export default function AddScheduleModal({ isOpen, onClose, onSuccess, selectedD
         if (isOpen && user) {
             fetchDoctors();
             if (user.branch_id) {
-                setFormData(prev => ({ ...prev, branch_id: user.branch_id || 1 }));
-                fetchClinicSchedule();
+                // Single-branch user (NURSE, RECEPTIONIST, etc.)
+                setFormData(prev => ({ ...prev, branch_id: user.branch_id! }));
+                fetchClinicSchedule(user.branch_id);
+            } else if (user.hospital_id) {
+                // CLIENT_ADMIN: fetch all branches for this hospital
+                fetchBranches(user.hospital_id);
             }
             if (selectedDate) {
                 const day = format(selectedDate, 'EEEE');
@@ -90,9 +116,28 @@ export default function AddScheduleModal({ isOpen, onClose, onSuccess, selectedD
         }
     }, [mode, clinicSchedule, selectedDays]);
 
-    const fetchClinicSchedule = async () => {
+    const fetchBranches = async (hospitalId: number) => {
         try {
-            const res = await fetch(`http://localhost:5000/api/branches/${user?.branch_id}`, {
+            const res = await fetch(`http://localhost:5000/api/branches?hospital_id=${hospitalId}`, {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+            const data = await res.json();
+            const branchList = data.data?.branches || [];
+            setBranches(branchList);
+            // Auto-select first branch
+            if (branchList.length > 0 && !formData.branch_id) {
+                const firstBranch = branchList[0];
+                setFormData(prev => ({ ...prev, branch_id: firstBranch.branch_id }));
+                fetchClinicSchedule(firstBranch.branch_id);
+            }
+        } catch (err) {
+            console.error('Failed to fetch branches', err);
+        }
+    };
+
+    const fetchClinicSchedule = async (branchId: number) => {
+        try {
+            const res = await fetch(`http://localhost:5000/api/branches/${branchId}`, {
                 headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
             });
             const data = await res.json();
@@ -211,9 +256,13 @@ export default function AddScheduleModal({ isOpen, onClose, onSuccess, selectedD
         setLoading(true);
 
         try {
+            if (!formData.branch_id) {
+                alert('Please select a branch.');
+                setLoading(false);
+                return;
+            }
+
             const schedulesToCreate: any[] = [];
-            // If explicit days selected, use them. If fallback needed (shouldn't be), use defaults?
-            // But we enforced selection in logic below.
             const daysToProcess = selectedDays;
 
             if (daysToProcess.length === 0) {
@@ -224,10 +273,7 @@ export default function AddScheduleModal({ isOpen, onClose, onSuccess, selectedD
 
             for (const day of daysToProcess) {
                 if (mode === 'full') {
-                    // For Clinic Hours, creates schedules based on selected shifts
-                    if (selectedShiftTypes.length === 0) {
-                        continue;
-                    }
+                    if (selectedShiftTypes.length === 0) continue;
 
                     const daySchedule = clinicSchedule?.[day.toLowerCase()];
                     if (!daySchedule) continue;
@@ -236,8 +282,9 @@ export default function AddScheduleModal({ isOpen, onClose, onSuccess, selectedD
                         schedulesToCreate.push({
                             ...formData,
                             day_of_week: day,
-                            start_time: daySchedule.start1,
-                            end_time: daySchedule.end1,
+                            // Clinic schedule stores times — convert to 24hr just in case
+                            start_time: to24h(daySchedule.start1),
+                            end_time: to24h(daySchedule.end1),
                         });
                     }
 
@@ -245,27 +292,27 @@ export default function AddScheduleModal({ isOpen, onClose, onSuccess, selectedD
                         schedulesToCreate.push({
                             ...formData,
                             day_of_week: day,
-                            start_time: daySchedule.start2,
-                            end_time: daySchedule.end2,
+                            start_time: to24h(daySchedule.start2),
+                            end_time: to24h(daySchedule.end2),
                         });
                     }
-
                 } else {
-                    // Hourly or 30 Mins - Use the manual start/end times
+                    // Hourly / 30min — convert from 12hr display format to 24hr for backend
                     schedulesToCreate.push({
                         ...formData,
-                        day_of_week: day
+                        day_of_week: day,
+                        start_time: to24h(formData.start_time),
+                        end_time: to24h(formData.end_time),
                     });
                 }
             }
 
             if (schedulesToCreate.length === 0) {
-                alert('No valid schedules created. Please check shift selections.');
+                alert('No valid schedules created. Please check shift and day selections.');
                 setLoading(false);
                 return;
             }
 
-            // Execute all requests sequentially to avoid race conditions or overwhelm
             for (const data of schedulesToCreate) {
                 const response = await fetch('http://localhost:5000/api/doctor-schedules', {
                     method: 'POST',
@@ -279,8 +326,6 @@ export default function AddScheduleModal({ isOpen, onClose, onSuccess, selectedD
                 if (!response.ok) {
                     const err = await response.json();
                     console.error(`Failed for ${data.day_of_week}:`, err);
-                    // Continue trying others? Or stop?
-                    // Let's continue but maybe warn specific failures.
                 }
             }
 
@@ -353,7 +398,7 @@ export default function AddScheduleModal({ isOpen, onClose, onSuccess, selectedD
 
                     <form onSubmit={handleSubmit} className="p-6 space-y-6">
 
-                        {/* Doctor & Day Row */}
+                        {/* Doctor & Branch Row */}
                         <div className="flex flex-col gap-5">
                             <div>
                                 <label className="block text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-2">Doctor</label>
@@ -369,6 +414,28 @@ export default function AddScheduleModal({ isOpen, onClose, onSuccess, selectedD
                                     ))}
                                 </select>
                             </div>
+
+                            {/* Branch selector — only shown for CLIENT_ADMIN with multiple branches */}
+                            {branches.length > 0 && (
+                                <div>
+                                    <label className="block text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-2">Branch</label>
+                                    <select
+                                        required
+                                        className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-700 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all font-bold text-sm outline-none"
+                                        value={formData.branch_id ?? ''}
+                                        onChange={e => {
+                                            const bid = Number(e.target.value);
+                                            setFormData(prev => ({ ...prev, branch_id: bid }));
+                                            fetchClinicSchedule(bid);
+                                        }}
+                                    >
+                                        <option value="">Select Branch</option>
+                                        {branches.map((b: any) => (
+                                            <option key={b.branch_id} value={b.branch_id}>{b.branch_name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
 
                             {/* Multi-Day Selection */}
                             <div>

@@ -719,12 +719,14 @@ class OpdController {
                 WHERE branch_id = $1 AND visit_date = CURRENT_DATE
             `, [branch_id]);
 
-            // 2. New Patients Today
+            // 2. Unique Patients Seen Today (branch-specific)
             const patientsResult = await query(`
-                SELECT COUNT(*) as count 
-                FROM patients 
-                WHERE created_at::date = CURRENT_DATE
-            `);
+                SELECT COUNT(DISTINCT patient_id) as count 
+                FROM opd_entries 
+                WHERE branch_id = $1 AND visit_date = CURRENT_DATE
+                AND visit_status NOT IN ('Cancelled', 'Rescheduled')
+            `, [branch_id]);
+
 
             // 3. Today's Appointments
             const apptResult = await query(`
