@@ -130,14 +130,126 @@ class DoctorController {
     }
 
     static async updateDoctor(req, res, next) {
+        const client = await pool.connect();
         try {
+            await client.query('BEGIN');
             const { id } = req.params;
-            const updates = req.body;
-            const updatedDoctor = await Doctor.update(id, updates);
-            if (!updatedDoctor) return next(new AppError('Doctor not found', 404));
-            res.status(200).json({ status: 'success', data: { doctor: updatedDoctor } });
+            const {
+                username, email, password, phone_number,
+                first_name, last_name, specialization, registration_number,
+                qualification, experience_years, consultation_fee,
+                address, bank_name, account_number, ifsc_code,
+                doctor_type, gender, date_of_birth,
+                is_active
+            } = req.body;
+
+            // Handle branch_ids which might come as branch_ids[] due to FormData
+            let branch_ids = req.body.branch_ids || req.body['branch_ids[]'];
+
+            const signature_url = req.file ? req.file.path : null;
+
+            // 1. Get existing doctor to find user_id
+            const doctorResult = await client.query('SELECT user_id FROM doctors WHERE doctor_id = $1', [id]);
+            if (doctorResult.rows.length === 0) {
+                await client.query('ROLLBACK');
+                return next(new AppError('Doctor not found', 404));
+            }
+            const userId = doctorResult.rows[0].user_id;
+
+            // 2. Update User details
+            const userUpdates = [];
+            const userValues = [];
+            let userParamCount = 1;
+
+            if (username) { userUpdates.push(`username = $${userParamCount++}`); userValues.push(username); }
+            if (email) { userUpdates.push(`email = $${userParamCount++}`); userValues.push(email); }
+            if (phone_number !== undefined) { userUpdates.push(`phone_number = $${userParamCount++}`); userValues.push(phone_number || null); }
+            if (password) {
+                const passwordHash = await PasswordUtils.hashPassword(password);
+                userUpdates.push(`password_hash = $${userParamCount++}`);
+                userValues.push(passwordHash);
+            }
+            if (is_active !== undefined) { userUpdates.push(`is_active = $${userParamCount++}`); userValues.push(is_active); }
+
+            if (userUpdates.length > 0) {
+                userValues.push(userId);
+                await client.query(
+                    `UPDATE users SET ${userUpdates.join(', ')} WHERE user_id = $${userParamCount}`,
+                    userValues
+                );
+            }
+
+            // 3. Update Doctor details
+            const doctorUpdates = [];
+            const doctorValues = [];
+            let doctorParamCount = 1;
+
+            if (first_name) { doctorUpdates.push(`first_name = $${doctorParamCount++}`); doctorValues.push(first_name); }
+            if (last_name) { doctorUpdates.push(`last_name = $${doctorParamCount++}`); doctorValues.push(last_name); }
+            if (specialization) { doctorUpdates.push(`specialization = $${doctorParamCount++}`); doctorValues.push(specialization); }
+            if (registration_number) { doctorUpdates.push(`registration_number = $${doctorParamCount++}`); doctorValues.push(registration_number); }
+            if (qualification !== undefined) { doctorUpdates.push(`qualification = $${doctorParamCount++}`); doctorValues.push(qualification || null); }
+            if (experience_years !== undefined) { doctorUpdates.push(`experience_years = $${doctorParamCount++}`); doctorValues.push(experience_years === '' ? null : experience_years); }
+            if (consultation_fee !== undefined) { doctorUpdates.push(`consultation_fee = $${doctorParamCount++}`); doctorValues.push(consultation_fee === '' ? null : consultation_fee); }
+            if (address !== undefined) { doctorUpdates.push(`address = $${doctorParamCount++}`); doctorValues.push(address || null); }
+            if (bank_name !== undefined) { doctorUpdates.push(`bank_name = $${doctorParamCount++}`); doctorValues.push(bank_name || null); }
+            if (account_number !== undefined) { doctorUpdates.push(`account_number = $${doctorParamCount++}`); doctorValues.push(account_number || null); }
+            if (ifsc_code !== undefined) { doctorUpdates.push(`ifsc_code = $${doctorParamCount++}`); doctorValues.push(ifsc_code || null); }
+            if (doctor_type !== undefined) { doctorUpdates.push(`doctor_type = $${doctorParamCount++}`); doctorValues.push(doctor_type || 'In-house'); }
+            if (gender !== undefined) { doctorUpdates.push(`gender = $${doctorParamCount++}`); doctorValues.push(gender || null); }
+            if (date_of_birth !== undefined) { doctorUpdates.push(`date_of_birth = $${doctorParamCount++}`); doctorValues.push(date_of_birth === '' ? null : date_of_birth); }
+            if (is_active !== undefined) { doctorUpdates.push(`is_active = $${doctorParamCount++}`); doctorValues.push(is_active); }
+            if (signature_url) { doctorUpdates.push(`signature_url = $${doctorParamCount++}`); doctorValues.push(signature_url); }
+
+            if (doctorUpdates.length > 0) {
+                doctorValues.push(id);
+                await client.query(
+                    `UPDATE doctors SET ${doctorUpdates.join(', ')} WHERE doctor_id = $${doctorParamCount}`,
+                    doctorValues
+                );
+            }
+
+            // 4. Update Branches
+            if (branch_ids) {
+                let branchesToAssign = branch_ids;
+                if (!Array.isArray(branchesToAssign)) {
+                    branchesToAssign = [branchesToAssign];
+                }
+
+                await client.query('DELETE FROM doctor_branches WHERE doctor_id = $1', [id]);
+                if (branchesToAssign.length > 0) {
+                    const uniqueBranches = [...new Set(branchesToAssign)];
+                    for (const branchId of uniqueBranches) {
+                        if (branchId) {
+                            await client.query(
+                                'INSERT INTO doctor_branches (doctor_id, branch_id) VALUES ($1, $2)',
+                                [id, branchId]
+                            );
+                        }
+                    }
+                }
+            }
+
+            // 5. Update Department
+            if (req.body.department_id) {
+                await client.query('DELETE FROM doctor_departments WHERE doctor_id = $1', [id]);
+                await client.query(
+                    'INSERT INTO doctor_departments (doctor_id, department_id, is_primary_department) VALUES ($1, $2, $3)',
+                    [id, req.body.department_id, true]
+                );
+            }
+
+            await client.query('COMMIT');
+
+            const updatedDoctorResult = await client.query('SELECT * FROM doctors WHERE doctor_id = $1', [id]);
+            res.status(200).json({ status: 'success', data: { doctor: updatedDoctorResult.rows[0] } });
+
         } catch (error) {
+            await client.query('ROLLBACK');
+            console.error('Update Doctor Error:', error);
             next(new AppError(error.message, 500));
+        } finally {
+            client.release();
         }
     }
 
@@ -158,12 +270,13 @@ class DoctorController {
             } else if (registration_number) {
                 const doctor = await Doctor.findByRegistration(registration_number);
                 doctors = doctor ? [doctor] : [];
+            } else if (branch_id) {
+                // branch_id takes priority — specific filter beats general hospital filter
+                doctors = await Doctor.findByBranch(branch_id);
             } else if (hospital_id && department_id) {
                 doctors = await Doctor.findByHospitalAndDepartment(hospital_id, department_id);
             } else if (hospital_id) {
                 doctors = await Doctor.findByHospital(hospital_id);
-            } else if (branch_id) {
-                doctors = await Doctor.findByBranch(branch_id);
             } else if (department_id) {
                 doctors = await Doctor.findByDepartment(department_id);
             } else {

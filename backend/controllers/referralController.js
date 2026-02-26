@@ -102,61 +102,54 @@ class ReferralController {
      */
     static async getReferralHospitals(req, res, next) {
         try {
-            // Get branch_id based on user role
-            let branch_id = null;
-            console.log('🔍 [GET Hospitals] Fetching branch_id for user_id:', req.user.user_id, 'role:', req.user.role);
+            const role = req.user.role_code || req.user.role;
+            const hospital_id = req.user.hospital_id;
 
-            // Try doctor_branches first (for doctors)
-            const doctorQuery = `
-                SELECT db.branch_id 
-                FROM doctors d
-                JOIN doctor_branches db ON d.doctor_id = db.doctor_id
-                WHERE d.user_id = $1 
-                LIMIT 1
-            `;
-            const doctorResult = await query(doctorQuery, [req.user.user_id]);
-            branch_id = doctorResult.rows[0]?.branch_id;
+            let branch_ids = [];
 
-            // If not found, try staff_branches (for client admins)
-            if (!branch_id) {
-                const staffQuery = `
-                    SELECT sb.branch_id 
-                    FROM staff s
-                    JOIN staff_branches sb ON s.staff_id = sb.staff_id
-                    WHERE s.user_id = $1 
-                    LIMIT 1
-                `;
-                const staffResult = await query(staffQuery, [req.user.user_id]);
-                branch_id = staffResult.rows[0]?.branch_id;
+            if (hospital_id) {
+                // CLIENT_ADMIN or any user with hospital_id → get all branches for that hospital
+                const branchRes = await query(
+                    `SELECT branch_id FROM branches WHERE hospital_id = $1 AND is_active = true`,
+                    [hospital_id]
+                );
+                branch_ids = branchRes.rows.map(r => r.branch_id);
             }
 
-            console.log('🔍 [GET Hospitals] Found branch_id:', branch_id);
-
-            if (!branch_id) {
-                return res.status(200).json({
-                    status: 'success',
-                    data: { referralHospitals: [] }
-                });
+            // Fallback: try staff_branches directly (for receptionists, nurses, etc.)
+            if (branch_ids.length === 0 && req.user.branch_id) {
+                branch_ids = [req.user.branch_id];
             }
 
-            const { mapped_only } = req.query;
+            if (branch_ids.length === 0) {
+                // Try staff_branches lookup
+                const staffRes = await query(
+                    `SELECT sb.branch_id FROM staff s
+                     JOIN staff_branches sb ON s.staff_id = sb.staff_id
+                     WHERE s.user_id = $1 AND sb.is_active = true`,
+                    [req.user.user_id]
+                );
+                branch_ids = staffRes.rows.map(r => r.branch_id);
+            }
 
-            // Only return hospitals that are mapped to this branch
-            let sql = `
-                SELECT rh.*, 
+            if (branch_ids.length === 0) {
+                return res.status(200).json({ status: 'success', data: { referralHospitals: [] } });
+            }
+
+            // Return all hospitals mapped to ANY branch under this hospital
+            const sql = `
+                SELECT DISTINCT rh.*,
                        rhm.mapping_id,
                        true as is_mapped
                 FROM referral_hospitals rh
-                INNER JOIN referral_hospital_mapping rhm 
-                    ON rh.referral_hospital_id = rhm.referral_hospital_id 
-                    AND rhm.branch_id = $1
+                INNER JOIN referral_hospital_mapping rhm
+                    ON rh.referral_hospital_id = rhm.referral_hospital_id
+                    AND rhm.branch_id = ANY($1)
                 WHERE rh.is_active = true
                 ORDER BY rh.hospital_name ASC
             `;
 
-            console.log('🔍 [GET Hospitals] Fetching hospitals for branch_id:', branch_id);
-            const result = await query(sql, [branch_id]);
-            console.log('🔍 [GET Hospitals] Found', result.rows.length, 'mapped hospitals');
+            const result = await query(sql, [branch_ids]);
 
             res.status(200).json({
                 status: 'success',

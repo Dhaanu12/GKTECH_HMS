@@ -874,6 +874,164 @@ class ClientAdminController {
             next(new AppError('Failed to fetch executive stats: ' + error.message, 500));
         }
     }
+
+    static async getDetailedExportData(req, res, next) {
+        try {
+            const hospital_id = req.user.hospital_id;
+            const { startDate, endDate } = req.query;
+
+            if (!hospital_id) {
+                return next(new AppError('Hospital not linked to your account', 403));
+            }
+
+            const start = startDate || new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
+            const end = endDate || new Date().toISOString().split('T')[0];
+
+            const client = await require('../config/db').pool.connect();
+            try {
+                // Sheet 1: Patient-level detail with UPI/card payment info
+                const patientDetailRes = await client.query(`
+                    SELECT
+                        p.patient_id,
+                        p.first_name || ' ' || p.last_name as patient_name,
+                        p.contact_number,
+                        COALESCE(p.email, '') as email,
+                        p.date_of_birth,
+                        p.gender,
+                        p.blood_group,
+                        p.mrn_number,
+                        o.opd_id,
+                        TO_CHAR(DATE(o.visit_date), 'YYYY-MM-DD') as visit_date,
+                        COALESCE(o.visit_type, '') as visit_type,
+                        COALESCE(o.diagnosis, '') as diagnosis,
+                        COALESCE(o.consultation_fee, 0) as consultation_fee,
+                        COALESCE(o.is_mlc, false) as is_mlc,
+                        COALESCE(d.first_name || ' ' || d.last_name, 'Not Assigned') as doctor_name,
+                        COALESCE(d.specialization, '') as specialization,
+                        b.branch_name,
+                        COALESCE(bm.bill_number, '') as bill_number,
+                        COALESCE(bm.total_amount, 0) as bill_amount,
+                        COALESCE(bm.payment_mode, '') as payment_mode,
+                        COALESCE(bm.payment_status, '') as payment_status,
+                        COALESCE(TO_CHAR(bm.billing_date, 'YYYY-MM-DD'), '') as billing_date,
+                        COALESCE(bm.discount_value, 0) as discount_amount,
+                        COALESCE(bm.paid_amount, 0) as paid_amount,
+                        COALESCE(bm.pending_amount, 0) as pending_amount
+                    FROM opd_entries o
+                    JOIN patients p ON o.patient_id = p.patient_id
+                    LEFT JOIN doctors d ON o.doctor_id = d.doctor_id
+                    JOIN branches b ON o.branch_id = b.branch_id
+                    LEFT JOIN billing_master bm ON bm.patient_id = p.patient_id 
+                        AND bm.branch_id = o.branch_id
+                        AND DATE(bm.billing_date) = DATE(o.visit_date)
+                        AND bm.bill_number NOT LIKE 'DRAFT-%'
+                    WHERE b.hospital_id = $1
+                    AND DATE(o.visit_date) >= $2::date AND DATE(o.visit_date) <= $3::date
+                    ORDER BY o.visit_date DESC
+                `, [hospital_id, start, end]);
+
+                // Sheet 2: Lab Orders detail
+                const labDetailRes = await client.query(`
+                    SELECT
+                        lo.order_number,
+                        p.first_name || ' ' || p.last_name as patient_name,
+                        p.contact_number,
+                        p.mrn_number,
+                        TO_CHAR(DATE(lo.ordered_at), 'YYYY-MM-DD') as order_date,
+                        lo.test_name,
+                        lo.test_category,
+                        lo.priority,
+                        lo.status,
+                        COALESCE(d.first_name || ' ' || d.last_name, '') as ordered_by_doctor,
+                        b.branch_name,
+                        COALESCE(lo.notes, '') as notes,
+                        COALESCE(lo.is_external::text, 'false') as is_external
+                    FROM lab_orders lo
+                    JOIN patients p ON lo.patient_id = p.patient_id
+                    JOIN branches b ON lo.branch_id = b.branch_id
+                    LEFT JOIN doctors d ON lo.doctor_id = d.doctor_id
+                    WHERE b.hospital_id = $1
+                    AND DATE(lo.ordered_at) >= $2::date AND DATE(lo.ordered_at) <= $3::date
+                    ORDER BY lo.ordered_at DESC
+                `, [hospital_id, start, end]).catch(() => ({ rows: [] }));
+
+                // Sheet 3: Doctor performance with details
+                const doctorDetailRes = await client.query(`
+                    SELECT
+                        d.first_name || ' ' || d.last_name as doctor_name,
+                        d.specialization,
+                        d.qualification,
+                        b.branch_name,
+                        COUNT(o.opd_id) as total_patients,
+                        COUNT(DISTINCT o.patient_id) as unique_patients,
+                        COUNT(CASE WHEN o.visit_type = 'New' THEN 1 END) as new_patients,
+                        COUNT(CASE WHEN o.visit_type IN ('Review', 'Follow-up') THEN 1 END) as follow_ups,
+                        COUNT(CASE WHEN o.is_mlc = true THEN 1 END) as mlc_cases,
+                        COALESCE(SUM(o.consultation_fee), 0) as total_revenue,
+                        COALESCE(AVG(o.consultation_fee), 0) as avg_consultation_fee
+                    FROM opd_entries o
+                    JOIN doctors d ON o.doctor_id = d.doctor_id
+                    JOIN branches b ON o.branch_id = b.branch_id
+                    WHERE b.hospital_id = $1
+                    AND DATE(o.visit_date) >= $2::date AND DATE(o.visit_date) <= $3::date
+                    GROUP BY d.doctor_id, d.first_name, d.last_name, d.specialization, d.qualification, b.branch_id, b.branch_name
+                    ORDER BY total_revenue DESC
+                `, [hospital_id, start, end]);
+
+                // Sheet 4: Branch performance
+                const branchDetailRes = await client.query(`
+                    SELECT
+                        br.branch_name,
+                        br.branch_code,
+                        COALESCE(CONCAT(br.address_line1, ', ', br.city), '') as address,
+                        COALESCE(br.contact_number, '') as contact_number,
+                        COUNT(DISTINCT o.opd_id) as total_opd_visits,
+                        COUNT(DISTINCT o.patient_id) as unique_patients,
+                        COUNT(DISTINCT o.doctor_id) as active_doctors,
+                        COALESCE(SUM(o.consultation_fee), 0) as opd_revenue,
+                        COALESCE(bill_summary.billing_revenue, 0) as billing_revenue,
+                        COUNT(CASE WHEN o.is_mlc = true THEN 1 END) as mlc_cases,
+                        COALESCE(lab_summary.lab_orders, 0) as lab_orders,
+                        COALESCE(lab_summary.lab_completed, 0) as lab_completed
+                    FROM branches br
+                    LEFT JOIN opd_entries o ON o.branch_id = br.branch_id
+                        AND DATE(o.visit_date) >= $2::date AND DATE(o.visit_date) <= $3::date
+                    LEFT JOIN (
+                        SELECT branch_id, COALESCE(SUM(total_amount), 0) as billing_revenue
+                        FROM billing_master
+                        WHERE DATE(billing_date) >= $2::date AND DATE(billing_date) <= $3::date
+                        GROUP BY branch_id
+                    ) bill_summary ON bill_summary.branch_id = br.branch_id
+                    LEFT JOIN (
+                        SELECT branch_id, COUNT(*) as lab_orders,
+                               COUNT(CASE WHEN status = 'Completed' THEN 1 END) as lab_completed
+                        FROM lab_orders
+                        WHERE DATE(ordered_at) >= $2::date AND DATE(ordered_at) <= $3::date
+                        GROUP BY branch_id
+                    ) lab_summary ON lab_summary.branch_id = br.branch_id
+                    WHERE br.hospital_id = $1
+                    GROUP BY br.branch_id, br.branch_name, br.branch_code, br.address_line1, br.city, br.contact_number, bill_summary.billing_revenue, lab_summary.lab_orders, lab_summary.lab_completed
+                    ORDER BY opd_revenue DESC
+                `, [hospital_id, start, end]);
+
+                res.status(200).json({
+                    status: 'success',
+                    data: {
+                        dateRange: { start, end },
+                        patients: patientDetailRes.rows,
+                        labOrders: labDetailRes.rows,
+                        doctors: doctorDetailRes.rows,
+                        branches: branchDetailRes.rows
+                    }
+                });
+            } finally {
+                client.release();
+            }
+        } catch (error) {
+            console.error('Get detailed export data error:', error);
+            next(new AppError('Failed to fetch export data: ' + error.message, 500));
+        }
+    }
 }
 
 module.exports = ClientAdminController;

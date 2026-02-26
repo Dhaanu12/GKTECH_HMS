@@ -596,9 +596,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { jsPDF } from 'jspdf';
 import { toPng } from 'html-to-image';
-import { Calendar, Download, TrendingUp, Building2, Stethoscope, UserCog, UserCheck, BarChart3, RefreshCw, Sparkles, Filter, X, Activity, Users } from 'lucide-react';
+import type ExcelJS from 'exceljs';
+import { Calendar, Download, TrendingUp, Building2, Stethoscope, UserCog, UserCheck, BarChart3, RefreshCw, Sparkles, Filter, X, Activity, Users, FileSpreadsheet } from 'lucide-react';
 
 // Dashboard Components for Overview
 import { KPIGrid } from '@/components/dashboard/KPIGrid';
@@ -638,6 +638,7 @@ export default function ClientAdminReports() {
     const [useCustomDates, setUseCustomDates] = useState(true);
 
     const [loading, setLoading] = useState(false);
+    const [isExporting, setIsExporting] = useState(false);
     const [data, setData] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
     const [fetchTrigger, setFetchTrigger] = useState(0);
@@ -780,37 +781,591 @@ export default function ClientAdminReports() {
     };
 
     const reportRef = useRef<HTMLDivElement>(null);
+    const chartsRef = useRef<HTMLDivElement>(null);
 
     // ... (existing code)
 
     const handleExportPDF = async () => {
-        if (!reportRef.current) return;
-
+        setIsExporting(true);
         try {
-            // Show loading state specifically for export if needed, or just use global loading
-            // But global loading hides content! So we shouldn't use setLoading(true) in a way that unmounts content.
-            // We'll perform the export without setting the main loading state, or use a separate state.
-            // For now, let's just do it.
+            const token = localStorage.getItem('token');
+            const params: any = {};
+            if (useCustomDates && dateRange.startDate && dateRange.endDate) {
+                params.startDate = dateRange.startDate;
+                params.endDate = dateRange.endDate;
+            }
 
-            const dataUrl = await toPng(reportRef.current, {
-                quality: 0.95,
-                pixelRatio: 2,
-                filter: (node: HTMLElement) => {
-                    // Exclude elements with 'no-print' class
-                    return !node.classList?.contains('no-print');
-                }
+            const [response, autoTableMod, jsPDFMod] = await Promise.all([
+                axios.get(
+                    `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/clientadmins/reports/export-detail`,
+                    { headers: { Authorization: `Bearer ${token}` }, params }
+                ),
+                import('jspdf-autotable'),
+                import('jspdf')
+            ]);
+
+            const exportData = response.data.data;
+            const autoTable = autoTableMod.default;
+            const { jsPDF } = jsPDFMod;
+            const pdf = new jsPDF('l', 'mm', 'a4');
+            const pageW = pdf.internal.pageSize.getWidth();
+            const pageH = pdf.internal.pageSize.getHeight();
+            const now = new Date().toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+            const dateLabel = exportData.dateRange
+                ? `${exportData.dateRange.start}  →  ${exportData.dateRange.end}`
+                : 'All Available Data';
+
+            // ── Helpers ───────────────────────────────────────────────────────
+            const drawPageHeader = (section: string) => {
+                pdf.setFillColor(15, 52, 150);
+                pdf.rect(0, 0, pageW, 16, 'F');
+                // thin accent line
+                pdf.setFillColor(99, 179, 237);
+                pdf.rect(0, 16, pageW, 1.2, 'F');
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(10);
+                pdf.setTextColor(255, 255, 255);
+                pdf.text('Global Healthcare', 12, 7);
+                pdf.setFont('helvetica', 'normal');
+                pdf.setFontSize(8);
+                pdf.text(`Analytics Report  |  ${dateLabel}`, 12, 13);
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(11);
+                pdf.setTextColor(30, 64, 175);
+                pdf.text(section, 12, 26);
+                pdf.setTextColor(0, 0, 0);
+                pdf.setFont('helvetica', 'normal');
+            };
+
+            const drawFooter = () => {
+                pdf.setFillColor(240, 244, 255);
+                pdf.rect(0, pageH - 8, pageW, 8, 'F');
+                pdf.setFontSize(7);
+                pdf.setTextColor(100);
+                pdf.text(`Generated: ${now}`, 12, pageH - 3);
+                pdf.text(`Page ${pdf.getNumberOfPages()}`, pageW - 12, pageH - 3, { align: 'right' });
+            };
+
+            const tableOpts = (body: any[][], head: string[][], colStyles?: any) => ({
+                startY: 30,
+                head,
+                body,
+                theme: 'grid' as const,
+                headStyles: {
+                    fillColor: [15, 52, 150] as [number, number, number],
+                    textColor: 255, fontStyle: 'bold' as const, fontSize: 7.5,
+                    cellPadding: 3
+                },
+                bodyStyles: { fontSize: 7, cellPadding: 2.5 },
+                alternateRowStyles: { fillColor: [245, 248, 255] as [number, number, number] },
+                columnStyles: colStyles || {},
+                margin: { left: 12, right: 12, bottom: 14 },
+                didDrawPage: () => { drawFooter(); }
             });
 
-            const pdf = new jsPDF('p', 'mm', 'a4');
-            const imgProps = pdf.getImageProperties(dataUrl);
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+            // ── PAGE 1: Cover / KPI Summary ───────────────────────────────────
+            // Full blue cover banner
+            pdf.setFillColor(15, 52, 150);
+            pdf.rect(0, 0, pageW, 45, 'F');
+            pdf.setFillColor(99, 179, 237);
+            pdf.rect(0, 45, pageW, 1.5, 'F');
 
-            pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight);
-            pdf.save(`Analytics_Report_${dateRange.startDate || 'all'}.pdf`);
+            // Hospital branding
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(22);
+            pdf.setTextColor(255, 255, 255);
+            pdf.text('Global Healthcare', 14, 18);
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(11);
+            pdf.setTextColor(180, 210, 255);
+            pdf.text('Comprehensive Analytics Report', 14, 27);
+            pdf.setFontSize(9);
+            pdf.setTextColor(160, 200, 255);
+            pdf.text(`Period: ${dateLabel}`, 14, 35);
+            pdf.text(`Generated: ${now}`, pageW - 14, 35, { align: 'right' });
+
+            // KPI stat tiles
+            const kd = data || {};
+            const ex = kd.executiveStats || kd;
+            const kpis = [
+                { label: 'Total OPD Visits', value: ex.totalOpdVisits ?? exportData.patients?.length ?? '—', color: [30, 64, 175] as [number, number, number] },
+                { label: 'Total Revenue (₹)', value: ex.totalRevenue != null ? `₹${Number(ex.totalRevenue).toLocaleString('en-IN')}` : '—', color: [5, 150, 105] as [number, number, number] },
+                { label: 'New Patients', value: ex.newPatients ?? '—', color: [124, 58, 237] as [number, number, number] },
+                { label: 'Lab Orders', value: exportData.labOrders?.length ?? '—', color: [217, 119, 6] as [number, number, number] },
+                { label: 'Active Doctors', value: exportData.doctors?.length ?? '—', color: [2, 132, 199] as [number, number, number] },
+                { label: 'Branches', value: exportData.branches?.length ?? '—', color: [190, 18, 60] as [number, number, number] },
+            ];
+
+            const cols = 3;
+            const tileW = (pageW - 28 - (cols - 1) * 5) / cols;
+            const tileH = 28;
+            const startY = 52;
+
+            kpis.forEach((kpi, i) => {
+                const col = i % cols;
+                const row = Math.floor(i / cols);
+                const tx = 14 + col * (tileW + 5);
+                const ty = startY + row * (tileH + 5);
+
+                // Shadow effect
+                pdf.setFillColor(210, 220, 240);
+                pdf.roundedRect(tx + 0.8, ty + 0.8, tileW, tileH, 3, 3, 'F');
+
+                // White card
+                pdf.setFillColor(255, 255, 255);
+                pdf.roundedRect(tx, ty, tileW, tileH, 3, 3, 'F');
+
+                // Color accent left bar
+                pdf.setFillColor(...kpi.color);
+                pdf.roundedRect(tx, ty, 4, tileH, 2, 2, 'F');
+
+                // Label
+                pdf.setFont('helvetica', 'normal');
+                pdf.setFontSize(7.5);
+                pdf.setTextColor(100, 116, 139);
+                pdf.text(kpi.label, tx + 8, ty + 9);
+
+                // Big value
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(16);
+                pdf.setTextColor(...kpi.color);
+                pdf.text(String(kpi.value), tx + 8, ty + 22);
+            });
+
+            // Summary counts section
+            const summaryY = startY + 2 * (tileH + 5) + 6;
+            pdf.setFontSize(8);
+            pdf.setFont('helvetica', 'normal');
+            pdf.setTextColor(80, 100, 140);
+            const totalPat = exportData.patients?.length ?? 0;
+            const totalLab = exportData.labOrders?.length ?? 0;
+            const totalDoc = exportData.doctors?.length ?? 0;
+            const totalBr = exportData.branches?.length ?? 0;
+            pdf.text(
+                `This report contains ${totalPat} patient visits, ${totalLab} lab orders, ${totalDoc} doctor records, and ${totalBr} branch summaries for the selected period.`,
+                14, summaryY,
+                { maxWidth: pageW - 28 }
+            );
+
+            // Table of contents
+            const tocY = summaryY + 10;
+            pdf.setFillColor(240, 245, 255);
+            pdf.roundedRect(14, tocY, pageW - 28, 28, 3, 3, 'F');
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(8);
+            pdf.setTextColor(15, 52, 150);
+            pdf.text('Report Contents', 18, tocY + 7);
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(7.5);
+            pdf.setTextColor(60, 80, 120);
+            const tocItems = ['Page 2  —  Analytics Charts', 'Page 3  —  Patient Visit Details', 'Page 4  —  Lab Orders', 'Page 5  —  Doctor Performance', 'Page 6  —  Branch Summary'];
+            tocItems.forEach((item, i) => pdf.text(item, 18 + (i % 2) * ((pageW - 36) / 2), tocY + 14 + Math.floor(i / 2) * 7));
+
+            drawFooter();
+
+            // ── PAGE 2: Analytics Charts ──────────────────────────────────────
+            pdf.addPage();
+            drawPageHeader('Analytics Charts');
+
+            // Layout: 2x2 grid of chart panels
+            const panelMargin = 12;
+            const panelGap = 6;
+            const panelW = (pageW - panelMargin * 2 - panelGap) / 2;
+            const panelH = (pageH - 36 - panelMargin - panelGap - 14) / 2;
+            const panel = (col: number, row: number) => ({
+                x: panelMargin + col * (panelW + panelGap),
+                y: 32 + row * (panelH + panelGap)
+            });
+
+            const drawPanelBg = (x: number, y: number, w: number, h: number, title: string) => {
+                pdf.setFillColor(248, 250, 255);
+                pdf.roundedRect(x, y, w, h, 3, 3, 'F');
+                pdf.setDrawColor(210, 220, 240);
+                pdf.setLineWidth(0.3);
+                pdf.roundedRect(x, y, w, h, 3, 3, 'S');
+                // Panel title bar
+                pdf.setFillColor(15, 52, 150);
+                pdf.roundedRect(x, y, w, 9, 3, 3, 'F');
+                pdf.rect(x, y + 4, w, 5, 'F'); // flatten bottom corners
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(7.5);
+                pdf.setTextColor(255, 255, 255);
+                pdf.text(title, x + 5, y + 6.2);
+                pdf.setTextColor(0, 0, 0);
+                pdf.setFont('helvetica', 'normal');
+            };
+
+            // ── Chart 1: Revenue by Branch (horizontal bars) ──────────────────
+            const c1 = panel(0, 0);
+            drawPanelBg(c1.x, c1.y, panelW, panelH, 'Revenue by Branch  (₹)');
+            const branchRevData = (exportData.branches || []).slice(0, 6).map((b: any) => ({
+                label: (b.branch_name || 'Unknown').substring(0, 16),
+                value: Number(b.billing_revenue) || 0
+            }));
+            const maxBrRev = Math.max(...branchRevData.map((d: any) => d.value), 1);
+            const c1PadT = 14, c1PadB = 6, c1PadL = 38, c1PadR = 8;
+            const c1ChartH = panelH - c1PadT - c1PadB;
+            const c1ChartW = panelW - c1PadL - c1PadR;
+            const barColors: [number, number, number][] = [
+                [30, 64, 175], [5, 150, 105], [124, 58, 237],
+                [217, 119, 6], [2, 132, 199], [190, 18, 60]
+            ];
+            if (branchRevData.length === 0) {
+                pdf.setFontSize(7); pdf.setTextColor(150);
+                pdf.text('No data', c1.x + panelW / 2, c1.y + panelH / 2, { align: 'center' });
+            } else {
+                const barH = Math.min((c1ChartH / branchRevData.length) - 3, 10);
+                branchRevData.forEach((d: any, i: number) => {
+                    const bY = c1.y + c1PadT + i * (c1ChartH / branchRevData.length);
+                    const bW = (d.value / maxBrRev) * c1ChartW;
+                    pdf.setFillColor(220, 230, 250);
+                    pdf.roundedRect(c1.x + c1PadL, bY, c1ChartW, barH, 1, 1, 'F');
+                    pdf.setFillColor(...barColors[i % barColors.length]);
+                    if (bW > 0) pdf.roundedRect(c1.x + c1PadL, bY, bW, barH, 1, 1, 'F');
+                    pdf.setFontSize(6.5); pdf.setTextColor(60, 80, 120);
+                    pdf.text(d.label, c1.x + c1PadL - 2, bY + barH - 1.5, { align: 'right' });
+                    if (d.value > 0) {
+                        pdf.setFontSize(5.5); pdf.setTextColor(255, 255, 255);
+                        const valText = `₹${Math.round(d.value / 1000)}k`;
+                        if (bW > 12) pdf.text(valText, c1.x + c1PadL + bW - 2, bY + barH - 1.5, { align: 'right' });
+                    }
+                });
+            }
+
+            // ── Chart 2: Patients by Doctor (horizontal bars) ─────────────────
+            const c2 = panel(1, 0);
+            drawPanelBg(c2.x, c2.y, panelW, panelH, 'Patients by Doctor');
+            const docData = (exportData.doctors || []).slice(0, 6).map((d: any) => ({
+                label: (d.doctor_name || 'Unknown').split(' ').slice(0, 2).join(' ').substring(0, 16),
+                value: Number(d.total_patients) || 0
+            }));
+            const maxDoc = Math.max(...docData.map((d: any) => d.value), 1);
+            const c2PadT = 14, c2PadB = 6, c2PadL = 38, c2PadR = 8;
+            const c2ChartH = panelH - c2PadT - c2PadB;
+            const c2ChartW = panelW - c2PadL - c2PadR;
+            if (docData.length === 0) {
+                pdf.setFontSize(7); pdf.setTextColor(150);
+                pdf.text('No data', c2.x + panelW / 2, c2.y + panelH / 2, { align: 'center' });
+            } else {
+                const barH2 = Math.min((c2ChartH / docData.length) - 3, 10);
+                docData.forEach((d: any, i: number) => {
+                    const bY = c2.y + c2PadT + i * (c2ChartH / docData.length);
+                    const bW = (d.value / maxDoc) * c2ChartW;
+                    pdf.setFillColor(220, 245, 235);
+                    pdf.roundedRect(c2.x + c2PadL, bY, c2ChartW, barH2, 1, 1, 'F');
+                    pdf.setFillColor(5, 150, 105);
+                    if (bW > 0) pdf.roundedRect(c2.x + c2PadL, bY, bW, barH2, 1, 1, 'F');
+                    pdf.setFontSize(6.5); pdf.setTextColor(60, 80, 120);
+                    pdf.text(d.label, c2.x + c2PadL - 2, bY + barH2 - 1.5, { align: 'right' });
+                    if (d.value > 0) {
+                        pdf.setFontSize(6); pdf.setTextColor(255, 255, 255);
+                        if (bW > 8) pdf.text(String(d.value), c2.x + c2PadL + bW - 2, bY + barH2 - 1.5, { align: 'right' });
+                    }
+                });
+            }
+
+            // ── Chart 3: Lab Status (vertical bars) ───────────────────────────
+            const c3 = panel(0, 1);
+            drawPanelBg(c3.x, c3.y, panelW, panelH, 'Lab Orders by Status');
+            const labStatusMap: Record<string, number> = {};
+            (exportData.labOrders || []).forEach((lo: any) => {
+                const s = lo.status || 'Unknown';
+                labStatusMap[s] = (labStatusMap[s] || 0) + 1;
+            });
+            const labStatusData = Object.entries(labStatusMap).slice(0, 6).map(([label, value]) => ({ label, value: value as number }));
+            const statusColors: [number, number, number][] = [[30, 64, 175], [5, 150, 105], [217, 119, 6], [190, 18, 60], [124, 58, 237], [2, 132, 199]];
+            const maxStat = Math.max(...labStatusData.map(d => d.value), 1);
+            const c3PadT = 14, c3PadB = 18, c3PadL = 8, c3PadR = 8;
+            const c3ChartH = panelH - c3PadT - c3PadB;
+            const c3ChartW = panelW - c3PadL - c3PadR;
+            if (labStatusData.length === 0) {
+                pdf.setFontSize(7); pdf.setTextColor(150);
+                pdf.text('No lab data', c3.x + panelW / 2, c3.y + panelH / 2, { align: 'center' });
+            } else {
+                const bW3 = Math.min((c3ChartW / labStatusData.length) - 4, 18);
+                const baseY3 = c3.y + c3PadT + c3ChartH;
+                labStatusData.forEach((d, i) => {
+                    const bX = c3.x + c3PadL + i * (c3ChartW / labStatusData.length) + 2;
+                    const bH = (d.value / maxStat) * c3ChartH;
+                    pdf.setFillColor(230, 235, 250);
+                    pdf.rect(bX, c3.y + c3PadT, bW3, c3ChartH, 'F');
+                    pdf.setFillColor(...statusColors[i % statusColors.length]);
+                    if (bH > 0) pdf.roundedRect(bX, baseY3 - bH, bW3, bH, 1, 1, 'F');
+                    pdf.setFontSize(5.5); pdf.setTextColor(60, 80, 120);
+                    pdf.text(d.label.substring(0, 10), bX + bW3 / 2, baseY3 + 4, { align: 'center' });
+                    pdf.setFontSize(6.5); pdf.setTextColor(40, 60, 120);
+                    pdf.text(String(d.value), bX + bW3 / 2, baseY3 - bH - 2, { align: 'center' });
+                });
+            }
+
+            // ── Chart 4: Payment Mode Donut ───────────────────────────────────
+            const c4 = panel(1, 1);
+            drawPanelBg(c4.x, c4.y, panelW, panelH, 'Payment Mode Distribution');
+            const payMap: Record<string, number> = {};
+            (exportData.patients || []).forEach((p: any) => {
+                const m = p.payment_mode || 'Unknown';
+                payMap[m] = (payMap[m] || 0) + 1;
+            });
+            const payData = Object.entries(payMap).map(([label, value]) => ({ label, value: value as number }));
+            const payTotal = payData.reduce((s, d) => s + d.value, 0);
+            const donutColors: [number, number, number][] = [[30, 64, 175], [5, 150, 105], [217, 119, 6], [124, 58, 237], [190, 18, 60], [2, 132, 199]];
+            const cx4 = c4.x + panelW * 0.38;
+            const cy4 = c4.y + panelH * 0.55;
+            const outerR = Math.min(panelW, panelH) * 0.28;
+            const innerR = outerR * 0.52;
+            if (payData.length === 0 || payTotal === 0) {
+                pdf.setFontSize(7); pdf.setTextColor(150);
+                pdf.text('No payment data', c4.x + panelW / 2, c4.y + panelH / 2, { align: 'center' });
+            } else {
+                let startAngle = -Math.PI / 2;
+                payData.forEach((seg, i) => {
+                    const sweep = (seg.value / payTotal) * Math.PI * 2;
+                    const color = donutColors[i % donutColors.length];
+                    // Draw wedge as approximated arc segments
+                    const steps = Math.max(6, Math.round(sweep * 8));
+                    pdf.setFillColor(...color);
+                    for (let s = 0; s < steps; s++) {
+                        const a1 = startAngle + (s / steps) * sweep;
+                        const a2 = startAngle + ((s + 1) / steps) * sweep;
+                        const x1o = cx4 + Math.cos(a1) * outerR, y1o = cy4 + Math.sin(a1) * outerR;
+                        const x2o = cx4 + Math.cos(a2) * outerR, y2o = cy4 + Math.sin(a2) * outerR;
+                        const x1i = cx4 + Math.cos(a1) * innerR, y1i = cy4 + Math.sin(a1) * innerR;
+                        const x2i = cx4 + Math.cos(a2) * innerR, y2i = cy4 + Math.sin(a2) * innerR;
+                        // Draw trapezoid quad
+                        pdf.lines([[x2o - x1o, y2o - y1o], [x2i - x2o, y2i - y2o], [x1i - x2i, y1i - y2i]], x1o, y1o, [1, 1], 'F', false);
+                    }
+                    startAngle += sweep;
+                });
+                // White center
+                pdf.setFillColor(248, 250, 255);
+                pdf.circle(cx4, cy4, innerR, 'F');
+                // Center label
+                pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8); pdf.setTextColor(15, 52, 150);
+                pdf.text(String(payTotal), cx4, cy4 + 2, { align: 'center' });
+                pdf.setFont('helvetica', 'normal'); pdf.setFontSize(5.5); pdf.setTextColor(100);
+                pdf.text('visits', cx4, cy4 + 6.5, { align: 'center' });
+
+                // Legend
+                const legendX = c4.x + panelW * 0.72;
+                let legendY = c4.y + 18;
+                payData.slice(0, 5).forEach((seg, i) => {
+                    pdf.setFillColor(...donutColors[i % donutColors.length]);
+                    pdf.roundedRect(legendX, legendY - 3, 4, 4, 1, 1, 'F');
+                    pdf.setFontSize(6.5); pdf.setTextColor(60, 80, 120);
+                    const pct = Math.round((seg.value / payTotal) * 100);
+                    pdf.text(`${seg.label} (${pct}%)`, legendX + 6, legendY);
+                    legendY += 8;
+                });
+            }
+
+            drawFooter();
+
+            // ── PAGE 2: Patient Visits ────────────────────────────────────────
+            pdf.addPage();
+            drawPageHeader('Patient Visit Details');
+            const patRows = (exportData.patients || []).map((r: any) => [
+                r.patient_name || '—', r.mrn_number || '—', r.contact_number || '—',
+                r.gender || '—', r.visit_date || '—', r.visit_type || '—',
+                r.diagnosis || '—', r.consultation_fee ? `₹${r.consultation_fee}` : '—',
+                r.doctor_name || '—', r.branch_name || '—',
+                r.payment_mode || '—', r.payment_status || '—',
+                r.paid_amount ? `₹${r.paid_amount}` : '—'
+            ]);
+            if (patRows.length === 0) patRows.push(['No patient visits recorded for this period', '', '', '', '', '', '', '', '', '', '', '', '']);
+            autoTable(pdf, tableOpts(patRows, [['Patient', 'MRN', 'Contact', 'Gender', 'Visit Date', 'Type', 'Diagnosis', 'Fee', 'Doctor', 'Branch', 'Pay Mode', 'Status', 'Paid']]));
+
+            // ── PAGE 3: Lab Orders ────────────────────────────────────────────
+            pdf.addPage();
+            drawPageHeader('Lab Orders');
+            const labRows = (exportData.labOrders || []).map((r: any) => [
+                r.order_number || '—', r.patient_name || '—', r.contact_number || '—',
+                r.order_date || '—', r.test_name || '—', r.test_category || '—',
+                r.priority || '—', r.status || '—',
+                r.ordered_by_doctor || '—', r.branch_name || '—',
+                r.is_external === 'true' ? 'External' : 'In-House'
+            ]);
+            if (labRows.length === 0) labRows.push(['No lab orders recorded for this period', '', '', '', '', '', '', '', '', '', '']);
+            autoTable(pdf, tableOpts(labRows, [['Order #', 'Patient', 'Contact', 'Date', 'Test', 'Category', 'Priority', 'Status', 'Doctor', 'Branch', 'Source']]));
+
+            // ── PAGE 4: Doctor Performance ────────────────────────────────────
+            pdf.addPage();
+            drawPageHeader('Doctor Performance');
+            const docRows = (exportData.doctors || []).map((r: any) => [
+                r.doctor_name || '—', r.specialization || '—', r.qualification || '—',
+                r.branch_name || '—', r.total_patients ?? 0, r.unique_patients ?? 0,
+                r.new_patients ?? 0, r.follow_ups ?? 0, r.mlc_cases ?? 0,
+                `₹${Math.round(Number(r.total_revenue) || 0).toLocaleString('en-IN')}`,
+                `₹${Math.round(Number(r.avg_consultation_fee) || 0)}`
+            ]);
+            if (docRows.length === 0) docRows.push(['No doctor records for this period', '', '', '', '', '', '', '', '', '', '']);
+            autoTable(pdf, tableOpts(docRows, [['Doctor', 'Specialization', 'Qualification', 'Branch', 'Total', 'Unique', 'New', 'Follow-ups', 'MLC', 'Revenue', 'Avg Fee']]));
+
+            // ── PAGE 5: Branch Summary ────────────────────────────────────────
+            pdf.addPage();
+            drawPageHeader('Branch Performance Summary');
+            const brRows = (exportData.branches || []).map((r: any) => [
+                r.branch_name || '—', r.branch_code || '—', r.contact_number || '—',
+                r.total_opd_visits ?? 0, r.unique_patients ?? 0, r.active_doctors ?? 0,
+                `₹${Math.round(Number(r.opd_revenue) || 0).toLocaleString('en-IN')}`,
+                `₹${Math.round(Number(r.billing_revenue) || 0).toLocaleString('en-IN')}`,
+                r.mlc_cases ?? 0, r.lab_orders ?? 0, r.lab_completed ?? 0
+            ]);
+            if (brRows.length === 0) brRows.push(['No branch data for this period', '', '', '', '', '', '', '', '', '', '']);
+            autoTable(pdf, tableOpts(brRows, [['Branch', 'Code', 'Contact', 'OPD Visits', 'Unique Pts', 'Doctors', 'OPD Revenue', 'Bill Revenue', 'MLC', 'Lab Orders', 'Completed']]));
+
+            pdf.save(`Global_Healthcare_Report_${exportData.dateRange?.start ?? 'all'}.pdf`);
         } catch (err) {
             console.error('PDF Export failed', err);
-            alert('Failed to generate PDF');
+            alert('Failed to generate PDF. Please try again.');
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+    const handleExportExcel = async () => {
+        setIsExporting(true);
+        try {
+            const token = localStorage.getItem('token');
+            const params: any = {};
+            if (useCustomDates && dateRange.startDate && dateRange.endDate) {
+                params.startDate = dateRange.startDate;
+                params.endDate = dateRange.endDate;
+            }
+
+            const response = await axios.get(
+                `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/clientadmins/reports/export-detail`,
+                { headers: { Authorization: `Bearer ${token}` }, params }
+            );
+
+            const exportData = response.data.data;
+
+            // Dynamically import ExcelJS to keep bundle light
+            const ExcelJS = (await import('exceljs')).default;
+            const workbook = new ExcelJS.Workbook();
+            workbook.creator = 'Global Healthcare HMS';
+            workbook.created = new Date();
+
+            const headerStyle: Partial<ExcelJS.Style> = {
+                font: { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 },
+                fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E40AF' } },
+                alignment: { horizontal: 'center', vertical: 'middle' },
+                border: { bottom: { style: 'thin', color: { argb: 'FFBFDBFE' } } }
+            };
+
+            const addSheet = (
+                name: string,
+                columns: { header: string; key: string; width?: number }[],
+                rows: any[]
+            ) => {
+                const sheet = workbook.addWorksheet(name, {
+                    views: [{ state: 'frozen', ySplit: 1 }]
+                });
+                sheet.columns = columns.map(c => ({ ...c, width: c.width || 20 }));
+                sheet.getRow(1).eachCell((cell) => { Object.assign(cell, headerStyle); });
+                rows.forEach(r => {
+                    const row = sheet.addRow(columns.map(c => r[c.key] ?? ''));
+                    row.eachCell(cell => {
+                        cell.border = {
+                            bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+                        };
+                    });
+                });
+                sheet.getRow(1).height = 24;
+                return sheet;
+            };
+
+            // Sheet 1 — Patient Visits
+            addSheet('Patient Visits', [
+                { header: 'Patient ID', key: 'patient_id', width: 12 },
+                { header: 'Patient Name', key: 'patient_name', width: 25 },
+                { header: 'Contact', key: 'contact_number', width: 16 },
+                { header: 'MRN', key: 'mrn_number', width: 15 },
+                { header: 'Gender', key: 'gender', width: 10 },
+                { header: 'DOB', key: 'date_of_birth', width: 14 },
+                { header: 'Blood Group', key: 'blood_group', width: 13 },
+                { header: 'Visit Date', key: 'visit_date', width: 14 },
+                { header: 'Visit Type', key: 'visit_type', width: 13 },
+                { header: 'Diagnosis', key: 'diagnosis', width: 30 },
+                { header: 'Consultation Fee (₹)', key: 'consultation_fee', width: 22 },
+                { header: 'MLC', key: 'is_mlc', width: 8 },
+                { header: 'Doctor', key: 'doctor_name', width: 22 },
+                { header: 'Specialization', key: 'specialization', width: 20 },
+                { header: 'Branch', key: 'branch_name', width: 20 },
+                { header: 'Bill Number', key: 'bill_number', width: 16 },
+                { header: 'Bill Amount (₹)', key: 'bill_amount', width: 18 },
+                { header: 'Paid Amount (₹)', key: 'paid_amount', width: 18 },
+                { header: 'Pending (₹)', key: 'pending_amount', width: 15 },
+                { header: 'Discount (₹)', key: 'discount_amount', width: 15 },
+                { header: 'Payment Mode', key: 'payment_mode', width: 16 },
+                { header: 'Payment Status', key: 'payment_status', width: 16 },
+                { header: 'Billing Date', key: 'billing_date', width: 14 }
+            ], exportData.patients || []);
+
+            // Sheet 2 — Lab Orders
+            addSheet('Lab Orders', [
+                { header: 'Order Number', key: 'order_number', width: 18 },
+                { header: 'Patient Name', key: 'patient_name', width: 25 },
+                { header: 'Contact', key: 'contact_number', width: 16 },
+                { header: 'MRN', key: 'mrn_number', width: 15 },
+                { header: 'Order Date', key: 'order_date', width: 14 },
+                { header: 'Test Name', key: 'test_name', width: 30 },
+                { header: 'Category', key: 'test_category', width: 16 },
+                { header: 'Priority', key: 'priority', width: 12 },
+                { header: 'Status', key: 'status', width: 14 },
+                { header: 'Ordered By Doctor', key: 'ordered_by_doctor', width: 25 },
+                { header: 'Branch', key: 'branch_name', width: 20 },
+                { header: 'Source', key: 'is_external', width: 12 },
+                { header: 'Notes', key: 'notes', width: 30 }
+            ], exportData.labOrders || []);
+
+            // Sheet 3 — Doctor Performance
+            addSheet('Doctor Performance', [
+                { header: 'Doctor Name', key: 'doctor_name', width: 25 },
+                { header: 'Specialization', key: 'specialization', width: 22 },
+                { header: 'Qualification', key: 'qualification', width: 18 },
+                { header: 'Branch', key: 'branch_name', width: 20 },
+                { header: 'Total Patients', key: 'total_patients', width: 16 },
+                { header: 'Unique Patients', key: 'unique_patients', width: 17 },
+                { header: 'New Patients', key: 'new_patients', width: 15 },
+                { header: 'Follow-ups', key: 'follow_ups', width: 13 },
+                { header: 'MLC Cases', key: 'mlc_cases', width: 13 },
+                { header: 'Total Revenue (₹)', key: 'total_revenue', width: 20 },
+                { header: 'Avg Fee (₹)', key: 'avg_consultation_fee', width: 15 }
+            ], exportData.doctors || []);
+
+            // Sheet 4 — Branch Summary
+            addSheet('Branch Summary', [
+                { header: 'Branch Name', key: 'branch_name', width: 25 },
+                { header: 'Branch Code', key: 'branch_code', width: 15 },
+                { header: 'Address', key: 'address', width: 35 },
+                { header: 'Contact', key: 'contact_number', width: 18 },
+                { header: 'Total OPD Visits', key: 'total_opd_visits', width: 18 },
+                { header: 'Unique Patients', key: 'unique_patients', width: 18 },
+                { header: 'Active Doctors', key: 'active_doctors', width: 16 },
+                { header: 'OPD Revenue (₹)', key: 'opd_revenue', width: 18 },
+                { header: 'Billing Revenue (₹)', key: 'billing_revenue', width: 20 },
+                { header: 'MLC Cases', key: 'mlc_cases', width: 13 },
+                { header: 'Lab Orders', key: 'lab_orders', width: 14 },
+                { header: 'Lab Completed', key: 'lab_completed', width: 16 }
+            ], exportData.branches || []);
+
+            // Save the file
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Detailed_Report_${exportData.dateRange?.start || 'all'}_to_${exportData.dateRange?.end || 'all'}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (err: any) {
+            console.error('Excel Export failed', err);
+            alert('Failed to generate Excel: ' + (err.response?.data?.message || err.message));
+        } finally {
+            setIsExporting(false);
         }
     };
 
@@ -898,15 +1453,50 @@ export default function ClientAdminReports() {
                                         </div>
                                     </div>
 
-                                    {/* Export Button */}
-                                    <button
-                                        onClick={handleExportPDF}
-                                        disabled={loading || !data}
-                                        className="no-print px-4 py-2 bg-white/20 backdrop-blur-sm text-white rounded-lg hover:bg-white/30 transition-all font-bold text-xs disabled:opacity-50 border border-white/30 shadow-md flex items-center gap-2 hover:scale-105 transform duration-200"
-                                    >
-                                        <Download className="w-4 h-4" />
-                                        Export PDF
-                                    </button>
+                                    {/* Export Buttons */}
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={handleExportPDF}
+                                            disabled={loading || !data || isExporting}
+                                            className="no-print px-4 py-2 bg-white/20 backdrop-blur-sm text-white rounded-lg hover:bg-white/30 transition-all font-bold text-xs disabled:opacity-50 border border-white/30 shadow-md flex items-center gap-2 hover:scale-105 transform duration-200"
+                                        >
+                                            {isExporting ? (
+                                                <>
+                                                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                                                    </svg>
+                                                    Generating...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Download className="w-4 h-4" />
+                                                    Export PDF
+                                                </>
+                                            )}
+                                        </button>
+                                        <button
+                                            onClick={handleExportExcel}
+                                            disabled={loading || isExporting}
+                                            className="no-print px-4 py-2 bg-green-500/30 backdrop-blur-sm text-white rounded-lg hover:bg-green-500/50 transition-all font-bold text-xs disabled:opacity-50 border border-white/30 shadow-md flex items-center gap-2 hover:scale-105 transform duration-200"
+                                            title="Download detailed Excel report with 4 sheets"
+                                        >
+                                            {isExporting ? (
+                                                <>
+                                                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 12 0 018-8v8z" />
+                                                    </svg>
+                                                    Generating...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <FileSpreadsheet className="w-4 h-4" />
+                                                    Excel (Detailed)
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
                                 </div>
 
 
@@ -1050,8 +1640,8 @@ export default function ClientAdminReports() {
                 </div>
 
 
-                {/* Content Area */}
-                <div className="min-h-[500px] print:min-h-0">
+                {/* Content Area - captured for PDF charts */}
+                <div ref={chartsRef} className="min-h-[500px] print:min-h-0">
                     {/* Error Display */}
                     {error && (
                         <div className="bg-white rounded-2xl border-l-4 border-red-500 p-8 shadow-xl mb-6 print:hidden">

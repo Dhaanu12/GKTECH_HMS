@@ -1,5 +1,0 @@
-[
-  {
-    "definition": "CHECK (((service_type)::text = ANY (ARRAY[('consultation'::character varying)::text, ('lab_order'::character varying)::text, ('procedure'::character varying)::text, ('pharmacy'::character varying)::text, ('scan'::character varying)::text, ('surgery'::character varying)::text, ('bed_charge'::character varying)::text, ('other'::character varying)::text])))"
-  }
-]

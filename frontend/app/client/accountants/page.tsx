@@ -17,6 +17,7 @@ export default function AccountantsPage() {
     const [selectedHospitalId, setSelectedHospitalId] = useState(''); // For compatibility
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
+    const [editingAccountant, setEditingAccountant] = useState<any>(null);
     const [formData, setFormData] = useState({
         username: '',
         email: '',
@@ -78,9 +79,11 @@ export default function AccountantsPage() {
         const newErrors: any = {};
         if (!formData.first_name) newErrors.first_name = 'First name is required';
         if (!formData.last_name) newErrors.last_name = 'Last name is required';
-        if (!formData.username) newErrors.username = 'Username is required';
+        if (!editingAccountant) {
+            if (!formData.username) newErrors.username = 'Username is required';
+            if (!formData.password) newErrors.password = 'Password is required';
+        }
         if (!formData.email) newErrors.email = 'Email is required';
-        if (!formData.password) newErrors.password = 'Password is required';
         if (formData.branch_ids.length === 0) newErrors.branch_ids = 'At least one branch is required';
 
         setErrors(newErrors);
@@ -93,15 +96,48 @@ export default function AccountantsPage() {
 
         try {
             const token = localStorage.getItem('token');
-            await axios.post(`${API_URL}/accountant`, formData, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            if (editingAccountant) {
+                await axios.put(`${API_URL}/accountant/${editingAccountant.staff_id}`, formData, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+            } else {
+                await axios.post(`${API_URL}/accountant`, formData, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+            }
             setShowModal(false);
+            setEditingAccountant(null);
             fetchAccountants();
             resetForm();
         } catch (error: any) {
-            console.error('Error creating accountant:', error);
-            alert(error.response?.data?.message || 'Failed to create accountant');
+            console.error('Error saving accountant:', error);
+            alert(error.response?.data?.message || 'Failed to save accountant');
+        }
+    };
+
+    const handleEdit = async (accountant: any) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.get(`${API_URL}/accountant/${accountant.staff_id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const accountantDetails = response.data.data.accountant;
+
+            setEditingAccountant(accountant);
+            setFormData({
+                username: accountantDetails.username || '',
+                email: accountantDetails.email || '',
+                password: '',
+                phone_number: accountantDetails.phone_number || '',
+                first_name: accountantDetails.first_name || '',
+                last_name: accountantDetails.last_name || '',
+                branch_ids: accountantDetails.branch_ids || [],
+                role_code: accountantDetails.role_code || (activeTab === 'managers' ? 'ACCOUNTANT_MANAGER' : 'ACCOUNTANT')
+            });
+            setShowModal(true);
+        } catch (error) {
+            console.error('Error fetching accountant details:', error);
+            alert('Failed to load accountant details');
         }
     };
 
@@ -117,6 +153,7 @@ export default function AccountantsPage() {
             role_code: activeTab === 'managers' ? 'ACCOUNTANT_MANAGER' : 'ACCOUNTANT'
         });
         setErrors({});
+        setEditingAccountant(null);
     };
 
     const branchOptions = branches.map((branch: any) => ({
@@ -208,7 +245,11 @@ export default function AccountantsPage() {
                                         <Users className="w-6 h-6 text-blue-600 group-hover:text-white transition-colors duration-300" />
                                     )}
                                 </div>
-                                <button className="text-gray-400 hover:text-blue-600 transition">
+                                <button
+                                    onClick={() => handleEdit(accountant)}
+                                    className="text-gray-400 hover:text-blue-600 transition"
+                                    title="Edit Profile"
+                                >
                                     <Edit2 className="w-5 h-5" />
                                 </button>
                             </div>
@@ -239,15 +280,17 @@ export default function AccountantsPage() {
                 </div>
             )}
 
-            {/* Modal with Glass Effect */}
             {showModal && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <div className="bg-white/95 backdrop-blur-md rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-white/20">
                         <div className={`p-6 border-b border-gray-200/50 bg-gradient-to-r ${formData.role_code === 'ACCOUNTANT_MANAGER' ? 'from-purple-50 to-purple-100' : 'from-blue-50 to-blue-100'}`}>
                             <h2 className={`text-2xl font-bold bg-gradient-to-r ${formData.role_code === 'ACCOUNTANT_MANAGER' ? 'from-purple-600 to-purple-700' : 'from-blue-600 to-blue-700'} bg-clip-text text-transparent`}>
-                                {formData.role_code === 'ACCOUNTANT_MANAGER' ? 'Add New Accountant Manager' : 'Add New Accountant'}
+                                {editingAccountant
+                                    ? `Edit ${formData.role_code === 'ACCOUNTANT_MANAGER' ? 'Accountant Manager' : 'Accountant'}`
+                                    : `Add New ${formData.role_code === 'ACCOUNTANT_MANAGER' ? 'Accountant Manager' : 'Accountant'}`
+                                }
                             </h2>
-                            <p className="text-sm text-gray-600 mt-1">Create a new {formData.role_code === 'ACCOUNTANT_MANAGER' ? 'manager' : 'accountant'} profile</p>
+                            <p className="text-sm text-gray-600 mt-1">{editingAccountant ? 'Update details' : 'Create a new profile'}</p>
                         </div>
 
                         <form onSubmit={handleSubmit} className="p-6 space-y-6">
@@ -274,17 +317,32 @@ export default function AccountantsPage() {
                                     />
                                     {errors.last_name && <p className="text-red-500 text-xs mt-1">{errors.last_name}</p>}
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Username *</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        value={formData.username}
-                                        onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                                        className={`w-full px-4 py-2.5 border ${errors.username ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80`}
-                                    />
-                                    {errors.username && <p className="text-red-500 text-xs mt-1">{errors.username}</p>}
-                                </div>
+                                {!editingAccountant && (
+                                    <>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Username *</label>
+                                            <input
+                                                type="text"
+                                                required
+                                                value={formData.username}
+                                                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                                                className={`w-full px-4 py-2.5 border ${errors.username ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80`}
+                                            />
+                                            {errors.username && <p className="text-red-500 text-xs mt-1">{errors.username}</p>}
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
+                                            <input
+                                                type="password"
+                                                required
+                                                value={formData.password}
+                                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                                className={`w-full px-4 py-2.5 border ${errors.password ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80`}
+                                            />
+                                            {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
+                                        </div>
+                                    </>
+                                )}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
                                     <input
@@ -304,17 +362,6 @@ export default function AccountantsPage() {
                                         onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
                                         className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80"
                                     />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
-                                    <input
-                                        type="password"
-                                        required
-                                        value={formData.password}
-                                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                        className={`w-full px-4 py-2.5 border ${errors.password ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80`}
-                                    />
-                                    {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
                                 </div>
                             </div>
 
@@ -342,7 +389,7 @@ export default function AccountantsPage() {
                                     type="submit"
                                     className={`px-6 py-2.5 bg-gradient-to-r ${formData.role_code === 'ACCOUNTANT_MANAGER' ? 'from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 shadow-purple-500/30' : 'from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-blue-500/30'} text-white rounded-lg transition font-medium shadow-lg`}
                                 >
-                                    Create {formData.role_code === 'ACCOUNTANT_MANAGER' ? 'Manager' : 'Accountant'}
+                                    {editingAccountant ? 'Save Changes' : `Create ${formData.role_code === 'ACCOUNTANT_MANAGER' ? 'Manager' : 'Accountant'}`}
                                 </button>
                             </div>
                         </form>

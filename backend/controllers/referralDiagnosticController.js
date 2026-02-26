@@ -82,13 +82,56 @@ class ReferralDiagnosticController {
      */
     static async getReferralDiagnostics(req, res, next) {
         try {
-            const diagnosticsSql = `
-                SELECT * FROM referral_diagnostics
-                WHERE is_active = TRUE
-                ORDER BY diagnostic_name ASC
-            `;
+            const hospital_id = req.user.hospital_id;
+            let branch_ids = [];
 
-            const result = await query(diagnosticsSql);
+            if (hospital_id) {
+                // Get all branch_ids for this hospital
+                const branchRes = await query(
+                    `SELECT branch_id FROM branches WHERE hospital_id = $1 AND is_active = true`,
+                    [hospital_id]
+                );
+                branch_ids = branchRes.rows.map(r => r.branch_id);
+            }
+
+            // Fallback to single branch from JWT
+            if (branch_ids.length === 0 && req.user.branch_id) {
+                branch_ids = [req.user.branch_id];
+            }
+
+            // Fallback: staff_branches
+            if (branch_ids.length === 0) {
+                const staffRes = await query(
+                    `SELECT sb.branch_id FROM staff s
+                     JOIN staff_branches sb ON s.staff_id = sb.staff_id
+                     WHERE s.user_id = $1 AND sb.is_active = true`,
+                    [req.user.user_id]
+                );
+                branch_ids = staffRes.rows.map(r => r.branch_id);
+            }
+
+            let diagnosticsSql;
+            let params;
+
+            if (branch_ids.length > 0) {
+                // Return diagnostics mapped to any branch under this hospital
+                diagnosticsSql = `
+                    SELECT DISTINCT rd.*
+                    FROM referral_diagnostics rd
+                    INNER JOIN referral_diagnostic_mapping rdm
+                        ON rd.referral_diagnostic_id = rdm.referral_diagnostic_id
+                        AND rdm.branch_id = ANY($1)
+                    WHERE rd.is_active = TRUE
+                    ORDER BY rd.diagnostic_name ASC
+                `;
+                params = [branch_ids];
+            } else {
+                // SUPER_ADMIN fallback — return all
+                diagnosticsSql = `SELECT * FROM referral_diagnostics WHERE is_active = TRUE ORDER BY diagnostic_name ASC`;
+                params = [];
+            }
+
+            const result = await query(diagnosticsSql, params);
 
             res.status(200).json({
                 status: 'success',

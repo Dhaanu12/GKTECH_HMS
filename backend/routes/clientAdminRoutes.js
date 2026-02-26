@@ -30,6 +30,9 @@ router.get('/reports/branch', authorize('CLIENT_ADMIN'), reportingController.get
 // GET /api/clientadmins/reports/staff - Get Staff Performance (Doctors, Nurses, Receptionists)
 router.get('/reports/staff', authorize('CLIENT_ADMIN'), reportingController.getStaffPerformance);
 
+// GET /api/clientadmins/reports/export-detail - Get Detailed Data for Excel Export (patients, labs, doctors, branches)
+router.get('/reports/export-detail', authorize('CLIENT_ADMIN'), clientAdminController.getDetailedExportData);
+
 // GET /api/clientadmins/:id - Get client admin by ID
 router.get('/:id', authorize('SUPER_ADMIN'), clientAdminController.getClientAdminById);
 

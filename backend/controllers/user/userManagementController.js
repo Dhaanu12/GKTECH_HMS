@@ -96,8 +96,8 @@ exports.getUsers = async (req, res) => {
         const { branch_id, role_code, hospital_id } = req.query;
 
         let query = `
-            SELECT u.user_id, u.username, u.email, r.role_name, r.role_code, 
-                   s.first_name, s.last_name, b.branch_name, h.hospital_name
+            SELECT u.user_id, u.username, u.email, u.phone_number, r.role_name, r.role_code, 
+                   s.first_name, s.last_name, b.branch_id, b.branch_name, h.hospital_id, h.hospital_name
             FROM users u
             JOIN roles r ON u.role_id = r.role_id
             LEFT JOIN staff s ON u.user_id = s.user_id
@@ -131,5 +131,69 @@ exports.getUsers = async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
+exports.updateUser = async (req, res) => {
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const { id } = req.params; // user_id
+        const {
+            username, email, phone_number, first_name, last_name,
+            branch_id, password
+        } = req.body;
+
+        // update user details
+        const userUpdates = [];
+        const userValues = [];
+        let p = 1;
+
+        if (username) { userUpdates.push(`username = $${p++}`); userValues.push(username); }
+        if (email) { userUpdates.push(`email = $${p++}`); userValues.push(email); }
+        if (phone_number !== undefined) { userUpdates.push(`phone_number = $${p++}`); userValues.push(phone_number || null); }
+        if (password) {
+            const password_hash = await PasswordUtils.hashPassword(password);
+            userUpdates.push(`password_hash = $${p++}`);
+            userValues.push(password_hash);
+        }
+
+        if (userUpdates.length > 0) {
+            userValues.push(id);
+            await client.query(`UPDATE users SET ${userUpdates.join(', ')} WHERE user_id = $${p}`, userValues);
+        }
+
+        // Find staff_id to update staff details and branch
+        const staffRes = await client.query('SELECT staff_id FROM staff WHERE user_id = $1', [id]);
+        if (staffRes.rows.length > 0) {
+            const staffId = staffRes.rows[0].staff_id;
+
+            // update staff
+            if (first_name || last_name) {
+                await client.query(
+                    `UPDATE staff SET first_name = COALESCE($1, first_name), last_name = COALESCE($2, last_name) WHERE staff_id = $3`,
+                    [first_name, last_name, staffId]
+                );
+            }
+
+            // update branch
+            if (branch_id) {
+                await client.query('DELETE FROM staff_branches WHERE staff_id = $1', [staffId]);
+                await client.query(
+                    `INSERT INTO staff_branches (staff_id, branch_id, employment_type, is_active) VALUES ($1, $2, 'Permanent', true)`,
+                    [staffId, branch_id]
+                );
+            }
+        }
+
+        await client.query('COMMIT');
+        res.status(200).json({ success: true, message: 'User updated successfully' });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Update User Error:', error);
+        res.status(400).json({ success: false, message: error.message });
+    } finally {
+        client.release();
     }
 };

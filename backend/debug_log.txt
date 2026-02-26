@@ -1,0 +1,24 @@
+2026-02-25T09:49:36.158Z - getAllPatients called. User: 202, Branch: 57
+2026-02-25T09:49:36.160Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p WHERE p.is_active = true AND ...
+2026-02-25T09:49:36.161Z - Params: [57]
+2026-02-25T09:49:36.173Z - Query returned 0 rows.
+2026-02-25T09:49:36.184Z - getAllPatients called. User: 202, Branch: 57
+2026-02-25T09:49:36.186Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p WHERE p.is_active = true AND ...
+2026-02-25T09:49:36.186Z - Params: [57]
+2026-02-25T09:49:36.190Z - Query returned 0 rows.
+2026-02-25T12:08:43.572Z - getAllPatients called. User: 180, Branch: 55
+2026-02-25T12:08:43.574Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p WHERE p.is_active = true AND ...
+2026-02-25T12:08:43.576Z - Params: [55]
+2026-02-25T12:08:43.586Z - Query returned 38 rows.
+2026-02-25T12:08:43.623Z - getAllPatients called. User: 180, Branch: 55
+2026-02-25T12:08:43.624Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p WHERE p.is_active = true AND ...
+2026-02-25T12:08:43.626Z - Params: [55]
+2026-02-25T12:08:43.636Z - Query returned 38 rows.
+2026-02-25T12:13:17.283Z - getAllPatients called. User: 180, Branch: 55
+2026-02-25T12:13:17.284Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p WHERE p.is_active = true AND ...
+2026-02-25T12:13:17.285Z - Params: [55]
+2026-02-25T12:13:17.303Z - Query returned 38 rows.
+2026-02-25T12:13:17.327Z - getAllPatients called. User: 180, Branch: 55
+2026-02-25T12:13:17.330Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p WHERE p.is_active = true AND ...
+2026-02-25T12:13:17.332Z - Params: [55]
+2026-02-25T12:13:17.348Z - Query returned 38 rows.

@@ -14,3 +14,8 @@ export const getUsers = async (filters: { branch_id?: string, role_code?: string
     const response = await api.get(`/users?${params.toString()}`);
     return response.data;
 };
+
+export const updateUser = async (id: string, data: any) => {
+    const response = await api.put(`/users/${id}`, data);
+    return response.data;
+};

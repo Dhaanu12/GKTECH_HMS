@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Plus, Users, Loader2, Edit2, Shield, TrendingUp } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import SearchableSelect from '@/components/ui/SearchableSelect';
-import { getUsers, createUser } from '@/lib/api/users';
+import { getUsers, createUser, updateUser } from '@/lib/api/users';
 import { getHospitals } from '@/lib/api/hospitals';
 import { getBranches } from '@/lib/api/branches';
 
@@ -17,6 +17,7 @@ export default function MarketingManagement() {
     const [selectedHospitalId, setSelectedHospitalId] = useState('');
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
+    const [editingUser, setEditingUser] = useState<any>(null);
 
     // Form Data
     const [formData, setFormData] = useState({
@@ -96,9 +97,13 @@ export default function MarketingManagement() {
         const newErrors: any = {};
         if (!formData.first_name) newErrors.first_name = 'Required';
         if (!formData.last_name) newErrors.last_name = 'Required';
-        if (!formData.username) newErrors.username = 'Required';
+
+        if (!editingUser) {
+            if (!formData.username) newErrors.username = 'Required';
+            if (!formData.password) newErrors.password = 'Required';
+        }
+
         if (!formData.email) newErrors.email = 'Required';
-        if (!formData.password) newErrors.password = 'Required';
         if (user?.role_code === 'SUPER_ADMIN' && !formData.hospital_id) newErrors.hospital_id = 'Required';
         if (!formData.branch_id) newErrors.branch_id = 'Required';
 
@@ -111,14 +116,23 @@ export default function MarketingManagement() {
         if (!validateForm()) return;
 
         try {
-            const res = await createUser(formData);
-            if (res.success) {
-                setMessage('User created successfully');
-                setShowModal(false);
-                fetchMarketingUsers();
-                resetForm();
+            let res;
+            if (editingUser) {
+                res = await updateUser(editingUser.user_id, formData);
             } else {
-                setMessage('Failed to create user');
+                res = await createUser(formData);
+            }
+
+            if (res.success) {
+                setMessage(editingUser ? 'User updated successfully' : 'User created successfully');
+                setTimeout(() => {
+                    setShowModal(false);
+                    setEditingUser(null);
+                    fetchMarketingUsers();
+                    resetForm();
+                }, 1000);
+            } else {
+                setMessage('Failed to save user');
             }
         } catch (error: any) {
             setMessage(error.response?.data?.message || 'Error creating user');
@@ -136,6 +150,28 @@ export default function MarketingManagement() {
             branch_id: ''
         });
         setErrors({});
+        setEditingUser(null);
+    };
+
+    const handleEdit = (u: any) => {
+        setEditingUser(u);
+        setFormData({
+            first_name: u.first_name || '',
+            last_name: u.last_name || '',
+            username: u.username || '',
+            email: u.email || '',
+            phone_number: u.phone_number || '',
+            password: '',
+            role_code: u.role_code || (activeTab === 'managers' ? 'MRKT_MNGR' : 'MRKT_EXEC'),
+            hospital_id: user?.role_code === 'CLIENT_ADMIN' ? (user.hospital_id?.toString() || '') : (u.hospital_id?.toString() || ''),
+            branch_id: u.branch_id?.toString() || ''
+        });
+
+        if (user?.role_code === 'SUPER_ADMIN' && u.hospital_id) {
+            fetchBranches(u.hospital_id.toString());
+        }
+
+        setShowModal(true);
     };
 
     // Filter branches for select
@@ -217,7 +253,11 @@ export default function MarketingManagement() {
                                     }`}>
                                     {u.role_code === 'MRKT_MNGR' ? <Shield className="w-6 h-6" /> : <TrendingUp className="w-6 h-6" />}
                                 </div>
-                                <button className="text-gray-400 hover:text-gray-600">
+                                <button
+                                    onClick={() => handleEdit(u)}
+                                    className="text-gray-400 hover:text-gray-600 transition"
+                                    title="Edit Profile"
+                                >
                                     <Edit2 className="w-5 h-5" />
                                 </button>
                             </div>
@@ -258,7 +298,7 @@ export default function MarketingManagement() {
                     <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
                         <div className={`p-6 border-b ${activeTab === 'managers' ? 'bg-blue-50 border-blue-100' : 'bg-indigo-50 border-indigo-100'}`}>
                             <h2 className={`text-xl font-bold ${activeTab === 'managers' ? 'text-blue-800' : 'text-indigo-800'}`}>
-                                New Marketing {activeTab === 'managers' ? 'Manager' : 'Executive'}
+                                {editingUser ? `Edit Marketing ${activeTab === 'managers' ? 'Manager' : 'Executive'}` : `New Marketing ${activeTab === 'managers' ? 'Manager' : 'Executive'}`}
                             </h2>
                         </div>
 
@@ -287,28 +327,17 @@ export default function MarketingManagement() {
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Username</label>
-                                    <input
-                                        className="w-full border p-2 rounded focus:ring-2 ring-indigo-500 outline-none"
-                                        value={formData.username}
-                                        onChange={e => setFormData({ ...formData, username: e.target.value })}
-                                    />
-                                    {errors.username && <p className="text-xs text-red-500 mt-1">{errors.username}</p>}
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Password</label>
-                                    <input
-                                        type="password"
-                                        className="w-full border p-2 rounded focus:ring-2 ring-indigo-500 outline-none"
-                                        value={formData.password}
-                                        onChange={e => setFormData({ ...formData, password: e.target.value })}
-                                    />
-                                    {errors.password && <p className="text-xs text-red-500 mt-1">{errors.password}</p>}
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
+                                {!editingUser && (
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Username</label>
+                                        <input
+                                            className="w-full border p-2 rounded focus:ring-2 ring-indigo-500 outline-none"
+                                            value={formData.username}
+                                            onChange={e => setFormData({ ...formData, username: e.target.value })}
+                                        />
+                                        {errors.username && <p className="text-xs text-red-500 mt-1">{errors.username}</p>}
+                                    </div>
+                                )}
                                 <div>
                                     <label className="block text-sm font-medium mb-1">Email</label>
                                     <input
@@ -319,7 +348,19 @@ export default function MarketingManagement() {
                                     />
                                     {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
                                 </div>
-                                <div>
+                                {!editingUser && (
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Password</label>
+                                        <input
+                                            type="password"
+                                            className="w-full border p-2 rounded focus:ring-2 ring-indigo-500 outline-none"
+                                            value={formData.password}
+                                            onChange={e => setFormData({ ...formData, password: e.target.value })}
+                                        />
+                                        {errors.password && <p className="text-xs text-red-500 mt-1">{errors.password}</p>}
+                                    </div>
+                                )}
+                                <div className={editingUser ? "col-span-1" : ""}>
                                     <label className="block text-sm font-medium mb-1">Phone</label>
                                     <input
                                         className="w-full border p-2 rounded focus:ring-2 ring-indigo-500 outline-none"
@@ -366,12 +407,12 @@ export default function MarketingManagement() {
                             </div>
 
                             <div className="flex justify-end gap-2 pt-4">
-                                <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 border rounded hover:bg-gray-50">Cancel</button>
+                                <button type="button" onClick={() => { setShowModal(false); resetForm(); }} className="px-4 py-2 border rounded hover:bg-gray-50">Cancel</button>
                                 <button
                                     type="submit"
                                     className={`px-4 py-2 text-white rounded hover:opacity-90 ${activeTab === 'managers' ? 'bg-blue-600' : 'bg-indigo-600'}`}
                                 >
-                                    Create User
+                                    {editingUser ? 'Save Changes' : 'Create User'}
                                 </button>
                             </div>
                         </form>

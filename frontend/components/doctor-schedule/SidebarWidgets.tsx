@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Doctor } from '../../app/client/doctor-schedule/page'; // Ensure correct path
 
 interface WidgetProps {
@@ -6,9 +6,12 @@ interface WidgetProps {
 }
 
 export function AvailableDoctorsWidget({ doctors }: WidgetProps) {
+    const [showAll, setShowAll] = useState(false);
     const presentDoctors = doctors.filter(d => d.attendance_status === 'Present' || !d.attendance_status);
     // Deduplicate doctors by ID (handle multiple shifts)
     const uniqueDoctors = Array.from(new Map(presentDoctors.map(d => [d.doctor_id, d])).values());
+    const displayDoctors = showAll ? uniqueDoctors : uniqueDoctors.slice(0, 3);
+    const hasMore = uniqueDoctors.length > 3;
 
     return (
         <div className="bg-white rounded-3xl p-6 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.03)] border border-slate-50">
@@ -17,11 +20,16 @@ export function AvailableDoctorsWidget({ doctors }: WidgetProps) {
                     <h3 className="font-bold text-lg text-[#1e293b]">Available</h3>
                     <h3 className="font-bold text-lg text-[#1e293b]">Doctors</h3>
                 </div>
-                <button className="text-xs text-blue-500 font-bold hover:underline uppercase tracking-wide">View All</button>
+                <button
+                    onClick={() => setShowAll(prev => !prev)}
+                    className="text-xs text-blue-500 font-bold hover:underline uppercase tracking-wide"
+                >
+                    {showAll ? 'Show Less' : `View All${hasMore ? ` (${uniqueDoctors.length})` : ''}`}
+                </button>
             </div>
 
             <div className="space-y-6">
-                {uniqueDoctors.slice(0, 3).map((doctor) => (
+                {displayDoctors.map((doctor) => (
                     <div key={doctor.doctor_id} className="flex items-center gap-4 group cursor-pointer">
                         <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 font-bold overflow-hidden shadow-inner group-hover:scale-105 transition-transform">
                             {doctor.profile_photo ? (

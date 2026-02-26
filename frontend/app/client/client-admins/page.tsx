@@ -14,6 +14,7 @@ export default function ClientAdminsPage() {
     const [hospitals, setHospitals] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
+    const [editingAdmin, setEditingAdmin] = useState<any>(null);
     const [formData, setFormData] = useState({
         username: '',
         email: '',
@@ -69,9 +70,11 @@ export default function ClientAdminsPage() {
         const newErrors: any = {};
         if (!formData.first_name) newErrors.first_name = 'First name is required';
         if (!formData.last_name) newErrors.last_name = 'Last name is required';
-        if (!formData.username) newErrors.username = 'Username is required';
+        if (!editingAdmin) {
+            if (!formData.username) newErrors.username = 'Username is required';
+            if (!formData.password) newErrors.password = 'Password is required';
+        }
         if (!formData.email) newErrors.email = 'Email is required';
-        if (!formData.password) newErrors.password = 'Password is required';
         if (!formData.hospital_id) newErrors.hospital_id = 'Hospital is required';
 
         setErrors(newErrors);
@@ -84,16 +87,37 @@ export default function ClientAdminsPage() {
 
         try {
             const token = localStorage.getItem('token');
-            await axios.post(`${API_URL}/clientadmins`, formData, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            if (editingAdmin) {
+                await axios.put(`${API_URL}/clientadmins/${editingAdmin.user_id}`, formData, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+            } else {
+                await axios.post(`${API_URL}/clientadmins`, formData, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+            }
             setShowModal(false);
+            setEditingAdmin(null);
             fetchAdmins();
             resetForm();
         } catch (error: any) {
-            console.error('Error creating client admin:', error);
-            alert(error.response?.data?.message || 'Failed to create client admin');
+            console.error('Error saving client admin:', error);
+            alert(error.response?.data?.message || 'Failed to save client admin');
         }
+    };
+
+    const handleEdit = (admin: any) => {
+        setEditingAdmin(admin);
+        setFormData({
+            username: admin.username || '',
+            email: admin.email || '',
+            password: '',
+            phone_number: admin.phone_number || '',
+            first_name: admin.first_name || '',
+            last_name: admin.last_name || '',
+            hospital_id: admin.hospital_id?.toString() || ''
+        });
+        setShowModal(true);
     };
 
     const resetForm = () => {
@@ -107,6 +131,7 @@ export default function ClientAdminsPage() {
             hospital_id: ''
         });
         setErrors({});
+        setEditingAdmin(null);
     };
 
     const hospitalOptions = hospitals.map((hospital: any) => ({
@@ -149,7 +174,10 @@ export default function ClientAdminsPage() {
                                 <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-600 transition-colors duration-300">
                                     <UserPlus className="w-6 h-6 text-blue-600 group-hover:text-white transition-colors duration-300" />
                                 </div>
-                                <button className="text-gray-400 hover:text-blue-600 transition">
+                                <button
+                                    onClick={() => handleEdit(admin)}
+                                    className="text-gray-400 hover:text-blue-600 transition"
+                                >
                                     <Edit2 className="w-5 h-5" />
                                 </button>
                             </div>
@@ -173,8 +201,12 @@ export default function ClientAdminsPage() {
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <div className="bg-white/95 backdrop-blur-md rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-white/20">
                         <div className="p-6 border-b border-gray-200/50 bg-gradient-to-r from-blue-50 to-blue-100">
-                            <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent">Add New Client Admin</h2>
-                            <p className="text-sm text-gray-600 mt-1">Create a new hospital administrator</p>
+                            <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent">
+                                {editingAdmin ? 'Edit Client Admin' : 'Add New Client Admin'}
+                            </h2>
+                            <p className="text-sm text-gray-600 mt-1">
+                                {editingAdmin ? 'Update hospital administrator details' : 'Create a new hospital administrator'}
+                            </p>
                         </div>
 
                         <form onSubmit={handleSubmit} className="p-6 space-y-6">
@@ -201,17 +233,32 @@ export default function ClientAdminsPage() {
                                     />
                                     {errors.last_name && <p className="text-red-500 text-xs mt-1">{errors.last_name}</p>}
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Username *</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        value={formData.username}
-                                        onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                                        className={`w-full px-4 py-2.5 border ${errors.username ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80`}
-                                    />
-                                    {errors.username && <p className="text-red-500 text-xs mt-1">{errors.username}</p>}
-                                </div>
+                                {!editingAdmin && (
+                                    <>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Username *</label>
+                                            <input
+                                                type="text"
+                                                required
+                                                value={formData.username}
+                                                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                                                className={`w-full px-4 py-2.5 border ${errors.username ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80`}
+                                            />
+                                            {errors.username && <p className="text-red-500 text-xs mt-1">{errors.username}</p>}
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
+                                            <input
+                                                type="password"
+                                                required
+                                                value={formData.password}
+                                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                                className={`w-full px-4 py-2.5 border ${errors.password ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80`}
+                                            />
+                                            {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
+                                        </div>
+                                    </>
+                                )}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
                                     <input
@@ -232,17 +279,6 @@ export default function ClientAdminsPage() {
                                         className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80"
                                         maxLength={10}
                                     />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
-                                    <input
-                                        type="password"
-                                        required
-                                        value={formData.password}
-                                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                        className={`w-full px-4 py-2.5 border ${errors.password ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80`}
-                                    />
-                                    {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
                                 </div>
                                 {user?.role_code === 'SUPER_ADMIN' && (
                                     <div className="col-span-2">
@@ -270,7 +306,7 @@ export default function ClientAdminsPage() {
                                     type="submit"
                                     className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition font-medium shadow-lg shadow-blue-500/30"
                                 >
-                                    Create Client Admin
+                                    {editingAdmin ? 'Save Changes' : 'Create Client Admin'}
                                 </button>
                             </div>
                         </form>

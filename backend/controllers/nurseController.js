@@ -173,12 +173,13 @@ class NurseController {
             } else if (code) {
                 const nurse = await Nurse.findByCode(code);
                 nurses = nurse ? [nurse] : [];
+            } else if (branch_id) {
+                // branch_id takes priority — specific filter beats general hospital filter
+                nurses = await Nurse.findByBranch(branch_id);
             } else if (hospital_id && department_id) {
                 nurses = await Nurse.findByHospitalAndDepartment(hospital_id, department_id);
             } else if (hospital_id) {
                 nurses = await Nurse.findByHospital(hospital_id);
-            } else if (branch_id) {
-                nurses = await Nurse.findByBranch(branch_id);
             } else if (department_id) {
                 nurses = await Nurse.findByDepartment(department_id);
             } else {
