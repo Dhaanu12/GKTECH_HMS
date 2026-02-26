@@ -9,7 +9,8 @@ import SearchableSelect from '../../../components/ui/SearchableSelect';
 const API_URL = 'http://localhost:5000/api';
 
 export default function AccountantsPage() {
-    const { user } = useAuth();
+    const { user, hasAccess } = useAuth();
+    const canManageAccountants = user?.role_code === 'SUPER_ADMIN' || hasAccess('acc');
     const [activeTab, setActiveTab] = useState<'accountants' | 'managers'>('accountants');
     const [accountants, setAccountants] = useState([]);
     const [branches, setBranches] = useState([]);
@@ -179,13 +180,19 @@ export default function AccountantsPage() {
                 <div>
                     <button
                         onClick={() => {
+                            if (!canManageAccountants) return;
                             setFormData({ ...formData, role_code: activeTab === 'managers' ? 'ACCOUNTANT_MANAGER' : 'ACCOUNTANT' });
                             setShowModal(true);
                         }}
-                        className={`flex items-center gap-2 px-4 py-2.5 text-white rounded-lg transition font-medium shadow-lg ${activeTab === 'managers'
-                            ? 'bg-purple-600 hover:bg-purple-700 shadow-purple-500/30'
-                            : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/30'
-                            }`}
+                        disabled={!canManageAccountants}
+                        title={canManageAccountants ? '' : 'Accounting module is not enabled for your hospital'}
+                        className={`flex items-center gap-2 px-4 py-2.5 text-white rounded-lg transition font-medium shadow-lg ${
+                            canManageAccountants
+                                ? (activeTab === 'managers'
+                                    ? 'bg-purple-600 hover:bg-purple-700 shadow-purple-500/30'
+                                    : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/30')
+                                : 'bg-blue-600 shadow-blue-500/30 opacity-40 cursor-not-allowed blur-[0.5px]'
+                        }`}
                     >
                         <Plus className="w-5 h-5" />
                         {activeTab === 'managers' ? 'Add Manager' : 'Add Accountant'}
@@ -359,9 +366,15 @@ export default function AccountantsPage() {
                                     <input
                                         type="tel"
                                         value={formData.phone_number}
-                                        onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
-                                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80"
+                                        onChange={(e) => {
+                                            const value = e.target.value.replace(/\D/g, "");
+                                            setFormData({ ...formData, phone_number: value });
+                                        }}
+                                        maxLength={10}
+                                        className={`w-full px-4 py-2.5 border ${errors.phone_number ? "border-red-500" : "border-gray-300"} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80`}
+                                        placeholder="10-digit phone number"
                                     />
+                                    {errors.phone_number && <p className="text-red-500 text-xs mt-1">{errors.phone_number}</p>}
                                 </div>
                             </div>
 

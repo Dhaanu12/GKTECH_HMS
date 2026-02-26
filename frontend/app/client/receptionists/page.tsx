@@ -9,7 +9,8 @@ import SearchableSelect from '../../../components/ui/SearchableSelect';
 const API_URL = 'http://localhost:5000/api';
 
 export default function ReceptionistsPage() {
-    const { user } = useAuth();
+    const { user, hasAccess } = useAuth();
+    const canManageReceptionists = user?.role_code === 'SUPER_ADMIN' || hasAccess('reception');
     const [receptionists, setReceptionists] = useState([]);
     const [branches, setBranches] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -178,8 +179,12 @@ export default function ReceptionistsPage() {
                     <p className="text-gray-600 text-sm mt-1">Manage all receptionists in the system</p>
                 </div>
                 <button
-                    onClick={() => { resetForm(); setShowModal(true); }}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium shadow-lg shadow-blue-500/30"
+                    onClick={() => { if (canManageReceptionists) { resetForm(); setShowModal(true); } }}
+                    disabled={!canManageReceptionists}
+                    title={canManageReceptionists ? '' : 'Reception module is not enabled for your hospital'}
+                    className={`flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium shadow-lg shadow-blue-500/30 transition ${
+                        canManageReceptionists ? 'hover:bg-blue-700' : 'opacity-40 cursor-not-allowed blur-[0.5px]'
+                    }`}
                 >
                     <Plus className="w-5 h-5" />
                     Add Receptionist
@@ -236,9 +241,14 @@ export default function ReceptionistsPage() {
                                         <Search className="w-5 h-5" />
                                     </button>
                                     <button
-                                        onClick={() => handleEdit(receptionist)}
-                                        className="text-gray-400 hover:text-blue-600 transition"
-                                        title="Edit Receptionist"
+                                        onClick={() => { if (canManageReceptionists) handleEdit(receptionist); }}
+                                        disabled={!canManageReceptionists}
+                                        title={canManageReceptionists ? 'Edit Receptionist' : 'Reception module is not enabled'}
+                                        className={`transition ${
+                                            canManageReceptionists
+                                                ? 'text-gray-400 hover:text-blue-600'
+                                                : 'text-gray-200 cursor-not-allowed opacity-40'
+                                        }`}
                                     >
                                         <Edit2 className="w-5 h-5" />
                                     </button>

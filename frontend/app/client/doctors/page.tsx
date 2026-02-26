@@ -9,7 +9,8 @@ import SearchableSelect from '../../../components/ui/SearchableSelect';
 const API_URL = 'http://localhost:5000/api';
 
 export default function DoctorsPage() {
-    const { user } = useAuth();
+    const { user, hasAccess } = useAuth();
+    const canManageDoctors = user?.role_code === 'SUPER_ADMIN' || hasAccess('doc');
     const [doctors, setDoctors] = useState<any[]>([]);
     const [branches, setBranches] = useState<any[]>([]);
     const [departments, setDepartments] = useState<any[]>([]);
@@ -353,8 +354,12 @@ export default function DoctorsPage() {
                     <p className="text-gray-600 text-sm mt-1">Manage all doctors in the system</p>
                 </div>
                 <button
-                    onClick={() => { resetForm(); setShowModal(true); }}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium shadow-lg shadow-blue-500/30"
+                    onClick={() => { if (canManageDoctors) { resetForm(); setShowModal(true); } }}
+                    disabled={!canManageDoctors}
+                    title={canManageDoctors ? '' : 'Doctor module is not enabled for your hospital'}
+                    className={`flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium shadow-lg shadow-blue-500/30 transition ${
+                        canManageDoctors ? 'hover:bg-blue-700' : 'opacity-40 cursor-not-allowed blur-[0.5px]'
+                    }`}
                 >
                     <Plus className="w-5 h-5" />
                     Add Doctor
@@ -411,9 +416,14 @@ export default function DoctorsPage() {
                                         <Search className="w-5 h-5" />
                                     </button>
                                     <button
-                                        onClick={() => handleEdit(doctor)}
-                                        className="text-gray-400 hover:text-blue-600 transition"
-                                        title="Edit Doctor"
+                                        onClick={() => { if (canManageDoctors) handleEdit(doctor); }}
+                                        disabled={!canManageDoctors}
+                                        title={canManageDoctors ? 'Edit Doctor' : 'Doctor module is not enabled'}
+                                        className={`transition ${
+                                            canManageDoctors
+                                                ? 'text-gray-400 hover:text-blue-600'
+                                                : 'text-gray-200 cursor-not-allowed opacity-40'
+                                        }`}
                                     >
                                         <Edit2 className="w-5 h-5" />
                                     </button>

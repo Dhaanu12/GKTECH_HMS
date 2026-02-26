@@ -107,6 +107,10 @@ class AuthController {
                 return next(new AppError('Invalid email or password', 401));
             }
 
+            // Password is correct — reset failed login attempts so module/hospital
+            // blocks don't contribute to account lockouts.
+            await User.resetLoginAttempts(user.user_id);
+
             // Check if user is active
             if (!user.is_active) {
                 return next(new AppError('Your account has been deactivated', 403));
@@ -158,18 +162,26 @@ class AuthController {
                     }
 
                     if (!hasAccess) {
-                        return next(new AppError('Access to this module is disabled for your hospital', 403));
+                        return next(new AppError(
+                            `Your hospital does not have the required module enabled to log in. Please contact your administrator.`,
+                            403
+                        ));
                     }
 
                     // Check Branch Level Access
-                    // If branch_enabled_modules is present (not null), it restricts further.
-                    // If null, it assumes "Inherit Hospital Permissions" (so no extra check needed).
+                    // null = "Inherit Hospital Permissions" → skip branch check (allow hospital-level rules).
+                    // [] or a non-matching array = branch has an explicit allow-list → enforce it.
                     let branchModules = userWithRole.branch_enabled_modules;
-                    if (branchModules) {
+                    if (branchModules !== null && branchModules !== undefined) {
                         if (typeof branchModules === 'string') {
                             try { branchModules = JSON.parse(branchModules); } catch (e) { branchModules = []; }
                         }
                         if (Array.isArray(branchModules)) {
+                            // Empty array means no modules enabled for this branch → deny access
+                            if (branchModules.length === 0) {
+                                return next(new AppError('Access to this module is disabled for your branch', 403));
+                            }
+
                             const branchConfig = branchModules.find(m => {
                                 if (typeof m === 'string') return m === requiredModule;
                                 return m.id === requiredModule;
@@ -182,9 +194,11 @@ class AuthController {
                             }
 
                             if (!branchHasAccess) {
-                                // Even if Hospital allows it, if Branch explicitly forbids (by not including it or setting inactive), fail.
-                                // NOTE: Logic assumption: If Branch config exists, it is an AllowList.
-                                return next(new AppError('Access to this module is disabled for your branch', 403));
+                                // Branch config is an AllowList — module not found or inactive → deny.
+                                return next(new AppError(
+                                    'Your branch does not have the required module enabled to log in. Please contact your administrator.',
+                                    403
+                                ));
                             }
                         }
                     }

@@ -62,17 +62,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         router.push('/');
     };
 
-    const hasAccess = (moduleCode: string) => {
+    const hasAccess = (moduleCode: string): boolean => {
         if (!user) return false;
         if (user.role_code === 'SUPER_ADMIN') return true;
 
-        // If user has activeModules property (populated from backend)
-        if (user.activeModules && Array.isArray(user.activeModules)) {
-            return user.activeModules.includes(moduleCode);
-        }
+        // enabled_modules comes from backend login response as [{id, is_active}]
+        const enabledModules: any[] = Array.isArray(user.enabled_modules) ? user.enabled_modules : [];
+        const moduleConfig = enabledModules.find((m: any) => {
+            if (typeof m === 'string') return m === moduleCode;
+            return m.id === moduleCode;
+        });
 
-        // Fallback for backward compatibility or if no modules assigned yet
-        return false;
+        if (!moduleConfig) return false;
+        if (typeof moduleConfig === 'string') return true; // legacy format
+        return moduleConfig.is_active === true;
     };
 
     const value = {

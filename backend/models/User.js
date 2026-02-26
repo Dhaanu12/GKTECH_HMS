@@ -117,6 +117,23 @@ class User extends BaseModel {
     }
 
     /**
+     * Reset login attempts and clear any lock after a successful password verification.
+     * This prevents module/hospital blocks from contributing to account lockouts.
+     * @param {Number} userId
+     * @returns {Promise<Object|null>}
+     */
+    async resetLoginAttempts(userId) {
+        const query = `
+      UPDATE users
+      SET login_attempts = 0, locked_until = NULL
+      WHERE user_id = $1
+      RETURNING *
+    `;
+        const result = await this.executeQuery(query, [userId]);
+        return result.rows[0] || null;
+    }
+
+    /**
      * Lock user account
      * @param {Number} userId
      * @param {Number} minutes - Lock duration in minutes

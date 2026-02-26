@@ -143,6 +143,10 @@ export default function HospitalsPage() {
             if (formData.admin_password && formData.admin_password.length < 8) {
                 newErrors.admin_password = 'Password must be at least 8 characters';
             }
+
+            if (formData.admin_phone && formData.admin_phone.length !== 10) {
+                newErrors.admin_phone = 'Phone number must be exactly 10 digits';
+            }
         }
 
         setErrors(newErrors);
@@ -754,10 +758,15 @@ export default function HospitalsPage() {
                                             <input
                                                 type="tel"
                                                 value={formData.admin_phone}
-                                                onChange={(e) => setFormData({ ...formData, admin_phone: e.target.value })}
-                                                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80"
-                                                placeholder="+91-XXXXXXXXXX"
+                                                onChange={(e) => {
+                                                    const value = e.target.value.replace(/\D/g, "");
+                                                    setFormData({ ...formData, admin_phone: value });
+                                                }}
+                                                maxLength={10}
+                                                className={`w-full px-4 py-2.5 border ${errors.admin_phone ? "border-red-500" : "border-gray-300"} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80`}
+                                                placeholder="10-digit phone number"
                                             />
+                                             {errors.admin_phone && <p className="text-red-500 text-xs mt-1">{errors.admin_phone}</p>}
                                         </div>
 
                                         <div className="col-span-2">

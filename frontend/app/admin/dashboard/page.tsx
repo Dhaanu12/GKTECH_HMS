@@ -208,7 +208,7 @@ export default function AdminDashboard() {
                         </div>
                     </Link>
 
-                    <Link href="/admin/doctors" className="group relative p-6 bg-white/60 hover:bg-white rounded-2xl border border-white/60 hover:border-green-200 shadow-sm hover:shadow-lg hover:shadow-green-500/10 transition-all duration-300">
+                    <Link href="/admin/users?tab=doctors" className="group relative p-6 bg-white/60 hover:bg-white rounded-2xl border border-white/60 hover:border-green-200 shadow-sm hover:shadow-lg hover:shadow-green-500/10 transition-all duration-300">
                         <div className="flex flex-col gap-4">
                             <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-500/30 group-hover:scale-110 transition-transform duration-300">
                                 <Stethoscope className="w-6 h-6" />
@@ -220,7 +220,7 @@ export default function AdminDashboard() {
                         </div>
                     </Link>
 
-                    <Link href="/admin/receptionists" className="group relative p-6 bg-white/60 hover:bg-white rounded-2xl border border-white/60 hover:border-orange-200 shadow-sm hover:shadow-lg hover:shadow-orange-500/10 transition-all duration-300">
+                    <Link href="/admin/users?tab=receptionists" className="group relative p-6 bg-white/60 hover:bg-white rounded-2xl border border-white/60 hover:border-orange-200 shadow-sm hover:shadow-lg hover:shadow-orange-500/10 transition-all duration-300">
                         <div className="flex flex-col gap-4">
                             <div className="w-12 h-12 bg-gradient-to-br from-orange-400 to-red-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-orange-500/30 group-hover:scale-110 transition-transform duration-300">
                                 <Users className="w-6 h-6" />
@@ -232,7 +232,7 @@ export default function AdminDashboard() {
                         </div>
                     </Link>
 
-                    <Link href="/admin/client-admins" className="group relative p-6 bg-white/60 hover:bg-white rounded-2xl border border-white/60 hover:border-purple-200 shadow-sm hover:shadow-lg hover:shadow-purple-500/10 transition-all duration-300">
+                    <Link href="/admin/users?tab=client-admins" className="group relative p-6 bg-white/60 hover:bg-white rounded-2xl border border-white/60 hover:border-purple-200 shadow-sm hover:shadow-lg hover:shadow-purple-500/10 transition-all duration-300">
                         <div className="flex flex-col gap-4">
                             <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-purple-500/30 group-hover:scale-110 transition-transform duration-300">
                                 <Briefcase className="w-6 h-6" />

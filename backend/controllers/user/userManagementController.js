@@ -25,16 +25,55 @@ exports.createUser = async (req, res) => {
             throw new Error('Missing required fields: username, email, password, role_code');
         }
 
-        // For hospital staff, branch_id is required. 
-        // Allow creating SUPER_ADMIN or Hospital Admin without branch? 
-        // The request says "add user by selecting roles for a specific hospital and branch". 
-        // So we enforce branch_id for these roles.
+        // ── Module Access Guard for CLIENT_ADMIN ─────────────────────────────
+        // If the logged-in user is a CLIENT_ADMIN, check that the module
+        // corresponding to the target role is enabled for their hospital.
+        const ROLE_MODULE_MAP = {
+            'DOCTOR': 'doc',
+            'NURSE': 'nurse',
+            'LAB_TECH': 'lab',
+            'PHARMACIST': 'pharma',
+            'MARKETING_EXECUTIVE': 'market',
+            'ACCOUNTANT': 'acc',
+            'ACCOUNTANT_MANAGER': 'acc',
+            'RECEPTIONIST': 'reception'
+        };
+
+        if (req.user && req.userRole === 'CLIENT_ADMIN') {
+            const requiredModule = ROLE_MODULE_MAP[role_code];
+            if (requiredModule) {
+                let enabledModules = req.user.enabled_modules;
+                if (typeof enabledModules === 'string') {
+                    try { enabledModules = JSON.parse(enabledModules); } catch (e) { enabledModules = []; }
+                }
+                if (!Array.isArray(enabledModules)) enabledModules = [];
+
+                const moduleConfig = enabledModules.find(m => {
+                    if (typeof m === 'string') return m === requiredModule;
+                    return m.id === requiredModule;
+                });
+
+                let hasAccess = false;
+                if (moduleConfig) {
+                    if (typeof moduleConfig === 'string') hasAccess = true;
+                    else hasAccess = moduleConfig.is_active === true;
+                }
+
+                if (!hasAccess) {
+                    await client.query('ROLLBACK');
+                    return res.status(403).json({
+                        success: false,
+                        message: 'This module is not enabled for your hospital. Please contact the Super Admin to enable it.'
+                    });
+                }
+            }
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
+        // For hospital staff, branch_id is required.
         if (role_code !== 'SUPER_ADMIN' && role_code !== 'CLIENT_ADMIN' && !branch_id) {
             throw new Error('Branch is required for this role');
         }
-
-        // However, CLIENT_ADMIN logic is handled separately usually, but let's allow it here if branch provided.
-        // Or if strictly following previous logic, CLIENT_ADMIN maps to a branch too.
 
         // 1. Get Role ID
         const roleRes = await client.query('SELECT role_id FROM roles WHERE role_code = $1', [role_code]);

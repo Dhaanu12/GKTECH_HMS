@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { UserPlus, Stethoscope, Users, Briefcase, UserCog, TrendingUp } from 'lucide-react';
 import ClientAdminsPage from '../client-admins/page';
 import DoctorsPage from '../doctors/page';
@@ -9,8 +10,18 @@ import ReceptionistsPage from '../receptionists/page';
 import AccountantsPage from '../accountants/page';
 import MarketingUsersPage from '../marketing-users/page';
 
-export default function UserManagementPage() {
+const VALID_TABS = ['client-admins', 'doctors', 'receptionists', 'marketing', 'accountants'];
+
+function UserManagementContent() {
+    const searchParams = useSearchParams();
     const [activeTab, setActiveTab] = useState('client-admins');
+
+    useEffect(() => {
+        const tab = searchParams.get('tab');
+        if (tab && VALID_TABS.includes(tab)) {
+            setActiveTab(tab);
+        }
+    }, [searchParams]);
 
     const tabs = [
         { id: 'client-admins', label: 'Client Admins', icon: UserPlus, component: ClientAdminsPage },
@@ -62,5 +73,13 @@ export default function UserManagementPage() {
                 ))}
             </div>
         </div>
+    );
+}
+
+export default function UserManagementPage() {
+    return (
+        <Suspense fallback={<div className="p-8 text-gray-500">Loading...</div>}>
+            <UserManagementContent />
+        </Suspense>
     );
 }

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const receptionistController = require('../controllers/receptionistController');
-const { authenticate, authorize } = require('../middleware/auth');
+const { authenticate, authorize, requireModule } = require('../middleware/auth');
 
 // All routes require authentication
 router.use(authenticate);
@@ -13,10 +13,10 @@ router.get('/', authorize('SUPER_ADMIN', 'CLIENT_ADMIN'), receptionistController
 router.get('/:id', authorize('SUPER_ADMIN', 'CLIENT_ADMIN'), receptionistController.getReceptionistById);
 
 // POST /api/receptionists - Create new receptionist
-router.post('/', authorize('SUPER_ADMIN', 'CLIENT_ADMIN'), receptionistController.createReceptionist);
+router.post('/', authorize('SUPER_ADMIN', 'CLIENT_ADMIN'), requireModule('reception'), receptionistController.createReceptionist);
 
 // PUT /api/receptionists/:id - Update receptionist
-router.put('/:id', authorize('SUPER_ADMIN', 'CLIENT_ADMIN'), receptionistController.updateReceptionist);
+router.put('/:id', authorize('SUPER_ADMIN', 'CLIENT_ADMIN'), requireModule('reception'), receptionistController.updateReceptionist);
 
 // DELETE /api/receptionists/:id - Delete receptionist
 router.delete('/:id', authorize('SUPER_ADMIN'), receptionistController.deleteReceptionist);

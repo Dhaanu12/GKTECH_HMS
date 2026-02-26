@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const DoctorController = require('../controllers/doctorController');
-const { authenticate, authorize } = require('../middleware/auth');
+const { authenticate, authorize, requireModule } = require('../middleware/auth');
 
 const upload = require('../middleware/uploadMiddleware');
 
-router.post('/', authenticate, authorize('SUPER_ADMIN', 'CLIENT_ADMIN'), upload.single('signature'), DoctorController.createDoctor);
-router.put('/:id', authenticate, authorize('SUPER_ADMIN', 'CLIENT_ADMIN'), upload.single('signature'), DoctorController.updateDoctor);
+router.post('/', authenticate, authorize('SUPER_ADMIN', 'CLIENT_ADMIN'), requireModule('doc'), upload.single('signature'), DoctorController.createDoctor);
+router.put('/:id', authenticate, authorize('SUPER_ADMIN', 'CLIENT_ADMIN'), requireModule('doc'), upload.single('signature'), DoctorController.updateDoctor);
 
 // Get doctors for receptionist's branch
 router.get('/my-branch', authenticate, authorize('RECEPTIONIST'), DoctorController.getMyBranchDoctors);

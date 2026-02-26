@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const accountantController = require('../controllers/accountantController');
-const { authenticate, authorize } = require('../middleware/auth');
+const { authenticate, authorize, requireModule } = require('../middleware/auth');
 const multer = require('multer');
 const path = require('path');
 
@@ -56,9 +56,9 @@ router.get('/analytics/branch-insurers/:branch_id', authenticate, authorize('ACC
 
 
 // Admin Routes (Manage Accountants)
-router.post('/', authenticate, authorize('SUPER_ADMIN', 'CLIENT_ADMIN'), accountantController.createAccountant);
+router.post('/', authenticate, authorize('SUPER_ADMIN', 'CLIENT_ADMIN'), requireModule('acc'), accountantController.createAccountant);
 router.get('/', authenticate, authorize('SUPER_ADMIN', 'CLIENT_ADMIN'), accountantController.getAllAccountants);
 router.get('/:id', authenticate, authorize('SUPER_ADMIN', 'CLIENT_ADMIN'), accountantController.getAccountantById);
-router.put('/:id', authenticate, authorize('SUPER_ADMIN', 'CLIENT_ADMIN'), accountantController.updateAccountant);
+router.put('/:id', authenticate, authorize('SUPER_ADMIN', 'CLIENT_ADMIN'), requireModule('acc'), accountantController.updateAccountant);
 
 module.exports = router;

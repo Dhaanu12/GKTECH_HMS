@@ -9,7 +9,8 @@ import SearchableSelect from '../../../components/ui/SearchableSelect';
 const API_URL = 'http://localhost:5000/api';
 
 export default function NursesPage() {
-    const { user } = useAuth();
+    const { user, hasAccess } = useAuth();
+    const canManageNurses = user?.role_code === 'SUPER_ADMIN' || hasAccess('nurse');
     const [nurses, setNurses] = useState([]);
     const [branches, setBranches] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -192,8 +193,12 @@ export default function NursesPage() {
                     <p className="text-gray-600 text-sm mt-1">Manage all nurses in the system</p>
                 </div>
                 <button
-                    onClick={() => { resetForm(); setShowModal(true); }}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium shadow-lg shadow-blue-500/30"
+                    onClick={() => { if (canManageNurses) { resetForm(); setShowModal(true); } }}
+                    disabled={!canManageNurses}
+                    title={canManageNurses ? '' : 'Nurse module is not enabled for your hospital'}
+                    className={`flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium shadow-lg shadow-blue-500/30 transition ${
+                        canManageNurses ? 'hover:bg-blue-700' : 'opacity-40 cursor-not-allowed blur-[0.5px]'
+                    }`}
                 >
                     <Plus className="w-5 h-5" />
                     Add Nurse
@@ -416,9 +421,15 @@ export default function NursesPage() {
                                     <input
                                         type="tel"
                                         value={formData.phone_number}
-                                        onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
-                                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80"
+                                        onChange={(e) => {
+                                            const value = e.target.value.replace(/\D/g, "");
+                                            setFormData({ ...formData, phone_number: value });
+                                        }}
+                                        maxLength={10}
+                                        className={`w-full px-4 py-2.5 border ${errors.phone_number ? "border-red-500" : "border-gray-300"} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80`}
+                                        placeholder="10-digit phone number"
                                     />
+                                    {errors.phone_number && <p className="text-red-500 text-xs mt-1">{errors.phone_number}</p>}
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Qualification *</label>

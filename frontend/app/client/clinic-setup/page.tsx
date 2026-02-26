@@ -477,7 +477,6 @@ export default function ClinicSetupPage() {
                                     </div>
                                     <p className="text-slate-400 font-bold mb-1">No doctors registered</p>
                                     <p className="text-xs text-slate-400 max-w-[150px]">Add doctors to manage their schedules here.</p>
-                                    <button className="mt-6 text-xs text-white bg-slate-800 px-6 py-2.5 rounded-xl font-bold hover:bg-slate-700 transition">Add New Doctor</button>
                                 </div>
                             )}
                         </div>
