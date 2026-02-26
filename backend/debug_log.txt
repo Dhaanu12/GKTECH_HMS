@@ -1,24 +1,430 @@
-2026-02-25T09:49:36.158Z - getAllPatients called. User: 202, Branch: 57
-2026-02-25T09:49:36.160Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p WHERE p.is_active = true AND ...
-2026-02-25T09:49:36.161Z - Params: [57]
-2026-02-25T09:49:36.173Z - Query returned 0 rows.
-2026-02-25T09:49:36.184Z - getAllPatients called. User: 202, Branch: 57
-2026-02-25T09:49:36.186Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p WHERE p.is_active = true AND ...
-2026-02-25T09:49:36.186Z - Params: [57]
-2026-02-25T09:49:36.190Z - Query returned 0 rows.
-2026-02-25T12:08:43.572Z - getAllPatients called. User: 180, Branch: 55
-2026-02-25T12:08:43.574Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p WHERE p.is_active = true AND ...
-2026-02-25T12:08:43.576Z - Params: [55]
-2026-02-25T12:08:43.586Z - Query returned 38 rows.
-2026-02-25T12:08:43.623Z - getAllPatients called. User: 180, Branch: 55
-2026-02-25T12:08:43.624Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p WHERE p.is_active = true AND ...
-2026-02-25T12:08:43.626Z - Params: [55]
-2026-02-25T12:08:43.636Z - Query returned 38 rows.
-2026-02-25T12:13:17.283Z - getAllPatients called. User: 180, Branch: 55
-2026-02-25T12:13:17.284Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p WHERE p.is_active = true AND ...
-2026-02-25T12:13:17.285Z - Params: [55]
-2026-02-25T12:13:17.303Z - Query returned 38 rows.
-2026-02-25T12:13:17.327Z - getAllPatients called. User: 180, Branch: 55
-2026-02-25T12:13:17.330Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p WHERE p.is_active = true AND ...
-2026-02-25T12:13:17.332Z - Params: [55]
-2026-02-25T12:13:17.348Z - Query returned 38 rows.
+2026-02-17T05:03:31.176Z - getAllPatients called. User: 179, Branch: 7
+2026-02-17T05:03:31.182Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-17T05:03:31.184Z - Params: [7]
+2026-02-17T05:03:31.199Z - Query returned 10 rows.
+2026-02-17T05:03:31.209Z - getAllPatients called. User: 179, Branch: 7
+2026-02-17T05:03:31.211Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-17T05:03:31.212Z - Params: [7]
+2026-02-17T05:03:31.219Z - Query returned 10 rows.
+2026-02-17T05:50:18.612Z - getAllPatients called. User: 179, Branch: 55
+2026-02-17T05:50:18.619Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-17T05:50:18.626Z - Params: [55]
+2026-02-17T05:50:18.654Z - Query returned 50 rows.
+2026-02-17T05:50:18.679Z - getAllPatients called. User: 179, Branch: 55
+2026-02-17T05:50:18.680Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-17T05:50:18.681Z - Params: [55]
+2026-02-17T05:50:18.697Z - Query returned 50 rows.
+2026-02-17T11:50:39.123Z - getAllPatients called. User: 180, Branch: 55
+2026-02-17T11:50:39.132Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-17T11:50:39.134Z - Params: [55]
+2026-02-17T11:50:39.151Z - Query returned 50 rows.
+2026-02-15T16:15:39.010Z - getAllPatients called. User: 180, Branch: 55
+2026-02-15T16:15:39.026Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-15T16:15:39.028Z - Params: [55]
+2026-02-15T16:15:39.061Z - Query returned 6 rows.
+2026-02-15T16:15:39.110Z - getAllPatients called. User: 180, Branch: 55
+2026-02-15T16:15:39.118Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-15T16:15:39.123Z - Params: [55]
+2026-02-15T16:15:39.140Z - Query returned 6 rows.
+2026-02-15T17:06:59.197Z - getAllPatients called. User: 180, Branch: 55
+2026-02-15T17:06:59.210Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-15T17:06:59.212Z - Params: [55]
+2026-02-15T17:06:59.233Z - Query returned 7 rows.
+2026-02-15T17:06:59.259Z - getAllPatients called. User: 180, Branch: 55
+2026-02-15T17:06:59.262Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-15T17:06:59.263Z - Params: [55]
+2026-02-15T17:06:59.273Z - Query returned 7 rows.
+2026-02-15T17:25:26.667Z - getAllPatients called. User: 180, Branch: 55
+2026-02-15T17:25:26.673Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-15T17:25:26.675Z - Params: [55]
+2026-02-15T17:25:26.692Z - Query returned 7 rows.
+2026-02-15T17:25:26.718Z - getAllPatients called. User: 180, Branch: 55
+2026-02-15T17:25:26.722Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-15T17:25:26.724Z - Params: [55]
+2026-02-15T17:25:26.734Z - Query returned 7 rows.
+2026-02-18T05:37:34.276Z - getAllPatients called. User: 180, Branch: 55
+2026-02-18T05:37:34.285Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-18T05:37:34.288Z - Params: [55]
+2026-02-18T05:37:34.312Z - Query returned 1 rows.
+2026-02-18T05:37:34.350Z - getAllPatients called. User: 180, Branch: 55
+2026-02-18T05:37:34.354Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-18T05:37:34.356Z - Params: [55]
+2026-02-18T05:37:34.367Z - Query returned 1 rows.
+2026-02-18T05:37:50.646Z - getAllPatients called. User: 180, Branch: 55
+2026-02-18T05:37:50.650Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-18T05:37:50.652Z - Params: [55]
+2026-02-18T05:37:50.658Z - Query returned 1 rows.
+2026-02-18T05:37:50.686Z - getAllPatients called. User: 180, Branch: 55
+2026-02-18T05:37:50.688Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-18T05:37:50.690Z - Params: [55]
+2026-02-18T05:37:50.699Z - Query returned 1 rows.
+2026-02-18T05:37:54.729Z - getAllPatients called. User: 180, Branch: 55
+2026-02-18T05:37:54.736Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-18T05:37:54.740Z - Params: [55]
+2026-02-18T05:37:54.751Z - Query returned 1 rows.
+2026-02-18T05:37:54.789Z - getAllPatients called. User: 180, Branch: 55
+2026-02-18T05:37:54.793Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-18T05:37:54.801Z - Params: [55]
+2026-02-18T05:37:54.813Z - Query returned 1 rows.
+2026-02-18T05:41:56.765Z - getAllPatients called. User: 180, Branch: 55
+2026-02-18T05:41:56.785Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-18T05:41:56.789Z - Params: [55]
+2026-02-18T05:41:56.801Z - Query returned 1 rows.
+2026-02-18T05:41:56.833Z - getAllPatients called. User: 180, Branch: 55
+2026-02-18T05:41:56.840Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-18T05:41:56.844Z - Params: [55]
+2026-02-18T05:41:56.859Z - Query returned 1 rows.
+2026-02-18T05:43:40.408Z - getAllPatients called. User: 180, Branch: 55
+2026-02-18T05:43:40.416Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-18T05:43:40.421Z - Params: [55]
+2026-02-18T05:43:40.431Z - Query returned 1 rows.
+2026-02-18T05:43:40.460Z - getAllPatients called. User: 180, Branch: 55
+2026-02-18T05:43:40.467Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-18T05:43:40.469Z - Params: [55]
+2026-02-18T05:43:40.480Z - Query returned 1 rows.
+2026-02-18T06:04:12.578Z - getAllPatients called. User: 180, Branch: 55
+2026-02-18T06:04:12.593Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-18T06:04:12.596Z - Params: [55]
+2026-02-18T06:04:12.605Z - Query returned 1 rows.
+2026-02-18T06:04:12.635Z - getAllPatients called. User: 180, Branch: 55
+2026-02-18T06:04:12.650Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-18T06:04:12.652Z - Params: [55]
+2026-02-18T06:04:12.662Z - Query returned 1 rows.
+2026-02-18T06:04:29.112Z - getAllPatients called. User: 180, Branch: 55
+2026-02-18T06:04:29.117Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-18T06:04:29.119Z - Params: [55]
+2026-02-18T06:04:29.126Z - Query returned 1 rows.
+2026-02-18T06:04:29.150Z - getAllPatients called. User: 180, Branch: 55
+2026-02-18T06:04:29.152Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-18T06:04:29.154Z - Params: [55]
+2026-02-18T06:04:29.181Z - Query returned 1 rows.
+2026-02-18T06:07:24.606Z - getAllPatients called. User: 180, Branch: 55
+2026-02-18T06:07:24.615Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-18T06:07:24.617Z - Params: [55]
+2026-02-18T06:07:24.633Z - Query returned 1 rows.
+2026-02-18T06:07:24.663Z - getAllPatients called. User: 180, Branch: 55
+2026-02-18T06:07:24.674Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-18T06:07:24.676Z - Params: [55]
+2026-02-18T06:07:24.690Z - Query returned 1 rows.
+2026-02-18T09:16:02.235Z - getAllPatients called. User: 180, Branch: 55
+2026-02-18T09:16:02.250Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-18T09:16:02.254Z - Params: [55]
+2026-02-18T09:16:02.270Z - Query returned 1 rows.
+2026-02-18T09:16:02.316Z - getAllPatients called. User: 180, Branch: 55
+2026-02-18T09:16:02.328Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-18T09:16:02.330Z - Params: [55]
+2026-02-18T09:16:02.348Z - Query returned 1 rows.
+2026-02-18T09:40:36.839Z - getAllPatients called. User: 180, Branch: 55
+2026-02-18T09:40:36.844Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-18T09:40:36.846Z - Params: [55]
+2026-02-18T09:40:36.854Z - Query returned 1 rows.
+2026-02-18T09:40:36.871Z - getAllPatients called. User: 180, Branch: 55
+2026-02-18T09:40:36.879Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-18T09:40:36.881Z - Params: [55]
+2026-02-18T09:40:36.892Z - Query returned 1 rows.
+2026-02-19T10:48:45.703Z - getAllPatients called. User: 180, Branch: 55
+2026-02-19T10:48:45.707Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-19T10:48:45.708Z - Params: [55]
+2026-02-19T10:48:45.714Z - Query returned 50 rows.
+2026-02-19T10:48:45.728Z - getAllPatients called. User: 180, Branch: 55
+2026-02-19T10:48:45.729Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-19T10:48:45.730Z - Params: [55]
+2026-02-19T10:48:45.736Z - Query returned 50 rows.
+2026-02-19T10:50:36.440Z - getAllPatients called. User: 179, Branch: 55
+2026-02-19T10:50:36.443Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-19T10:50:36.444Z - Params: [55]
+2026-02-19T10:50:36.451Z - Query returned 50 rows.
+2026-02-19T10:50:36.461Z - getAllPatients called. User: 179, Branch: 55
+2026-02-19T10:50:36.462Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-19T10:50:36.462Z - Params: [55]
+2026-02-19T10:50:36.469Z - Query returned 50 rows.
+2026-02-23T08:53:22.983Z - getAllPatients called. User: 179, Branch: 55
+2026-02-23T08:53:22.986Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-23T08:53:22.987Z - Params: [55]
+2026-02-23T08:53:22.999Z - Query returned 50 rows.
+2026-02-23T08:53:23.014Z - getAllPatients called. User: 179, Branch: 55
+2026-02-23T08:53:23.016Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-23T08:53:23.018Z - Params: [55]
+2026-02-23T08:53:23.023Z - Query returned 50 rows.
+2026-02-23T08:53:55.161Z - getAllPatients called. User: 180, Branch: 55
+2026-02-23T08:53:55.165Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-23T08:53:55.166Z - Params: [55]
+2026-02-23T08:53:55.170Z - Query returned 50 rows.
+2026-02-23T08:53:55.188Z - getAllPatients called. User: 180, Branch: 55
+2026-02-23T08:53:55.189Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-23T08:53:55.190Z - Params: [55]
+2026-02-23T08:53:55.195Z - Query returned 50 rows.
+<<<<<<< HEAD
+2026-02-23T11:15:33.629Z - getAllPatients called. User: 180, Branch: 55
+2026-02-23T11:15:33.631Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-23T11:15:33.632Z - Params: [55]
+2026-02-23T11:15:33.638Z - Query returned 50 rows.
+2026-02-23T11:15:54.774Z - getAllPatients called. User: 179, Branch: 55
+2026-02-23T11:15:54.775Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-23T11:15:54.776Z - Params: [55]
+2026-02-23T11:15:54.784Z - Query returned 50 rows.
+=======
+2026-02-23T10:52:23.847Z - getAllPatients called. User: 180, Branch: 55
+2026-02-23T10:52:23.878Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-23T10:52:23.887Z - Params: [55]
+2026-02-23T10:52:23.899Z - Query returned 3 rows.
+2026-02-23T10:52:23.929Z - getAllPatients called. User: 180, Branch: 55
+2026-02-23T10:52:23.931Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-23T10:52:23.935Z - Params: [55]
+2026-02-23T10:52:23.944Z - Query returned 3 rows.
+2026-02-23T10:53:04.065Z - getAllPatients called. User: 180, Branch: 55
+2026-02-23T10:53:04.125Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-23T10:53:04.130Z - Params: [55]
+2026-02-23T10:53:04.159Z - Query returned 3 rows.
+2026-02-23T10:53:04.286Z - getAllPatients called. User: 180, Branch: 55
+2026-02-23T10:53:04.353Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-23T10:53:04.379Z - Params: [55]
+2026-02-23T10:53:04.402Z - Query returned 3 rows.
+2026-02-23T11:08:29.122Z - getAllPatients called. User: 180, Branch: 55
+2026-02-23T11:08:29.137Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-23T11:08:29.141Z - Params: [55]
+2026-02-23T11:08:29.156Z - Query returned 1 rows.
+2026-02-23T11:08:29.227Z - getAllPatients called. User: 180, Branch: 55
+2026-02-23T11:08:29.238Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-23T11:08:29.241Z - Params: [55]
+2026-02-23T11:08:29.257Z - Query returned 1 rows.
+2026-02-23T11:08:31.732Z - getAllPatients called. User: 180, Branch: 55
+2026-02-23T11:08:31.740Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-23T11:08:31.748Z - Params: [55]
+2026-02-23T11:08:31.765Z - Query returned 1 rows.
+2026-02-23T11:08:31.828Z - getAllPatients called. User: 180, Branch: 55
+2026-02-23T11:08:31.858Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-23T11:08:31.865Z - Params: [55]
+2026-02-23T11:08:31.879Z - Query returned 1 rows.
+2026-02-23T11:55:36.220Z - getAllPatients called. User: 180, Branch: 55
+2026-02-23T11:55:36.235Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-23T11:55:36.240Z - Params: [55]
+2026-02-23T11:55:36.251Z - Query returned 1 rows.
+2026-02-23T11:55:36.346Z - getAllPatients called. User: 180, Branch: 55
+2026-02-23T11:55:36.359Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-23T11:55:36.362Z - Params: [55]
+2026-02-23T11:55:36.372Z - Query returned 1 rows.
+<<<<<<< HEAD
+>>>>>>> 08d5bd94aa6e7732d53f0746d41b94bd228e2162
+2026-02-24T04:39:30.722Z - getAllPatients called. User: 180, Branch: 55
+2026-02-24T04:39:30.723Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-24T04:39:30.724Z - Params: [55]
+2026-02-24T04:39:30.731Z - Query returned 50 rows.
+2026-02-24T04:39:30.743Z - getAllPatients called. User: 180, Branch: 55
+2026-02-24T04:39:30.745Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-24T04:39:30.746Z - Params: [55]
+2026-02-24T04:39:30.753Z - Query returned 50 rows.
+2026-02-24T05:16:48.741Z - getAllPatients called. User: 179, Branch: 55
+2026-02-24T05:16:48.743Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-24T05:16:48.743Z - Params: [55]
+2026-02-24T05:16:48.751Z - Query returned 50 rows.
+2026-02-24T05:16:48.764Z - getAllPatients called. User: 179, Branch: 55
+2026-02-24T05:16:48.766Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-24T05:16:48.767Z - Params: [55]
+2026-02-24T05:16:48.771Z - Query returned 50 rows.
+=======
+>>>>>>> c95096f614c92b8881e7effbfa4a07e678782c86
+2026-02-24T08:58:51.751Z - getAllPatients called. User: 29, Branch: 5
+2026-02-24T08:58:51.754Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-24T08:58:51.755Z - Params: [5]
+2026-02-24T08:58:51.763Z - Query returned 50 rows.
+2026-02-24T08:58:51.779Z - getAllPatients called. User: 29, Branch: 5
+2026-02-24T08:58:51.781Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-24T08:58:51.782Z - Params: [5]
+2026-02-24T08:58:51.786Z - Query returned 50 rows.
+2026-02-24T08:59:34.908Z - getAllPatients called. User: 29, Branch: 5
+2026-02-24T08:59:34.909Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-24T08:59:34.910Z - Params: [5]
+2026-02-24T08:59:34.917Z - Query returned 50 rows.
+2026-02-24T09:23:28.569Z - getMyPatients called. User: 208, Role: DOCTOR
+2026-02-24T09:23:28.571Z - Executing SQL:  SELECT p.*, MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit, BOOL_OR(o.is_mlc) as is_ml...
+2026-02-24T09:23:28.572Z - Params: [208]
+2026-02-24T09:23:28.579Z - Query returned 0 rows.
+2026-02-24T09:23:28.591Z - getMyPatients called. User: 208, Role: DOCTOR
+2026-02-24T09:23:28.595Z - Executing SQL:  SELECT p.*, MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit, BOOL_OR(o.is_mlc) as is_ml...
+2026-02-24T09:23:28.595Z - Params: [208]
+2026-02-24T09:23:28.598Z - Query returned 0 rows.
+2026-02-24T09:23:37.865Z - getMyPatients called. User: 208, Role: DOCTOR
+2026-02-24T09:23:37.866Z - Executing SQL:  SELECT p.*, MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit, BOOL_OR(o.is_mlc) as is_ml...
+2026-02-24T09:23:37.867Z - Params: [208]
+2026-02-24T09:23:37.869Z - Query returned 0 rows.
+2026-02-24T09:23:37.878Z - getMyPatients called. User: 208, Role: DOCTOR
+2026-02-24T09:23:37.880Z - Executing SQL:  SELECT p.*, MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit, BOOL_OR(o.is_mlc) as is_ml...
+2026-02-24T09:23:37.881Z - Params: [208]
+2026-02-24T09:23:37.885Z - Query returned 0 rows.
+2026-02-24T09:25:34.586Z - getAllPatients called. User: 209, Branch: 6
+2026-02-24T09:25:34.589Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-24T09:25:34.591Z - Params: [6]
+2026-02-24T09:25:34.601Z - Query returned 50 rows.
+2026-02-24T09:25:34.618Z - getAllPatients called. User: 209, Branch: 6
+2026-02-24T09:25:34.621Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-24T09:25:34.622Z - Params: [6]
+2026-02-24T09:25:34.631Z - Query returned 50 rows.
+2026-02-24T09:26:04.358Z - getAllPatients called. User: 209, Branch: 6
+2026-02-24T09:26:04.360Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-24T09:26:04.361Z - Params: [6]
+2026-02-24T09:26:04.366Z - Query returned 50 rows.
+2026-02-24T09:26:04.376Z - getAllPatients called. User: 209, Branch: 6
+2026-02-24T09:26:04.377Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-24T09:26:04.378Z - Params: [6]
+2026-02-24T09:26:04.383Z - Query returned 50 rows.
+2026-02-24T10:32:00.112Z - getAllPatients called. User: 180, Branch: 55
+2026-02-24T10:32:00.120Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-24T10:32:00.123Z - Params: [55]
+2026-02-24T10:32:00.136Z - Query returned 50 rows.
+2026-02-24T10:32:00.163Z - getAllPatients called. User: 180, Branch: 55
+2026-02-24T10:32:00.164Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-24T10:32:00.166Z - Params: [55]
+2026-02-24T10:32:00.178Z - Query returned 50 rows.
+2026-02-24T10:57:04.954Z - getAllPatients called. User: 179, Branch: 55
+2026-02-24T10:57:04.956Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-24T10:57:04.956Z - Params: [55]
+2026-02-24T10:57:04.961Z - Query returned 50 rows.
+2026-02-24T10:57:04.973Z - getAllPatients called. User: 179, Branch: 55
+2026-02-24T10:57:04.975Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-24T10:57:04.975Z - Params: [55]
+2026-02-24T10:57:04.980Z - Query returned 50 rows.
+2026-02-24T10:59:18.039Z - getAllPatients called. User: 179, Branch: 55
+2026-02-24T10:59:18.040Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-24T10:59:18.041Z - Params: [55]
+2026-02-24T10:59:18.049Z - Query returned 50 rows.
+2026-02-24T10:59:18.057Z - getAllPatients called. User: 179, Branch: 55
+2026-02-24T10:59:18.058Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-24T10:59:18.059Z - Params: [55]
+2026-02-24T10:59:18.065Z - Query returned 50 rows.
+2026-02-24T11:03:06.906Z - getMyPatients called. User: 186, Role: DOCTOR
+2026-02-24T11:03:06.907Z - Executing SQL:  SELECT p.*, MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit, BOOL_OR(o.is_mlc) as is_ml...
+2026-02-24T11:03:06.908Z - Params: [186]
+2026-02-24T11:03:06.913Z - Query returned 10 rows.
+2026-02-24T11:03:06.925Z - getMyPatients called. User: 186, Role: DOCTOR
+2026-02-24T11:03:06.926Z - Executing SQL:  SELECT p.*, MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit, BOOL_OR(o.is_mlc) as is_ml...
+2026-02-24T11:03:06.927Z - Params: [186]
+2026-02-24T11:03:06.929Z - Query returned 10 rows.
+2026-02-25T10:27:49.731Z - getAllPatients called. User: 217, Branch: 60
+2026-02-25T10:27:49.793Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-25T10:27:49.799Z - Params: [60]
+2026-02-25T10:27:49.845Z - Query returned 50 rows.
+2026-02-25T10:27:49.916Z - getAllPatients called. User: 217, Branch: 60
+2026-02-25T10:27:49.931Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-25T10:27:49.932Z - Params: [60]
+2026-02-25T10:27:49.952Z - Query returned 50 rows.
+2026-02-25T10:28:14.930Z - getAllPatients called. User: 217, Branch: 60
+2026-02-25T10:28:14.978Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-25T10:28:14.980Z - Params: [60]
+2026-02-25T10:28:15.018Z - Query returned 50 rows.
+2026-02-25T10:28:15.104Z - getAllPatients called. User: 217, Branch: 60
+2026-02-25T10:28:15.107Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-25T10:28:15.111Z - Params: [60]
+2026-02-25T10:28:15.136Z - Query returned 50 rows.
+2026-02-25T10:43:01.670Z - getMyPatients called. User: 215, Role: DOCTOR
+2026-02-25T10:43:01.673Z - Executing SQL:  SELECT p.*, MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit, BOOL_OR(o.is_mlc) as is_ml...
+2026-02-25T10:43:01.678Z - Params: [215]
+2026-02-25T10:43:01.688Z - Query returned 3 rows.
+2026-02-25T10:43:01.713Z - getMyPatients called. User: 215, Role: DOCTOR
+2026-02-25T10:43:01.714Z - Executing SQL:  SELECT p.*, MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit, BOOL_OR(o.is_mlc) as is_ml...
+2026-02-25T10:43:01.716Z - Params: [215]
+2026-02-25T10:43:01.724Z - Query returned 3 rows.
+2026-02-25T10:43:18.910Z - getMyPatients called. User: 215, Role: DOCTOR
+2026-02-25T10:43:18.912Z - Executing SQL:  SELECT p.*, MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit, BOOL_OR(o.is_mlc) as is_ml...
+2026-02-25T10:43:18.914Z - Params: [215]
+2026-02-25T10:43:18.924Z - Query returned 3 rows.
+2026-02-25T10:43:18.943Z - getMyPatients called. User: 215, Role: DOCTOR
+2026-02-25T10:43:18.946Z - Executing SQL:  SELECT p.*, MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit, BOOL_OR(o.is_mlc) as is_ml...
+2026-02-25T10:43:18.947Z - Params: [215]
+2026-02-25T10:43:18.954Z - Query returned 3 rows.
+2026-02-25T10:43:25.676Z - getMyPatients called. User: 215, Role: DOCTOR
+2026-02-25T10:43:25.678Z - Executing SQL:  SELECT p.*, MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit, BOOL_OR(o.is_mlc) as is_ml...
+2026-02-25T10:43:25.679Z - Params: [215]
+2026-02-25T10:43:25.686Z - Query returned 3 rows.
+2026-02-25T10:43:25.707Z - getMyPatients called. User: 215, Role: DOCTOR
+2026-02-25T10:43:25.708Z - Executing SQL:  SELECT p.*, MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit, BOOL_OR(o.is_mlc) as is_ml...
+2026-02-25T10:43:25.709Z - Params: [215]
+2026-02-25T10:43:25.716Z - Query returned 3 rows.
+2026-02-25T10:47:30.100Z - getAllPatients called. User: 217, Branch: 60
+2026-02-25T10:47:30.113Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-25T10:47:30.115Z - Params: [60]
+2026-02-25T10:47:30.133Z - Query returned 50 rows.
+2026-02-25T10:47:30.195Z - getAllPatients called. User: 217, Branch: 60
+2026-02-25T10:47:30.197Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-25T10:47:30.199Z - Params: [60]
+2026-02-25T10:47:30.225Z - Query returned 50 rows.
+2026-02-25T10:47:41.535Z - getMyPatients called. User: 215, Role: DOCTOR
+2026-02-25T10:47:41.538Z - Executing SQL:  SELECT p.*, MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit, BOOL_OR(o.is_mlc) as is_ml...
+2026-02-25T10:47:41.540Z - Params: [215]
+2026-02-25T10:47:41.551Z - Query returned 3 rows.
+2026-02-25T10:47:41.572Z - getMyPatients called. User: 215, Role: DOCTOR
+2026-02-25T10:47:41.573Z - Executing SQL:  SELECT p.*, MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit, BOOL_OR(o.is_mlc) as is_ml...
+2026-02-25T10:47:41.579Z - Params: [215]
+2026-02-25T10:47:41.587Z - Query returned 3 rows.
+2026-02-25T10:50:48.286Z - getMyPatients called. User: 215, Role: DOCTOR
+2026-02-25T10:50:48.289Z - Executing SQL:  SELECT p.*, MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit, BOOL_OR(o.is_mlc) as is_ml...
+2026-02-25T10:50:48.290Z - Params: [215]
+2026-02-25T10:50:48.301Z - Query returned 3 rows.
+2026-02-25T10:50:48.323Z - getMyPatients called. User: 215, Role: DOCTOR
+2026-02-25T10:50:48.326Z - Executing SQL:  SELECT p.*, MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit, BOOL_OR(o.is_mlc) as is_ml...
+2026-02-25T10:50:48.326Z - Params: [215]
+2026-02-25T10:50:48.332Z - Query returned 3 rows.
+2026-02-25T10:50:53.162Z - getMyPatients called. User: 215, Role: DOCTOR
+2026-02-25T10:50:53.167Z - Executing SQL:  SELECT p.*, MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit, BOOL_OR(o.is_mlc) as is_ml...
+2026-02-25T10:50:53.169Z - Params: [215]
+2026-02-25T10:50:53.174Z - Query returned 3 rows.
+2026-02-25T10:50:53.192Z - getMyPatients called. User: 215, Role: DOCTOR
+2026-02-25T10:50:53.193Z - Executing SQL:  SELECT p.*, MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit, BOOL_OR(o.is_mlc) as is_ml...
+2026-02-25T10:50:53.194Z - Params: [215]
+2026-02-25T10:50:53.202Z - Query returned 3 rows.
+2026-02-25T10:54:09.191Z - getAllPatients called. User: 216, Branch: 60
+2026-02-25T10:54:09.196Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-25T10:54:09.198Z - Params: [60]
+2026-02-25T10:54:09.238Z - Query returned 50 rows.
+2026-02-25T10:54:09.279Z - getAllPatients called. User: 216, Branch: 60
+2026-02-25T10:54:09.289Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-25T10:54:09.291Z - Params: [60]
+2026-02-25T10:54:09.311Z - Query returned 50 rows.
+2026-02-25T10:54:56.447Z - getAllPatients called. User: 216, Branch: 60
+2026-02-25T10:54:56.453Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-25T10:54:56.456Z - Params: [60]
+2026-02-25T10:54:56.481Z - Query returned 50 rows.
+2026-02-25T10:54:56.504Z - getAllPatients called. User: 216, Branch: 60
+2026-02-25T10:54:56.506Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-25T10:54:56.506Z - Params: [60]
+2026-02-25T10:54:56.518Z - Query returned 50 rows.
+2026-02-25T10:57:44.686Z - getMyPatients called. User: 215, Role: DOCTOR
+2026-02-25T10:57:44.692Z - Executing SQL:  SELECT p.*, MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit, BOOL_OR(o.is_mlc) as is_ml...
+2026-02-25T10:57:44.695Z - Params: [215]
+2026-02-25T10:57:44.710Z - Query returned 3 rows.
+2026-02-25T10:57:44.730Z - getMyPatients called. User: 215, Role: DOCTOR
+2026-02-25T10:57:44.731Z - Executing SQL:  SELECT p.*, MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit, BOOL_OR(o.is_mlc) as is_ml...
+2026-02-25T10:57:44.732Z - Params: [215]
+2026-02-25T10:57:44.742Z - Query returned 3 rows.
+2026-02-25T11:33:35.036Z - getAllPatients called. User: 217, Branch: 60
+2026-02-25T11:33:35.039Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-25T11:33:35.040Z - Params: [60]
+2026-02-25T11:33:35.054Z - Query returned 50 rows.
+2026-02-25T11:33:35.070Z - getAllPatients called. User: 217, Branch: 60
+2026-02-25T11:33:35.072Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-25T11:33:35.073Z - Params: [60]
+2026-02-25T11:33:35.082Z - Query returned 50 rows.
+2026-02-25T11:33:45.831Z - getAllPatients called. User: 217, Branch: 60
+2026-02-25T11:33:45.834Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-25T11:33:45.836Z - Params: [60]
+2026-02-25T11:33:45.846Z - Query returned 50 rows.
+2026-02-25T11:33:45.866Z - getAllPatients called. User: 217, Branch: 60
+2026-02-25T11:33:45.868Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-25T11:33:45.869Z - Params: [60]
+2026-02-25T11:33:45.877Z - Query returned 50 rows.
+2026-02-25T11:33:53.784Z - getAllPatients called. User: 217, Branch: 60
+2026-02-25T11:33:53.786Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-25T11:33:53.788Z - Params: [60]
+2026-02-25T11:33:53.796Z - Query returned 50 rows.
+2026-02-25T11:33:53.816Z - getAllPatients called. User: 217, Branch: 60
+2026-02-25T11:33:53.817Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-25T11:33:53.818Z - Params: [60]
+2026-02-25T11:33:53.828Z - Query returned 50 rows.
+2026-02-25T11:34:05.644Z - getAllPatients called. User: 217, Branch: 60
+2026-02-25T11:34:05.646Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-25T11:34:05.647Z - Params: [60]
+2026-02-25T11:34:05.656Z - Query returned 50 rows.
+2026-02-25T11:34:05.671Z - getAllPatients called. User: 217, Branch: 60
+2026-02-25T11:34:05.672Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
+2026-02-25T11:34:05.675Z - Params: [60]
+2026-02-25T11:34:05.684Z - Query returned 50 rows.
