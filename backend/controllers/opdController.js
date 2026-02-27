@@ -712,21 +712,29 @@ class OpdController {
                 return next(new AppError('Branch not linked to your account', 403));
             }
 
-            // 1. Today's OPD Count
+            // 1. Patients SEEN Today = only Completed visits
             const opdResult = await query(`
                 SELECT COUNT(*) as count 
                 FROM opd_entries 
                 WHERE branch_id = $1 AND visit_date = CURRENT_DATE
+                AND visit_status = 'Completed'
             `, [branch_id]);
 
-            // 2. Unique Patients Seen Today (branch-specific)
-            const patientsResult = await query(`
-                SELECT COUNT(DISTINCT patient_id) as count 
+            // 1b. Total registered today (all non-cancelled) — for context/info
+            const totalTodayResult = await query(`
+                SELECT COUNT(*) as count 
                 FROM opd_entries 
                 WHERE branch_id = $1 AND visit_date = CURRENT_DATE
                 AND visit_status NOT IN ('Cancelled', 'Rescheduled')
             `, [branch_id]);
 
+            // 2. Unique Patients Seen Today — only Completed (branch-specific)
+            const patientsResult = await query(`
+                SELECT COUNT(DISTINCT patient_id) as count 
+                FROM opd_entries 
+                WHERE branch_id = $1 AND visit_date = CURRENT_DATE
+                AND visit_status = 'Completed'
+            `, [branch_id]);
 
             // 3. Today's Appointments
             const apptResult = await query(`
@@ -735,7 +743,7 @@ class OpdController {
                 WHERE branch_id = $1 AND appointment_date = CURRENT_DATE
             `, [branch_id]);
 
-            // 5. Queue Status (Today)
+            // 5. Queue Status (Today) — Registered or In-consultation
             const queueResult = await query(`
                 SELECT COUNT(*) as queue_count
                 FROM opd_entries
@@ -754,7 +762,7 @@ class OpdController {
                 WHERE branch_id = $1 AND DATE(billing_date) = CURRENT_DATE AND status != 'Cancelled'
             `, [branch_id]);
 
-            // 6. Yesterday's OPD Count (for growth comparison)
+            // 7. Yesterday's Completed OPD Count (for growth comparison)
             const yesterdayOpdResult = await query(`
                 SELECT COUNT(*) as count 
                 FROM opd_entries 
@@ -763,6 +771,7 @@ class OpdController {
                     FROM opd_entries 
                     WHERE branch_id = $1 AND visit_date < CURRENT_DATE
                 )
+                AND visit_status = 'Completed'
             `, [branch_id]);
 
             const finStats = financialResult.rows[0];
@@ -772,11 +781,12 @@ class OpdController {
                 status: 'success',
                 data: {
                     stats: {
-                        todayOpd: parseInt(opdResult.rows[0].count),
+                        todayOpd: parseInt(opdResult.rows[0].count),           // Completed visits only
+                        totalRegisteredToday: parseInt(totalTodayResult.rows[0].count), // All non-cancelled
                         yesterdayOpd: parseInt(yesterdayOpdResult.rows[0].count),
                         newPatients: parseInt(patientsResult.rows[0].count),
                         todayAppointments: parseInt(apptResult.rows[0].count),
-                        pendingOpd: parseInt(queueStats.queue_count || 0), // Queue (Registered + In-consultation)
+                        pendingOpd: parseInt(queueStats.queue_count || 0),     // Queue (Registered + In-consultation)
 
                         // Financials
                         collectedAmount: parseFloat(finStats.collected_amount || 0),
@@ -791,6 +801,7 @@ class OpdController {
             next(new AppError('Failed to fetch dashboard stats', 500));
         }
     }
+
 
     /**
      * Get today's OPD entries
