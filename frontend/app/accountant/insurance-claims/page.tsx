@@ -696,6 +696,8 @@ export default function ClaimsPage() {
                                         <th className="text-left py-3 px-4 font-semibold text-gray-600">Approval No</th>
                                         <th className="text-left py-3 px-4 font-semibold text-gray-600">Insurance</th>
                                         <th className="text-right py-3 px-4 font-semibold text-gray-600">Bill</th>
+                                        <th className="text-right py-3 px-4 font-semibold text-gray-600">Approval Amt</th>
+                                        <th className="text-right py-3 px-4 font-semibold text-gray-600">Discount</th>
                                         <th className="text-right py-3 px-4 font-semibold text-gray-600">Received</th>
                                         <th className="text-right py-3 px-4 font-semibold text-gray-600">Pending</th>
                                         <th className="py-3 px-4"></th>
@@ -704,14 +706,14 @@ export default function ClaimsPage() {
                                 <tbody>
                                     {loading ? (
                                         <tr>
-                                            <td colSpan={7} className="py-12 text-center">
+                                            <td colSpan={11} className="py-12 text-center">
                                                 <Loader2 className="w-6 h-6 animate-spin mx-auto text-blue-600" />
                                                 <p className="text-gray-500 mt-2">Loading claims...</p>
                                             </td>
                                         </tr>
                                     ) : claims.length === 0 ? (
                                         <tr>
-                                            <td colSpan={7} className="py-12 text-center text-gray-500">
+                                            <td colSpan={11} className="py-12 text-center text-gray-500">
                                                 No claims found. Try adjusting your filters.
                                             </td>
                                         </tr>
@@ -739,6 +741,8 @@ export default function ClaimsPage() {
                                                         </span>
                                                     </td>
                                                     <td className="py-3 px-4 text-right">{formatCurrency(claim.bill_amount)}</td>
+                                                    <td className="py-3 px-4 text-right text-blue-600">{formatCurrency(claim.approval_amount)}</td>
+                                                    <td className="py-3 px-4 text-right text-orange-600">{formatCurrency(claim.discount)}</td>
                                                     <td className="py-3 px-4 text-right text-green-600">{formatCurrency(claim.amount_received)}</td>
                                                     <td className="py-3 px-4 text-right font-semibold text-red-600">{formatCurrency(claim.pending_amount)}</td>
                                                     <td className="py-3 px-4">
@@ -753,7 +757,7 @@ export default function ClaimsPage() {
                                                 {/* Expanded Edit Row */}
                                                 {expandedRow === claim.claim_id && editingClaim && (
                                                     <tr className="bg-blue-50/50">
-                                                        <td colSpan={7} className="p-4">
+                                                        <td colSpan={11} className="p-4">
                                                             {claim.is_updated === 1 ? (
                                                                 <div className="text-center py-4 text-gray-500">
                                                                     <AlertCircle className="w-5 h-5 mx-auto mb-2" />

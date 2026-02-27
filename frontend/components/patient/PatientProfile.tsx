@@ -1597,16 +1597,60 @@ export default function PatientProfile({ patientId, userRole = 'nurse' }: Patien
                                                 )}
 
                                                 {/* Labs Ordered */}
-                                                {(consult.labs_ordered || consult.labs) && (
-                                                    <div>
-                                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-                                                            <Beaker className="w-3 h-3" /> Labs Ordered
-                                                        </h4>
-                                                        <div className="bg-cyan-50 rounded-lg p-3 border border-cyan-100">
-                                                            <p className="text-sm text-cyan-800">{typeof (consult.labs_ordered || consult.labs) === 'string' ? (consult.labs_ordered || consult.labs) : JSON.stringify(consult.labs_ordered || consult.labs)}</p>
+                                                {(consult.labs_ordered || consult.labs) && (() => {
+                                                    const rawLabs = consult.labs_ordered || consult.labs;
+                                                    let labs: any[] = [];
+                                                    if (typeof rawLabs === 'string') {
+                                                        try {
+                                                            const parsed = JSON.parse(rawLabs);
+                                                            labs = Array.isArray(parsed) ? parsed : [parsed];
+                                                        } catch {
+                                                            // Not valid JSON — show as plain text
+                                                            return (
+                                                                <div>
+                                                                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+                                                                        <Beaker className="w-3 h-3" /> Labs Ordered
+                                                                    </h4>
+                                                                    <div className="bg-cyan-50 rounded-lg p-3 border border-cyan-100">
+                                                                        <p className="text-sm text-cyan-800">{rawLabs}</p>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        }
+                                                    } else if (Array.isArray(rawLabs)) {
+                                                        labs = rawLabs;
+                                                    } else if (rawLabs && typeof rawLabs === 'object') {
+                                                        labs = [rawLabs];
+                                                    }
+                                                    if (labs.length === 0) return null;
+                                                    return (
+                                                        <div>
+                                                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+                                                                <Beaker className="w-3 h-3" /> Labs Ordered
+                                                            </h4>
+                                                            <div className="bg-cyan-50 rounded-lg p-3 border border-cyan-100 space-y-2">
+                                                                {labs.map((lab: any, idx: number) => (
+                                                                    <div key={idx} className="flex items-center justify-between bg-white/60 rounded-lg px-3 py-2 border border-cyan-100">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <Beaker className="w-3.5 h-3.5 text-cyan-600 flex-shrink-0" />
+                                                                            <span className="text-sm font-medium text-cyan-900">
+                                                                                {lab.test_name || lab.service_name || lab.name || (typeof lab === 'string' ? lab : 'Lab Test')}
+                                                                            </span>
+                                                                            {lab.category && (
+                                                                                <span className="px-1.5 py-0.5 bg-cyan-100 text-cyan-700 rounded text-xs font-medium">
+                                                                                    {lab.category}
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                        {lab.price != null && Number(lab.price) > 0 && (
+                                                                            <span className="text-xs font-semibold text-cyan-700">₹{Number(lab.price).toLocaleString()}</span>
+                                                                        )}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                )}
+                                                    );
+                                                })()}
 
                                                 {/* Follow-up */}
                                                 {consult.follow_up_date && (

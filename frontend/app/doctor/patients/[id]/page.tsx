@@ -209,7 +209,8 @@ export default function PatientDetails() {
         opd_id: undefined as number | undefined,
         diagnosis: '',
         diagnosis_list: [] as any[],
-        pathology_lab: '',
+        pathology_lab: '', // keep as string for backward compatibility, will store comma separated
+        pathology_lab_list: [] as string[],
         notes: '',
         labs: [] as any[],
         medications: [] as any[],
@@ -231,6 +232,9 @@ export default function PatientDetails() {
     const [consultationHistory, setConsultationHistory] = useState<any[]>([]);
     const [referralDoctors, setReferralDoctors] = useState<any[]>([]);
     const [referralHospitals, setReferralHospitals] = useState<any[]>([]);
+    const [referralDiagnostics, setReferralDiagnostics] = useState<any[]>([]);
+    const [showPathologyDropdown, setShowPathologyDropdown] = useState(false);
+    const [pathologySearchQuery, setPathologySearchQuery] = useState('');
 
     // MLC State
     const [showMlcModal, setShowMlcModal] = useState(false);
@@ -423,12 +427,14 @@ export default function PatientDetails() {
             const token = localStorage.getItem('token');
             if (!token) return;
 
-            const [hospitalsRes, doctorsRes] = await Promise.all([
+            const [hospitalsRes, doctorsRes, diagnosticsRes] = await Promise.all([
                 axios.get(`${API_URL}/referrals/hospitals?mapped_only=true`, { headers: { Authorization: `Bearer ${token}` } }),
-                axios.get(`${API_URL}/referrals/doctors`, { headers: { Authorization: `Bearer ${token}` } })
+                axios.get(`${API_URL}/referrals/doctors`, { headers: { Authorization: `Bearer ${token}` } }),
+                axios.get(`${API_URL}/referrals/diagnostics`, { headers: { Authorization: `Bearer ${token}` } })
             ]);
             setReferralHospitals(hospitalsRes.data.data.referralHospitals || []);
             setReferralDoctors(doctorsRes.data.data.referralDoctors || []);
+            setReferralDiagnostics(diagnosticsRes.data.data.referralDiagnostics || []);
         } catch (error: any) {
             if (axios.isAxiosError(error) && error.response?.status === 401) {
                 const failedUrl = error.config?.url;
@@ -456,6 +462,7 @@ export default function PatientDetails() {
                     diagnosis: draft.diagnosis || '',
                     diagnosis_list: draft.diagnosis_data || [],
                     pathology_lab: draft.diagnostic_center || draft.pathology_lab || '',
+                    pathology_lab_list: (draft.diagnostic_center || draft.pathology_lab) ? (draft.diagnostic_center || draft.pathology_lab).split(', ').filter((d: string) => d.trim() !== '') : [],
                     notes: draft.notes || '',
                     labs: draft.labs || [],
                     medications: draft.medications || [],
@@ -1230,25 +1237,26 @@ export default function PatientDetails() {
     const handleAddLab = () => {
         if (!newLab.test_name.trim()) return;
 
-        if (labSearchResults.length > 0) {
-            const service = labSearchResults[0];
+        const exactMatch = labSearchResults.find(s => (s.service_name || '').toLowerCase() === newLab.test_name.trim().toLowerCase());
+
+        if (exactMatch) {
+            selectLabService(exactMatch);
+        } else {
             setConsultationData(prev => ({
                 ...prev,
                 labs: [...prev.labs, {
-                    test_name: service.service_name,
+                    test_name: newLab.test_name.trim(),
                     lab_name: '', // User will enter this if external
-                    source: service.source || 'medical_service',
-                    category: service.category,
-                    price: service.price,
-                    code: service.code,
-                    service_id: service.id || service.service_id
+                    source: 'custom_entry',
+                    category: 'Lab Test',
+                    price: 0,
+                    code: '',
+                    service_id: null
                 }]
             }));
             setNewLab({ test_name: '', lab_name: '' });
             setShowLabDropdown(false);
             setLabSearchResults([]);
-        } else {
-            showCustomAlert('info', 'No Result Found', 'Please select a valid test from the list.');
         }
     };
 
@@ -2286,14 +2294,110 @@ export default function PatientDetails() {
                                                     */}
                                                     {(consultationData.pathology_lab || hasExternalDiagnosis || consultationData.labs.some((l: any) => l.source && l.source !== 'billing_setup_master')) && (
                                                         <div className="mt-3 pt-3 border-t border-slate-200 animate-in fade-in slide-in-from-top-2">
-                                                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Pathology/Lab (Diagnostic center)</label>
-                                                            <input
-                                                                type="text"
-                                                                placeholder="Enter Diagnostic Center..."
-                                                                className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 focus:ring-2 focus:ring-purple-500/10 focus:border-purple-300 transition-all outline-none"
-                                                                value={consultationData.pathology_lab || ''}
-                                                                onChange={(e) => setConsultationData({ ...consultationData, pathology_lab: e.target.value })}
-                                                            />
+                                                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Pathology/Lab (Diagnostic centers)</label>
+                                                            <div className="bg-slate-50/50 rounded-xl border border-slate-200 p-3 min-h-[128px] flex flex-col hover:shadow-md transition-shadow">
+                                                                <div className="relative z-10">
+                                                                    <div className="flex gap-2 mb-2">
+                                                                        <input
+                                                                            type="text"
+                                                                            placeholder="Search or Enter Diagnostic Center..."
+                                                                            className="flex-1 w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 focus:ring-2 focus:ring-purple-500/10 focus:border-purple-300 transition-all outline-none"
+                                                                            value={pathologySearchQuery}
+                                                                            onChange={(e) => {
+                                                                                setPathologySearchQuery(e.target.value);
+                                                                                setShowPathologyDropdown(true);
+                                                                            }}
+                                                                            onFocus={() => setShowPathologyDropdown(true)}
+                                                                            onBlur={() => setTimeout(() => setShowPathologyDropdown(false), 200)}
+                                                                            onKeyDown={(e) => {
+                                                                                if (e.key === 'Enter') {
+                                                                                    e.preventDefault();
+                                                                                    if (pathologySearchQuery.trim()) {
+                                                                                        const newList = [...(consultationData.pathology_lab_list || []), pathologySearchQuery.trim()];
+                                                                                        setConsultationData({
+                                                                                            ...consultationData,
+                                                                                            pathology_lab_list: newList,
+                                                                                            pathology_lab: newList.join(', ')
+                                                                                        });
+                                                                                        setPathologySearchQuery('');
+                                                                                        setShowPathologyDropdown(false);
+                                                                                    }
+                                                                                }
+                                                                            }}
+                                                                        />
+                                                                        <button
+                                                                            onClick={() => {
+                                                                                if (pathologySearchQuery.trim()) {
+                                                                                    const newList = [...(consultationData.pathology_lab_list || []), pathologySearchQuery.trim()];
+                                                                                    setConsultationData({
+                                                                                        ...consultationData,
+                                                                                        pathology_lab_list: newList,
+                                                                                        pathology_lab: newList.join(', ')
+                                                                                    });
+                                                                                    setPathologySearchQuery('');
+                                                                                    setShowPathologyDropdown(false);
+                                                                                }
+                                                                            }}
+                                                                            className="p-2 bg-purple-100 hover:bg-purple-200 rounded-lg text-purple-600 transition">
+                                                                            <Plus className="w-4 h-4" />
+                                                                        </button>
+                                                                    </div>
+                                                                    {showPathologyDropdown && (
+                                                                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl z-[100] max-h-48 overflow-y-auto">
+                                                                            {referralDiagnostics.filter(d => d.diagnostic_name.toLowerCase().includes((pathologySearchQuery || '').toLowerCase())).length > 0 ? (
+                                                                                <ul>
+                                                                                    {referralDiagnostics.filter(d => d.diagnostic_name.toLowerCase().includes((pathologySearchQuery || '').toLowerCase())).map((diag: any) => (
+                                                                                        <li
+                                                                                            key={diag.referral_diagnostic_id}
+                                                                                            className="px-3 py-2 hover:bg-purple-50 cursor-pointer text-xs border-b border-slate-50 last:border-none flex justify-between items-center"
+                                                                                            onMouseDown={() => {
+                                                                                                const centerName = diag.diagnostic_name;
+                                                                                                const newList = [...(consultationData.pathology_lab_list || []), centerName];
+                                                                                                setConsultationData({
+                                                                                                    ...consultationData,
+                                                                                                    pathology_lab_list: newList,
+                                                                                                    pathology_lab: newList.join(', ')
+                                                                                                });
+                                                                                                setPathologySearchQuery('');
+                                                                                                setShowPathologyDropdown(false);
+                                                                                            }}
+                                                                                        >
+                                                                                            <span className="font-medium text-slate-700">{diag.diagnostic_name}</span>
+                                                                                            {diag.city && <span className="text-[10px] text-slate-400">{diag.city}</span>}
+                                                                                        </li>
+                                                                                    ))}
+                                                                                </ul>
+                                                                            ) : (
+                                                                                <div className="p-3 text-xs text-slate-500 text-center">Press Enter or + to add "{pathologySearchQuery}"</div>
+                                                                            )}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                                <div className="flex-1 overflow-y-auto space-y-1 custom-scrollbar mt-2">
+                                                                    {consultationData.pathology_lab_list && consultationData.pathology_lab_list.length > 0 ? (
+                                                                        consultationData.pathology_lab_list.map((center: string, index: number) => (
+                                                                            <div key={index} className="flex justify-between items-center bg-white px-3 py-1.5 rounded-lg border border-purple-100 text-xs shadow-sm group">
+                                                                                <span className="font-semibold text-slate-700">{center}</span>
+                                                                                <button
+                                                                                    onClick={() => {
+                                                                                        const newList = [...consultationData.pathology_lab_list];
+                                                                                        newList.splice(index, 1);
+                                                                                        setConsultationData({
+                                                                                            ...consultationData,
+                                                                                            pathology_lab_list: newList,
+                                                                                            pathology_lab: newList.join(', ')
+                                                                                        });
+                                                                                    }}
+                                                                                    className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                                    ×
+                                                                                </button>
+                                                                            </div>
+                                                                        ))
+                                                                    ) : (
+                                                                        <p className="text-xs text-slate-300 text-center mt-2">No centers added</p>
+                                                                    )}
+                                                                </div>
+                                                            </div>
                                                         </div>
                                                     )}
                                                 </div>

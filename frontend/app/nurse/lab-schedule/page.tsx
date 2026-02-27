@@ -143,7 +143,7 @@ export default function LabSchedulePage() {
             if (activeTab !== 'All') {
                 params.status = activeTab;
             }
-            if (activeTab === 'Completed') {
+            if (activeTab === 'Completed' || activeTab === 'All') {
                 params.includeCompleted = 'true';
             }
             if (selectedCategory) {
@@ -252,7 +252,7 @@ export default function LabSchedulePage() {
     };
 
     const tabs = [
-        { id: 'All', label: 'All Orders', count: counts.Ordered + counts['In-Progress'] },
+        { id: 'All', label: 'All Orders', count: counts.Ordered + counts['In-Progress'] + counts.Completed },
         { id: 'Ordered', label: 'Pending', count: counts.Ordered },
         { id: 'In-Progress', label: 'In Progress', count: counts['In-Progress'] },
         { id: 'Completed', label: 'Completed', count: counts.Completed }

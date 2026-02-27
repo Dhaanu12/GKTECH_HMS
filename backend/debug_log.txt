@@ -428,3 +428,83 @@
 2026-02-25T11:34:05.672Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p LEFT JOIN opd_entries o ON p....
 2026-02-25T11:34:05.675Z - Params: [60]
 2026-02-25T11:34:05.684Z - Query returned 50 rows.
+2026-02-26T12:31:02.893Z - getMyPatients called. User: 215, Role: DOCTOR
+2026-02-26T12:31:02.902Z - Executing SQL:  SELECT p.*, MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit, BOOL_OR(o.is_mlc) as is_ml...
+2026-02-26T12:31:02.904Z - Params: [215]
+2026-02-26T12:31:02.923Z - Query returned 3 rows.
+2026-02-26T12:31:03.008Z - getMyPatients called. User: 215, Role: DOCTOR
+2026-02-26T12:31:03.009Z - Executing SQL:  SELECT p.*, MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit, BOOL_OR(o.is_mlc) as is_ml...
+2026-02-26T12:31:03.025Z - Params: [215]
+2026-02-26T12:31:03.033Z - Query returned 3 rows.
+2026-02-26T12:31:20.841Z - getMyPatients called. User: 215, Role: DOCTOR
+2026-02-26T12:31:20.843Z - Executing SQL:  SELECT p.*, MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit, BOOL_OR(o.is_mlc) as is_ml...
+2026-02-26T12:31:20.846Z - Params: [215]
+2026-02-26T12:31:20.858Z - Query returned 3 rows.
+2026-02-26T12:31:20.892Z - getMyPatients called. User: 215, Role: DOCTOR
+2026-02-26T12:31:20.893Z - Executing SQL:  SELECT p.*, MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit, BOOL_OR(o.is_mlc) as is_ml...
+2026-02-26T12:31:20.895Z - Params: [215]
+2026-02-26T12:31:20.906Z - Query returned 3 rows.
+2026-02-26T12:31:34.712Z - getMyPatients called. User: 215, Role: DOCTOR
+2026-02-26T12:31:34.713Z - Executing SQL:  SELECT p.*, MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit, BOOL_OR(o.is_mlc) as is_ml...
+2026-02-26T12:31:34.715Z - Params: [215]
+2026-02-26T12:31:34.727Z - Query returned 3 rows.
+2026-02-26T12:31:34.751Z - getMyPatients called. User: 215, Role: DOCTOR
+2026-02-26T12:31:34.752Z - Executing SQL:  SELECT p.*, MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit, BOOL_OR(o.is_mlc) as is_ml...
+2026-02-26T12:31:34.752Z - Params: [215]
+2026-02-26T12:31:34.759Z - Query returned 3 rows.
+2026-02-26T12:31:44.565Z - getMyPatients called. User: 215, Role: DOCTOR
+2026-02-26T12:31:44.572Z - Executing SQL:  SELECT p.*, MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit, BOOL_OR(o.is_mlc) as is_ml...
+2026-02-26T12:31:44.592Z - Params: [215]
+2026-02-26T12:31:44.622Z - Query returned 3 rows.
+2026-02-26T12:31:44.686Z - getMyPatients called. User: 215, Role: DOCTOR
+2026-02-26T12:31:44.688Z - Executing SQL:  SELECT p.*, MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit, BOOL_OR(o.is_mlc) as is_ml...
+2026-02-26T12:31:44.693Z - Params: [215]
+2026-02-26T12:31:44.708Z - Query returned 3 rows.
+2026-02-27T04:38:16.748Z - getAllPatients called. User: 216, Branch: 60
+2026-02-27T04:38:16.767Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p WHERE p.is_active = true AND ...
+2026-02-27T04:38:16.771Z - Params: [60]
+2026-02-27T04:38:16.809Z - Query returned 3 rows.
+2026-02-27T04:38:16.883Z - getAllPatients called. User: 216, Branch: 60
+2026-02-27T04:38:16.893Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p WHERE p.is_active = true AND ...
+2026-02-27T04:38:16.901Z - Params: [60]
+2026-02-27T04:38:16.930Z - Query returned 3 rows.
+2026-02-27T04:44:50.457Z - getAllPatients called. User: 217, Branch: 60
+2026-02-27T04:44:50.472Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p WHERE p.is_active = true AND ...
+2026-02-27T04:44:50.473Z - Params: [60]
+2026-02-27T04:44:50.520Z - Query returned 3 rows.
+2026-02-27T04:44:50.573Z - getAllPatients called. User: 217, Branch: 60
+2026-02-27T04:44:50.578Z - Executing SQL:  WITH BranchPatients AS ( SELECT DISTINCT p.patient_id FROM patients p WHERE p.is_active = true AND ...
+2026-02-27T04:44:50.579Z - Params: [60]
+2026-02-27T04:44:50.605Z - Query returned 3 rows.
+2026-02-27T07:32:25.453Z - getMyPatients called. User: 215, Role: DOCTOR
+2026-02-27T07:32:25.455Z - Executing SQL:  SELECT p.*, MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit, BOOL_OR(o.is_mlc) as is_ml...
+2026-02-27T07:32:25.456Z - Params: [215]
+2026-02-27T07:32:25.464Z - Query returned 4 rows.
+2026-02-27T07:32:25.478Z - getMyPatients called. User: 215, Role: DOCTOR
+2026-02-27T07:32:25.479Z - Executing SQL:  SELECT p.*, MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit, BOOL_OR(o.is_mlc) as is_ml...
+2026-02-27T07:32:25.479Z - Params: [215]
+2026-02-27T07:32:25.484Z - Query returned 4 rows.
+2026-02-27T07:32:55.638Z - getMyPatients called. User: 215, Role: DOCTOR
+2026-02-27T07:32:55.640Z - Executing SQL:  SELECT p.*, MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit, BOOL_OR(o.is_mlc) as is_ml...
+2026-02-27T07:32:55.641Z - Params: [215]
+2026-02-27T07:32:55.647Z - Query returned 4 rows.
+2026-02-27T07:32:55.661Z - getMyPatients called. User: 215, Role: DOCTOR
+2026-02-27T07:32:55.662Z - Executing SQL:  SELECT p.*, MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit, BOOL_OR(o.is_mlc) as is_ml...
+2026-02-27T07:32:55.663Z - Params: [215]
+2026-02-27T07:32:55.666Z - Query returned 4 rows.
+2026-02-27T08:01:00.046Z - getMyPatients called. User: 215, Role: DOCTOR
+2026-02-27T08:01:00.047Z - Executing SQL:  SELECT p.*, MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit, BOOL_OR(o.is_mlc) as is_ml...
+2026-02-27T08:01:00.048Z - Params: [215]
+2026-02-27T08:01:00.060Z - Query returned 4 rows.
+2026-02-27T08:01:00.074Z - getMyPatients called. User: 215, Role: DOCTOR
+2026-02-27T08:01:00.075Z - Executing SQL:  SELECT p.*, MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit, BOOL_OR(o.is_mlc) as is_ml...
+2026-02-27T08:01:00.076Z - Params: [215]
+2026-02-27T08:01:00.083Z - Query returned 4 rows.
+2026-02-27T08:01:14.460Z - getMyPatients called. User: 215, Role: DOCTOR
+2026-02-27T08:01:14.461Z - Executing SQL:  SELECT p.*, MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit, BOOL_OR(o.is_mlc) as is_ml...
+2026-02-27T08:01:14.462Z - Params: [215]
+2026-02-27T08:01:14.467Z - Query returned 4 rows.
+2026-02-27T08:01:14.479Z - getMyPatients called. User: 215, Role: DOCTOR
+2026-02-27T08:01:14.480Z - Executing SQL:  SELECT p.*, MAX(GREATEST(COALESCE(a.appointment_date, '1900-01-01'), COALESCE(o.visit_date, '1900-01-01'))) as last_visit, BOOL_OR(o.is_mlc) as is_ml...
+2026-02-27T08:01:14.481Z - Params: [215]
+2026-02-27T08:01:14.486Z - Query returned 4 rows.
